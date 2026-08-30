@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, effect, inject, OnInit, signal } from '@angular/core';
+import { AfterViewInit, Component, computed, effect, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WML } from '@wailsio/runtime';
 import { WailsService } from './wails.service';
@@ -7,9 +7,11 @@ import { CollectionApiService, type Collection } from './core/services/collectio
 import { ProjectApiService, type Project } from './core/services/project.service';
 import { EnvironmentApiService, type Environment } from './core/services/environment.service';
 import { EnvironmentVariableApiService, type EnvironmentVariable } from './core/services/environment-variable.service';
+import { FavouriteApiService, type FavouriteCollection } from './core/services/favourite.service';
 import * as EnvironmentService from '../../bindings/snap-rq/backend/services';
 
 type RightPanelMode = 'response' | 'edit';
+type SidebarSection = 'collections' | 'favourites';
 
 @Component({
   selector: 'app-root',
@@ -24,6 +26,7 @@ export class App implements OnInit, AfterViewInit {
   private readonly projectApi = inject(ProjectApiService);
   private readonly environmentApi = inject(EnvironmentApiService);
   private readonly variableApi = inject(EnvironmentVariableApiService);
+  private readonly favouriteApi = inject(FavouriteApiService);
 
   readonly currentTime = this.wails.currentTime;
   readonly collections = this.collectionApi.collections;
@@ -32,17 +35,37 @@ export class App implements OnInit, AfterViewInit {
   readonly projects = this.projectApi.projects;
   readonly environments = this.environmentApi.environments;
   readonly variables = this.variableApi.variables;
+  readonly favouriteCollections = this.favouriteApi.collections;
+  readonly favouriteRequests = this.favouriteApi.requests;
+  readonly favouriteMembership = this.favouriteApi.membership;
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly selectedProject = signal<Project | null>(null);
   readonly selectedEnvironment = signal<Environment | null>(null);
   readonly selectedCollection = signal<Collection | null>(null);
+  readonly selectedFavouriteCollection = signal<FavouriteCollection | null>(null);
   readonly selectedRequest = signal<HttpRequest | null>(null);
   readonly selectedResponse = signal<HttpResponse | null>(null);
   readonly rightPanelMode = signal<RightPanelMode>('response');
   readonly draftRequest = signal<HttpRequest | null>(null);
   readonly variablesOverlayOpen = signal(false);
+  readonly collectionsExpanded = signal(true);
+  readonly favouritesExpanded = signal(false);
+  readonly activeSection = signal<SidebarSection>('collections');
+  readonly favouritePopupOpen = signal(false);
+  readonly favouritePopupRequest = signal<HttpRequest | null>(null);
+  readonly newFavouriteName = signal('');
+
+  readonly activeRequests = computed<HttpRequest[]>(() =>
+    this.activeSection() === 'favourites' ? this.favouriteRequests() : this.requests(),
+  );
+
+  readonly activeCollectionName = computed<string | null>(() =>
+    this.activeSection() === 'favourites'
+      ? this.selectedFavouriteCollection()?.name ?? null
+      : this.selectedCollection()?.name ?? null,
+  );
 
   constructor() {
     effect(() => {
@@ -76,6 +99,7 @@ export class App implements OnInit, AfterViewInit {
       if (all.length > 0) {
         this.selectedProject.set(all[0]);
         await this.loadEnvironments(all[0].id);
+        await this.favouriteApi.loadCollectionsForProfile(all[0].profile_id);
       }
       await this.collectionApi.loadAll();
       const collections = this.collections();
@@ -100,7 +124,7 @@ export class App implements OnInit, AfterViewInit {
     }
   }
 
-  async selectEnvironment(environment: Environment): Promise<void> {
+  selectEnvironment(environment: Environment): void {
     this.selectedEnvironment.set(environment);
   }
 
@@ -111,13 +135,39 @@ export class App implements OnInit, AfterViewInit {
     }
   }
 
+  toggleCollectionsExpanded(): void {
+    this.collectionsExpanded.update(v => !v);
+  }
+
+  toggleFavouritesExpanded(): void {
+    this.favouritesExpanded.update(v => !v);
+  }
+
   async selectCollection(collection: Collection): Promise<void> {
     this.selectedCollection.set(collection);
+    this.selectedFavouriteCollection.set(null);
     this.selectedRequest.set(null);
     this.selectedResponse.set(null);
     this.rightPanelMode.set('response');
+    this.activeSection.set('collections');
+    this.collectionsExpanded.set(true);
     try {
       await this.requestApi.loadForCollection(collection.id);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async selectFavouriteCollection(collection: FavouriteCollection): Promise<void> {
+    this.selectedFavouriteCollection.set(collection);
+    this.selectedCollection.set(null);
+    this.selectedRequest.set(null);
+    this.selectedResponse.set(null);
+    this.rightPanelMode.set('response');
+    this.activeSection.set('favourites');
+    this.favouritesExpanded.set(true);
+    try {
+      await this.favouriteApi.loadRequestsForCollection(collection.id);
     } catch (err) {
       console.error(err);
     }
@@ -169,6 +219,14 @@ export class App implements OnInit, AfterViewInit {
         newList[index] = updated;
         this.requestApi.requests.set(newList);
       }
+
+      const favList = this.favouriteRequests();
+      const favIndex = favList.findIndex(r => r.id === updated.id);
+      if (favIndex !== -1) {
+        const newFavList = [...favList];
+        newFavList[favIndex] = updated;
+        this.favouriteApi.requests.set(newFavList);
+      }
     } catch (err) {
       console.error(err);
       this.error.set('Failed to save request change.');
@@ -183,6 +241,9 @@ export class App implements OnInit, AfterViewInit {
       const resp = await this.requestApi.execute(req.id, environmentId);
       if (this.selectedCollection()) {
         await this.requestApi.loadForCollection(this.selectedCollection()!.id);
+      }
+      if (this.selectedFavouriteCollection()) {
+        await this.favouriteApi.loadRequestsForCollection(this.selectedFavouriteCollection()!.id);
       }
       if (this.selectedRequest()?.id === req.id) {
         await this.loadResponses(req.id);
@@ -283,6 +344,68 @@ export class App implements OnInit, AfterViewInit {
     } catch (err) {
       console.error(err);
       this.error.set('Failed to delete variable.');
+    }
+  }
+
+  openFavouritePopup(req: HttpRequest, event: MouseEvent): void {
+    event.stopPropagation();
+    this.favouritePopupRequest.set(req);
+    this.favouritePopupOpen.set(true);
+    this.newFavouriteName.set('');
+    this.favouriteApi.loadMembershipForRequest(req.id);
+  }
+
+  closeFavouritePopup(): void {
+    this.favouritePopupOpen.set(false);
+    this.favouritePopupRequest.set(null);
+    this.favouriteApi.clearMembership();
+  }
+
+  async toggleFavouriteMembership(collection: FavouriteCollection): Promise<void> {
+    const req = this.favouritePopupRequest();
+    if (!req) return;
+
+    const isMember = this.favouriteMembership().has(collection.id);
+    try {
+      if (isMember) {
+        await this.favouriteApi.removeRequest(collection.id, req.id);
+      } else {
+        await this.favouriteApi.addRequest(collection.id, req.id);
+      }
+      if (this.selectedFavouriteCollection()?.id === collection.id) {
+        await this.favouriteApi.loadRequestsForCollection(collection.id);
+      }
+    } catch (err) {
+      console.error(err);
+      this.error.set('Failed to update favourites.');
+    }
+  }
+
+  async addFavouriteCollection(): Promise<void> {
+    const name = this.newFavouriteName().trim();
+    const profile = this.selectedProject();
+    if (!name || !profile) return;
+
+    try {
+      await this.favouriteApi.createCollection({ profile_id: profile.profile_id, name });
+      this.newFavouriteName.set('');
+    } catch (err) {
+      console.error(err);
+      this.error.set('Failed to add favourite collection.');
+    }
+  }
+
+  async deleteFavouriteCollection(collection: FavouriteCollection, event: MouseEvent): Promise<void> {
+    event.stopPropagation();
+    try {
+      await this.favouriteApi.deleteCollection(collection.id);
+      if (this.selectedFavouriteCollection()?.id === collection.id) {
+        this.selectedFavouriteCollection.set(null);
+        this.favouriteApi.requests.set([]);
+      }
+    } catch (err) {
+      console.error(err);
+      this.error.set('Failed to delete favourite collection.');
     }
   }
 }
