@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
-import * as RequestService from '../../../../bindings/snap-rq/services';
-import type { HttpRequest, HttpResponse } from '../../../../bindings/snap-rq/models';
+import * as RequestService from '../../../../bindings/snap-rq/backend/services';
+import type { HttpRequest, HttpResponse } from '../../../../bindings/snap-rq/backend/models';
 
 export type { HttpRequest, HttpResponse };
 
@@ -50,7 +50,7 @@ export class RequestApiService {
     return RequestService.RequestService.CreateResponse(resp as HttpResponse);
   }
 
-  async execute(requestId: number): Promise<HttpResponse> {
-    return RequestService.RequestService.ExecuteRequest(requestId);
+  async execute(requestId: number, environmentId: number): Promise<HttpResponse> {
+    return RequestService.RequestService.ExecuteRequest(requestId, environmentId);
   }
 }

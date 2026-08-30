@@ -1,6 +1,6 @@
 # Snap RQ
 
-Your API testing buddy!
+Your #1 API testing partner!
 
 ## How to run in dev mode (Wails)
 
@@ -22,17 +22,21 @@ Your API testing buddy!
 
    This will create a production-ready executable in the `build` directory.
 
-### Rebuilding bindings
+## Rebuilding bindings
+On few occasions, we may have to rebuild our bindings
+
 - wails3 generate bindings -ts -i -clean=true
 
-## Seeding mock data
+## Scale test
 
-### Scale test script
+There is a seed script in tools/seed_scale_test.py. Run this when you want to scale test the app.
+TODO: Need to make this populate on a specific profile so we don't drop the database.
 ```
-python scripts/mock_requests.py
+python tools/seed_scale_test.py
 ```
 
-### Reproducible data + clear existing rows first
-```
-python scripts/mock_requests.py --count 100 --seed 42 --clear
-```
+## Echo service
+
+Lives in tools/echo-service
+
+A simple echo service to check quickly if the client works. This is not a replacement for automated client tests.

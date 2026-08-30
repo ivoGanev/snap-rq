@@ -44,6 +44,19 @@ RESPONSE_HEADERS_CHANCE = 0.5
 STATUS_CODES = [200, 201, 204, 301, 302, 400, 401, 403, 404, 422, 500, 502, 503]
 
 METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
+ENVIRONMENT_NAMES = ["Production", "Staging", "Development", "Testing"]
+VARIABLE_KEYS = [
+    "API_BASE_URL",
+    "API_KEY",
+    "AUTH_TOKEN",
+    "TIMEOUT",
+    "RETRY_COUNT",
+    "LOG_LEVEL",
+    "FEATURE_FLAG",
+    "REGION",
+    "BUCKET_NAME",
+    "DATABASE_URL",
+]
 COLLECTION_NAMES = [
     "auth",
     "users",
@@ -113,6 +126,24 @@ CREATE TABLE IF NOT EXISTS responses (
     FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_responses_request_id ON responses(request_id);
+
+CREATE TABLE IF NOT EXISTS environments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_environments_project_id ON environments(project_id);
+
+CREATE TABLE IF NOT EXISTS environment_variables (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    environment_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    FOREIGN KEY (environment_id) REFERENCES environments(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_environment_variables_environment_id ON environment_variables(environment_id);
 """
 
 
@@ -258,8 +289,8 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def create_hierarchy(conn: sqlite3.Connection) -> list[int]:
-    """Create a default profile, project and COLLECTION_COUNT collections."""
+def create_hierarchy(conn: sqlite3.Connection) -> tuple[int, list[int]]:
+    """Create a default profile, project and COLLECTION_COUNT collections. Returns project_id and collection ids."""
     cursor = conn.cursor()
 
     cursor.execute("INSERT INTO profiles (name) VALUES (?)", ("Default Profile",))
@@ -285,7 +316,34 @@ def create_hierarchy(conn: sqlite3.Connection) -> list[int]:
 
     conn.commit()
     print(f"Created profile, project and {len(collection_ids)} collection(s).")
-    return collection_ids
+    return project_id, collection_ids
+
+
+def create_environments(conn: sqlite3.Connection, project_id: int) -> list[int]:
+    """Create environments for the project with dummy variables. Returns environment ids."""
+    cursor = conn.cursor()
+    environment_ids = []
+
+    for name in ENVIRONMENT_NAMES:
+        cursor.execute(
+            "INSERT INTO environments (project_id, name) VALUES (?, ?)",
+            (project_id, name),
+        )
+        environment_id = cursor.lastrowid
+        environment_ids.append(environment_id)
+
+        # Create a random subset of variables for this environment.
+        keys = random.sample(VARIABLE_KEYS, k=random.randint(3, len(VARIABLE_KEYS)))
+        for key in keys:
+            value = random_text(5, 60) if key not in ("TIMEOUT", "RETRY_COUNT", "LOG_LEVEL") else random.choice(["1000", "5000", "30", "60", "3", "5", "DEBUG", "INFO", "WARN"])
+            cursor.execute(
+                "INSERT INTO environment_variables (environment_id, key, value) VALUES (?, ?, ?)",
+                (environment_id, key, value),
+            )
+
+    conn.commit()
+    print(f"Created {len(environment_ids)} environment(s) with dummy variables.")
+    return environment_ids
 
 
 def insert_mock_data(conn: sqlite3.Connection, collection_ids: list[int]) -> tuple[int, int]:
@@ -369,7 +427,8 @@ def main() -> int:
     conn = sqlite3.connect(db_path)
     try:
         ensure_schema(conn)
-        collection_ids = create_hierarchy(conn)
+        project_id, collection_ids = create_hierarchy(conn)
+        create_environments(conn, project_id)
         requests, responses = insert_mock_data(conn, collection_ids)
         print(f"Done. Inserted {requests} request(s), {responses} response(s), across {len(collection_ids)} collection(s).")
     finally:

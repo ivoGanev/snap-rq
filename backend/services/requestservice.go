@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
-	"snap-rq/models"
+	"snap-rq/backend/models"
 )
+
+var interpolationRegex = regexp.MustCompile(`{{\s*([a-zA-Z0-9_-]+)\s*}}`)
 
 // RequestService provides CRUD operations for saved HTTP requests.
 type RequestService struct {
@@ -67,11 +70,24 @@ func (s *RequestService) GetRequest(id int64) (models.HttpRequest, error) {
 // request's latest status/response id and returns the stored response. Network
 // or client errors are captured as a response with the error message in the body
 // and status code 0.
-func (s *RequestService) ExecuteRequest(id int64) (models.HttpResponse, error) {
+// If environmentID is non-zero, any {{variable_name}} placeholders in the URL,
+// headers and body are interpolated using variables from that environment.
+func (s *RequestService) ExecuteRequest(id int64, environmentID int64) (models.HttpResponse, error) {
 	req, err := s.GetRequest(id)
 	if err != nil {
 		return models.HttpResponse{}, fmt.Errorf("loading request: %w", err)
 	}
+
+	variables, err := s.loadVariables(environmentID)
+	if err != nil {
+		return models.HttpResponse{}, fmt.Errorf("loading variables: %w", err)
+	}
+
+	req.URL = interpolate(req.URL, variables)
+	req.Body = interpolate(req.Body, variables)
+	req.RequestHeaders = interpolate(req.RequestHeaders, variables)
+
+	fmt.Printf("[ExecuteRequest] id=%d envID=%d url=%q body=%q\n", id, environmentID, req.URL, req.Body)
 
 	method := strings.ToUpper(strings.TrimSpace(req.Method))
 	if method == "" {
@@ -140,6 +156,50 @@ func (s *RequestService) ExecuteRequest(id int64) (models.HttpResponse, error) {
 	}
 
 	return created, nil
+}
+
+func (s *RequestService) loadVariables(environmentID int64) (map[string]string, error) {
+	if environmentID == 0 {
+		return nil, nil
+	}
+
+	rows, err := s.db.Query(
+		`SELECT key, value FROM environment_variables WHERE environment_id = ?`,
+		environmentID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("querying variables: %w", err)
+	}
+	defer rows.Close()
+
+	variables := make(map[string]string)
+	for rows.Next() {
+		var key, value string
+		if err := rows.Scan(&key, &value); err != nil {
+			return nil, fmt.Errorf("scanning variable: %w", err)
+		}
+		variables[key] = value
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating variables: %w", err)
+	}
+
+	return variables, nil
+}
+
+func interpolate(input string, variables map[string]string) string {
+	if variables == nil {
+		return input
+	}
+
+	return interpolationRegex.ReplaceAllStringFunc(input, func(match string) string {
+		name := interpolationRegex.FindStringSubmatch(match)[1]
+		if value, ok := variables[name]; ok {
+			return value
+		}
+		return match
+	})
 }
 
 func (s *RequestService) storeErrorResponse(requestID int64, execErr error) (models.HttpResponse, error) {
