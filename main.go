@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"snap-rq/database"
-	"snap-rq/services"
+	"snap-rq/backend/database"
+	"snap-rq/backend/services"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -41,6 +41,8 @@ func main() {
 	profileService := services.NewProfileService(db)
 	projectService := services.NewProjectService(db)
 	collectionService := services.NewCollectionService(db)
+	environmentService := services.NewEnvironmentService(db)
+	environmentVariableService := services.NewEnvironmentVariableService(db)
 
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
@@ -51,11 +53,12 @@ func main() {
 		Name:        "snap-rq-wails-v3",
 		Description: "A REST API client",
 		Services: []application.Service{
-			application.NewService(&GreetService{}),
 			application.NewService(requestService),
 			application.NewService(profileService),
 			application.NewService(projectService),
 			application.NewService(collectionService),
+			application.NewService(environmentService),
+			application.NewService(environmentVariableService),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

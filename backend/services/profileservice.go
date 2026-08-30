@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"snap-rq/models"
+	"snap-rq/backend/models"
 )
 
 // ProfileService provides CRUD operations for profiles.

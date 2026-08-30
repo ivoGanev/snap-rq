@@ -89,6 +89,24 @@ func migrate(db *sql.DB) error {
 			FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE
 		);
 		CREATE INDEX IF NOT EXISTS idx_responses_request_id ON responses(request_id);
+
+		CREATE TABLE IF NOT EXISTS environments (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			project_id INTEGER NOT NULL,
+			name TEXT NOT NULL,
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+		);
+		CREATE INDEX IF NOT EXISTS idx_environments_project_id ON environments(project_id);
+
+		CREATE TABLE IF NOT EXISTS environment_variables (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			environment_id INTEGER NOT NULL,
+			key TEXT NOT NULL,
+			value TEXT NOT NULL,
+			FOREIGN KEY (environment_id) REFERENCES environments(id) ON DELETE CASCADE
+		);
+		CREATE INDEX IF NOT EXISTS idx_environment_variables_environment_id ON environment_variables(environment_id);
 	`)
 	return err
 }

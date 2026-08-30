@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"snap-rq/models"
+	"snap-rq/backend/models"
 )
 
 // ProjectService provides CRUD operations for projects.
@@ -46,6 +46,30 @@ func (s *ProjectService) GetProject(id int64) (models.Project, error) {
 		return models.Project{}, fmt.Errorf("getting project: %w", err)
 	}
 	return project, nil
+}
+
+// GetAllProjects returns all projects ordered by name.
+func (s *ProjectService) GetAllProjects() ([]models.Project, error) {
+	rows, err := s.db.Query("SELECT id, profile_id, name FROM projects ORDER BY name")
+	if err != nil {
+		return nil, fmt.Errorf("listing projects: %w", err)
+	}
+	defer rows.Close()
+
+	var projects []models.Project
+	for rows.Next() {
+		var project models.Project
+		if err := rows.Scan(&project.ID, &project.ProfileID, &project.Name); err != nil {
+			return nil, fmt.Errorf("scanning project: %w", err)
+		}
+		projects = append(projects, project)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating projects: %w", err)
+	}
+
+	return projects, nil
 }
 
 // GetProjectsForProfile returns all projects for a given profile ID.

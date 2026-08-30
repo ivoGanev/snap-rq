@@ -1,5 +1,28 @@
 <div class="bg" aria-hidden="true"></div>
 
+<div class="top-bar">
+  <div class="environment-selector">
+    <span class="environment-label">Environment</span>
+    <select
+      class="environment-select"
+      [ngModel]="selectedEnvironment()?.id"
+      (ngModelChange)="onEnvironmentChange(+$event)"
+    >
+      @for (env of environments(); track env.id) {
+        <option [value]="env.id">{{ env.name }}</option>
+      }
+    </select>
+    <button
+      class="environment-edit"
+      type="button"
+      (click)="openVariablesOverlay()"
+      [disabled]="!selectedEnvironment()"
+    >
+      Edit
+    </button>
+  </div>
+</div>
+
 <div class="app-shell">
   <aside class="sidebar sidebar-left" aria-label="Collections">
     <header class="column-header sidebar-header">
@@ -90,6 +113,15 @@
           Request
         </button>
       </div>
+      @if (selectedRequest()) {
+        <button
+          class="big-send-button"
+          type="button"
+          (click)="sendRequest(selectedRequest()!, $event)"
+        >
+          Send
+        </button>
+      }
       @if (selectedRequest() && rightPanelMode() === 'response') {
         <span class="request-count">{{ responses().length }} response(s)</span>
       }
@@ -209,6 +241,52 @@
     }
   </aside>
 </div>
+
+@if (variablesOverlayOpen()) {
+  <div class="overlay-backdrop" (click)="closeVariablesOverlay()">
+    <div class="overlay-panel" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Edit variables — {{ selectedEnvironment()?.name }}</h3>
+        <div class="overlay-actions">
+          <button class="overlay-delete" type="button" (click)="deleteEnvironment()">Delete env</button>
+          <button class="overlay-close" type="button" (click)="closeVariablesOverlay()">Close</button>
+        </div>
+      </div>
+
+      <div class="overlay-body">
+        @for (variable of variables(); track variable.id) {
+          <div class="variable-row">
+            <input
+              class="variable-input"
+              type="text"
+              placeholder="Key"
+              [ngModel]="variable.key"
+              (ngModelChange)="updateVariableField(variable, 'key', $event)"
+            />
+            <input
+              class="variable-input"
+              type="text"
+              placeholder="Value"
+              [ngModel]="variable.value"
+              (ngModelChange)="updateVariableField(variable, 'value', $event)"
+            />
+            <button
+              class="variable-delete"
+              type="button"
+              (click)="deleteVariable(variable, $event)"
+            >
+              Delete
+            </button>
+          </div>
+        }
+      </div>
+
+      <div class="overlay-footer">
+        <button class="variable-add" type="button" (click)="addVariable()">Add variable</button>
+      </div>
+    </div>
+  </div>
+}
 
 <footer class="footer">
   <span class="footer-version">v3</span>

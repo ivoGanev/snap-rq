@@ -1,6 +1,5 @@
 import { Injectable, OnDestroy, signal } from '@angular/core';
 import { Events } from '@wailsio/runtime';
-import * as GreetService from '../../bindings/snap-rq';
 
 @Injectable({ providedIn: 'root' })
 export class WailsService implements OnDestroy {
@@ -15,11 +14,6 @@ export class WailsService implements OnDestroy {
         window.matchMedia('(max-width: 640px)').matches ? compact : full,
       );
     });
-  }
-
-  async greet(name: string): Promise<string> {
-    const value = name.trim() || 'anonymous';
-    return GreetService.GreetService.Greet(value);
   }
 
   ngOnDestroy(): void {
