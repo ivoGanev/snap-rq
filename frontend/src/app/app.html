@@ -24,50 +24,88 @@
 </div>
 
 <div class="app-shell">
-  <aside class="sidebar sidebar-left" aria-label="Collections">
-    <header class="column-header sidebar-header">
-      <h2 class="column-title">Collections</h2>
-    </header>
+  <aside class="sidebar sidebar-left" aria-label="Collections and Favourites">
+    <div class="sidebar-section">
+      <button
+        class="sidebar-section-toggle"
+        type="button"
+        [class.is-active]="collectionsExpanded()"
+        (click)="toggleCollectionsExpanded()"
+      >
+        Collections
+      </button>
 
-    @if (loading()) {
-      <div class="state-message">Loading…</div>
-    }
+      @if (collectionsExpanded()) {
+        @if (loading()) {
+          <div class="state-message">Loading…</div>
+        }
 
-    @if (!loading() && collections().length === 0) {
-      <div class="state-message">No collections.</div>
-    }
+        @if (!loading() && collections().length === 0) {
+          <div class="state-message">No collections.</div>
+        }
 
-    <ul class="collection-list">
-      @for (collection of collections(); track collection.id) {
-        <li
-          class="collection-item"
-          [class.is-selected]="selectedCollection()?.id === collection.id"
-          (click)="selectCollection(collection)"
-        >
-          <span class="collection-name">{{ collection.name }}</span>
-        </li>
+        <ul class="collection-list">
+          @for (collection of collections(); track collection.id) {
+            <li
+              class="collection-item"
+              [class.is-selected]="selectedCollection()?.id === collection.id"
+              (click)="selectCollection(collection)"
+            >
+              <span class="collection-name">{{ collection.name }}</span>
+            </li>
+          }
+        </ul>
       }
-    </ul>
+    </div>
+
+    <div class="sidebar-section">
+      <button
+        class="sidebar-section-toggle"
+        type="button"
+        [class.is-active]="favouritesExpanded()"
+        (click)="toggleFavouritesExpanded()"
+      >
+        Favourites
+      </button>
+
+      @if (favouritesExpanded()) {
+        @if (favouriteCollections().length === 0) {
+          <div class="state-message">No favourite collections.</div>
+        }
+
+        <ul class="collection-list">
+          @for (collection of favouriteCollections(); track collection.id) {
+            <li
+              class="collection-item"
+              [class.is-selected]="selectedFavouriteCollection()?.id === collection.id"
+              (click)="selectFavouriteCollection(collection)"
+            >
+              <span class="collection-name">{{ collection.name }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </div>
   </aside>
 
   <main class="main-column" aria-label="Requests">
     <div class="column-header">
       <h1 class="column-title">Requests</h1>
-      @if (selectedCollection()) {
-        <span class="request-count">{{ requests().length }} in {{ selectedCollection()!.name }}</span>
+      @if (activeCollectionName()) {
+        <span class="request-count">{{ activeRequests().length }} in {{ activeCollectionName() }}</span>
       }
     </div>
 
-    @if (!selectedCollection()) {
-      <div class="state-message">Select a collection to view requests.</div>
+    @if (!selectedCollection() && !selectedFavouriteCollection()) {
+      <div class="state-message">Select a collection or favourite group to view requests.</div>
     }
 
-    @if (selectedCollection() && requests().length === 0) {
-      <div class="state-message">No requests in this collection.</div>
+    @if ((selectedCollection() || selectedFavouriteCollection()) && activeRequests().length === 0) {
+      <div class="state-message">No requests in this group.</div>
     }
 
     <ul class="request-list">
-      @for (req of requests(); track req.id) {
+      @for (req of activeRequests(); track req.id) {
         <li
           class="request-item"
           [class.is-selected]="selectedRequest()?.id === req.id"
@@ -76,6 +114,16 @@
           <div class="request-row">
             <span class="request-method" [attr.data-method]="req.method">{{ req.method }}</span>
             <span class="request-name">{{ req.name }}</span>
+            <button
+              class="favourite-button"
+              type="button"
+              (click)="openFavouritePopup(req, $event)"
+              aria-label="Manage favourites"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+              </svg>
+            </button>
             <button
               class="send-button"
               type="button"
@@ -283,6 +331,53 @@
 
       <div class="overlay-footer">
         <button class="variable-add" type="button" (click)="addVariable()">Add variable</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (favouritePopupOpen()) {
+  <div class="overlay-backdrop" (click)="closeFavouritePopup()">
+    <div class="overlay-panel favourite-popup" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Favourites — {{ favouritePopupRequest()?.name }}</h3>
+        <button class="overlay-close" type="button" (click)="closeFavouritePopup()">Close</button>
+      </div>
+
+      <div class="overlay-body">
+        @for (collection of favouriteCollections(); track collection.id) {
+          <div class="favourite-collection-row">
+            <label class="favourite-checkbox">
+              <input
+                type="checkbox"
+                [checked]="favouriteMembership().has(collection.id)"
+                (change)="toggleFavouriteMembership(collection)"
+              />
+              <span class="favourite-checkmark"></span>
+              <span class="favourite-collection-name">{{ collection.name }}</span>
+            </label>
+            <button
+              class="favourite-collection-delete"
+              type="button"
+              (click)="deleteFavouriteCollection(collection, $event)"
+              aria-label="Delete favourite collection"
+            >
+              Delete
+            </button>
+          </div>
+        }
+      </div>
+
+      <div class="overlay-footer favourite-popup-footer">
+        <input
+          class="variable-input favourite-name-input"
+          type="text"
+          placeholder="New favourite group"
+          [ngModel]="newFavouriteName()"
+          (ngModelChange)="newFavouriteName.set($event)"
+          (keydown.enter)="addFavouriteCollection()"
+        />
+        <button class="variable-add" type="button" (click)="addFavouriteCollection()">Add</button>
       </div>
     </div>
   </div>

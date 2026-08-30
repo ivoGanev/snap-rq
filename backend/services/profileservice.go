@@ -17,9 +17,16 @@ func NewProfileService(db *sql.DB) *ProfileService {
 	return &ProfileService{db: db}
 }
 
-// CreateProfile saves a new profile and returns it with its generated ID.
+// CreateProfile saves a new profile, seeds a default favourite collection for it,
+// and returns the profile with its generated ID.
 func (s *ProfileService) CreateProfile(profile models.Profile) (models.Profile, error) {
-	result, err := s.db.Exec("INSERT INTO profiles (name) VALUES (?)", profile.Name)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return models.Profile{}, fmt.Errorf("beginning transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	result, err := tx.Exec("INSERT INTO profiles (name) VALUES (?)", profile.Name)
 	if err != nil {
 		return models.Profile{}, fmt.Errorf("creating profile: %w", err)
 	}
@@ -28,6 +35,19 @@ func (s *ProfileService) CreateProfile(profile models.Profile) (models.Profile, 
 		return models.Profile{}, fmt.Errorf("getting last insert id: %w", err)
 	}
 	profile.ID = id
+
+	_, err = tx.Exec(
+		"INSERT INTO favourite_collections (profile_id, name) VALUES (?, ?)",
+		profile.ID, "default",
+	)
+	if err != nil {
+		return models.Profile{}, fmt.Errorf("creating default favourite collection: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return models.Profile{}, fmt.Errorf("committing transaction: %w", err)
+	}
+
 	return profile, nil
 }
 
