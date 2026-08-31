@@ -17,4 +17,10 @@ export class CollectionApiService {
     const all = await CollectionService.CollectionService.GetCollectionsForProject(projectId);
     this.collections.set(all ?? []);
   }
+
+  async delete(id: number): Promise<number[]> {
+    const deletedRequestIds = await CollectionService.CollectionService.DeleteCollection(id);
+    await this.loadAll();
+    return (deletedRequestIds ?? []).map(id => Number(id));
+  }
 }

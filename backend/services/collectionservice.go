@@ -114,11 +114,45 @@ func (s *CollectionService) UpdateCollection(collection models.Collection) (mode
 	return collection, nil
 }
 
-// DeleteCollection removes a collection by ID.
-func (s *CollectionService) DeleteCollection(id int64) error {
-	_, err := s.db.Exec("DELETE FROM collections WHERE id = ?", id)
+// DeleteCollection removes a collection by ID. The database cascades the
+// deletion to all requests in the collection, their responses, and any
+// favourite items referencing those requests. The IDs of the deleted requests
+// are returned so the frontend can clean up its runtime selection state.
+func (s *CollectionService) DeleteCollection(id int64) ([]int64, error) {
+	tx, err := s.db.Begin()
 	if err != nil {
-		return fmt.Errorf("deleting collection: %w", err)
+		return nil, fmt.Errorf("beginning transaction: %w", err)
 	}
-	return nil
+	defer tx.Rollback()
+
+	rows, err := tx.Query("SELECT id FROM http_requests WHERE collection_id = ?", id)
+	if err != nil {
+		return nil, fmt.Errorf("listing requests: %w", err)
+	}
+
+	var requestIDs []int64
+	for rows.Next() {
+		var requestID int64
+		if err := rows.Scan(&requestID); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("scanning request id: %w", err)
+		}
+		requestIDs = append(requestIDs, requestID)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, fmt.Errorf("iterating request ids: %w", err)
+	}
+	rows.Close()
+
+	_, err = tx.Exec("DELETE FROM collections WHERE id = ?", id)
+	if err != nil {
+		return nil, fmt.Errorf("deleting collection: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("committing transaction: %w", err)
+	}
+
+	return requestIDs, nil
 }

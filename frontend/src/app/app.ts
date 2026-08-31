@@ -66,6 +66,10 @@ export class App implements OnInit, AfterViewInit {
   readonly requestContextMenuX = signal(0);
   readonly requestContextMenuY = signal(0);
   readonly requestContextMenuTarget = signal<HttpRequest | null>(null);
+  readonly collectionContextMenuOpen = signal(false);
+  readonly collectionContextMenuX = signal(0);
+  readonly collectionContextMenuY = signal(0);
+  readonly collectionContextMenuTarget = signal<Collection | null>(null);
 
   readonly activeRequests = computed<HttpRequest[]>(() =>
     this.activeSection() === 'favourites' ? this.favouriteRequests() : this.requests(),
@@ -270,6 +274,48 @@ export class App implements OnInit, AfterViewInit {
     } catch (err) {
       console.error(err);
       this.error.set(collection ? 'Failed to delete request.' : 'Failed to remove favourite.');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  openCollectionContextMenu(collection: Collection, event: MouseEvent): void {
+    event.preventDefault();
+    this.collectionContextMenuTarget.set(collection);
+    this.collectionContextMenuX.set(event.clientX);
+    this.collectionContextMenuY.set(event.clientY);
+    this.collectionContextMenuOpen.set(true);
+  }
+
+  closeCollectionContextMenu(): void {
+    this.collectionContextMenuOpen.set(false);
+    this.collectionContextMenuTarget.set(null);
+  }
+
+  async deleteCollection(): Promise<void> {
+    const collection = this.collectionContextMenuTarget();
+    if (!collection) return;
+
+    this.loading.set(true);
+    try {
+      const deletedRequestIds = await this.collectionApi.delete(collection.id);
+      for (const requestId of deletedRequestIds) {
+        this.selectionState.deleteRequest(requestId);
+      }
+      this.selectionState.setSelectedRequestForCollection(collection.id, null);
+
+      if (this.selectedCollection()?.id === collection.id) {
+        this.selectedCollection.set(null);
+        this.selectedRequest.set(null);
+        this.selectedResponse.set(null);
+        this.requestApi.requests.set([]);
+        this.rightPanelMode.set('response');
+      }
+
+      this.closeCollectionContextMenu();
+    } catch (err) {
+      console.error(err);
+      this.error.set('Failed to delete collection.');
     } finally {
       this.loading.set(false);
     }
