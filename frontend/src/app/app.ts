@@ -72,6 +72,19 @@ export class App implements OnInit, AfterViewInit {
   readonly collectionContextMenuTarget = signal<Collection | null>(null);
   readonly newCollectionPopupOpen = signal(false);
   readonly newCollectionName = signal('');
+  readonly requestSearchQuery = signal('');
+
+  readonly filteredActiveRequests = computed<HttpRequest[]>(() => {
+    const query = this.requestSearchQuery().trim().toLowerCase();
+    const requests = this.activeRequests();
+    if (!query) return requests;
+    return requests.filter(
+      req =>
+        req.name.toLowerCase().includes(query) ||
+        req.url.toLowerCase().includes(query) ||
+        req.method.toLowerCase().includes(query),
+    );
+  });
 
   readonly activeRequests = computed<HttpRequest[]>(() =>
     this.activeSection() === 'favourites' ? this.favouriteRequests() : this.requests(),
@@ -167,6 +180,7 @@ export class App implements OnInit, AfterViewInit {
     this.rightPanelMode.set('response');
     this.activeSection.set('collections');
     this.collectionsExpanded.set(true);
+    this.requestSearchQuery.set('');
     try {
       await this.requestApi.loadForCollection(collection.id);
       const rememberedId = this.selectionState.getSelectedRequestForCollection(collection.id);
@@ -189,6 +203,7 @@ export class App implements OnInit, AfterViewInit {
     this.rightPanelMode.set('response');
     this.activeSection.set('favourites');
     this.favouritesExpanded.set(true);
+    this.requestSearchQuery.set('');
     try {
       await this.favouriteApi.loadRequestsForCollection(collection.id);
       const rememberedId = this.selectionState.getSelectedRequestForFavourite(collection.id);

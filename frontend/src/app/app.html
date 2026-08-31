@@ -113,7 +113,20 @@
       </button>
       <h1 class="column-title">Requests</h1>
       @if (activeCollectionName()) {
-        <span class="request-count">{{ activeRequests().length }} in {{ activeCollectionName() }}</span>
+        <input
+          class="request-search-input"
+          type="text"
+          placeholder="Search requests…"
+          [ngModel]="requestSearchQuery()"
+          (ngModelChange)="requestSearchQuery.set($event)"
+        />
+        <span class="request-count">
+          {{ filteredActiveRequests().length }}
+          @if (requestSearchQuery().trim() && filteredActiveRequests().length !== activeRequests().length) {
+            of {{ activeRequests().length }}
+          }
+          in {{ activeCollectionName() }}
+        </span>
       }
     </div>
 
@@ -125,8 +138,12 @@
       <div class="state-message">No requests in this group.</div>
     }
 
+    @if ((selectedCollection() || selectedFavouriteCollection()) && activeRequests().length > 0 && filteredActiveRequests().length === 0) {
+      <div class="state-message">No requests match your search.</div>
+    }
+
     <ul class="request-list">
-      @for (req of activeRequests(); track req.id) {
+      @for (req of filteredActiveRequests(); track req.id) {
         <li
           class="request-item"
           [class.is-selected]="selectedRequest()?.id === req.id"
