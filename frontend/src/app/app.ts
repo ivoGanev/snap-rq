@@ -8,6 +8,7 @@ import { ProjectApiService, type Project } from './core/services/project.service
 import { EnvironmentApiService, type Environment } from './core/services/environment.service';
 import { EnvironmentVariableApiService, type EnvironmentVariable } from './core/services/environment-variable.service';
 import { FavouriteApiService, type FavouriteCollection } from './core/services/favourite.service';
+import { SelectionStateService } from './core/services/selection-state.service';
 import * as EnvironmentService from '../../bindings/snap-rq/backend/services';
 
 type RightPanelMode = 'response' | 'edit';
@@ -27,6 +28,7 @@ export class App implements OnInit, AfterViewInit {
   private readonly environmentApi = inject(EnvironmentApiService);
   private readonly variableApi = inject(EnvironmentVariableApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
+  private readonly selectionState = inject(SelectionStateService);
 
   readonly currentTime = this.wails.currentTime;
   readonly collections = this.collectionApi.collections;
@@ -157,6 +159,13 @@ export class App implements OnInit, AfterViewInit {
     this.collectionsExpanded.set(true);
     try {
       await this.requestApi.loadForCollection(collection.id);
+      const rememberedId = this.selectionState.getSelectedRequestForCollection(collection.id);
+      if (rememberedId !== null) {
+        const remembered = this.requests().find(r => r.id === rememberedId);
+        if (remembered) {
+          this.selectedRequest.set(remembered);
+        }
+      }
     } catch (err) {
       console.error(err);
     }
@@ -172,6 +181,13 @@ export class App implements OnInit, AfterViewInit {
     this.favouritesExpanded.set(true);
     try {
       await this.favouriteApi.loadRequestsForCollection(collection.id);
+      const rememberedId = this.selectionState.getSelectedRequestForFavourite(collection.id);
+      if (rememberedId !== null) {
+        const remembered = this.favouriteRequests().find(r => r.id === rememberedId);
+        if (remembered) {
+          this.selectedRequest.set(remembered);
+        }
+      }
     } catch (err) {
       console.error(err);
     }
@@ -190,6 +206,17 @@ export class App implements OnInit, AfterViewInit {
   selectRequest(req: HttpRequest): void {
     this.selectedRequest.set(req);
     this.rightPanelMode.set('response');
+
+    const collection = this.selectedCollection();
+    if (collection) {
+      this.selectionState.setSelectedRequestForCollection(collection.id, req.id);
+      return;
+    }
+
+    const favourite = this.selectedFavouriteCollection();
+    if (favourite) {
+      this.selectionState.setSelectedRequestForFavourite(favourite.id, req.id);
+    }
   }
 
   selectResponse(resp: HttpResponse): void {
