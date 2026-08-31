@@ -62,6 +62,10 @@ export class App implements OnInit, AfterViewInit {
   readonly newRequestName = signal('My new snappy API');
   readonly newRequestUrl = signal('');
   readonly newRequestMethod = signal('GET');
+  readonly requestContextMenuOpen = signal(false);
+  readonly requestContextMenuX = signal(0);
+  readonly requestContextMenuY = signal(0);
+  readonly requestContextMenuTarget = signal<HttpRequest | null>(null);
 
   readonly activeRequests = computed<HttpRequest[]>(() =>
     this.activeSection() === 'favourites' ? this.favouriteRequests() : this.requests(),
@@ -216,6 +220,58 @@ export class App implements OnInit, AfterViewInit {
     const favourite = this.selectedFavouriteCollection();
     if (favourite) {
       this.selectionState.setSelectedRequestForFavourite(favourite.id, req.id);
+    }
+  }
+
+  openRequestContextMenu(req: HttpRequest, event: MouseEvent): void {
+    event.preventDefault();
+    this.requestContextMenuTarget.set(req);
+    this.requestContextMenuX.set(event.clientX);
+    this.requestContextMenuY.set(event.clientY);
+    this.requestContextMenuOpen.set(true);
+  }
+
+  closeRequestContextMenu(): void {
+    this.requestContextMenuOpen.set(false);
+    this.requestContextMenuTarget.set(null);
+  }
+
+  async deleteRequest(): Promise<void> {
+    const req = this.requestContextMenuTarget();
+    if (!req) return;
+
+    const collection = this.selectedCollection();
+    const favourite = this.selectedFavouriteCollection();
+
+    this.loading.set(true);
+    try {
+      if (collection) {
+        await this.requestApi.delete(req.id);
+        this.selectionState.deleteRequest(req.id);
+      } else if (favourite) {
+        await this.favouriteApi.removeRequest(favourite.id, req.id);
+        this.selectionState.setSelectedRequestForFavourite(favourite.id, null);
+      }
+
+      if (this.selectedRequest()?.id === req.id) {
+        this.selectedRequest.set(null);
+        this.selectedResponse.set(null);
+        this.rightPanelMode.set('response');
+      }
+
+      if (collection) {
+        await this.requestApi.loadForCollection(collection.id);
+      }
+      if (favourite) {
+        await this.favouriteApi.loadRequestsForCollection(favourite.id);
+      }
+
+      this.closeRequestContextMenu();
+    } catch (err) {
+      console.error(err);
+      this.error.set(collection ? 'Failed to delete request.' : 'Failed to remove favourite.');
+    } finally {
+      this.loading.set(false);
     }
   }
 

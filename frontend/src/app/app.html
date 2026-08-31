@@ -119,6 +119,7 @@
           class="request-item"
           [class.is-selected]="selectedRequest()?.id === req.id"
           (click)="selectRequest(req)"
+          (contextmenu)="openRequestContextMenu(req, $event)"
         >
           <div class="request-row">
             <span class="request-method" [attr.data-method]="req.method">{{ req.method }}</span>
@@ -445,6 +446,29 @@
       <div class="overlay-footer">
         <button class="variable-add" type="button" (click)="addRequest()">Add request</button>
       </div>
+    </div>
+  </div>
+}
+
+@if (requestContextMenuOpen()) {
+  <div
+    class="context-menu-backdrop"
+    (click)="closeRequestContextMenu()"
+    (contextmenu)="closeRequestContextMenu(); $event.preventDefault()"
+  >
+    <div
+      class="context-menu"
+      [style.left.px]="requestContextMenuX()"
+      [style.top.px]="requestContextMenuY()"
+      (click)="$event.stopPropagation()"
+    >
+      <button
+        class="context-menu-item context-menu-item--danger"
+        type="button"
+        (click)="deleteRequest()"
+      >
+        {{ selectedCollection() ? 'Delete request' : 'Remove from favourites' }}
+      </button>
     </div>
   </div>
 }
