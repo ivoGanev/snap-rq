@@ -56,6 +56,10 @@ export class App implements OnInit, AfterViewInit {
   readonly favouritePopupOpen = signal(false);
   readonly favouritePopupRequest = signal<HttpRequest | null>(null);
   readonly newFavouriteName = signal('');
+  readonly newRequestPopupOpen = signal(false);
+  readonly newRequestName = signal('My new snappy API');
+  readonly newRequestUrl = signal('');
+  readonly newRequestMethod = signal('GET');
 
   readonly activeRequests = computed<HttpRequest[]>(() =>
     this.activeSection() === 'favourites' ? this.favouriteRequests() : this.requests(),
@@ -359,6 +363,46 @@ export class App implements OnInit, AfterViewInit {
     this.favouritePopupOpen.set(false);
     this.favouritePopupRequest.set(null);
     this.favouriteApi.clearMembership();
+  }
+
+  openNewRequestPopup(): void {
+    this.newRequestName.set('My new snappy API');
+    this.newRequestUrl.set('');
+    this.newRequestMethod.set('GET');
+    this.newRequestPopupOpen.set(true);
+  }
+
+  closeNewRequestPopup(): void {
+    this.newRequestPopupOpen.set(false);
+  }
+
+  async addRequest(): Promise<void> {
+    const collection = this.selectedCollection();
+    if (!collection) return;
+
+    const name = this.newRequestName().trim();
+    if (!name) return;
+
+    this.loading.set(true);
+    try {
+      await this.requestApi.create({
+        collection_id: collection.id,
+        name,
+        url: this.newRequestUrl().trim(),
+        method: this.newRequestMethod(),
+        body: '',
+        request_headers: '',
+        status_code: 0,
+        response_id: 0,
+      });
+      await this.requestApi.loadForCollection(collection.id);
+      this.closeNewRequestPopup();
+    } catch (err) {
+      console.error(err);
+      this.error.set('Failed to add request.');
+    } finally {
+      this.loading.set(false);
+    }
   }
 
   async toggleFavouriteMembership(collection: FavouriteCollection): Promise<void> {
