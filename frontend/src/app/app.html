@@ -50,6 +50,7 @@
               class="collection-item"
               [class.is-selected]="selectedCollection()?.id === collection.id"
               (click)="selectCollection(collection)"
+              (contextmenu)="openCollectionContextMenu(collection, $event)"
             >
               <span class="collection-name">{{ collection.name }}</span>
             </li>
@@ -468,6 +469,29 @@
         (click)="deleteRequest()"
       >
         {{ selectedCollection() ? 'Delete request' : 'Remove from favourites' }}
+      </button>
+    </div>
+  </div>
+}
+
+@if (collectionContextMenuOpen()) {
+  <div
+    class="context-menu-backdrop"
+    (click)="closeCollectionContextMenu()"
+    (contextmenu)="closeCollectionContextMenu(); $event.preventDefault()"
+  >
+    <div
+      class="context-menu"
+      [style.left.px]="collectionContextMenuX()"
+      [style.top.px]="collectionContextMenuY()"
+      (click)="$event.stopPropagation()"
+    >
+      <button
+        class="context-menu-item context-menu-item--danger"
+        type="button"
+        (click)="deleteCollection()"
+      >
+        Delete collection
       </button>
     </div>
   </div>
