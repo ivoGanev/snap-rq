@@ -73,6 +73,10 @@ export class App implements OnInit, AfterViewInit {
   readonly newCollectionPopupOpen = signal(false);
   readonly newCollectionName = signal('');
   readonly requestSearchQuery = signal('');
+  readonly projectEditorOpen = signal(false);
+  readonly newProjectName = signal('');
+  readonly projectDeleteConfirmOpen = signal(false);
+  readonly projectPendingDelete = signal<Project | null>(null);
 
   readonly filteredActiveRequests = computed<HttpRequest[]>(() => {
     const query = this.requestSearchQuery().trim().toLowerCase();
@@ -126,20 +130,44 @@ export class App implements OnInit, AfterViewInit {
       await this.projectApi.loadAll();
       const all = this.projects();
       if (all.length > 0) {
-        this.selectedProject.set(all[0]);
-        await this.loadEnvironments(all[0].id);
-        await this.favouriteApi.loadCollectionsForProfile(all[0].profile_id);
-      }
-      await this.collectionApi.loadAll();
-      const collections = this.collections();
-      if (collections.length > 0) {
-        this.selectCollection(collections[0]);
+        await this.selectProject(all[0]);
+      } else {
+        this.selectedProject.set(null);
+        this.selectedEnvironment.set(null);
+        this.selectedCollection.set(null);
+        this.selectedFavouriteCollection.set(null);
+        this.selectedRequest.set(null);
+        this.selectedResponse.set(null);
+        this.collectionApi.collections.set([]);
+        this.requestApi.requests.set([]);
+        this.favouriteApi.collections.set([]);
+        this.favouriteApi.requests.set([]);
       }
     } catch (err) {
       console.error(err);
       this.error.set('Failed to load projects.');
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  async selectProject(project: Project): Promise<void> {
+    this.selectedProject.set(project);
+    this.selectedCollection.set(null);
+    this.selectedFavouriteCollection.set(null);
+    this.selectedRequest.set(null);
+    this.selectedResponse.set(null);
+    this.requestApi.requests.set([]);
+    this.rightPanelMode.set('response');
+    this.requestSearchQuery.set('');
+
+    await this.loadEnvironments(project.id);
+    await this.favouriteApi.loadCollectionsForProfile(project.profile_id);
+    await this.collectionApi.loadForProject(project.id);
+
+    const collections = this.collections();
+    if (collections.length > 0) {
+      await this.selectCollection(collections[0]);
     }
   }
 
@@ -338,37 +366,7 @@ export class App implements OnInit, AfterViewInit {
     }
   }
 
-  openNewCollectionPopup(): void {
-    this.newCollectionName.set('');
-    this.newCollectionPopupOpen.set(true);
-  }
 
-  closeNewCollectionPopup(): void {
-    this.newCollectionPopupOpen.set(false);
-  }
-
-  async addCollection(): Promise<void> {
-    const project = this.selectedProject();
-    if (!project) return;
-
-    const name = this.newCollectionName().trim();
-    if (!name) return;
-
-    this.loading.set(true);
-    try {
-      await this.collectionApi.create({
-        project_id: project.id,
-        name,
-      });
-      await this.collectionApi.loadAll();
-      this.closeNewCollectionPopup();
-    } catch (err) {
-      console.error(err);
-      this.error.set('Failed to add collection.');
-    } finally {
-      this.loading.set(false);
-    }
-  }
 
   selectResponse(resp: HttpResponse): void {
     this.selectedResponse.set(resp);
@@ -628,6 +626,143 @@ export class App implements OnInit, AfterViewInit {
     } catch (err) {
       console.error(err);
       this.error.set('Failed to delete favourite collection.');
+    }
+  }
+
+  openNewCollectionPopup(): void {
+    this.newCollectionName.set('');
+    this.newCollectionPopupOpen.set(true);
+  }
+
+  closeNewCollectionPopup(): void {
+    this.newCollectionPopupOpen.set(false);
+  }
+
+  async addCollection(): Promise<void> {
+    const project = this.selectedProject();
+    if (!project) return;
+
+    const name = this.newCollectionName().trim();
+    if (!name) return;
+
+    this.loading.set(true);
+    try {
+      await this.collectionApi.create({
+        project_id: project.id,
+        name,
+      });
+      await this.collectionApi.loadForProject(project.id);
+      this.closeNewCollectionPopup();
+    } catch (err) {
+      console.error(err);
+      this.error.set('Failed to add collection.');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  openProjectEditor(): void {
+    this.newProjectName.set('');
+    this.projectEditorOpen.set(true);
+    this.projectPendingDelete.set(null);
+    this.projectDeleteConfirmOpen.set(false);
+  }
+
+  closeProjectEditor(): void {
+    this.projectEditorOpen.set(false);
+    this.projectPendingDelete.set(null);
+    this.projectDeleteConfirmOpen.set(false);
+  }
+
+  async onSelectProject(project: Project): Promise<void> {
+    if (this.selectedProject()?.id === project.id) {
+      this.closeProjectEditor();
+      return;
+    }
+
+    this.loading.set(true);
+    try {
+      await this.selectProject(project);
+      this.closeProjectEditor();
+    } catch (err) {
+      console.error(err);
+      this.error.set('Failed to switch project.');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  async addProject(): Promise<void> {
+    const profile = this.selectedProject();
+    if (!profile) return;
+
+    const name = this.newProjectName().trim();
+    if (!name) return;
+
+    this.loading.set(true);
+    try {
+      const created = await this.projectApi.create({
+        profile_id: profile.profile_id,
+        name,
+      });
+      await this.selectProject(created);
+      this.newProjectName.set('');
+    } catch (err) {
+      console.error(err);
+      this.error.set('Failed to add project.');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  promptDeleteProject(project: Project, event: MouseEvent): void {
+    event.stopPropagation();
+    this.projectPendingDelete.set(project);
+    this.projectDeleteConfirmOpen.set(true);
+  }
+
+  cancelDeleteProject(): void {
+    this.projectPendingDelete.set(null);
+    this.projectDeleteConfirmOpen.set(false);
+  }
+
+  async deleteProject(): Promise<void> {
+    const project = this.projectPendingDelete();
+    if (!project) return;
+
+    this.loading.set(true);
+    try {
+      const deletedRequestIds = await this.projectApi.delete(project.id);
+      for (const requestId of deletedRequestIds) {
+        this.selectionState.deleteRequest(requestId);
+      }
+
+      if (this.selectedProject()?.id === project.id) {
+        const remaining = this.projects().filter(p => p.id !== project.id);
+        if (remaining.length > 0) {
+          await this.selectProject(remaining[0]);
+        } else {
+          this.selectedProject.set(null);
+          this.selectedEnvironment.set(null);
+          this.selectedCollection.set(null);
+          this.selectedFavouriteCollection.set(null);
+          this.selectedRequest.set(null);
+          this.selectedResponse.set(null);
+          this.collectionApi.collections.set([]);
+          this.requestApi.requests.set([]);
+          this.favouriteApi.collections.set([]);
+          this.favouriteApi.requests.set([]);
+          this.environmentApi.environments.set([]);
+        }
+      }
+
+      this.projectPendingDelete.set(null);
+      this.projectDeleteConfirmOpen.set(false);
+    } catch (err) {
+      console.error(err);
+      this.error.set('Failed to delete project.');
+    } finally {
+      this.loading.set(false);
     }
   }
 }

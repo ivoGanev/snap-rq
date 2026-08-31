@@ -21,6 +21,20 @@
       Edit
     </button>
   </div>
+
+  <span class="top-bar-separator" aria-hidden="true"></span>
+
+  <div class="project-selector">
+    <span class="project-label">Project</span>
+    <span class="project-name">{{ selectedProject()?.name ?? 'None' }}</span>
+    <button
+      class="project-change-button"
+      type="button"
+      (click)="openProjectEditor()"
+    >
+      Change project
+    </button>
+  </div>
 </div>
 
 <div class="app-shell">
@@ -503,6 +517,76 @@
 
       <div class="overlay-footer">
         <button class="variable-add" type="button" (click)="addCollection()">Add collection</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (projectEditorOpen()) {
+  <div class="overlay-backdrop" (click)="closeProjectEditor()">
+    <div class="overlay-panel project-editor-popup" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Projects</h3>
+        <button class="overlay-close" type="button" (click)="closeProjectEditor()">Close</button>
+      </div>
+
+      <div class="overlay-body">
+        @if (projects().length === 0) {
+          <div class="state-message">No projects.</div>
+        }
+
+        <ul class="project-list">
+          @for (project of projects(); track project.id) {
+            <li
+              class="project-row"
+              [class.is-selected]="selectedProject()?.id === project.id"
+              (click)="onSelectProject(project)"
+            >
+              <span class="project-row-name">{{ project.name }}</span>
+              <button
+                class="project-delete-button"
+                type="button"
+                (click)="promptDeleteProject(project, $event)"
+                aria-label="Delete project"
+              >
+                Delete
+              </button>
+            </li>
+          }
+        </ul>
+      </div>
+
+      <div class="overlay-footer project-editor-footer">
+        <input
+          class="variable-input project-name-input"
+          type="text"
+          placeholder="New project name"
+          [ngModel]="newProjectName()"
+          (ngModelChange)="newProjectName.set($event)"
+          (keydown.enter)="addProject()"
+        />
+        <button class="variable-add" type="button" (click)="addProject()">Add project</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (projectDeleteConfirmOpen()) {
+  <div class="overlay-backdrop" (click)="cancelDeleteProject()">
+    <div class="overlay-panel project-delete-popup" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Delete project?</h3>
+        <button class="overlay-close" type="button" (click)="cancelDeleteProject()">Cancel</button>
+      </div>
+
+      <div class="overlay-body">
+        <p class="delete-confirm-message">
+          This will permanently delete <strong>{{ projectPendingDelete()?.name }}</strong> and all of its collections, requests, responses, and favourites.
+        </p>
+      </div>
+
+      <div class="overlay-footer">
+        <button class="overlay-delete" type="button" (click)="deleteProject()">Delete project</button>
       </div>
     </div>
   </div>
