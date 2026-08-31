@@ -274,6 +274,24 @@
   font-size: 0.75rem;
 }
 
+.request-search-input {
+  width: 180px;
+  padding: 5px var(--s-2);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, width 0.15s ease;
+}
+
+.request-search-input:focus {
+  width: 240px;
+  border-color: rgba(255, 77, 77, 0.55);
+  box-shadow: 0 0 0 2px rgba(255, 77, 77, 0.15);
+}
+
 .tab-header {
   justify-content: flex-start;
   gap: var(--s-3);
