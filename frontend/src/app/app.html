@@ -89,7 +89,16 @@
   </aside>
 
   <main class="main-column" aria-label="Requests">
-    <div class="column-header">
+    <div class="column-header column-header--requests">
+      <button
+        class="add-request-button"
+        type="button"
+        (click)="openNewRequestPopup()"
+        [disabled]="!selectedCollection()"
+        aria-label="Add request"
+      >
+        + Request
+      </button>
       <h1 class="column-title">Requests</h1>
       @if (activeCollectionName()) {
         <span class="request-count">{{ activeRequests().length }} in {{ activeCollectionName() }}</span>
@@ -378,6 +387,63 @@
           (keydown.enter)="addFavouriteCollection()"
         />
         <button class="variable-add" type="button" (click)="addFavouriteCollection()">Add</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (newRequestPopupOpen()) {
+  <div class="overlay-backdrop" (click)="closeNewRequestPopup()">
+    <div class="overlay-panel new-request-popup" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Add new request</h3>
+        <button class="overlay-close" type="button" (click)="closeNewRequestPopup()">Close</button>
+      </div>
+
+      <div class="overlay-body">
+        <label class="edit-field">
+          <span class="edit-label">Name</span>
+          <input
+            class="edit-input"
+            type="text"
+            [ngModel]="newRequestName()"
+            (ngModelChange)="newRequestName.set($event)"
+            (keydown.enter)="addRequest()"
+          />
+        </label>
+
+        <label class="edit-field">
+          <span class="edit-label">URL</span>
+          <input
+            class="edit-input"
+            type="text"
+            placeholder="https://you-are-the.boss"
+            [ngModel]="newRequestUrl()"
+            (ngModelChange)="newRequestUrl.set($event)"
+            (keydown.enter)="addRequest()"
+          />
+        </label>
+
+        <label class="edit-field">
+          <span class="edit-label">Method</span>
+          <select
+            class="edit-select"
+            [ngModel]="newRequestMethod()"
+            (ngModelChange)="newRequestMethod.set($event)"
+          >
+            <option>GET</option>
+            <option>POST</option>
+            <option>PUT</option>
+            <option>DELETE</option>
+            <option>PATCH</option>
+            <option>HEAD</option>
+            <option>OPTIONS</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="overlay-footer">
+        <button class="variable-add" type="button" (click)="addRequest()">Add request</button>
       </div>
     </div>
   </div>
