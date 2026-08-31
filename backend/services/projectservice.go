@@ -114,11 +114,48 @@ func (s *ProjectService) UpdateProject(project models.Project) (models.Project, 
 	return project, nil
 }
 
-// DeleteProject removes a project by ID.
-func (s *ProjectService) DeleteProject(id int64) error {
-	_, err := s.db.Exec("DELETE FROM projects WHERE id = ?", id)
+// DeleteProject removes a project by ID. The database cascades the deletion
+// to collections, requests, responses, and favourite items referencing those
+// requests. The IDs of the deleted requests are returned so the frontend can
+// clean up its runtime selection state.
+func (s *ProjectService) DeleteProject(id int64) ([]int64, error) {
+	tx, err := s.db.Begin()
 	if err != nil {
-		return fmt.Errorf("deleting project: %w", err)
+		return nil, fmt.Errorf("beginning transaction: %w", err)
 	}
-	return nil
+	defer tx.Rollback()
+
+	rows, err := tx.Query(`
+		SELECT hr.id FROM http_requests hr
+		JOIN collections c ON hr.collection_id = c.id
+		WHERE c.project_id = ?`, id)
+	if err != nil {
+		return nil, fmt.Errorf("listing requests: %w", err)
+	}
+
+	var requestIDs []int64
+	for rows.Next() {
+		var requestID int64
+		if err := rows.Scan(&requestID); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("scanning request id: %w", err)
+		}
+		requestIDs = append(requestIDs, requestID)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, fmt.Errorf("iterating request ids: %w", err)
+	}
+	rows.Close()
+
+	_, err = tx.Exec("DELETE FROM projects WHERE id = ?", id)
+	if err != nil {
+		return nil, fmt.Errorf("deleting project: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("committing transaction: %w", err)
+	}
+
+	return requestIDs, nil
 }

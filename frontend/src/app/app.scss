@@ -22,7 +22,7 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: var(--s-3);
   height: 44px;
   padding: 0 var(--s-4);
@@ -36,6 +36,47 @@
   display: flex;
   align-items: center;
   gap: var(--s-2);
+}
+
+.top-bar-separator {
+  flex: 1 1 auto;
+}
+
+.project-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.project-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.project-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.project-change-button {
+  padding: 5px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.project-change-button:hover {
+  filter: brightness(1.15);
 }
 
 .environment-label {
@@ -953,13 +994,96 @@
 
 .favourite-popup,
 .new-request-popup,
-.new-collection-popup {
+.new-collection-popup,
+.project-editor-popup,
+.project-delete-popup {
   width: min(420px, calc(100vw - 2 * var(--s-4)));
 }
 
 .new-request-popup .overlay-body,
 .new-collection-popup .overlay-body {
   gap: var(--s-3);
+}
+
+.project-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.project-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.project-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.project-row.is-selected {
+  background: rgba(255, 77, 77, 0.2);
+  border-color: rgba(255, 77, 77, 0.55);
+}
+
+.project-row-name {
+  flex: 1 1 auto;
+  font-size: 0.9375rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-delete-button {
+  flex: 0 0 auto;
+  padding: var(--s-1) var(--s-2);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(239, 68, 68, 0.8);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: filter 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.project-delete-button:hover {
+  filter: brightness(1.15);
+}
+
+.project-editor-footer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--s-2);
+  align-items: center;
+}
+
+.project-name-input {
+  width: 100%;
+}
+
+.delete-confirm-message {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.delete-confirm-message strong {
+  color: #fca5a5;
 }
 
 .context-menu-backdrop {
