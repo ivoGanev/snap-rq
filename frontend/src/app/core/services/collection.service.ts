@@ -18,6 +18,12 @@ export class CollectionApiService {
     this.collections.set(all ?? []);
   }
 
+  async create(collection: Omit<Collection, 'id'>): Promise<Collection> {
+    const created = await CollectionService.CollectionService.CreateCollection(collection as Collection);
+    await this.loadAll();
+    return created;
+  }
+
   async delete(id: number): Promise<number[]> {
     const deletedRequestIds = await CollectionService.CollectionService.DeleteCollection(id);
     await this.loadAll();

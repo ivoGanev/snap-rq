@@ -70,6 +70,8 @@ export class App implements OnInit, AfterViewInit {
   readonly collectionContextMenuX = signal(0);
   readonly collectionContextMenuY = signal(0);
   readonly collectionContextMenuTarget = signal<Collection | null>(null);
+  readonly newCollectionPopupOpen = signal(false);
+  readonly newCollectionName = signal('');
 
   readonly activeRequests = computed<HttpRequest[]>(() =>
     this.activeSection() === 'favourites' ? this.favouriteRequests() : this.requests(),
@@ -316,6 +318,38 @@ export class App implements OnInit, AfterViewInit {
     } catch (err) {
       console.error(err);
       this.error.set('Failed to delete collection.');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  openNewCollectionPopup(): void {
+    this.newCollectionName.set('');
+    this.newCollectionPopupOpen.set(true);
+  }
+
+  closeNewCollectionPopup(): void {
+    this.newCollectionPopupOpen.set(false);
+  }
+
+  async addCollection(): Promise<void> {
+    const project = this.selectedProject();
+    if (!project) return;
+
+    const name = this.newCollectionName().trim();
+    if (!name) return;
+
+    this.loading.set(true);
+    try {
+      await this.collectionApi.create({
+        project_id: project.id,
+        name,
+      });
+      await this.collectionApi.loadAll();
+      this.closeNewCollectionPopup();
+    } catch (err) {
+      console.error(err);
+      this.error.set('Failed to add collection.');
     } finally {
       this.loading.set(false);
     }

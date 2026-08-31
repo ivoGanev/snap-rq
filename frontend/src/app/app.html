@@ -26,14 +26,25 @@
 <div class="app-shell">
   <aside class="sidebar sidebar-left" aria-label="Collections and Favourites">
     <div class="sidebar-section">
-      <button
-        class="sidebar-section-toggle"
-        type="button"
-        [class.is-active]="collectionsExpanded()"
-        (click)="toggleCollectionsExpanded()"
-      >
-        Collections
-      </button>
+      <div class="sidebar-section-header">
+        <button
+          class="add-collection-button"
+          type="button"
+          (click)="openNewCollectionPopup()"
+          [disabled]="!selectedProject()"
+          aria-label="Add collection"
+        >
+          + Collection
+        </button>
+        <button
+          class="sidebar-section-toggle"
+          type="button"
+          [class.is-active]="collectionsExpanded()"
+          (click)="toggleCollectionsExpanded()"
+        >
+          Collections
+        </button>
+      </div>
 
       @if (collectionsExpanded()) {
         @if (loading()) {
@@ -446,6 +457,35 @@
 
       <div class="overlay-footer">
         <button class="variable-add" type="button" (click)="addRequest()">Add request</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (newCollectionPopupOpen()) {
+  <div class="overlay-backdrop" (click)="closeNewCollectionPopup()">
+    <div class="overlay-panel new-collection-popup" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Add new collection</h3>
+        <button class="overlay-close" type="button" (click)="closeNewCollectionPopup()">Close</button>
+      </div>
+
+      <div class="overlay-body">
+        <label class="edit-field">
+          <span class="edit-label">Name</span>
+          <input
+            class="edit-input"
+            type="text"
+            placeholder="Collection name"
+            [ngModel]="newCollectionName()"
+            (ngModelChange)="newCollectionName.set($event)"
+            (keydown.enter)="addCollection()"
+          />
+        </label>
+      </div>
+
+      <div class="overlay-footer">
+        <button class="variable-add" type="button" (click)="addCollection()">Add collection</button>
       </div>
     </div>
   </div>
