@@ -927,6 +927,49 @@
   gap: var(--s-3);
 }
 
+.context-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+}
+
+.context-menu {
+  position: fixed;
+  min-width: 160px;
+  background: rgba(6, 7, 15, 0.98);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.context-menu-item {
+  display: block;
+  width: 100%;
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: left;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.context-menu-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.context-menu-item--danger {
+  color: #fca5a5;
+}
+
+.context-menu-item--danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
 .favourite-popup-footer {
   display: grid;
   grid-template-columns: 1fr auto;
