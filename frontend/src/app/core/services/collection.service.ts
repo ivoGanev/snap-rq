@@ -24,6 +24,14 @@ export class CollectionApiService {
     return created;
   }
 
+  async update(collection: Collection): Promise<Collection> {
+    const updated = await CollectionService.CollectionService.UpdateCollection(collection);
+    this.collections.update(list =>
+      list.map(c => (c.id === updated.id ? updated : c)),
+    );
+    return updated;
+  }
+
   async delete(id: number): Promise<number[]> {
     const deletedRequestIds = await CollectionService.CollectionService.DeleteCollection(id);
     await this.loadAll();

@@ -5,4 +5,5 @@ type Collection struct {
 	ID        int64  `json:"id"`
 	ProjectID int64  `json:"project_id"`
 	Name      string `json:"name"`
+	IconID    string `json:"icon_id"`
 }

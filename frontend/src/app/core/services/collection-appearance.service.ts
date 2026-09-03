@@ -1,11 +1,8 @@
 import { Injectable, signal } from '@angular/core';
 
-export interface CollectionAppearance {
+export interface CollectionColor {
   color?: string;
-  icon?: string;
 }
-
-export const DEFAULT_COLLECTION_COLOR = '#6b7280';
 
 export const COLLECTION_PALETTE: string[] = [
   '#ef4444',
@@ -26,39 +23,24 @@ export const COLLECTION_PALETTE: string[] = [
   '#374151',
 ];
 
-export const COLLECTION_ICONS: { name: string; src: string }[] = [
-  { name: 'Parchment', src: '/icons/parchment.png' },
-  { name: 'Heart', src: '/icons/heart.png' },
-  { name: 'Dollars', src: '/icons/dollars.png' },
-  { name: 'Diamond', src: '/icons/diamond.png' },
-];
-
 @Injectable({ providedIn: 'root' })
 export class CollectionAppearanceService {
-  readonly appearanceMap = signal<Record<number, CollectionAppearance>>({});
+  readonly colorMap = signal<Record<number, CollectionColor>>({});
   readonly palette = COLLECTION_PALETTE;
-  readonly icons = COLLECTION_ICONS;
 
-  appearanceFor(collectionId: number): CollectionAppearance {
-    return this.appearanceMap()[collectionId] ?? {};
+  colorFor(collectionId: number): CollectionColor {
+    return this.colorMap()[collectionId] ?? {};
   }
 
   setColor(collectionId: number, color: string): void {
-    this.appearanceMap.update(map => ({
+    this.colorMap.update(map => ({
       ...map,
-      [collectionId]: { color, icon: undefined },
+      [collectionId]: { color },
     }));
   }
 
-  setIcon(collectionId: number, icon: string): void {
-    this.appearanceMap.update(map => ({
-      ...map,
-      [collectionId]: { icon, color: undefined },
-    }));
-  }
-
-  clear(collectionId: number): void {
-    this.appearanceMap.update(map => {
+  clearColor(collectionId: number): void {
+    this.colorMap.update(map => {
       const { [collectionId]: _, ...rest } = map;
       return rest;
     });

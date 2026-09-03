@@ -134,7 +134,48 @@ func migrate(db *sql.DB) error {
 		CREATE INDEX IF NOT EXISTS idx_favourite_items_collection_id ON favourite_items(favourite_collection_id);
 		CREATE INDEX IF NOT EXISTS idx_favourite_items_request_id ON favourite_items(http_request_id);
 	`, "")
-	return err
+	if err != nil {
+		return err
+	}
+
+	if err := addCollectionIconIDColumn(db); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func addCollectionIconIDColumn(db *sql.DB) error {
+	rows, err := db.Query("PRAGMA table_info(collections)")
+	if err != nil {
+		return fmt.Errorf("reading collections columns: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var cid int
+		var name string
+		var typ string
+		var notnull int
+		var dfltValue sql.NullString
+		var pk int
+		if err := rows.Scan(&cid, &name, &typ, &notnull, &dfltValue, &pk); err != nil {
+			return fmt.Errorf("scanning collections column: %w", err)
+		}
+		if name == "icon_id" {
+			return nil
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterating collections columns: %w", err)
+	}
+
+	_, err = db.Exec("ALTER TABLE collections ADD COLUMN icon_id TEXT NOT NULL DEFAULT ''")
+	if err != nil {
+		return fmt.Errorf("adding collections icon_id column: %w", err)
+	}
+	return nil
 }
 
 func ensureDefaultCollection(db *sql.DB) error {
