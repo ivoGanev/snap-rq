@@ -10,6 +10,7 @@ import { EnvironmentVariableApiService, type EnvironmentVariable } from './core/
 import { FavouriteApiService, type FavouriteCollection } from './core/services/favourite.service';
 import { SelectionStateService } from './core/services/selection-state.service';
 import { CollectionAppearanceService } from './core/services/collection-appearance.service';
+import { IconManifestService } from './core/services/icon-manifest.service';
 import * as EnvironmentService from '../../bindings/snap-rq/backend/services';
 
 type RightPanelMode = 'response' | 'edit';
@@ -31,6 +32,7 @@ export class App implements OnInit, AfterViewInit {
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly selectionState = inject(SelectionStateService);
   readonly collectionAppearance = inject(CollectionAppearanceService);
+  readonly iconManifest = inject(IconManifestService);
 
   readonly currentTime = this.wails.currentTime;
   readonly collections = this.collectionApi.collections;
@@ -375,23 +377,39 @@ export class App implements OnInit, AfterViewInit {
     this.selectCollectionAppearanceColor(value);
   }
 
-  selectCollectionAppearanceIcon(icon: string): void {
+  async selectCollectionAppearanceIcon(iconId: string): Promise<void> {
     const collection = this.collectionAppearanceTarget();
     if (!collection) return;
 
-    this.collectionAppearance.setIcon(collection.id, icon);
+    try {
+      const updated = await this.collectionApi.update({ ...collection, icon_id: iconId });
+      this.collectionAppearanceTarget.set(updated);
+    } catch (err) {
+      console.error(err);
+      this.error.set('Failed to save collection icon.');
+    }
   }
 
-  resetCollectionAppearance(): void {
+  async resetCollectionAppearance(): Promise<void> {
     const collection = this.collectionAppearanceTarget();
     if (!collection) return;
 
-    this.collectionAppearance.clear(collection.id);
+    this.collectionAppearance.clearColor(collection.id);
+
+    if (!collection.icon_id) return;
+
+    try {
+      const updated = await this.collectionApi.update({ ...collection, icon_id: '' });
+      this.collectionAppearanceTarget.set(updated);
+    } catch (err) {
+      console.error(err);
+      this.error.set('Failed to clear collection icon.');
+    }
   }
 
-  currentCollectionAppearance() {
+  currentCollectionColor() {
     const collection = this.collectionAppearanceTarget();
-    return collection ? this.collectionAppearance.appearanceFor(collection.id) : null;
+    return collection ? this.collectionAppearance.colorFor(collection.id) : null;
   }
 
   async deleteCollection(): Promise<void> {
@@ -707,6 +725,7 @@ export class App implements OnInit, AfterViewInit {
       await this.collectionApi.create({
         project_id: project.id,
         name,
+        icon_id: '',
       });
       await this.collectionApi.loadForProject(project.id);
       this.closeNewCollectionPopup();
