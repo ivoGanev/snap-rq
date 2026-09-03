@@ -138,17 +138,126 @@ func migrate(db *sql.DB) error {
 		return err
 	}
 
-	if err := addCollectionIconIDColumn(db); err != nil {
+	if err := createCollectionAppearancesTable(db); err != nil {
+		return err
+	}
+	if err := migrateCollectionAppearancesFromLegacyColumns(db); err != nil {
+		return err
+	}
+	if err := dropCollectionColumnIfExists(db, "icon_id"); err != nil {
+		return err
+	}
+	if err := dropCollectionColumnIfExists(db, "color"); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func addCollectionIconIDColumn(db *sql.DB) error {
-	rows, err := db.Query("PRAGMA table_info(collections)")
+func createCollectionAppearancesTable(db *sql.DB) error {
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS collection_appearances (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			collection_id INTEGER NOT NULL,
+			appearance_type TEXT NOT NULL CHECK(appearance_type IN ('icon', 'color')),
+			appearance_value TEXT NOT NULL,
+			FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
+			UNIQUE (collection_id)
+		);
+		CREATE INDEX IF NOT EXISTS idx_collection_appearances_collection_id ON collection_appearances(collection_id);
+	`)
 	if err != nil {
-		return fmt.Errorf("reading collections columns: %w", err)
+		return fmt.Errorf("creating collection_appearances table: %w", err)
+	}
+	return nil
+}
+
+func migrateCollectionAppearancesFromLegacyColumns(db *sql.DB) error {
+	hasIconID := columnExists(db, "collections", "icon_id")
+	hasColor := columnExists(db, "collections", "color")
+	if !hasIconID && !hasColor {
+		return nil
+	}
+
+	query := "SELECT id"
+	if hasIconID {
+		query += ", icon_id"
+	}
+	if hasColor {
+		query += ", color"
+	}
+	query += " FROM collections"
+
+	rows, err := db.Query(query)
+	if err != nil {
+		return fmt.Errorf("listing collections for appearance migration: %w", err)
+	}
+	defer rows.Close()
+
+	type legacy struct {
+		id     int64
+		iconID string
+		color  string
+	}
+
+	var items []legacy
+	for rows.Next() {
+		var item legacy
+		dest := []interface{}{&item.id}
+		if hasIconID {
+			dest = append(dest, &item.iconID)
+		}
+		if hasColor {
+			dest = append(dest, &item.color)
+		}
+		if err := rows.Scan(dest...); err != nil {
+			return fmt.Errorf("scanning collection for appearance migration: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterating collections for appearance migration: %w", err)
+	}
+
+	for _, item := range items {
+		if appearanceExists(db, item.id) {
+			continue
+		}
+
+		appearanceType := "icon"
+		appearanceValue := "default"
+		if item.iconID != "" {
+			appearanceValue = item.iconID
+		} else if item.color != "" {
+			appearanceType = "color"
+			appearanceValue = item.color
+		}
+
+		_, err := db.Exec(
+			"INSERT INTO collection_appearances (collection_id, appearance_type, appearance_value) VALUES (?, ?, ?)",
+			item.id, appearanceType, appearanceValue,
+		)
+		if err != nil {
+			return fmt.Errorf("migrating appearance for collection %d: %w", item.id, err)
+		}
+	}
+
+	return nil
+}
+
+func appearanceExists(db *sql.DB, collectionID int64) bool {
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM collection_appearances WHERE collection_id = ?", collectionID).Scan(&count)
+	if err != nil {
+		return false
+	}
+	return count > 0
+}
+
+func columnExists(db *sql.DB, table, column string) bool {
+	rows, err := db.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
+	if err != nil {
+		return false
 	}
 	defer rows.Close()
 
@@ -160,20 +269,22 @@ func addCollectionIconIDColumn(db *sql.DB) error {
 		var dfltValue sql.NullString
 		var pk int
 		if err := rows.Scan(&cid, &name, &typ, &notnull, &dfltValue, &pk); err != nil {
-			return fmt.Errorf("scanning collections column: %w", err)
+			return false
 		}
-		if name == "icon_id" {
-			return nil
+		if name == column {
+			return true
 		}
 	}
+	return false
+}
 
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("iterating collections columns: %w", err)
+func dropCollectionColumnIfExists(db *sql.DB, column string) error {
+	if !columnExists(db, "collections", column) {
+		return nil
 	}
-
-	_, err = db.Exec("ALTER TABLE collections ADD COLUMN icon_id TEXT NOT NULL DEFAULT ''")
+	_, err := db.Exec(fmt.Sprintf("ALTER TABLE collections DROP COLUMN %s", column))
 	if err != nil {
-		return fmt.Errorf("adding collections icon_id column: %w", err)
+		return fmt.Errorf("dropping collections %s column: %w", column, err)
 	}
 	return nil
 }
