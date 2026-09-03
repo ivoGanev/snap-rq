@@ -71,12 +71,28 @@
 
         <ul class="collection-list">
           @for (collection of collections(); track collection.id) {
+            @let appearance = collectionAppearance.appearanceMap()[collection.id];
             <li
               class="collection-item"
               [class.is-selected]="selectedCollection()?.id === collection.id"
               (click)="selectCollection(collection)"
               (contextmenu)="openCollectionContextMenu(collection, $event)"
             >
+              <button
+                class="collection-indicator"
+                type="button"
+                [style.background-color]="appearance?.color ?? null"
+                (click)="openCollectionAppearancePopup(collection, $event)"
+                [attr.aria-label]="'Edit appearance for ' + collection.name"
+              >
+                @if (appearance?.icon) {
+                  <img [src]="appearance!.icon" alt="" />
+                } @else if (!appearance?.color) {
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/>
+                  </svg>
+                }
+              </button>
               <span class="collection-name">{{ collection.name }}</span>
             </li>
           }
@@ -628,12 +644,94 @@
       (click)="$event.stopPropagation()"
     >
       <button
+        class="context-menu-item"
+        type="button"
+        (click)="editCollectionAppearance()"
+      >
+        Edit appearance
+      </button>
+      <button
         class="context-menu-item context-menu-item--danger"
         type="button"
         (click)="deleteCollection()"
       >
         Delete collection
       </button>
+    </div>
+  </div>
+}
+
+@if (collectionAppearancePopupOpen()) {
+  <div class="overlay-backdrop" (click)="closeCollectionAppearancePopup()">
+    <div class="overlay-panel appearance-popup" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Appearance — {{ collectionAppearanceTarget()?.name }}</h3>
+        <button class="overlay-close" type="button" (click)="closeCollectionAppearancePopup()">Close</button>
+      </div>
+
+      <div class="appearance-tabs">
+        <button
+          class="appearance-tab"
+          [class.is-active]="collectionAppearanceTab() === 'icon'"
+          type="button"
+          (click)="collectionAppearanceTab.set('icon')"
+        >
+          Icon
+        </button>
+        <button
+          class="appearance-tab"
+          [class.is-active]="collectionAppearanceTab() === 'color'"
+          type="button"
+          (click)="collectionAppearanceTab.set('color')"
+        >
+          Color
+        </button>
+      </div>
+
+      <div class="overlay-body">
+        @if (collectionAppearanceTab() === 'icon') {
+          <div class="appearance-grid appearance-grid--icons">
+            @for (icon of collectionAppearance.icons; track icon.src) {
+              <button
+                class="appearance-swatch appearance-swatch--icon"
+                [class.is-selected]="currentCollectionAppearance()?.icon === icon.src"
+                type="button"
+                (click)="selectCollectionAppearanceIcon(icon.src)"
+                [attr.aria-label]="'Select ' + icon.name + ' icon'"
+              >
+                <img [src]="icon.src" alt="" />
+              </button>
+            }
+          </div>
+        } @else {
+          <div class="appearance-grid appearance-grid--colors">
+            @for (color of collectionAppearance.palette; track color) {
+              <button
+                class="appearance-swatch appearance-swatch--color"
+                [class.is-selected]="currentCollectionAppearance()?.color === color"
+                type="button"
+                [style.background-color]="color"
+                (click)="selectCollectionAppearanceColor(color)"
+                [attr.aria-label]="'Select color ' + color"
+              ></button>
+            }
+          </div>
+
+          <label class="appearance-color-field">
+            <span class="appearance-color-label">Custom color</span>
+            <input
+              class="appearance-color-input"
+              type="color"
+              [value]="currentCollectionAppearance()?.color ?? '#6366f1'"
+              (input)="onAppearanceColorInput($event)"
+            />
+          </label>
+        }
+      </div>
+
+      <div class="overlay-footer">
+        <button class="overlay-close" type="button" (click)="resetCollectionAppearance()">Reset</button>
+      </div>
     </div>
   </div>
 }

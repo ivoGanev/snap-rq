@@ -9,6 +9,7 @@ import { EnvironmentApiService, type Environment } from './core/services/environ
 import { EnvironmentVariableApiService, type EnvironmentVariable } from './core/services/environment-variable.service';
 import { FavouriteApiService, type FavouriteCollection } from './core/services/favourite.service';
 import { SelectionStateService } from './core/services/selection-state.service';
+import { CollectionAppearanceService } from './core/services/collection-appearance.service';
 import * as EnvironmentService from '../../bindings/snap-rq/backend/services';
 
 type RightPanelMode = 'response' | 'edit';
@@ -29,6 +30,7 @@ export class App implements OnInit, AfterViewInit {
   private readonly variableApi = inject(EnvironmentVariableApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly selectionState = inject(SelectionStateService);
+  readonly collectionAppearance = inject(CollectionAppearanceService);
 
   readonly currentTime = this.wails.currentTime;
   readonly collections = this.collectionApi.collections;
@@ -70,6 +72,9 @@ export class App implements OnInit, AfterViewInit {
   readonly collectionContextMenuX = signal(0);
   readonly collectionContextMenuY = signal(0);
   readonly collectionContextMenuTarget = signal<Collection | null>(null);
+  readonly collectionAppearancePopupOpen = signal(false);
+  readonly collectionAppearanceTarget = signal<Collection | null>(null);
+  readonly collectionAppearanceTab = signal<'icon' | 'color'>('icon');
   readonly newCollectionPopupOpen = signal(false);
   readonly newCollectionName = signal('');
   readonly requestSearchQuery = signal('');
@@ -335,6 +340,58 @@ export class App implements OnInit, AfterViewInit {
   closeCollectionContextMenu(): void {
     this.collectionContextMenuOpen.set(false);
     this.collectionContextMenuTarget.set(null);
+  }
+
+  editCollectionAppearance(): void {
+    const collection = this.collectionContextMenuTarget();
+    if (!collection) return;
+
+    this.closeCollectionContextMenu();
+    this.openCollectionAppearancePopup(collection);
+  }
+
+  openCollectionAppearancePopup(collection: Collection, event?: MouseEvent): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    this.collectionAppearanceTarget.set(collection);
+    this.collectionAppearanceTab.set('icon');
+    this.collectionAppearancePopupOpen.set(true);
+  }
+
+  closeCollectionAppearancePopup(): void {
+    this.collectionAppearancePopupOpen.set(false);
+    this.collectionAppearanceTarget.set(null);
+  }
+
+  selectCollectionAppearanceColor(color: string): void {
+    const collection = this.collectionAppearanceTarget();
+    if (!collection) return;
+
+    this.collectionAppearance.setColor(collection.id, color);
+  }
+
+  onAppearanceColorInput(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.selectCollectionAppearanceColor(value);
+  }
+
+  selectCollectionAppearanceIcon(icon: string): void {
+    const collection = this.collectionAppearanceTarget();
+    if (!collection) return;
+
+    this.collectionAppearance.setIcon(collection.id, icon);
+  }
+
+  resetCollectionAppearance(): void {
+    const collection = this.collectionAppearanceTarget();
+    if (!collection) return;
+
+    this.collectionAppearance.clear(collection.id);
+  }
+
+  currentCollectionAppearance() {
+    const collection = this.collectionAppearanceTarget();
+    return collection ? this.collectionAppearance.appearanceFor(collection.id) : null;
   }
 
   async deleteCollection(): Promise<void> {
