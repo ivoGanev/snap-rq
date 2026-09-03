@@ -71,8 +71,8 @@
 
         <ul class="collection-list">
           @for (collection of collections(); track collection.id) {
-            @let iconPath = iconManifest.pathFor(collection.icon_id);
-            @let color = collectionAppearance.colorFor(collection.id).color;
+            @let iconPath = collection.appearance.appearance_type === 'icon' ? iconManifest.pathFor(collection.appearance.appearance_value) : undefined;
+            @let color = collection.appearance.appearance_type === 'color' ? collection.appearance.appearance_value : null;
             <li
               class="collection-item"
               [class.is-selected]="selectedCollection()?.id === collection.id"
@@ -695,7 +695,7 @@
             @for (icon of iconManifest.icons(); track icon.id) {
               <button
                 class="appearance-swatch appearance-swatch--icon"
-                [class.is-selected]="collectionAppearanceTarget()?.icon_id === icon.id"
+                [class.is-selected]="collectionAppearanceTarget()!.appearance.appearance_type === 'icon' && collectionAppearanceTarget()!.appearance.appearance_value === icon.id"
                 type="button"
                 (click)="selectCollectionAppearanceIcon(icon.id)"
                 [attr.aria-label]="'Select ' + icon.id + ' icon'"
@@ -706,10 +706,10 @@
           </div>
         } @else {
           <div class="appearance-grid appearance-grid--colors">
-            @for (color of collectionAppearance.palette; track color) {
+            @for (color of collectionColorPalette; track color) {
               <button
                 class="appearance-swatch appearance-swatch--color"
-                [class.is-selected]="currentCollectionColor()?.color === color"
+                [class.is-selected]="collectionAppearanceTarget()!.appearance.appearance_type === 'color' && collectionAppearanceTarget()!.appearance.appearance_value === color"
                 type="button"
                 [style.background-color]="color"
                 (click)="selectCollectionAppearanceColor(color)"
@@ -723,7 +723,7 @@
             <input
               class="appearance-color-input"
               type="color"
-              [value]="currentCollectionColor()?.color ?? '#6366f1'"
+              [value]="collectionAppearanceTarget()!.appearance.appearance_type === 'color' ? collectionAppearanceTarget()!.appearance.appearance_value : '#6366f1'"
               (input)="onAppearanceColorInput($event)"
             />
           </label>
