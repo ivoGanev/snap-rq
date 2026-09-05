@@ -72,7 +72,7 @@ export class RequestsMainList {
     const requests = this.activeRequests();
     if (!query) return requests;
     return requests.filter(
-      req =>
+      (req) =>
         req.name.toLowerCase().includes(query) ||
         req.url.toLowerCase().includes(query) ||
         req.method.toLowerCase().includes(query),
@@ -135,7 +135,7 @@ export class RequestsMainList {
 
   private restoreRememberedRequest(requests: HttpRequest[], rememberedId: number | null): void {
     if (rememberedId === null) return;
-    const remembered = requests.find(r => r.id === rememberedId);
+    const remembered = requests.find((r) => r.id === rememberedId);
     if (remembered) {
       this.state.selectedRequest.set(remembered);
     }
@@ -170,6 +170,12 @@ export class RequestsMainList {
     if (favourite) {
       this.selectionState.setSelectedRequestForFavourite(favourite.id, req.id);
     }
+  }
+
+  openZenMode(req: HttpRequest, event: MouseEvent): void {
+    event.stopPropagation();
+    this.selectRequest(req);
+    this.state.zenModeOpen.set(true);
   }
 
   openRequestContextMenu(req: HttpRequest, event: MouseEvent): void {
@@ -308,7 +314,10 @@ export class RequestsMainList {
     }
   }
 
-  async deleteFavouriteCollection(collection: FavouriteCollection, event: MouseEvent): Promise<void> {
+  async deleteFavouriteCollection(
+    collection: FavouriteCollection,
+    event: MouseEvent,
+  ): Promise<void> {
     event.stopPropagation();
     try {
       await this.favouriteApi.deleteCollection(collection.id);

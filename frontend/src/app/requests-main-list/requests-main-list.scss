@@ -19,7 +19,9 @@
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
-  transition: filter 0.15s ease, opacity 0.15s ease;
+  transition:
+    filter 0.15s ease,
+    opacity 0.15s ease;
   --wails-draggable: no-drag;
 }
 
@@ -41,7 +43,10 @@
   color: var(--text);
   font-size: 0.875rem;
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, width 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    width 0.15s ease;
 }
 
 .request-search-input:focus {
@@ -88,7 +93,10 @@
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.1s ease;
   --wails-draggable: no-drag;
 }
 
@@ -107,12 +115,17 @@
 }
 
 .send-button,
-.favourite-button {
+.favourite-button,
+.zen-mode-button {
   flex: 0 0 auto;
   opacity: 0;
   visibility: hidden;
   transform: translateX(4px);
-  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease, color 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    visibility 0.15s ease,
+    color 0.15s ease;
   margin-right: var(--s-2);
   padding: 3px 10px;
   font-size: 0.75rem;
@@ -126,7 +139,8 @@
   --wails-draggable: no-drag;
 }
 
-.favourite-button {
+.favourite-button,
+.zen-mode-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -138,13 +152,19 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
-.favourite-button svg {
+.favourite-button svg,
+.zen-mode-button svg {
   width: 14px;
   height: 14px;
 }
 
 .favourite-button:hover {
   color: #ff6b6b;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.zen-mode-button:hover {
+  color: #bfdbfe;
   background: rgba(255, 255, 255, 0.18);
 }
 
@@ -155,7 +175,9 @@
 .request-item:hover .send-button,
 .request-item.is-selected .send-button,
 .request-item:hover .favourite-button,
-.request-item.is-selected .favourite-button {
+.request-item.is-selected .favourite-button,
+.request-item:hover .zen-mode-button,
+.request-item.is-selected .zen-mode-button {
   opacity: 1;
   visibility: visible;
   transform: translateX(0);
@@ -180,27 +202,27 @@
   color: var(--text);
 }
 
-.request-method[data-method="GET"] {
+.request-method[data-method='GET'] {
   background: rgba(59, 130, 246, 0.2);
   color: #93c5fd;
 }
 
-.request-method[data-method="POST"] {
+.request-method[data-method='POST'] {
   background: rgba(34, 197, 94, 0.2);
   color: #86efac;
 }
 
-.request-method[data-method="PUT"] {
+.request-method[data-method='PUT'] {
   background: rgba(234, 179, 8, 0.2);
   color: #fde047;
 }
 
-.request-method[data-method="DELETE"] {
+.request-method[data-method='DELETE'] {
   background: rgba(239, 68, 68, 0.2);
   color: #fca5a5;
 }
 
-.request-method[data-method="PATCH"] {
+.request-method[data-method='PATCH'] {
   background: rgba(168, 85, 247, 0.2);
   color: #d8b4fe;
 }
@@ -281,7 +303,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .favourite-checkbox input:checked + .favourite-checkmark {
