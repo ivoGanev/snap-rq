@@ -10,10 +10,11 @@ import { EnvironmentVariableApiService, type EnvironmentVariable } from './core/
 import { FavouriteApiService, type FavouriteCollection } from './core/services/favourite.service';
 import { SelectionStateService } from './core/services/selection-state.service';
 import { IconManifestService } from './core/services/icon-manifest.service';
+import { TagApiService, type Tag } from './core/services/tag.service';
 import * as EnvironmentService from '../../bindings/snap-rq/backend/services';
 
 type RightPanelMode = 'response' | 'edit';
-type SidebarSection = 'collections' | 'favourites';
+type SidebarSection = 'collections' | 'favourites' | 'tags';
 
 const COLLECTION_COLOR_PALETTE: string[] = [
   '#ef4444',
@@ -50,6 +51,7 @@ export class App implements OnInit, AfterViewInit {
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly selectionState = inject(SelectionStateService);
   readonly iconManifest = inject(IconManifestService);
+  readonly tagApi = inject(TagApiService);
 
   readonly currentTime = this.wails.currentTime;
   readonly collections = this.collectionApi.collections;
@@ -97,6 +99,14 @@ export class App implements OnInit, AfterViewInit {
   readonly collectionColorPalette = COLLECTION_COLOR_PALETTE;
   readonly newCollectionPopupOpen = signal(false);
   readonly newCollectionName = signal('');
+  readonly tagsExpanded = signal(true);
+  readonly allTags = this.tagApi.allTags;
+  readonly requestTags = this.tagApi.requestTags;
+  readonly tagRequests = signal<HttpRequest[]>([]);
+  readonly selectedTag = signal<string | null>(null);
+  readonly tagSearchQuery = signal('');
+  readonly tagInputOpen = signal(false);
+  readonly newTagName = signal('');
   readonly requestSearchQuery = signal('');
   readonly projectEditorOpen = signal(false);
   readonly newProjectName = signal('');
@@ -115,15 +125,47 @@ export class App implements OnInit, AfterViewInit {
     );
   });
 
-  readonly activeRequests = computed<HttpRequest[]>(() =>
-    this.activeSection() === 'favourites' ? this.favouriteRequests() : this.requests(),
-  );
+  readonly activeRequests = computed<HttpRequest[]>(() => {
+    switch (this.activeSection()) {
+      case 'favourites':
+        return this.favouriteRequests();
+      case 'tags':
+        return this.tagRequests();
+      default:
+        return this.requests();
+    }
+  });
 
-  readonly activeCollectionName = computed<string | null>(() =>
-    this.activeSection() === 'favourites'
-      ? this.selectedFavouriteCollection()?.name ?? null
-      : this.selectedCollection()?.name ?? null,
-  );
+  readonly activeGroupName = computed<string | null>(() => {
+    switch (this.activeSection()) {
+      case 'favourites':
+        return this.selectedFavouriteCollection()?.name ?? null;
+      case 'tags':
+        return this.selectedTag() ?? null;
+      default:
+        return this.selectedCollection()?.name ?? null;
+    }
+  });
+
+  readonly filteredTags = computed<Tag[]>(() => {
+    const query = this.tagSearchQuery().trim().toLowerCase();
+    const tags = this.allTags();
+    if (!query) return tags;
+    return tags.filter(tag => tag.name.toLowerCase().includes(query));
+  });
+
+  readonly tagSuggestions = computed<Tag[]>(() => {
+    const query = this.newTagName().trim().toLowerCase();
+    const tags = this.allTags();
+    const selected = this.selectedRequest();
+    const existing = selected ? new Set(this.requestTags()[selected.id] ?? []) : new Set<string>();
+    if (!query) {
+      return tags.filter(tag => !existing.has(tag.name)).slice(0, 6);
+    }
+    return tags
+      .filter(tag => tag.name.toLowerCase().includes(query) && !existing.has(tag.name))
+      .slice(0, 6);
+  });
 
   constructor() {
     effect(() => {
@@ -189,6 +231,7 @@ export class App implements OnInit, AfterViewInit {
     await this.loadEnvironments(project.id);
     await this.favouriteApi.loadCollectionsForProfile(project.profile_id);
     await this.collectionApi.loadForProject(project.id);
+    await this.tagApi.loadAllTags();
 
     const collections = this.collections();
     if (collections.length > 0) {
@@ -228,6 +271,7 @@ export class App implements OnInit, AfterViewInit {
   async selectCollection(collection: Collection): Promise<void> {
     this.selectedCollection.set(collection);
     this.selectedFavouriteCollection.set(null);
+    this.selectedTag.set(null);
     this.selectedRequest.set(null);
     this.selectedResponse.set(null);
     this.rightPanelMode.set('response');
@@ -236,6 +280,7 @@ export class App implements OnInit, AfterViewInit {
     this.requestSearchQuery.set('');
     try {
       await this.requestApi.loadForCollection(collection.id);
+      await this.tagApi.loadTagsForRequests(this.requests());
       const rememberedId = this.selectionState.getSelectedRequestForCollection(collection.id);
       if (rememberedId !== null) {
         const remembered = this.requests().find(r => r.id === rememberedId);
@@ -251,6 +296,7 @@ export class App implements OnInit, AfterViewInit {
   async selectFavouriteCollection(collection: FavouriteCollection): Promise<void> {
     this.selectedFavouriteCollection.set(collection);
     this.selectedCollection.set(null);
+    this.selectedTag.set(null);
     this.selectedRequest.set(null);
     this.selectedResponse.set(null);
     this.rightPanelMode.set('response');
@@ -259,6 +305,7 @@ export class App implements OnInit, AfterViewInit {
     this.requestSearchQuery.set('');
     try {
       await this.favouriteApi.loadRequestsForCollection(collection.id);
+      await this.tagApi.loadTagsForRequests(this.favouriteRequests());
       const rememberedId = this.selectionState.getSelectedRequestForFavourite(collection.id);
       if (rememberedId !== null) {
         const remembered = this.favouriteRequests().find(r => r.id === rememberedId);
@@ -268,6 +315,93 @@ export class App implements OnInit, AfterViewInit {
       }
     } catch (err) {
       console.error(err);
+    }
+  }
+
+  toggleTagsExpanded(): void {
+    this.tagsExpanded.update(v => !v);
+  }
+
+  async selectTag(tag: Tag): Promise<void> {
+    this.selectedTag.set(tag.name);
+    this.selectedCollection.set(null);
+    this.selectedFavouriteCollection.set(null);
+    this.selectedRequest.set(null);
+    this.selectedResponse.set(null);
+    this.rightPanelMode.set('response');
+    this.activeSection.set('tags');
+    this.tagsExpanded.set(true);
+    this.requestSearchQuery.set('');
+    try {
+      const requests = await this.tagApi.getRequestsForTag(tag.name);
+      this.tagRequests.set(requests);
+      await this.tagApi.loadTagsForRequests(requests);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  clearTagFilter(): void {
+    this.selectedTag.set(null);
+    this.tagRequests.set([]);
+    const collection = this.selectedCollection();
+    if (collection) {
+      this.activeSection.set('collections');
+      this.selectCollection(collection);
+      return;
+    }
+    const favourite = this.selectedFavouriteCollection();
+    if (favourite) {
+      this.activeSection.set('favourites');
+      this.selectFavouriteCollection(favourite);
+      return;
+    }
+    this.activeSection.set('collections');
+  }
+
+  openTagInput(): void {
+    this.tagInputOpen.set(true);
+    this.newTagName.set('');
+  }
+
+  closeTagInput(): void {
+    this.tagInputOpen.set(false);
+    this.newTagName.set('');
+  }
+
+  async addTagToRequest(req: HttpRequest, tagName: string): Promise<void> {
+    const name = tagName.trim();
+    if (!name) return;
+
+    try {
+      await this.tagApi.addTagToRequest(req.id, name);
+      this.closeTagInput();
+    } catch (err) {
+      console.error(err);
+      this.error.set('Failed to add tag.');
+    }
+  }
+
+  async removeTagFromRequest(req: HttpRequest, tagName: string, event: MouseEvent): Promise<void> {
+    event.stopPropagation();
+    try {
+      await this.tagApi.removeTagFromRequest(req.id, tagName);
+    } catch (err) {
+      console.error(err);
+      this.error.set('Failed to remove tag.');
+    }
+  }
+
+  async deleteTag(tag: Tag, event: MouseEvent): Promise<void> {
+    event.stopPropagation();
+    try {
+      await this.tagApi.deleteTag(tag.name);
+      if (this.selectedTag() === tag.name) {
+        this.clearTagFilter();
+      }
+    } catch (err) {
+      console.error(err);
+      this.error.set('Failed to delete tag.');
     }
   }
 
