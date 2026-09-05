@@ -1,0 +1,45 @@
+<div class="column-header tab-header">
+  <div class="tabs">
+    <button
+      class="tab"
+      [class.is-active]="state.rightPanelMode() === 'response'"
+      (click)="setRightPanelMode('response')"
+      [disabled]="!state.selectedRequest()"
+    >
+      Response
+    </button>
+    <span class="tab-separator" aria-hidden="true">|</span>
+    <button
+      class="tab"
+      [class.is-active]="state.rightPanelMode() === 'edit'"
+      (click)="setRightPanelMode('edit')"
+      [disabled]="!state.selectedRequest()"
+    >
+      Request
+    </button>
+  </div>
+  @if (state.selectedRequest()) {
+    <button
+      class="big-send-button"
+      type="button"
+      (click)="state.sendRequest(state.selectedRequest()!, $event)"
+    >
+      Send
+    </button>
+  }
+  @if (state.selectedRequest() && state.rightPanelMode() === 'response') {
+    <span class="request-count">{{ responses().length }} response(s)</span>
+  }
+</div>
+
+@if (!state.selectedRequest()) {
+  <div class="state-message">Select a request to view or edit it.</div>
+}
+
+@if (state.selectedRequest() && state.rightPanelMode() === 'response') {
+  <app-response-viewer></app-response-viewer>
+}
+
+@if (state.selectedRequest() && state.rightPanelMode() === 'edit') {
+  <app-request-editor></app-request-editor>
+}

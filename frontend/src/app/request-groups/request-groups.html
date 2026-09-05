@@ -1,0 +1,269 @@
+<div class="sidebar-section" [style.flex]="collectionsExpanded() ? '1 1 0' : '0 0 auto'">
+  <button
+    class="sidebar-section-toggle"
+    type="button"
+    [class.is-active]="collectionsExpanded()"
+    (click)="toggleCollectionsExpanded()"
+  >
+    Collections
+  </button>
+  <button
+    class="add-collection-button"
+    type="button"
+    (click)="openNewCollectionPopup()"
+    [disabled]="!state.selectedProject()"
+    aria-label="Add collection"
+  >
+    +
+  </button>
+
+  @if (collectionsExpanded()) {
+    @if (loading()) {
+      <div class="state-message">Loading…</div>
+    }
+
+    @if (!loading() && collections().length === 0) {
+      <div class="state-message">No collections.</div>
+    }
+
+    <ul class="collection-list">
+      @for (collection of collections(); track collection.id) {
+        @let iconPath = collection.appearance.appearance_type === 'icon' ? iconManifest.pathFor(collection.appearance.appearance_value) : undefined;
+        @let color = collection.appearance.appearance_type === 'color' ? collection.appearance.appearance_value : null;
+        <li
+          class="collection-item"
+          [class.is-selected]="state.selectedCollection()?.id === collection.id"
+          (click)="selectCollection(collection)"
+          (contextmenu)="openCollectionContextMenu(collection, $event)"
+        >
+          <button
+            class="collection-indicator"
+            type="button"
+            [style.background-color]="color ?? null"
+            (click)="openCollectionAppearancePopup(collection, $event)"
+            [attr.aria-label]="'Edit appearance for ' + collection.name"
+          >
+            @if (iconPath) {
+              <img [src]="iconPath" alt="" />
+            } @else if (!color) {
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/>
+              </svg>
+            }
+          </button>
+          <span class="collection-name">{{ collection.name }}</span>
+        </li>
+      }
+    </ul>
+  }
+</div>
+
+<div class="sidebar-section" [style.flex]="favouritesExpanded() ? '1 1 0' : '0 0 auto'">
+  <button
+    class="sidebar-section-toggle"
+    type="button"
+    [class.is-active]="favouritesExpanded()"
+    (click)="toggleFavouritesExpanded()"
+  >
+    Favourites
+  </button>
+
+  @if (favouritesExpanded()) {
+    @if (favouriteCollections().length === 0) {
+      <div class="state-message">No favourite collections.</div>
+    }
+
+    <ul class="collection-list">
+      @for (collection of favouriteCollections(); track collection.id) {
+        <li
+          class="collection-item"
+          [class.is-selected]="state.selectedFavouriteCollection()?.id === collection.id"
+          (click)="selectFavouriteCollection(collection)"
+        >
+          <span class="collection-name">{{ collection.name }}</span>
+        </li>
+      }
+    </ul>
+  }
+</div>
+
+<div class="sidebar-section" [style.flex]="tagsExpanded() ? '1 1 0' : '0 0 auto'">
+  <button
+    class="sidebar-section-toggle"
+    type="button"
+    [class.is-active]="tagsExpanded()"
+    (click)="toggleTagsExpanded()"
+  >
+    Tags
+  </button>
+
+  @if (tagsExpanded()) {
+    @if (allTags().length === 0) {
+      <div class="state-message">No tags yet.</div>
+    }
+
+    @if (allTags().length > 0) {
+      <input
+        class="tag-search-input"
+        type="text"
+        placeholder="Filter tags…"
+        [ngModel]="tagSearchQuery()"
+        (ngModelChange)="tagSearchQuery.set($event)"
+      />
+    }
+
+    <ul class="tag-list">
+      @for (tag of filteredTags(); track tag.id) {
+        <li
+          class="tag-item"
+          [class.is-selected]="state.selectedTag() === tag.name"
+          (click)="selectTag(tag)"
+        >
+          <span class="tag-chip tag-chip--list">{{ tag.name }}</span>
+          <button
+            class="tag-delete"
+            type="button"
+            (click)="deleteTag(tag, $event)"
+            aria-label="Delete tag"
+          >
+            ×
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</div>
+
+@if (newCollectionPopupOpen()) {
+  <div class="overlay-backdrop" (click)="closeNewCollectionPopup()">
+    <div class="overlay-panel new-collection-popup" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Add new collection</h3>
+        <button class="overlay-close" type="button" (click)="closeNewCollectionPopup()">Close</button>
+      </div>
+
+      <div class="overlay-body">
+        <label class="edit-field">
+          <span class="edit-label">Name</span>
+          <input
+            class="edit-input"
+            type="text"
+            placeholder="Collection name"
+            [ngModel]="newCollectionName()"
+            (ngModelChange)="newCollectionName.set($event)"
+            (keydown.enter)="addCollection()"
+          />
+        </label>
+      </div>
+
+      <div class="overlay-footer">
+        <button class="variable-add" type="button" (click)="addCollection()">Add collection</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (collectionContextMenuOpen()) {
+  <div
+    class="context-menu-backdrop"
+    (click)="closeCollectionContextMenu()"
+    (contextmenu)="closeCollectionContextMenu(); $event.preventDefault()"
+  >
+    <div
+      class="context-menu"
+      [style.left.px]="collectionContextMenuX()"
+      [style.top.px]="collectionContextMenuY()"
+      (click)="$event.stopPropagation()"
+    >
+      <button
+        class="context-menu-item"
+        type="button"
+        (click)="editCollectionAppearance()"
+      >
+        Edit appearance
+      </button>
+      <button
+        class="context-menu-item context-menu-item--danger"
+        type="button"
+        (click)="deleteCollection()"
+      >
+        Delete collection
+      </button>
+    </div>
+  </div>
+}
+
+@if (collectionAppearancePopupOpen()) {
+  <div class="overlay-backdrop" (click)="closeCollectionAppearancePopup()">
+    <div class="overlay-panel appearance-popup" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Appearance — {{ collectionAppearanceTarget()?.name }}</h3>
+        <button class="overlay-close" type="button" (click)="closeCollectionAppearancePopup()">Close</button>
+      </div>
+
+      <div class="appearance-tabs">
+        <button
+          class="appearance-tab"
+          [class.is-active]="collectionAppearanceTab() === 'icon'"
+          type="button"
+          (click)="collectionAppearanceTab.set('icon')"
+        >
+          Icon
+        </button>
+        <button
+          class="appearance-tab"
+          [class.is-active]="collectionAppearanceTab() === 'color'"
+          type="button"
+          (click)="collectionAppearanceTab.set('color')"
+        >
+          Color
+        </button>
+      </div>
+
+      <div class="overlay-body">
+        @if (collectionAppearanceTab() === 'icon') {
+          <div class="appearance-grid appearance-grid--icons">
+            @for (icon of iconManifest.icons(); track icon.id) {
+              <button
+                class="appearance-swatch appearance-swatch--icon"
+                [class.is-selected]="collectionAppearanceTarget()!.appearance.appearance_type === 'icon' && collectionAppearanceTarget()!.appearance.appearance_value === icon.id"
+                type="button"
+                (click)="selectCollectionAppearanceIcon(icon.id)"
+                [attr.aria-label]="'Select ' + icon.id + ' icon'"
+              >
+                <img [src]="icon.path" alt="" />
+              </button>
+            }
+          </div>
+        } @else {
+          <div class="appearance-grid appearance-grid--colors">
+            @for (color of collectionColorPalette; track color) {
+              <button
+                class="appearance-swatch appearance-swatch--color"
+                [class.is-selected]="collectionAppearanceTarget()!.appearance.appearance_type === 'color' && collectionAppearanceTarget()!.appearance.appearance_value === color"
+                type="button"
+                [style.background-color]="color"
+                (click)="selectCollectionAppearanceColor(color)"
+                [attr.aria-label]="'Select color ' + color"
+              ></button>
+            }
+          </div>
+
+          <label class="appearance-color-field">
+            <span class="appearance-color-label">Custom color</span>
+            <input
+              class="appearance-color-input"
+              type="color"
+              [value]="collectionAppearanceTarget()!.appearance.appearance_type === 'color' ? collectionAppearanceTarget()!.appearance.appearance_value : '#6366f1'"
+              (input)="onAppearanceColorInput($event)"
+            />
+          </label>
+        }
+      </div>
+
+      <div class="overlay-footer">
+        <button class="overlay-close" type="button" (click)="resetCollectionAppearance()">Reset</button>
+      </div>
+    </div>
+  </div>
+}

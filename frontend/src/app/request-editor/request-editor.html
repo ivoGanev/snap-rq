@@ -1,0 +1,109 @@
+@if (draftRequest()) {
+  <div class="edit-form">
+    <div class="edit-fields">
+      <label class="edit-field">
+        <span class="edit-label">Name</span>
+        <input
+          class="edit-input"
+          type="text"
+          [ngModel]="draftRequest()!.name"
+          (ngModelChange)="updateRequestField('name', $event)"
+          name="reqName"
+        />
+      </label>
+
+      <label class="edit-field">
+        <span class="edit-label">URL</span>
+        <input
+          class="edit-input"
+          type="text"
+          [ngModel]="draftRequest()!.url"
+          (ngModelChange)="updateRequestField('url', $event)"
+          name="reqUrl"
+        />
+      </label>
+
+      <label class="edit-field">
+        <span class="edit-label">Method</span>
+        <select
+          class="edit-select"
+          [ngModel]="draftRequest()!.method"
+          (ngModelChange)="updateRequestField('method', $event)"
+          name="reqMethod"
+        >
+          <option>GET</option>
+          <option>POST</option>
+          <option>PUT</option>
+          <option>DELETE</option>
+          <option>PATCH</option>
+          <option>HEAD</option>
+          <option>OPTIONS</option>
+        </select>
+      </label>
+
+      <label class="edit-field">
+        <span class="edit-label">Headers</span>
+        <textarea
+          class="edit-textarea"
+          rows="6"
+          [ngModel]="draftRequest()!.request_headers"
+          (ngModelChange)="updateRequestField('request_headers', $event)"
+          name="reqHeaders"
+        ></textarea>
+      </label>
+
+      <label class="edit-field">
+        <span class="edit-label">Body</span>
+        <textarea
+          class="edit-textarea edit-body"
+          rows="12"
+          [ngModel]="draftRequest()!.body"
+          (ngModelChange)="updateRequestField('body', $event)"
+          name="reqBody"
+        ></textarea>
+      </label>
+
+      <label class="edit-field">
+        <span class="edit-label">Tags</span>
+        <div class="request-tags request-tags--editable">
+          @for (tag of requestTags()[state.selectedRequest()!.id] ?? []; track tag) {
+            <span class="tag-chip tag-chip--editable">
+              {{ tag }}
+              <button
+                class="tag-chip-remove"
+                type="button"
+                (click)="removeTagFromRequest(state.selectedRequest()!, tag, $event)"
+                aria-label="Remove tag"
+              >
+                ×
+              </button>
+            </span>
+          }
+        </div>
+        <div class="tag-input-wrap">
+          <input
+            class="tag-input"
+            type="text"
+            placeholder="Add tag…"
+            [ngModel]="newTagName()"
+            (ngModelChange)="newTagName.set($event)"
+            (keydown.enter)="addTagToRequest(state.selectedRequest()!, newTagName())"
+          />
+          @if (tagSuggestions().length && newTagName().trim()) {
+            <div class="tag-suggestions">
+              @for (tag of tagSuggestions(); track tag.id) {
+                <button
+                  class="tag-suggestion"
+                  type="button"
+                  (click)="addTagToRequest(state.selectedRequest()!, tag.name)"
+                >
+                  {{ tag.name }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+      </label>
+    </div>
+  </div>
+}
