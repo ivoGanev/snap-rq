@@ -113,6 +113,17 @@ export class App implements OnInit, AfterViewInit {
   readonly projectDeleteConfirmOpen = signal(false);
   readonly projectPendingDelete = signal<Project | null>(null);
 
+  readonly leftColumnWidth = signal(220);
+  readonly rightColumnWidth = signal(420);
+  readonly resizingColumn = signal<'left' | 'right' | null>(null);
+  readonly requestSendStartTime = signal<number | null>(null);
+  readonly requestElapsedMs = signal(0);
+  readonly lastResponseDurationMs = signal<number | null>(null);
+
+  private resizeStartX = 0;
+  private resizeStartWidth = 0;
+  private elapsedIntervalId: number | null = null;
+
   readonly filteredActiveRequests = computed<HttpRequest[]>(() => {
     const query = this.requestSearchQuery().trim().toLowerCase();
     const requests = this.activeRequests();
@@ -188,6 +199,96 @@ export class App implements OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     WML.Enable();
+  }
+
+  startColumnResize(side: 'left' | 'right', event: MouseEvent): void {
+    event.preventDefault();
+    this.resizingColumn.set(side);
+    this.resizeStartX = event.clientX;
+    this.resizeStartWidth = side === 'left' ? this.leftColumnWidth() : this.rightColumnWidth();
+
+    document.addEventListener('mousemove', this.onColumnResizeMove);
+    document.addEventListener('mouseup', this.onColumnResizeEnd);
+  }
+
+  private readonly onColumnResizeMove = (event: MouseEvent): void => {
+    const side = this.resizingColumn();
+    if (!side) return;
+
+    const delta = event.clientX - this.resizeStartX;
+    const width = Math.max(160, this.resizeStartWidth + (side === 'left' ? delta : -delta));
+
+    if (side === 'left') {
+      this.leftColumnWidth.set(width);
+    } else {
+      this.rightColumnWidth.set(width);
+    }
+  };
+
+  private readonly onColumnResizeEnd = (): void => {
+    this.resizingColumn.set(null);
+    document.removeEventListener('mousemove', this.onColumnResizeMove);
+    document.removeEventListener('mouseup', this.onColumnResizeEnd);
+  };
+
+  onEscapePressed(): void {
+    if (this.requestContextMenuOpen()) {
+      this.closeRequestContextMenu();
+      return;
+    }
+    if (this.collectionContextMenuOpen()) {
+      this.closeCollectionContextMenu();
+      return;
+    }
+    if (this.collectionAppearancePopupOpen()) {
+      this.closeCollectionAppearancePopup();
+      return;
+    }
+    if (this.variablesOverlayOpen()) {
+      this.closeVariablesOverlay();
+      return;
+    }
+    if (this.favouritePopupOpen()) {
+      this.closeFavouritePopup();
+      return;
+    }
+    if (this.newRequestPopupOpen()) {
+      this.closeNewRequestPopup();
+      return;
+    }
+    if (this.newCollectionPopupOpen()) {
+      this.closeNewCollectionPopup();
+      return;
+    }
+    if (this.projectDeleteConfirmOpen()) {
+      this.cancelDeleteProject();
+      return;
+    }
+    if (this.projectEditorOpen()) {
+      this.closeProjectEditor();
+      return;
+    }
+  }
+
+  private startRequestTimer(): void {
+    const start = Date.now();
+    this.requestSendStartTime.set(start);
+    this.requestElapsedMs.set(0);
+    this.elapsedIntervalId = window.setInterval(() => {
+      this.requestElapsedMs.set(Date.now() - start);
+    }, 50);
+  }
+
+  private stopRequestTimer(): void {
+    if (this.elapsedIntervalId !== null) {
+      clearInterval(this.elapsedIntervalId);
+      this.elapsedIntervalId = null;
+    }
+    const start = this.requestSendStartTime();
+    if (start !== null) {
+      this.lastResponseDurationMs.set(Date.now() - start);
+    }
+    this.requestSendStartTime.set(null);
   }
 
   async loadProjects(): Promise<void> {
@@ -648,7 +749,7 @@ export class App implements OnInit, AfterViewInit {
 
   async sendRequest(req: HttpRequest, event: MouseEvent): Promise<void> {
     event.stopPropagation();
-    this.loading.set(true);
+    this.startRequestTimer();
     try {
       const environmentId = this.selectedEnvironment()?.id ?? 0;
       const resp = await this.requestApi.execute(req.id, environmentId);
@@ -667,7 +768,7 @@ export class App implements OnInit, AfterViewInit {
       console.error(err);
       this.error.set('Failed to send request.');
     } finally {
-      this.loading.set(false);
+      this.stopRequestTimer();
     }
   }
 

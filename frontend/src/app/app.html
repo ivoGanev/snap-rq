@@ -37,28 +37,30 @@
   </div>
 </div>
 
-<div class="app-shell">
-  <aside class="sidebar sidebar-left" aria-label="Collections and Favourites">
-    <div class="sidebar-section">
-      <div class="sidebar-section-header">
-        <button
-          class="add-collection-button"
-          type="button"
-          (click)="openNewCollectionPopup()"
-          [disabled]="!selectedProject()"
-          aria-label="Add collection"
-        >
-          + Collection
-        </button>
-        <button
-          class="sidebar-section-toggle"
-          type="button"
-          [class.is-active]="collectionsExpanded()"
-          (click)="toggleCollectionsExpanded()"
-        >
-          Collections
-        </button>
-      </div>
+<div class="app-shell" (window:keydown.escape)="onEscapePressed()">
+  <aside
+    class="sidebar sidebar-left"
+    aria-label="Collections and Favourites"
+    [style.width.px]="leftColumnWidth()"
+  >
+    <div class="sidebar-section" [style.flex]="collectionsExpanded() ? '1 1 0' : '0 0 auto'">
+      <button
+        class="sidebar-section-toggle"
+        type="button"
+        [class.is-active]="collectionsExpanded()"
+        (click)="toggleCollectionsExpanded()"
+      >
+        Collections
+      </button>
+      <button
+        class="add-collection-button"
+        type="button"
+        (click)="openNewCollectionPopup()"
+        [disabled]="!selectedProject()"
+        aria-label="Add collection"
+      >
+        +
+      </button>
 
       @if (collectionsExpanded()) {
         @if (loading()) {
@@ -101,7 +103,7 @@
       }
     </div>
 
-    <div class="sidebar-section">
+    <div class="sidebar-section" [style.flex]="favouritesExpanded() ? '1 1 0' : '0 0 auto'">
       <button
         class="sidebar-section-toggle"
         type="button"
@@ -130,7 +132,7 @@
       }
     </div>
 
-    <div class="sidebar-section">
+    <div class="sidebar-section" [style.flex]="tagsExpanded() ? '1 1 0' : '0 0 auto'">
       <button
         class="sidebar-section-toggle"
         type="button"
@@ -177,6 +179,12 @@
       }
     </div>
   </aside>
+
+  <div
+    class="resizer"
+    (mousedown)="startColumnResize('left', $event)"
+    aria-hidden="true"
+  ></div>
 
   <main class="main-column" aria-label="Requests">
     <div class="column-header column-header--requests">
@@ -249,7 +257,6 @@
             >
               Send
             </button>
-            <span class="request-status" [class.is-error]="req.status_code >= 400">{{ req.status_code || '—' }}</span>
           </div>
           <div class="request-url">{{ req.url }}</div>
           @if (requestTags()[req.id]?.length) {
@@ -264,7 +271,17 @@
     </ul>
   </main>
 
-  <aside class="sidebar sidebar-right" aria-label="Request and response panel">
+  <div
+    class="resizer"
+    (mousedown)="startColumnResize('right', $event)"
+    aria-hidden="true"
+  ></div>
+
+  <aside
+    class="sidebar sidebar-right"
+    aria-label="Request and response panel"
+    [style.width.px]="rightColumnWidth()"
+  >
     <div class="column-header tab-header">
       <div class="tabs">
         <button
@@ -329,6 +346,9 @@
             <span class="response-status" [class.is-error]="selectedResponse()!.status_code >= 400">
               Status: {{ selectedResponse()!.status_code }}
             </span>
+            @if (lastResponseDurationMs() !== null) {
+              <span class="response-duration">Duration: {{ lastResponseDurationMs() }} ms</span>
+            }
           </div>
 
           <div class="response-section">
