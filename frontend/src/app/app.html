@@ -27,11 +27,7 @@
   <div class="project-selector">
     <span class="project-label">Project</span>
     <span class="project-name">{{ state.selectedProject()?.name ?? 'None' }}</span>
-    <button
-      class="project-change-button"
-      type="button"
-      (click)="openProjectEditor()"
-    >
+    <button class="project-change-button" type="button" (click)="openProjectEditor()">
       Change project
     </button>
   </div>
@@ -40,22 +36,18 @@
 <div class="app-shell" (window:keydown.escape)="onEscapePressed()">
   <app-request-groups [style.width.px]="leftColumnWidth()"></app-request-groups>
 
-  <div
-    class="resizer"
-    (mousedown)="startColumnResize('left', $event)"
-    aria-hidden="true"
-  ></div>
+  <div class="resizer" (mousedown)="startColumnResize('left', $event)" aria-hidden="true"></div>
 
   <app-requests-main-list></app-requests-main-list>
 
-  <div
-    class="resizer"
-    (mousedown)="startColumnResize('right', $event)"
-    aria-hidden="true"
-  ></div>
+  <div class="resizer" (mousedown)="startColumnResize('right', $event)" aria-hidden="true"></div>
 
   <app-request-panel [style.width.px]="rightColumnWidth()"></app-request-panel>
 </div>
+
+@if (state.zenModeOpen()) {
+  <app-zen-mode></app-zen-mode>
+}
 
 @if (variablesOverlayOpen()) {
   <div class="overlay-backdrop" (click)="closeVariablesOverlay()">
@@ -63,8 +55,12 @@
       <div class="overlay-header">
         <h3 class="overlay-title">Edit variables — {{ state.selectedEnvironment()?.name }}</h3>
         <div class="overlay-actions">
-          <button class="overlay-delete" type="button" (click)="deleteEnvironment()">Delete env</button>
-          <button class="overlay-close" type="button" (click)="closeVariablesOverlay()">Close</button>
+          <button class="overlay-delete" type="button" (click)="deleteEnvironment()">
+            Delete env
+          </button>
+          <button class="overlay-close" type="button" (click)="closeVariablesOverlay()">
+            Close
+          </button>
         </div>
       </div>
 
@@ -162,12 +158,15 @@
 
       <div class="overlay-body">
         <p class="delete-confirm-message">
-          This will permanently delete <strong>{{ projectPendingDelete()?.name }}</strong> and all of its collections, requests, responses, and favourites.
+          This will permanently delete <strong>{{ projectPendingDelete()?.name }}</strong> and all
+          of its collections, requests, responses, and favourites.
         </p>
       </div>
 
       <div class="overlay-footer">
-        <button class="overlay-delete" type="button" (click)="deleteProject()">Delete project</button>
+        <button class="overlay-delete" type="button" (click)="deleteProject()">
+          Delete project
+        </button>
       </div>
     </div>
   </div>
@@ -176,7 +175,15 @@
 <footer class="footer">
   <span class="footer-version">v3</span>
   <span class="footer-time">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
       <circle cx="12" cy="12" r="10" />
       <polyline points="12 6 12 12 16 14" />
     </svg>
@@ -184,7 +191,15 @@
   </span>
   <a class="footer-docs" data-wml-openURL="https://v3.wails.io" aria-label="Wails documentation">
     Docs
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
       <line x1="7" y1="17" x2="17" y2="7" />
       <polyline points="7 7 17 7 17 17" />
     </svg>

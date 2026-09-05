@@ -1,0 +1,42 @@
+<button class="zen-close" type="button" (click)="close()" aria-label="Close edit mode">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+  Close
+</button>
+
+<div class="zen-panes">
+  <div class="zen-pane zen-pane--request">
+    <div class="zen-pane-header">
+      <h2 class="zen-pane-title">Request</h2>
+      <button
+        class="zen-send-button"
+        type="button"
+        (click)="state.sendRequest(state.selectedRequest()!, $event)"
+      >
+        Send
+      </button>
+    </div>
+    <div class="zen-pane-content">
+      <app-request-editor></app-request-editor>
+    </div>
+  </div>
+
+  <div class="zen-pane zen-pane--response">
+    <div class="zen-pane-header">
+      <h2 class="zen-pane-title">Response</h2>
+    </div>
+    <div class="zen-pane-content">
+      <app-response-viewer></app-response-viewer>
+    </div>
+  </div>
+</div>

@@ -30,6 +30,7 @@ export class WorkspaceStateService {
   readonly selectedRequest = signal<HttpRequest | null>(null);
   readonly selectedResponse = signal<HttpResponse | null>(null);
   readonly rightPanelMode = signal<RightPanelMode>('response');
+  readonly zenModeOpen = signal(false);
 
   readonly requestSendStartTime = signal<number | null>(null);
   readonly requestElapsedMs = signal(0);
@@ -78,6 +79,14 @@ export class WorkspaceStateService {
     this.elapsedIntervalId = window.setInterval(() => {
       this.requestElapsedMs.set(Date.now() - start);
     }, 50);
+  }
+
+  openZenMode(): void {
+    this.zenModeOpen.set(true);
+  }
+
+  closeZenMode(): void {
+    this.zenModeOpen.set(false);
   }
 
   private stopRequestTimer(): void {

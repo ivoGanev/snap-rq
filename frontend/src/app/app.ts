@@ -5,7 +5,10 @@ import { WailsService } from './wails.service';
 import { WorkspaceStateService } from './core/services/workspace-state.service';
 import { ProjectApiService, type Project } from './core/services/project.service';
 import { EnvironmentApiService, type Environment } from './core/services/environment.service';
-import { EnvironmentVariableApiService, type EnvironmentVariable } from './core/services/environment-variable.service';
+import {
+  EnvironmentVariableApiService,
+  type EnvironmentVariable,
+} from './core/services/environment-variable.service';
 import { CollectionApiService } from './core/services/collection.service';
 import { RequestApiService } from './core/services/request.service';
 import { FavouriteApiService } from './core/services/favourite.service';
@@ -14,11 +17,12 @@ import { TagApiService } from './core/services/tag.service';
 import { RequestGroups } from './request-groups/request-groups';
 import { RequestsMainList } from './requests-main-list/requests-main-list';
 import { RequestPanel } from './request-panel/request-panel';
+import { ZenMode } from './zen-mode/zen-mode';
 import * as EnvironmentService from '../../bindings/snap-rq/backend/services';
 
 @Component({
   selector: 'app-root',
-  imports: [FormsModule, RequestGroups, RequestsMainList, RequestPanel],
+  imports: [FormsModule, RequestGroups, RequestsMainList, RequestPanel, ZenMode],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -61,6 +65,10 @@ export class App implements OnInit, AfterViewInit {
   }
 
   onEscapePressed(): void {
+    if (this.state.zenModeOpen()) {
+      this.state.closeZenMode();
+      return;
+    }
     if (this.variablesOverlayOpen()) {
       this.closeVariablesOverlay();
       return;
@@ -167,7 +175,7 @@ export class App implements OnInit, AfterViewInit {
   }
 
   onEnvironmentChange(environmentId: number): void {
-    const env = this.environments().find(e => e.id === environmentId);
+    const env = this.environments().find((e) => e.id === environmentId);
     if (env) {
       this.selectEnvironment(env);
     }
@@ -201,7 +209,7 @@ export class App implements OnInit, AfterViewInit {
     const updated = { ...variable, [field]: value };
 
     const list = this.variables();
-    const index = list.findIndex(v => v.id === updated.id);
+    const index = list.findIndex((v) => v.id === updated.id);
     if (index !== -1) {
       const newList = [...list];
       newList[index] = updated;
@@ -225,7 +233,7 @@ export class App implements OnInit, AfterViewInit {
         key: 'NEW_KEY',
         value: '',
       });
-      this.variableApi.variables.update(list => [...list, created]);
+      this.variableApi.variables.update((list) => [...list, created]);
     } catch (err) {
       console.error(err);
     }
@@ -235,7 +243,7 @@ export class App implements OnInit, AfterViewInit {
     event.stopPropagation();
     try {
       await this.variableApi.delete(variable.id);
-      this.variableApi.variables.update(list => list.filter(v => v.id !== variable.id));
+      this.variableApi.variables.update((list) => list.filter((v) => v.id !== variable.id));
     } catch (err) {
       console.error(err);
     }
@@ -333,7 +341,7 @@ export class App implements OnInit, AfterViewInit {
       }
 
       if (this.state.selectedProject()?.id === project.id) {
-        const remaining = this.projects().filter(p => p.id !== project.id);
+        const remaining = this.projects().filter((p) => p.id !== project.id);
         if (remaining.length > 0) {
           await this.selectProject(remaining[0]);
         } else {

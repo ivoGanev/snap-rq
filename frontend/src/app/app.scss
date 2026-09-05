@@ -13,7 +13,13 @@
   inset: 0;
   z-index: -1;
   background:
-    linear-gradient(90deg, rgba(6, 7, 15, 0.94) 0%, rgba(6, 7, 15, 0.78) 32%, rgba(6, 7, 15, 0.42) 64%, rgba(6, 7, 15, 0.3) 100%),
+    linear-gradient(
+      90deg,
+      rgba(6, 7, 15, 0.94) 0%,
+      rgba(6, 7, 15, 0.78) 32%,
+      rgba(6, 7, 15, 0.42) 64%,
+      rgba(6, 7, 15, 0.3) 100%
+    ),
     linear-gradient(0deg, rgba(6, 7, 15, 0.7) 0%, rgba(6, 7, 15, 0.1) 45%),
     url('/bg-desktop.jpg') center / cover no-repeat;
 }
@@ -288,7 +294,9 @@
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
   --wails-draggable: no-drag;
 }
 
