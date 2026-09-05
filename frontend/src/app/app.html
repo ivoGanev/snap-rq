@@ -129,6 +129,53 @@
         </ul>
       }
     </div>
+
+    <div class="sidebar-section">
+      <button
+        class="sidebar-section-toggle"
+        type="button"
+        [class.is-active]="tagsExpanded()"
+        (click)="toggleTagsExpanded()"
+      >
+        Tags
+      </button>
+
+      @if (tagsExpanded()) {
+        @if (allTags().length === 0) {
+          <div class="state-message">No tags yet.</div>
+        }
+
+        @if (allTags().length > 0) {
+          <input
+            class="tag-search-input"
+            type="text"
+            placeholder="Filter tags…"
+            [ngModel]="tagSearchQuery()"
+            (ngModelChange)="tagSearchQuery.set($event)"
+          />
+        }
+
+        <ul class="tag-list">
+          @for (tag of filteredTags(); track tag.id) {
+            <li
+              class="tag-item"
+              [class.is-selected]="selectedTag() === tag.name"
+              (click)="selectTag(tag)"
+            >
+              <span class="tag-chip tag-chip--list">{{ tag.name }}</span>
+              <button
+                class="tag-delete"
+                type="button"
+                (click)="deleteTag(tag, $event)"
+                aria-label="Delete tag"
+              >
+                ×
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </div>
   </aside>
 
   <main class="main-column" aria-label="Requests">
@@ -143,7 +190,7 @@
         + Request
       </button>
       <h1 class="column-title">Requests</h1>
-      @if (activeCollectionName()) {
+      @if (activeGroupName()) {
         <input
           class="request-search-input"
           type="text"
@@ -156,20 +203,20 @@
           @if (requestSearchQuery().trim() && filteredActiveRequests().length !== activeRequests().length) {
             of {{ activeRequests().length }}
           }
-          in {{ activeCollectionName() }}
+          in {{ activeGroupName() }}
         </span>
       }
     </div>
 
-    @if (!selectedCollection() && !selectedFavouriteCollection()) {
-      <div class="state-message">Select a collection or favourite group to view requests.</div>
+    @if (!activeGroupName()) {
+      <div class="state-message">Select a collection, favourite group, or tag to view requests.</div>
     }
 
-    @if ((selectedCollection() || selectedFavouriteCollection()) && activeRequests().length === 0) {
+    @if (activeGroupName() && activeRequests().length === 0) {
       <div class="state-message">No requests in this group.</div>
     }
 
-    @if ((selectedCollection() || selectedFavouriteCollection()) && activeRequests().length > 0 && filteredActiveRequests().length === 0) {
+    @if (activeGroupName() && activeRequests().length > 0 && filteredActiveRequests().length === 0) {
       <div class="state-message">No requests match your search.</div>
     }
 
@@ -205,6 +252,13 @@
             <span class="request-status" [class.is-error]="req.status_code >= 400">{{ req.status_code || '—' }}</span>
           </div>
           <div class="request-url">{{ req.url }}</div>
+          @if (requestTags()[req.id]?.length) {
+            <div class="request-tags">
+              @for (tag of requestTags()[req.id]; track tag) {
+                <span class="tag-chip tag-chip--inline">{{ tag }}</span>
+              }
+            </div>
+          }
         </li>
       }
     </ul>
@@ -353,6 +407,48 @@
               (ngModelChange)="updateRequestField('body', $event)"
               name="reqBody"
             ></textarea>
+          </label>
+
+          <label class="edit-field">
+            <span class="edit-label">Tags</span>
+            <div class="request-tags request-tags--editable">
+              @for (tag of requestTags()[selectedRequest()!.id] ?? []; track tag) {
+                <span class="tag-chip tag-chip--editable">
+                  {{ tag }}
+                  <button
+                    class="tag-chip-remove"
+                    type="button"
+                    (click)="removeTagFromRequest(selectedRequest()!, tag, $event)"
+                    aria-label="Remove tag"
+                  >
+                    ×
+                  </button>
+                </span>
+              }
+            </div>
+            <div class="tag-input-wrap">
+              <input
+                class="tag-input"
+                type="text"
+                placeholder="Add tag…"
+                [ngModel]="newTagName()"
+                (ngModelChange)="newTagName.set($event)"
+                (keydown.enter)="addTagToRequest(selectedRequest()!, newTagName())"
+              />
+              @if (tagSuggestions().length && newTagName().trim()) {
+                <div class="tag-suggestions">
+                  @for (tag of tagSuggestions(); track tag.id) {
+                    <button
+                      class="tag-suggestion"
+                      type="button"
+                      (click)="addTagToRequest(selectedRequest()!, tag.name)"
+                    >
+                      {{ tag.name }}
+                    </button>
+                  }
+                </div>
+              }
+            </div>
           </label>
         </div>
       </div>

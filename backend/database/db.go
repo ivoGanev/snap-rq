@@ -133,6 +133,23 @@ func migrate(db *sql.DB) error {
 		);
 		CREATE INDEX IF NOT EXISTS idx_favourite_items_collection_id ON favourite_items(favourite_collection_id);
 		CREATE INDEX IF NOT EXISTS idx_favourite_items_request_id ON favourite_items(http_request_id);
+
+		CREATE TABLE IF NOT EXISTS tags (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE
+		);
+		CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
+
+		CREATE TABLE IF NOT EXISTS request_tags (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			request_id INTEGER NOT NULL,
+			tag_id INTEGER NOT NULL,
+			FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE,
+			FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+			UNIQUE (request_id, tag_id)
+		);
+		CREATE INDEX IF NOT EXISTS idx_request_tags_request_id ON request_tags(request_id);
+		CREATE INDEX IF NOT EXISTS idx_request_tags_tag_id ON request_tags(tag_id);
 	`, "")
 	if err != nil {
 		return err
