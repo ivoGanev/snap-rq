@@ -1,0 +1,209 @@
+<div class="column-header column-header--requests">
+  <button
+    class="add-request-button"
+    type="button"
+    (click)="openNewRequestPopup()"
+    [disabled]="!state.selectedCollection()"
+    aria-label="Add request"
+  >
+    + Request
+  </button>
+  <h1 class="column-title">Requests</h1>
+  @if (activeGroupName()) {
+    <input
+      class="request-search-input"
+      type="text"
+      placeholder="Search requests…"
+      [ngModel]="requestSearchQuery()"
+      (ngModelChange)="requestSearchQuery.set($event)"
+    />
+    <span class="request-count">
+      {{ filteredActiveRequests().length }}
+      @if (requestSearchQuery().trim() && filteredActiveRequests().length !== activeRequests().length) {
+        of {{ activeRequests().length }}
+      }
+      in {{ activeGroupName() }}
+    </span>
+  }
+</div>
+
+@if (!activeGroupName()) {
+  <div class="state-message">Select a collection, favourite group, or tag to view requests.</div>
+}
+
+@if (activeGroupName() && activeRequests().length === 0) {
+  <div class="state-message">No requests in this group.</div>
+}
+
+@if (activeGroupName() && activeRequests().length > 0 && filteredActiveRequests().length === 0) {
+  <div class="state-message">No requests match your search.</div>
+}
+
+<ul class="request-list">
+  @for (req of filteredActiveRequests(); track req.id) {
+    <li
+      class="request-item"
+      [class.is-selected]="state.selectedRequest()?.id === req.id"
+      (click)="selectRequest(req)"
+      (contextmenu)="openRequestContextMenu(req, $event)"
+    >
+      <div class="request-row">
+        <span class="request-method" [attr.data-method]="req.method">{{ req.method }}</span>
+        <span class="request-name">{{ req.name }}</span>
+        <button
+          class="favourite-button"
+          type="button"
+          (click)="openFavouritePopup(req, $event)"
+          aria-label="Manage favourites"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+        </button>
+        <button
+          class="send-button"
+          type="button"
+          (click)="state.sendRequest(req, $event)"
+          aria-label="Send request"
+        >
+          Send
+        </button>
+      </div>
+      <div class="request-url">{{ req.url }}</div>
+      @if (requestTags()[req.id]?.length) {
+        <div class="request-tags">
+          @for (tag of requestTags()[req.id]; track tag) {
+            <span class="tag-chip tag-chip--inline">{{ tag }}</span>
+          }
+        </div>
+      }
+    </li>
+  }
+</ul>
+
+@if (newRequestPopupOpen()) {
+  <div class="overlay-backdrop" (click)="closeNewRequestPopup()">
+    <div class="overlay-panel new-request-popup" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Add new request</h3>
+        <button class="overlay-close" type="button" (click)="closeNewRequestPopup()">Close</button>
+      </div>
+
+      <div class="overlay-body">
+        <label class="edit-field">
+          <span class="edit-label">Name</span>
+          <input
+            class="edit-input"
+            type="text"
+            [ngModel]="newRequestName()"
+            (ngModelChange)="newRequestName.set($event)"
+            (keydown.enter)="addRequest()"
+          />
+        </label>
+
+        <label class="edit-field">
+          <span class="edit-label">URL</span>
+          <input
+            class="edit-input"
+            type="text"
+            placeholder="https://you-are-the.boss"
+            [ngModel]="newRequestUrl()"
+            (ngModelChange)="newRequestUrl.set($event)"
+            (keydown.enter)="addRequest()"
+          />
+        </label>
+
+        <label class="edit-field">
+          <span class="edit-label">Method</span>
+          <select
+            class="edit-select"
+            [ngModel]="newRequestMethod()"
+            (ngModelChange)="newRequestMethod.set($event)"
+          >
+            <option>GET</option>
+            <option>POST</option>
+            <option>PUT</option>
+            <option>DELETE</option>
+            <option>PATCH</option>
+            <option>HEAD</option>
+            <option>OPTIONS</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="overlay-footer">
+        <button class="variable-add" type="button" (click)="addRequest()">Add request</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (favouritePopupOpen()) {
+  <div class="overlay-backdrop" (click)="closeFavouritePopup()">
+    <div class="overlay-panel favourite-popup" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Favourites — {{ favouritePopupRequest()?.name }}</h3>
+        <button class="overlay-close" type="button" (click)="closeFavouritePopup()">Close</button>
+      </div>
+
+      <div class="overlay-body">
+        @for (collection of favouriteCollections(); track collection.id) {
+          <div class="favourite-collection-row">
+            <label class="favourite-checkbox">
+              <input
+                type="checkbox"
+                [checked]="favouriteMembership().has(collection.id)"
+                (change)="toggleFavouriteMembership(collection)"
+              />
+              <span class="favourite-checkmark"></span>
+              <span class="favourite-collection-name">{{ collection.name }}</span>
+            </label>
+            <button
+              class="favourite-collection-delete"
+              type="button"
+              (click)="deleteFavouriteCollection(collection, $event)"
+              aria-label="Delete favourite collection"
+            >
+              Delete
+            </button>
+          </div>
+        }
+      </div>
+
+      <div class="overlay-footer favourite-popup-footer">
+        <input
+          class="variable-input favourite-name-input"
+          type="text"
+          placeholder="New favourite group"
+          [ngModel]="newFavouriteName()"
+          (ngModelChange)="newFavouriteName.set($event)"
+          (keydown.enter)="addFavouriteCollection()"
+        />
+        <button class="variable-add" type="button" (click)="addFavouriteCollection()">Add</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (requestContextMenuOpen()) {
+  <div
+    class="context-menu-backdrop"
+    (click)="closeRequestContextMenu()"
+    (contextmenu)="closeRequestContextMenu(); $event.preventDefault()"
+  >
+    <div
+      class="context-menu"
+      [style.left.px]="requestContextMenuX()"
+      [style.top.px]="requestContextMenuY()"
+      (click)="$event.stopPropagation()"
+    >
+      <button
+        class="context-menu-item context-menu-item--danger"
+        type="button"
+        (click)="deleteRequest()"
+      >
+        {{ state.selectedCollection() ? 'Delete request' : 'Remove from favourites' }}
+      </button>
+    </div>
+  </div>
+}

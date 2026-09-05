@@ -1,0 +1,63 @@
+.tab-header {
+  justify-content: flex-start;
+  gap: var(--s-3);
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.tab {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.tab:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.tab.is-active {
+  color: var(--text);
+}
+
+.tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tab-separator {
+  color: var(--glass-border);
+  font-weight: 300;
+}
+
+.big-send-button {
+  padding: 6px 18px;
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #fff;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.1s ease;
+  --wails-draggable: no-drag;
+}
+
+.big-send-button:hover {
+  filter: brightness(1.15);
+}
+
+.big-send-button:active {
+  transform: scale(0.98);
+}

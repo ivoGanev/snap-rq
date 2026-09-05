@@ -1,0 +1,41 @@
+@if (responses().length === 0) {
+  <div class="state-message">No responses for this request.</div>
+}
+
+@if (responses().length > 0) {
+  <div class="response-picker">
+    @for (resp of responses(); track resp.id) {
+      <button
+        class="response-chip"
+        [class.is-active]="state.selectedResponse()?.id === resp.id"
+        (click)="selectResponse(resp)"
+      >
+        #{{ resp.id }}
+        <span class="chip-status" [class.is-error]="resp.status_code >= 400">{{ resp.status_code }}</span>
+      </button>
+    }
+  </div>
+}
+
+@if (state.selectedResponse()) {
+  <div class="response-detail">
+    <div class="response-meta">
+      <span class="response-status" [class.is-error]="state.selectedResponse()!.status_code >= 400">
+        Status: {{ state.selectedResponse()!.status_code }}
+      </span>
+      @if (state.lastResponseDurationMs() !== null) {
+        <span class="response-duration">Duration: {{ state.lastResponseDurationMs() }} ms</span>
+      }
+    </div>
+
+    <div class="response-section">
+      <h3 class="section-title">Headers</h3>
+      <pre class="response-block response-headers">{{ state.selectedResponse()!.headers || 'No headers' }}</pre>
+    </div>
+
+    <div class="response-section response-body-section">
+      <h3 class="section-title">Body</h3>
+      <pre class="response-block response-body">{{ state.selectedResponse()!.body || 'No body' }}</pre>
+    </div>
+  </div>
+}
