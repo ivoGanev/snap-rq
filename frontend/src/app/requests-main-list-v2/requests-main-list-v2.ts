@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { RequestApiService, type HttpRequest } from '../core/services/request.service';
 import { FavouriteApiService, type FavouriteCollection } from '../core/services/favourite.service';
+import { CollectionApiService, type Collection } from '../core/services/collection.service';
 import { SelectionStateService } from '../core/services/selection-state.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
 
@@ -25,15 +26,10 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
 ];
 
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
+const DRAG_THRESHOLD_PX = 5;
 
 /**
- * Spreadsheet-style experimental request list.
- *
- * - Fixed columns: Name | URL | Method | Headers | Body | Tags | Favourites.
- * - Sticky header with per-column sort (default: no sort / insertion order).
- * - Single selection: one row, one active cell.
- * - Double-click any cell to edit it in a modal.
- * - Top bar keeps Add request + Search and adds a Send button for the selected row.
+ * Spreadsheet-style experimental request list with multi-select and bulk actions.
  */
 @Component({
   selector: 'app-requests-main-list-v2',
@@ -44,12 +40,15 @@ const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'
     class: 'main-column',
     'aria-label': 'Requests V2',
     '(window:keydown.escape)': 'onEscapePressed()',
+    '(window:mousemove)': 'onWindowMouseMove($event)',
+    '(window:mouseup)': 'onWindowMouseUp()',
   },
 })
 export class RequestsMainListV2 {
   protected readonly state = inject(WorkspaceStateService);
   private readonly requestApi = inject(RequestApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
+  private readonly collectionApi = inject(CollectionApiService);
   private readonly selectionState = inject(SelectionStateService);
   private readonly tagApi = inject(TagApiService);
 
@@ -59,6 +58,7 @@ export class RequestsMainListV2 {
   protected readonly favouriteCollections = this.favouriteApi.collections;
   protected readonly favouriteMembership = this.favouriteApi.membership;
   protected readonly requestFavouriteIds = this.favouriteApi.requestsMembership;
+  protected readonly collections = this.collectionApi.collections;
 
   readonly requestSearchQuery = signal('');
   readonly tagRequests = signal<HttpRequest[]>([]);
@@ -67,10 +67,20 @@ export class RequestsMainListV2 {
   readonly newRequestUrl = signal('');
   readonly newRequestMethod = signal('GET');
 
+  // Selection state
+  readonly selectedRowIds = signal<Set<number>>(new Set());
   readonly selectedCell = signal<SelectedCell | null>(null);
+  readonly lastClickedRowId = signal<number | null>(null);
+  readonly isDragging = signal(false);
+  readonly dragStartRowId = signal<number | null>(null);
+  readonly dragStartClientY = signal(0);
+  readonly dragHasMoved = signal(false);
+  readonly ignoreNextClick = signal(false);
+
   readonly sortColumn = signal<ColumnKey | null>(null);
   readonly sortDirection = signal<SortDirection>('asc');
 
+  // Single-cell edit modals
   readonly editModalOpen = signal(false);
   readonly editModalColumn = signal<ColumnKey | null>(null);
   readonly editModalRequest = signal<HttpRequest | null>(null);
@@ -87,6 +97,16 @@ export class RequestsMainListV2 {
   readonly favouritesModalOpen = signal(false);
   readonly favouritesModalRequest = signal<HttpRequest | null>(null);
   readonly newFavouriteName = signal('');
+
+  // Bulk / context menu
+  readonly contextMenuOpen = signal(false);
+  readonly contextMenuX = signal(0);
+  readonly contextMenuY = signal(0);
+
+  readonly moveCollectionModalOpen = signal(false);
+  readonly bulkTagModalOpen = signal(false);
+  readonly bulkTagName = signal('');
+  readonly bulkFavouritesModalOpen = signal(false);
 
   private loadVersion = 0;
 
@@ -141,6 +161,11 @@ export class RequestsMainListV2 {
     return this.activeRequests().find((r) => r.id === cell.requestId) ?? null;
   });
 
+  readonly selectedRequests = computed<HttpRequest[]>(() => {
+    const ids = this.selectedRowIds();
+    return this.activeRequests().filter((r) => ids.has(r.id));
+  });
+
   readonly tagSuggestions = computed<Tag[]>(() => {
     const req = this.tagsModalRequest();
     if (!req) return [];
@@ -157,6 +182,18 @@ export class RequestsMainListV2 {
       .slice(0, 6);
   });
 
+  readonly bulkTagSuggestions = computed<Tag[]>(() => {
+    const query = this.bulkTagName().trim().toLowerCase();
+    const tags = this.tagApi.allTags();
+    if (!query) return tags.slice(0, 6);
+    return tags.filter((tag) => tag.name.toLowerCase().includes(query)).slice(0, 6);
+  });
+
+  readonly availableCollectionsForMove = computed<Collection[]>(() => {
+    const current = this.state.selectedCollection();
+    return this.collectionApi.collections().filter((c) => c.id !== current?.id);
+  });
+
   constructor() {
     effect(() => {
       const collection = this.state.selectedCollection();
@@ -165,7 +202,7 @@ export class RequestsMainListV2 {
 
       const version = ++this.loadVersion;
       this.requestSearchQuery.set('');
-      this.selectedCell.set(null);
+      this.clearSelection();
       this.state.selectedRequest.set(null);
 
       void this.loadActiveGroup(version, collection?.id ?? null, favourite?.id ?? null, tag);
@@ -230,6 +267,10 @@ export class RequestsMainListV2 {
   }
 
   onEscapePressed(): void {
+    if (this.contextMenuOpen()) {
+      this.closeContextMenu();
+      return;
+    }
     if (this.editModalOpen()) {
       this.closeEditModal();
       return;
@@ -246,13 +287,28 @@ export class RequestsMainListV2 {
       this.closeFavouritesModal();
       return;
     }
+    if (this.moveCollectionModalOpen()) {
+      this.closeMoveCollectionModal();
+      return;
+    }
+    if (this.bulkTagModalOpen()) {
+      this.closeBulkTagModal();
+      return;
+    }
+    if (this.bulkFavouritesModalOpen()) {
+      this.closeBulkFavouritesModal();
+      return;
+    }
     if (this.newRequestPopupOpen()) {
       this.closeNewRequestPopup();
       return;
     }
   }
 
+  // ---------- Selection ----------
+
   selectCell(req: HttpRequest, column: ColumnKey): void {
+    this.selectedRowIds.set(new Set([req.id]));
     this.selectedCell.set({ requestId: req.id, column });
     this.state.selectedRequest.set(req);
     this.state.rightPanelMode.set('response');
@@ -269,14 +325,333 @@ export class RequestsMainListV2 {
     }
   }
 
+  private clearSelection(): void {
+    this.selectedRowIds.set(new Set());
+    this.selectedCell.set(null);
+  }
+
   isRowSelected(req: HttpRequest): boolean {
-    return this.selectedCell()?.requestId === req.id;
+    return this.selectedRowIds().has(req.id);
   }
 
   isCellSelected(req: HttpRequest, column: ColumnKey): boolean {
+    if (this.selectedRowIds().size > 1) return false;
     const cell = this.selectedCell();
     return cell?.requestId === req.id && cell.column === column;
   }
+
+  onRowClick(req: HttpRequest, event: MouseEvent, column: ColumnKey): void {
+    if (event.button !== 0) return;
+
+    if (this.ignoreNextClick()) {
+      this.ignoreNextClick.set(false);
+      return;
+    }
+
+    if (event.shiftKey) {
+      this.selectRangeTo(req, column);
+      return;
+    }
+
+    if (event.ctrlKey) {
+      this.toggleRowSelection(req, column);
+      return;
+    }
+
+    // Plain click: clear existing multi-selection and select this row only.
+    this.selectCell(req, column);
+    this.lastClickedRowId.set(req.id);
+  }
+
+  private toggleRowSelection(req: HttpRequest, column: ColumnKey): void {
+    const set = new Set(this.selectedRowIds());
+    if (set.has(req.id)) {
+      set.delete(req.id);
+    } else {
+      set.add(req.id);
+    }
+    this.selectedRowIds.set(set);
+    this.selectedCell.set({ requestId: req.id, column });
+    this.lastClickedRowId.set(req.id);
+    this.state.selectedRequest.set(set.has(req.id) ? req : this.activeRequests().find((r) => set.has(r.id)) ?? null);
+  }
+
+  private selectRangeTo(req: HttpRequest, column: ColumnKey): void {
+    const anchor = this.lastClickedRowId();
+    const visible = this.filteredActiveRequests();
+    const ids = visible.map((r) => r.id);
+    const anchorIndex = anchor !== null ? ids.indexOf(anchor) : -1;
+    const targetIndex = ids.indexOf(req.id);
+
+    if (anchorIndex === -1 || targetIndex === -1) {
+      this.selectCell(req, column);
+      return;
+    }
+
+    const start = Math.min(anchorIndex, targetIndex);
+    const end = Math.max(anchorIndex, targetIndex);
+    const next = new Set(this.selectedRowIds());
+    for (let i = start; i <= end; i++) {
+      next.add(visible[i].id);
+    }
+    this.selectedRowIds.set(next);
+    this.selectedCell.set({ requestId: req.id, column });
+    this.state.selectedRequest.set(req);
+  }
+
+  // ---------- Drag selection ----------
+
+  onRowMouseDown(req: HttpRequest, event: MouseEvent): void {
+    if (event.button !== 0) return;
+    if (event.ctrlKey || event.shiftKey) return;
+
+    this.dragStartRowId.set(req.id);
+    this.dragStartClientY.set(event.clientY);
+    this.dragHasMoved.set(false);
+    this.isDragging.set(false);
+  }
+
+  onWindowMouseMove(event: MouseEvent): void {
+    if (this.dragStartRowId() === null) return;
+
+    if (!this.isDragging()) {
+      const delta = Math.abs(event.clientY - this.dragStartClientY());
+      if (delta > DRAG_THRESHOLD_PX) {
+        this.isDragging.set(true);
+        this.dragHasMoved.set(true);
+        const startReq = this.activeRequests().find((r) => r.id === this.dragStartRowId());
+        if (startReq) {
+          this.selectedRowIds.set(new Set([startReq.id]));
+          this.selectedCell.set({ requestId: startReq.id, column: 'name' });
+          this.lastClickedRowId.set(startReq.id);
+          this.state.selectedRequest.set(startReq);
+        }
+      }
+    }
+  }
+
+  onRowMouseEnter(req: HttpRequest): void {
+    if (!this.isDragging()) return;
+    this.selectedRowIds.update((set) => {
+      const next = new Set(set);
+      next.add(req.id);
+      return next;
+    });
+    this.selectedCell.set({ requestId: req.id, column: 'name' });
+    this.state.selectedRequest.set(req);
+  }
+
+  onWindowMouseUp(): void {
+    if (this.dragStartRowId() === null) return;
+
+    if (this.isDragging() || this.dragHasMoved()) {
+      this.ignoreNextClick.set(true);
+    }
+
+    this.dragStartRowId.set(null);
+    this.dragStartClientY.set(0);
+    this.isDragging.set(false);
+    this.dragHasMoved.set(false);
+  }
+
+  // ---------- Context menu ----------
+
+  onRowContextMenu(req: HttpRequest, event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!this.selectedRowIds().has(req.id)) {
+      this.selectCell(req, 'name');
+      this.lastClickedRowId.set(req.id);
+    }
+
+    this.contextMenuX.set(event.clientX);
+    this.contextMenuY.set(event.clientY);
+    this.contextMenuOpen.set(true);
+  }
+
+  closeContextMenu(): void {
+    this.contextMenuOpen.set(false);
+  }
+
+  async deleteSelectedRequests(): Promise<void> {
+    const ids = [...this.selectedRowIds()];
+    if (ids.length === 0) return;
+
+    this.closeContextMenu();
+    this.state.loading.set(true);
+
+    try {
+      const favourite = this.state.selectedFavouriteCollection();
+      const collection = this.state.selectedCollection();
+      const tag = this.state.selectedTag();
+
+      if (favourite) {
+        for (const id of ids) {
+          await this.favouriteApi.removeRequest(favourite.id, id);
+        }
+        await this.favouriteApi.loadRequestsForCollection(favourite.id);
+      } else {
+        for (const id of ids) {
+          await this.requestApi.delete(id);
+          this.selectionState.deleteRequest(id);
+        }
+        if (collection) {
+          await this.requestApi.loadForCollection(collection.id);
+        }
+      }
+
+      if (this.state.selectedRequest() && ids.includes(this.state.selectedRequest()!.id)) {
+        this.state.selectedRequest.set(null);
+        this.state.selectedResponse.set(null);
+        this.state.rightPanelMode.set('response');
+      }
+
+      this.clearSelection();
+
+      if (tag) {
+        const requests = await this.tagApi.getRequestsForTag(tag);
+        this.tagRequests.set(requests);
+        await this.tagApi.loadTagsForRequests(requests);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      this.state.loading.set(false);
+    }
+  }
+
+  // ---------- Move to Collection ----------
+
+  openMoveCollectionModal(): void {
+    this.closeContextMenu();
+    this.moveCollectionModalOpen.set(true);
+  }
+
+  closeMoveCollectionModal(): void {
+    this.moveCollectionModalOpen.set(false);
+  }
+
+  async moveSelectedRequestsToCollection(collection: Collection): Promise<void> {
+    const requests = this.selectedRequests();
+    if (requests.length === 0) return;
+
+    this.state.loading.set(true);
+    try {
+      for (const req of requests) {
+        await this.requestApi.update({ ...req, collection_id: collection.id });
+      }
+
+      const currentCollection = this.state.selectedCollection();
+      const currentFavourite = this.state.selectedFavouriteCollection();
+      const tag = this.state.selectedTag();
+
+      if (currentCollection) {
+        await this.requestApi.loadForCollection(currentCollection.id);
+      }
+      if (currentFavourite) {
+        await this.favouriteApi.loadRequestsForCollection(currentFavourite.id);
+      }
+      if (tag) {
+        const tagRequests = await this.tagApi.getRequestsForTag(tag);
+        this.tagRequests.set(tagRequests);
+        await this.tagApi.loadTagsForRequests(tagRequests);
+      }
+
+      this.clearSelection();
+      this.closeMoveCollectionModal();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      this.state.loading.set(false);
+    }
+  }
+
+  // ---------- Bulk Tag ----------
+
+  openBulkTagModal(): void {
+    this.closeContextMenu();
+    this.bulkTagName.set('');
+    this.bulkTagModalOpen.set(true);
+  }
+
+  closeBulkTagModal(): void {
+    this.bulkTagModalOpen.set(false);
+    this.bulkTagName.set('');
+  }
+
+  async addBulkTag(tagName: string): Promise<void> {
+    const name = tagName.trim();
+    if (!name) return;
+
+    const requests = this.selectedRequests();
+    if (requests.length === 0) return;
+
+    this.state.loading.set(true);
+    try {
+      for (const req of requests) {
+        await this.tagApi.addTagToRequest(req.id, name);
+      }
+      await this.tagApi.loadTagsForRequests(requests);
+      this.bulkTagName.set('');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      this.state.loading.set(false);
+    }
+  }
+
+  // ---------- Bulk Favourites ----------
+
+  openBulkFavouritesModal(): void {
+    this.closeContextMenu();
+    const requests = this.selectedRequests();
+    if (requests.length > 0) {
+      void this.favouriteApi.loadMembershipForRequests(requests);
+    }
+    this.bulkFavouritesModalOpen.set(true);
+  }
+
+  closeBulkFavouritesModal(): void {
+    this.bulkFavouritesModalOpen.set(false);
+    this.favouriteApi.clearMembership();
+  }
+
+  isAllSelectedInCollection(collectionId: number): boolean {
+    const requests = this.selectedRequests();
+    if (requests.length === 0) return false;
+    return requests.every((req) => (this.requestFavouriteIds()[req.id] ?? []).includes(collectionId));
+  }
+
+  async toggleBulkFavouriteMembership(collection: FavouriteCollection): Promise<void> {
+    const requests = this.selectedRequests();
+    if (requests.length === 0) return;
+
+    const allIn = this.isAllSelectedInCollection(collection.id);
+    this.state.loading.set(true);
+    try {
+      for (const req of requests) {
+        if (allIn) {
+          await this.favouriteApi.removeRequest(collection.id, req.id);
+        } else {
+          await this.favouriteApi.addRequest(collection.id, req.id);
+        }
+      }
+
+      await this.favouriteApi.loadMembershipForRequests(requests);
+
+      const currentFavourite = this.state.selectedFavouriteCollection();
+      if (currentFavourite?.id === collection.id) {
+        await this.favouriteApi.loadRequestsForCollection(currentFavourite.id);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      this.state.loading.set(false);
+    }
+  }
+
+  // ---------- Sorting ----------
 
   toggleSort(column: ColumnKey): void {
     if (this.sortColumn() === column) {
@@ -347,6 +722,8 @@ export class RequestsMainListV2 {
     return this.requestFavouriteIds()[req.id]?.length ?? 0;
   }
 
+  // ---------- New request ----------
+
   openNewRequestPopup(): void {
     this.newRequestName.set('My new snappy API');
     this.newRequestUrl.set('');
@@ -390,6 +767,12 @@ export class RequestsMainListV2 {
     const req = this.selectedRequest();
     if (!req) return;
     await this.state.sendRequest(req, event);
+  }
+
+  openZenMode(req: HttpRequest, event: MouseEvent): void {
+    event.stopPropagation();
+    this.selectCell(req, 'name');
+    this.state.zenModeOpen.set(true);
   }
 
   onCellDoubleClick(req: HttpRequest, column: ColumnKey): void {
@@ -458,7 +841,7 @@ export class RequestsMainListV2 {
     this.closeMethodModal();
   }
 
-  // ---------- Tags modal ----------
+  // ---------- Tags modal (single request) ----------
 
   openTagsModal(req: HttpRequest): void {
     this.tagsModalRequest.set(req);
@@ -493,7 +876,7 @@ export class RequestsMainListV2 {
     }
   }
 
-  // ---------- Favourites modal ----------
+  // ---------- Favourites modal (single request) ----------
 
   openFavouritesModal(req: HttpRequest): void {
     this.favouritesModalRequest.set(req);
@@ -541,7 +924,10 @@ export class RequestsMainListV2 {
     }
   }
 
-  async deleteFavouriteCollection(collection: FavouriteCollection, event: MouseEvent): Promise<void> {
+  async deleteFavouriteCollection(
+    collection: FavouriteCollection,
+    event: MouseEvent,
+  ): Promise<void> {
     event.stopPropagation();
     try {
       await this.favouriteApi.deleteCollection(collection.id);
