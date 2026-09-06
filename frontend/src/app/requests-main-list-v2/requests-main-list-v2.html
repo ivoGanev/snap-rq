@@ -1,0 +1,380 @@
+<div class="column-header column-header--requests">
+  <button
+    class="add-request-button"
+    type="button"
+    (click)="openNewRequestPopup()"
+    [disabled]="!state.selectedCollection()"
+    aria-label="Add request"
+  >
+    + Request
+  </button>
+  <h1 class="column-title">Requests</h1>
+  @if (activeGroupName()) {
+    <input
+      class="request-search-input"
+      type="text"
+      placeholder="Search requests…"
+      [ngModel]="requestSearchQuery()"
+      (ngModelChange)="requestSearchQuery.set($event)"
+    />
+    <span class="request-count">
+      {{ filteredActiveRequests().length }}
+      @if (
+        requestSearchQuery().trim() && filteredActiveRequests().length !== activeRequests().length
+      ) {
+        of {{ activeRequests().length }}
+      }
+      in {{ activeGroupName() }}
+    </span>
+  }
+  <span class="header-spacer"></span>
+  @if (selectedRequest()) {
+    <button
+      class="send-button send-button--top-bar"
+      type="button"
+      (click)="sendSelectedRequest($event)"
+      aria-label="Send selected request"
+    >
+      Send
+    </button>
+  }
+</div>
+
+@if (!activeGroupName()) {
+  <div class="state-message">Select a collection, favourite group, or tag to view requests.</div>
+}
+
+@if (activeGroupName() && activeRequests().length === 0) {
+  <div class="state-message">No requests in this group.</div>
+}
+
+@if (activeGroupName() && activeRequests().length > 0 && filteredActiveRequests().length === 0) {
+  <div class="state-message">No requests match your search.</div>
+}
+
+@if (activeGroupName() && filteredActiveRequests().length > 0) {
+  <div class="spreadsheet-wrapper">
+    <table class="spreadsheet">
+      <thead>
+        <tr>
+          @for (col of columns; track col.key) {
+            <th
+              class="spreadsheet-header"
+              [class.is-sorted]="sortIndicator(col.key)"
+              (click)="toggleSort(col.key)"
+            >
+              <span class="header-label">{{ col.label }}</span>
+              <span class="sort-arrow" [class.asc]="sortIndicator(col.key) === 'asc'" aria-hidden="true">
+                @if (sortIndicator(col.key) === 'asc') {
+                  ▲
+                } @else if (sortIndicator(col.key) === 'desc') {
+                  ▼
+                } @else {
+                  ⇅
+                }
+              </span>
+            </th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (req of filteredActiveRequests(); track req.id) {
+          <tr
+            class="spreadsheet-row"
+            [class.is-selected]="isRowSelected(req)"
+          >
+            <td
+              class="spreadsheet-cell spreadsheet-cell--name"
+              [class.is-cell-selected]="isCellSelected(req, 'name')"
+              (click)="selectCell(req, 'name')"
+              (dblclick)="onCellDoubleClick(req, 'name')"
+              [title]="req.name"
+            >
+              {{ req.name }}
+            </td>
+            <td
+              class="spreadsheet-cell spreadsheet-cell--url"
+              [class.is-cell-selected]="isCellSelected(req, 'url')"
+              (click)="selectCell(req, 'url')"
+              (dblclick)="onCellDoubleClick(req, 'url')"
+              [title]="req.url"
+            >
+              {{ req.url }}
+            </td>
+            <td
+              class="spreadsheet-cell spreadsheet-cell--method"
+              [class.is-cell-selected]="isCellSelected(req, 'method')"
+              (click)="selectCell(req, 'method')"
+              (dblclick)="onCellDoubleClick(req, 'method')"
+            >
+              <span class="request-method" [attr.data-method]="req.method">{{ req.method }}</span>
+            </td>
+            <td
+              class="spreadsheet-cell spreadsheet-cell--headers"
+              [class.is-cell-selected]="isCellSelected(req, 'headers')"
+              (click)="selectCell(req, 'headers')"
+              (dblclick)="onCellDoubleClick(req, 'headers')"
+              [title]="req.request_headers"
+            >
+              {{ req.request_headers }}
+            </td>
+            <td
+              class="spreadsheet-cell spreadsheet-cell--body"
+              [class.is-cell-selected]="isCellSelected(req, 'body')"
+              (click)="selectCell(req, 'body')"
+              (dblclick)="onCellDoubleClick(req, 'body')"
+              [title]="req.body"
+            >
+              {{ req.body }}
+            </td>
+            <td
+              class="spreadsheet-cell spreadsheet-cell--tags"
+              [class.is-cell-selected]="isCellSelected(req, 'tags')"
+              (click)="selectCell(req, 'tags')"
+              (dblclick)="onCellDoubleClick(req, 'tags')"
+            >
+              @if (requestTags()[req.id]?.length) {
+                <div class="request-tags">
+                  @for (tag of requestTags()[req.id]; track tag) {
+                    <span class="tag-chip tag-chip--inline">{{ tag }}</span>
+                  }
+                </div>
+              }
+            </td>
+            <td
+              class="spreadsheet-cell spreadsheet-cell--favourites"
+              [class.is-cell-selected]="isCellSelected(req, 'favourites')"
+              (click)="selectCell(req, 'favourites')"
+              (dblclick)="onCellDoubleClick(req, 'favourites')"
+            >
+              @if (getFavouriteCount(req) > 0) {
+                <span class="favourite-count" [title]="getFavouriteCount(req) + ' favourite group(s)'">
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path
+                      d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                    />
+                  </svg>
+                  {{ getFavouriteCount(req) }}
+                </span>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+@if (newRequestPopupOpen()) {
+  <div class="overlay-backdrop" (click)="closeNewRequestPopup()">
+    <div class="overlay-panel new-request-popup" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Add new request</h3>
+        <button class="overlay-close" type="button" (click)="closeNewRequestPopup()">Close</button>
+      </div>
+
+      <div class="overlay-body">
+        <label class="edit-field">
+          <span class="edit-label">Name</span>
+          <input
+            class="edit-input"
+            type="text"
+            [ngModel]="newRequestName()"
+            (ngModelChange)="newRequestName.set($event)"
+            (keydown.enter)="addRequest()"
+          />
+        </label>
+
+        <label class="edit-field">
+          <span class="edit-label">URL</span>
+          <input
+            class="edit-input"
+            type="text"
+            placeholder="https://you-are-the.boss"
+            [ngModel]="newRequestUrl()"
+            (ngModelChange)="newRequestUrl.set($event)"
+            (keydown.enter)="addRequest()"
+          />
+        </label>
+
+        <label class="edit-field">
+          <span class="edit-label">Method</span>
+          <select
+            class="edit-select"
+            [ngModel]="newRequestMethod()"
+            (ngModelChange)="newRequestMethod.set($event)"
+          >
+            @for (method of httpMethods; track method) {
+              <option>{{ method }}</option>
+            }
+          </select>
+        </label>
+      </div>
+
+      <div class="overlay-footer">
+        <button class="variable-add" type="button" (click)="addRequest()">Add request</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (editModalOpen()) {
+  <div class="overlay-backdrop" (click)="closeEditModal()">
+    <div class="overlay-panel edit-modal" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Edit {{ editModalColumn() }}</h3>
+        <button class="overlay-close" type="button" (click)="closeEditModal()">Cancel</button>
+      </div>
+
+      <div class="overlay-body">
+        @if (editModalColumn() === 'name' || editModalColumn() === 'url') {
+          <input
+            class="edit-input"
+            type="text"
+            [ngModel]="editModalValue()"
+            (ngModelChange)="editModalValue.set($event)"
+            (keydown.enter)="saveEditModal()"
+          />
+        } @else {
+          <textarea
+            class="edit-textarea edit-textarea--modal"
+            rows="12"
+            [ngModel]="editModalValue()"
+            (ngModelChange)="editModalValue.set($event)"
+          ></textarea>
+        }
+      </div>
+
+      <div class="overlay-footer">
+        <button class="variable-add" type="button" (click)="saveEditModal()">Save</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (methodModalOpen()) {
+  <div class="overlay-backdrop" (click)="closeMethodModal()">
+    <div class="overlay-panel method-modal" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Edit method</h3>
+        <button class="overlay-close" type="button" (click)="closeMethodModal()">Cancel</button>
+      </div>
+
+      <div class="overlay-body">
+        <select
+          class="edit-select"
+          [ngModel]="methodModalValue()"
+          (ngModelChange)="methodModalValue.set($event)"
+        >
+          @for (method of httpMethods; track method) {
+            <option>{{ method }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="overlay-footer">
+        <button class="variable-add" type="button" (click)="saveMethodModal()">Save</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (tagsModalOpen()) {
+  <div class="overlay-backdrop" (click)="closeTagsModal()">
+    <div class="overlay-panel tags-modal" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Tags — {{ tagsModalRequest()?.name }}</h3>
+        <button class="overlay-close" type="button" (click)="closeTagsModal()">Close</button>
+      </div>
+
+      <div class="overlay-body">
+        <div class="request-tags request-tags--editable">
+          @for (tag of requestTags()[tagsModalRequest()!.id] ?? []; track tag) {
+            <span class="tag-chip tag-chip--editable">
+              {{ tag }}
+              <button
+                class="tag-chip-remove"
+                type="button"
+                (click)="removeTagFromRequest(tagsModalRequest()!, tag, $event)"
+                aria-label="Remove tag"
+              >
+                ×
+              </button>
+            </span>
+          }
+        </div>
+
+        <div class="tag-input-wrap">
+          <input
+            class="tag-input"
+            type="text"
+            placeholder="Add tag…"
+            [ngModel]="tagsModalNewTagName()"
+            (ngModelChange)="tagsModalNewTagName.set($event)"
+            (keydown.enter)="addTagToRequest(tagsModalRequest()!, tagsModalNewTagName())"
+          />
+          @if (tagSuggestions().length && tagsModalNewTagName().trim()) {
+            <div class="tag-suggestions">
+              @for (tag of tagSuggestions(); track tag.id) {
+                <button
+                  class="tag-suggestion"
+                  type="button"
+                  (click)="addTagToRequest(tagsModalRequest()!, tag.name)"
+                >
+                  {{ tag.name }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+@if (favouritesModalOpen()) {
+  <div class="overlay-backdrop" (click)="closeFavouritesModal()">
+    <div class="overlay-panel favourites-modal" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Favourites — {{ favouritesModalRequest()?.name }}</h3>
+        <button class="overlay-close" type="button" (click)="closeFavouritesModal()">Close</button>
+      </div>
+
+      <div class="overlay-body">
+        @for (collection of favouriteCollections(); track collection.id) {
+          <div class="favourite-collection-row">
+            <label class="favourite-checkbox">
+              <input
+                type="checkbox"
+                [checked]="favouriteMembership().has(collection.id)"
+                (change)="toggleFavouriteMembership(collection)"
+              />
+              <span class="favourite-checkmark"></span>
+              <span class="favourite-collection-name">{{ collection.name }}</span>
+            </label>
+            <button
+              class="favourite-collection-delete"
+              type="button"
+              (click)="deleteFavouriteCollection(collection, $event)"
+              aria-label="Delete favourite collection"
+            >
+              Delete
+            </button>
+          </div>
+        }
+      </div>
+
+      <div class="overlay-footer favourite-popup-footer">
+        <input
+          class="variable-input favourite-name-input"
+          type="text"
+          placeholder="New favourite group"
+          [ngModel]="newFavouriteName()"
+          (ngModelChange)="newFavouriteName.set($event)"
+          (keydown.enter)="addFavouriteCollection()"
+        />
+        <button class="variable-add" type="button" (click)="addFavouriteCollection()">Add</button>
+      </div>
+    </div>
+  </div>
+}

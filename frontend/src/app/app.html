@@ -30,6 +30,15 @@
     <button class="project-change-button" type="button" (click)="openProjectEditor()">
       Change project
     </button>
+    <button
+      class="feature-toggle"
+      type="button"
+      (click)="featureFlags.toggleRequestListV2()"
+      [class.is-active]="featureFlags.useRequestListV2()"
+      [title]="featureFlags.useRequestListV2() ? 'Switch to classic list' : 'Switch to spreadsheet view'"
+    >
+      {{ featureFlags.useRequestListV2() ? 'Classic' : 'V2' }}
+    </button>
   </div>
 </div>
 
@@ -38,7 +47,11 @@
 
   <div class="resizer" (mousedown)="startColumnResize('left', $event)" aria-hidden="true"></div>
 
-  <app-requests-main-list></app-requests-main-list>
+  @if (featureFlags.useRequestListV2()) {
+    <app-requests-main-list-v2></app-requests-main-list-v2>
+  } @else {
+    <app-requests-main-list></app-requests-main-list>
+  }
 
   <div class="resizer" (mousedown)="startColumnResize('right', $event)" aria-hidden="true"></div>
 
