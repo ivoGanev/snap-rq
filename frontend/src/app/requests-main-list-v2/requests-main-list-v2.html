@@ -28,6 +28,9 @@
     </span>
   }
   <span class="header-spacer"></span>
+  @if (selectedRowIds().size > 1) {
+    <span class="selection-count">{{ selectedRowIds().size }} selected</span>
+  }
   @if (selectedRequest()) {
     <button
       class="send-button send-button--top-bar"
@@ -53,10 +56,11 @@
 }
 
 @if (activeGroupName() && filteredActiveRequests().length > 0) {
-  <div class="spreadsheet-wrapper">
+  <div class="spreadsheet-wrapper" [class.is-dragging]="isDragging()">
     <table class="spreadsheet">
       <thead>
         <tr>
+          <th class="spreadsheet-header spreadsheet-header--action" aria-hidden="true"></th>
           @for (col of columns; track col.key) {
             <th
               class="spreadsheet-header"
@@ -82,11 +86,37 @@
           <tr
             class="spreadsheet-row"
             [class.is-selected]="isRowSelected(req)"
+            [class.is-active-drag-row]="dragStartRowId() === req.id"
+            (mousedown)="onRowMouseDown(req, $event)"
+            (contextmenu)="onRowContextMenu(req, $event)"
+            (mouseenter)="onRowMouseEnter(req)"
           >
+            <td class="spreadsheet-cell spreadsheet-cell--action">
+              <button
+                class="zen-mode-button"
+                type="button"
+                (click)="openZenMode(req, $event)"
+                aria-label="Open edit mode"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
+                  />
+                </svg>
+              </button>
+            </td>
             <td
               class="spreadsheet-cell spreadsheet-cell--name"
               [class.is-cell-selected]="isCellSelected(req, 'name')"
-              (click)="selectCell(req, 'name')"
+              (click)="onRowClick(req, $event, 'name')"
               (dblclick)="onCellDoubleClick(req, 'name')"
               [title]="req.name"
             >
@@ -95,7 +125,7 @@
             <td
               class="spreadsheet-cell spreadsheet-cell--url"
               [class.is-cell-selected]="isCellSelected(req, 'url')"
-              (click)="selectCell(req, 'url')"
+              (click)="onRowClick(req, $event, 'url')"
               (dblclick)="onCellDoubleClick(req, 'url')"
               [title]="req.url"
             >
@@ -104,7 +134,7 @@
             <td
               class="spreadsheet-cell spreadsheet-cell--method"
               [class.is-cell-selected]="isCellSelected(req, 'method')"
-              (click)="selectCell(req, 'method')"
+              (click)="onRowClick(req, $event, 'method')"
               (dblclick)="onCellDoubleClick(req, 'method')"
             >
               <span class="request-method" [attr.data-method]="req.method">{{ req.method }}</span>
@@ -112,7 +142,7 @@
             <td
               class="spreadsheet-cell spreadsheet-cell--headers"
               [class.is-cell-selected]="isCellSelected(req, 'headers')"
-              (click)="selectCell(req, 'headers')"
+              (click)="onRowClick(req, $event, 'headers')"
               (dblclick)="onCellDoubleClick(req, 'headers')"
               [title]="req.request_headers"
             >
@@ -121,7 +151,7 @@
             <td
               class="spreadsheet-cell spreadsheet-cell--body"
               [class.is-cell-selected]="isCellSelected(req, 'body')"
-              (click)="selectCell(req, 'body')"
+              (click)="onRowClick(req, $event, 'body')"
               (dblclick)="onCellDoubleClick(req, 'body')"
               [title]="req.body"
             >
@@ -130,7 +160,7 @@
             <td
               class="spreadsheet-cell spreadsheet-cell--tags"
               [class.is-cell-selected]="isCellSelected(req, 'tags')"
-              (click)="selectCell(req, 'tags')"
+              (click)="onRowClick(req, $event, 'tags')"
               (dblclick)="onCellDoubleClick(req, 'tags')"
             >
               @if (requestTags()[req.id]?.length) {
@@ -144,7 +174,7 @@
             <td
               class="spreadsheet-cell spreadsheet-cell--favourites"
               [class.is-cell-selected]="isCellSelected(req, 'favourites')"
-              (click)="selectCell(req, 'favourites')"
+              (click)="onRowClick(req, $event, 'favourites')"
               (dblclick)="onCellDoubleClick(req, 'favourites')"
             >
               @if (getFavouriteCount(req) > 0) {
@@ -162,6 +192,35 @@
         }
       </tbody>
     </table>
+  </div>
+}
+
+@if (contextMenuOpen()) {
+  <div
+    class="context-menu-backdrop"
+    (click)="closeContextMenu()"
+    (contextmenu)="closeContextMenu(); $event.preventDefault()"
+  >
+    <div
+      class="context-menu"
+      [style.left.px]="contextMenuX()"
+      [style.top.px]="contextMenuY()"
+      (click)="$event.stopPropagation()"
+    >
+      <button class="context-menu-item" type="button" (click)="openMoveCollectionModal()">
+        Move to collection…
+      </button>
+      <button class="context-menu-item" type="button" (click)="openBulkTagModal()">
+        Add tag…
+      </button>
+      <button class="context-menu-item" type="button" (click)="openBulkFavouritesModal()">
+        Add to favourites…
+      </button>
+      <div class="context-menu-divider" aria-hidden="true"></div>
+      <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteSelectedRequests()">
+        {{ state.selectedFavouriteCollection() ? 'Remove from favourites' : 'Delete' }}
+      </button>
+    </div>
   </div>
 }
 
@@ -348,6 +407,121 @@
                 type="checkbox"
                 [checked]="favouriteMembership().has(collection.id)"
                 (change)="toggleFavouriteMembership(collection)"
+              />
+              <span class="favourite-checkmark"></span>
+              <span class="favourite-collection-name">{{ collection.name }}</span>
+            </label>
+            <button
+              class="favourite-collection-delete"
+              type="button"
+              (click)="deleteFavouriteCollection(collection, $event)"
+              aria-label="Delete favourite collection"
+            >
+              Delete
+            </button>
+          </div>
+        }
+      </div>
+
+      <div class="overlay-footer favourite-popup-footer">
+        <input
+          class="variable-input favourite-name-input"
+          type="text"
+          placeholder="New favourite group"
+          [ngModel]="newFavouriteName()"
+          (ngModelChange)="newFavouriteName.set($event)"
+          (keydown.enter)="addFavouriteCollection()"
+        />
+        <button class="variable-add" type="button" (click)="addFavouriteCollection()">Add</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (moveCollectionModalOpen()) {
+  <div class="overlay-backdrop" (click)="closeMoveCollectionModal()">
+    <div class="overlay-panel move-collection-modal" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Move {{ selectedRowIds().size }} request(s) to collection</h3>
+        <button class="overlay-close" type="button" (click)="closeMoveCollectionModal()">Cancel</button>
+      </div>
+
+      <div class="overlay-body">
+        @if (availableCollectionsForMove().length === 0) {
+          <div class="state-message">No other collections available.</div>
+        }
+        <ul class="collection-list">
+          @for (collection of availableCollectionsForMove(); track collection.id) {
+            <li
+              class="collection-row"
+              (click)="moveSelectedRequestsToCollection(collection)"
+            >
+              {{ collection.name }}
+            </li>
+          }
+        </ul>
+      </div>
+    </div>
+  </div>
+}
+
+@if (bulkTagModalOpen()) {
+  <div class="overlay-backdrop" (click)="closeBulkTagModal()">
+    <div class="overlay-panel tags-modal" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Add tag to {{ selectedRowIds().size }} request(s)</h3>
+        <button class="overlay-close" type="button" (click)="closeBulkTagModal()">Close</button>
+      </div>
+
+      <div class="overlay-body">
+        <div class="tag-input-wrap">
+          <input
+            class="tag-input"
+            type="text"
+            placeholder="Tag name"
+            [ngModel]="bulkTagName()"
+            (ngModelChange)="bulkTagName.set($event)"
+            (keydown.enter)="addBulkTag(bulkTagName())"
+          />
+          @if (bulkTagSuggestions().length && bulkTagName().trim()) {
+            <div class="tag-suggestions">
+              @for (tag of bulkTagSuggestions(); track tag.id) {
+                <button
+                  class="tag-suggestion"
+                  type="button"
+                  (click)="addBulkTag(tag.name)"
+                >
+                  {{ tag.name }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="overlay-footer">
+        <button class="variable-add" type="button" (click)="addBulkTag(bulkTagName())">Add tag</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (bulkFavouritesModalOpen()) {
+  <div class="overlay-backdrop" (click)="closeBulkFavouritesModal()">
+    <div class="overlay-panel favourites-modal" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Favourites — {{ selectedRowIds().size }} request(s)</h3>
+        <button class="overlay-close" type="button" (click)="closeBulkFavouritesModal()">Close</button>
+      </div>
+
+      <div class="overlay-body">
+        @for (collection of favouriteCollections(); track collection.id) {
+          <div class="favourite-collection-row">
+            <label class="favourite-checkbox">
+              <input
+                type="checkbox"
+                [checked]="isAllSelectedInCollection(collection.id)"
+                (change)="toggleBulkFavouriteMembership(collection)"
               />
               <span class="favourite-checkmark"></span>
               <span class="favourite-collection-name">{{ collection.name }}</span>
