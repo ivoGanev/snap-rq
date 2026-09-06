@@ -12,6 +12,8 @@ export class FavouriteApiService {
   readonly collections = signal<FavouriteCollection[]>([]);
   readonly requests = signal<HttpRequest[]>([]);
   readonly membership = signal<Set<number>>(new Set());
+  /** Membership for many requests at once, keyed by request id. */
+  readonly requestsMembership = signal<Record<number, number[]>>({});
 
   async createCollection(collection: Omit<FavouriteCollection, 'id' | 'created_at'>): Promise<FavouriteCollection> {
     const created = await FavouriteService.FavouriteService.CreateFavouriteCollection(collection as FavouriteCollection);
@@ -64,5 +66,34 @@ export class FavouriteApiService {
 
   clearMembership(): void {
     this.membership.set(new Set());
+  }
+
+  /**
+   * Loads the favourite collection IDs for every request in the given list.
+   * This is used by the V2 spreadsheet view to display/sort the Favourites
+   * column without forcing a separate round-trip per visible row on every
+   * interaction.
+   */
+  async loadMembershipForRequests(requests: HttpRequest[]): Promise<void> {
+    if (requests.length === 0) {
+      this.requestsMembership.set({});
+      return;
+    }
+
+    const map: Record<number, number[]> = {};
+    await Promise.all(
+      requests.map(async (req) => {
+        try {
+          const ids = await FavouriteService.FavouriteService.GetFavouriteCollectionIDsForRequest(
+            req.id,
+          );
+          map[req.id] = (ids ?? []).map((id) => Number(id));
+        } catch (err) {
+          console.error(err);
+          map[req.id] = [];
+        }
+      }),
+    );
+    this.requestsMembership.set(map);
   }
 }

@@ -85,6 +85,31 @@
   filter: brightness(1.15);
 }
 
+.feature-toggle {
+  padding: 5px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    filter 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.feature-toggle:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.feature-toggle.is-active {
+  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
+  border-color: transparent;
+}
+
 .environment-label {
   font-size: 0.75rem;
   font-weight: 600;
