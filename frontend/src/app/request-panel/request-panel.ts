@@ -1,12 +1,11 @@
 import { Component, effect, inject } from '@angular/core';
-import { WorkspaceStateService, type RightPanelMode } from '../core/services/workspace-state.service';
+import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { RequestApiService } from '../core/services/request.service';
-import { RequestEditor } from '../request-editor/request-editor';
 import { ResponseViewer } from '../response-viewer/response-viewer';
 
 @Component({
   selector: 'app-request-panel',
-  imports: [RequestEditor, ResponseViewer],
+  imports: [ResponseViewer],
   templateUrl: './request-panel.html',
   styleUrl: './request-panel.scss',
   host: {
@@ -28,12 +27,7 @@ export class RequestPanel {
       } else {
         this.requestApi.responses.set([]);
         this.state.selectedResponse.set(null);
-        this.state.rightPanelMode.set('response');
       }
     });
-  }
-
-  setRightPanelMode(mode: RightPanelMode): void {
-    this.state.rightPanelMode.set(mode);
   }
 }

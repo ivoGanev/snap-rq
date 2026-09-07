@@ -46,8 +46,8 @@ export class App implements OnInit, AfterViewInit {
   protected readonly environments = this.environmentApi.environments;
   protected readonly variables = this.variableApi.variables;
 
-  readonly leftColumnWidth = signal(220);
-  readonly rightColumnWidth = signal(420);
+  readonly leftColumnWidth = signal(13);
+  readonly rightColumnWidth = signal(30);
   readonly resizingColumn = signal<'left' | 'right' | null>(null);
 
   readonly variablesOverlayOpen = signal(false);
@@ -101,7 +101,8 @@ export class App implements OnInit, AfterViewInit {
     if (!side) return;
 
     const delta = event.clientX - this.resizeStartX;
-    const width = Math.max(160, this.resizeStartWidth + (side === 'left' ? delta : -delta));
+    const deltaPercent = (delta / window.innerWidth) * 100;
+    const width = Math.max(12, this.resizeStartWidth + (side === 'left' ? deltaPercent : -deltaPercent));
 
     if (side === 'left') {
       this.leftColumnWidth.set(width);
@@ -150,7 +151,6 @@ export class App implements OnInit, AfterViewInit {
     this.state.selectedRequest.set(null);
     this.state.selectedResponse.set(null);
     this.requestApi.requests.set([]);
-    this.state.rightPanelMode.set('response');
 
     await this.loadEnvironments(project.id);
     await this.favouriteApi.loadCollectionsForProfile(project.profile_id);

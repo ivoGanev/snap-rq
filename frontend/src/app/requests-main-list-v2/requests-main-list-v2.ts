@@ -309,7 +309,6 @@ export class RequestsMainListV2 {
     this.selectedRowIds.set(new Set([req.id]));
     this.selectedCell.set({ requestId: req.id, column });
     this.state.selectedRequest.set(req);
-    this.state.rightPanelMode.set('response');
 
     const collection = this.state.selectedCollection();
     if (collection) {
@@ -502,7 +501,6 @@ export class RequestsMainListV2 {
       if (this.state.selectedRequest() && ids.includes(this.state.selectedRequest()!.id)) {
         this.state.selectedRequest.set(null);
         this.state.selectedResponse.set(null);
-        this.state.rightPanelMode.set('response');
       }
 
       this.clearSelection();

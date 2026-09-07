@@ -43,7 +43,7 @@
 </div>
 
 <div class="app-shell" (window:keydown.escape)="onEscapePressed()">
-  <app-request-groups [style.width.px]="leftColumnWidth()"></app-request-groups>
+  <app-request-groups [style.width.%]="leftColumnWidth()"></app-request-groups>
 
   <div class="resizer" (mousedown)="startColumnResize('left', $event)" aria-hidden="true"></div>
 
@@ -55,7 +55,7 @@
 
   <div class="resizer" (mousedown)="startColumnResize('right', $event)" aria-hidden="true"></div>
 
-  <app-request-panel [style.width.px]="rightColumnWidth()"></app-request-panel>
+  <app-request-panel [style.width.%]="rightColumnWidth()"></app-request-panel>
 </div>
 
 @if (state.zenModeOpen()) {

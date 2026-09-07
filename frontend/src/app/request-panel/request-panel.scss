@@ -3,40 +3,11 @@
   gap: var(--s-3);
 }
 
-.tabs {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-}
-
-.tab {
-  background: transparent;
-  border: none;
-  padding: 0;
+.panel-title {
+  margin: 0;
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--muted);
-  cursor: pointer;
-  transition: color 0.15s ease;
-  --wails-draggable: no-drag;
-}
-
-.tab:hover:not(:disabled) {
   color: var(--text);
-}
-
-.tab.is-active {
-  color: var(--text);
-}
-
-.tab:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.tab-separator {
-  color: var(--glass-border);
-  font-weight: 300;
 }
 
 .big-send-button {
