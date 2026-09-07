@@ -158,7 +158,6 @@ export class RequestsMainList {
 
   selectRequest(req: HttpRequest): void {
     this.state.selectedRequest.set(req);
-    this.state.rightPanelMode.set('response');
 
     const collection = this.state.selectedCollection();
     if (collection) {
@@ -211,7 +210,6 @@ export class RequestsMainList {
       if (this.state.selectedRequest()?.id === req.id) {
         this.state.selectedRequest.set(null);
         this.state.selectedResponse.set(null);
-        this.state.rightPanelMode.set('response');
       }
 
       if (collection) {

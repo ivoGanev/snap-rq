@@ -243,7 +243,6 @@ export class RequestGroups {
         this.state.selectedRequest.set(null);
         this.state.selectedResponse.set(null);
         this.requestApi.requests.set([]);
-        this.state.rightPanelMode.set('response');
       }
 
       this.closeCollectionContextMenu();

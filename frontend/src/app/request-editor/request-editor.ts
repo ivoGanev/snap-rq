@@ -38,7 +38,6 @@ export class RequestEditor {
 
   constructor() {
     effect(() => {
-      this.state.rightPanelMode();
       const req = this.state.selectedRequest();
       this.draftRequest.set(req ? { ...req } : null);
     });

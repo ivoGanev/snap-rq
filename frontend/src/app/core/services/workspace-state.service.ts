@@ -5,13 +5,11 @@ import type { Collection } from './collection.service';
 import type { Project } from './project.service';
 import type { Environment } from './environment.service';
 
-export type RightPanelMode = 'response' | 'edit';
-
 /**
  * Thin shared state for things that genuinely cross component boundaries:
  * the current selection (project, environment, group, request, response),
- * the right panel mode, a global busy flag, and request execution which can
- * be triggered from both the request list and the request panel.
+ * a global busy flag, and request execution which can be triggered from both
+ * the request list and the request panel.
  *
  * Everything else (UI-local state, popups, loading flows) lives in the
  * component that owns it.
@@ -29,7 +27,6 @@ export class WorkspaceStateService {
   readonly selectedTag = signal<string | null>(null);
   readonly selectedRequest = signal<HttpRequest | null>(null);
   readonly selectedResponse = signal<HttpResponse | null>(null);
-  readonly rightPanelMode = signal<RightPanelMode>('response');
   readonly zenModeOpen = signal(false);
 
   readonly requestSendStartTime = signal<number | null>(null);
@@ -63,7 +60,6 @@ export class WorkspaceStateService {
       if (this.selectedRequest()?.id === req.id) {
         await this.loadResponses(req.id);
         this.selectedResponse.set(resp);
-        this.rightPanelMode.set('response');
       }
     } catch (err) {
       console.error(err);
