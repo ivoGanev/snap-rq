@@ -132,6 +132,7 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+
 .header-label {
   vertical-align: middle;
 }
@@ -204,7 +205,7 @@
 }
 
 .spreadsheet-cell--name {
-  width: 15%;
+  width: 28%;
   font-weight: 600;
 }
 
@@ -248,34 +249,20 @@
 }
 
 .spreadsheet-cell--url {
-  width: 24%;
+  width: 35%;
   color: var(--muted);
 }
 
 .spreadsheet-cell--method {
-  width: 8%;
-}
-
-.spreadsheet-cell--headers {
-  width: 16%;
-  color: var(--muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-    'Courier New', monospace;
-}
-
-.spreadsheet-cell--body {
-  width: 16%;
-  color: var(--muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-    'Courier New', monospace;
+  width: 5%;
 }
 
 .spreadsheet-cell--tags {
-  width: 12%;
+  width: 10%;
 }
 
 .spreadsheet-cell--favourites {
-  width: 6%;
+  width: 10%;
   text-align: center;
 }
 

@@ -58,12 +58,21 @@
 @if (activeGroupName() && filteredActiveRequests().length > 0) {
   <div class="spreadsheet-wrapper" [class.is-dragging]="isDragging()">
     <table class="spreadsheet">
+      <colgroup>
+        <col style="width: 3%;" />
+        <col style="width: 28%;" />
+        <col style="width: 29%;" />
+        <col style="width: 10%;" />
+        <col style="width: 15%;" />
+        <col style="width: 15%;" />
+      </colgroup>
       <thead>
         <tr>
           <th class="spreadsheet-header spreadsheet-header--action" aria-hidden="true"></th>
           @for (col of columns; track col.key) {
             <th
               class="spreadsheet-header"
+              [class.spreadsheet-header--method]="col.key === 'method'"
               [class.is-sorted]="sortIndicator(col.key)"
               (click)="toggleSort(col.key)"
             >
@@ -138,24 +147,6 @@
               (dblclick)="onCellDoubleClick(req, 'method')"
             >
               <span class="request-method" [attr.data-method]="req.method">{{ req.method }}</span>
-            </td>
-            <td
-              class="spreadsheet-cell spreadsheet-cell--headers"
-              [class.is-cell-selected]="isCellSelected(req, 'headers')"
-              (click)="onRowClick(req, $event, 'headers')"
-              (dblclick)="onCellDoubleClick(req, 'headers')"
-              [title]="req.request_headers"
-            >
-              {{ req.request_headers }}
-            </td>
-            <td
-              class="spreadsheet-cell spreadsheet-cell--body"
-              [class.is-cell-selected]="isCellSelected(req, 'body')"
-              (click)="onRowClick(req, $event, 'body')"
-              (dblclick)="onCellDoubleClick(req, 'body')"
-              [title]="req.body"
-            >
-              {{ req.body }}
             </td>
             <td
               class="spreadsheet-cell spreadsheet-cell--tags"
@@ -342,7 +333,7 @@
   <div class="overlay-backdrop" (click)="closeTagsModal()">
     <div class="overlay-panel tags-modal" (click)="$event.stopPropagation()">
       <div class="overlay-header">
-        <h3 class="overlay-title">Tags — {{ tagsModalRequest()?.name }}</h3>
+        <h3 class="overlay-title">Tags</h3>
         <button class="overlay-close" type="button" (click)="closeTagsModal()">Close</button>
       </div>
 
@@ -395,7 +386,7 @@
   <div class="overlay-backdrop" (click)="closeFavouritesModal()">
     <div class="overlay-panel favourites-modal" (click)="$event.stopPropagation()">
       <div class="overlay-header">
-        <h3 class="overlay-title">Favourites — {{ favouritesModalRequest()?.name }}</h3>
+        <h3 class="overlay-title">Favourites</h3>
         <button class="overlay-close" type="button" (click)="closeFavouritesModal()">Close</button>
       </div>
 

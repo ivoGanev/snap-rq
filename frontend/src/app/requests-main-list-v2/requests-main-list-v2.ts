@@ -7,7 +7,7 @@ import { CollectionApiService, type Collection } from '../core/services/collecti
 import { SelectionStateService } from '../core/services/selection-state.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
 
-type ColumnKey = 'name' | 'url' | 'method' | 'headers' | 'body' | 'tags' | 'favourites';
+type ColumnKey = 'name' | 'url' | 'method' | 'tags' | 'favourites';
 type SortDirection = 'asc' | 'desc';
 
 interface SelectedCell {
@@ -19,8 +19,6 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: 'name', label: 'Name' },
   { key: 'url', label: 'URL' },
   { key: 'method', label: 'Method' },
-  { key: 'headers', label: 'Headers' },
-  { key: 'body', label: 'Body' },
   { key: 'tags', label: 'Tags' },
   { key: 'favourites', label: 'Favourites' },
 ];
@@ -677,10 +675,6 @@ export class RequestsMainListV2 {
         return a.url.localeCompare(b.url) * dir;
       case 'method':
         return a.method.localeCompare(b.method) * dir;
-      case 'headers':
-        return a.request_headers.localeCompare(b.request_headers) * dir;
-      case 'body':
-        return a.body.localeCompare(b.body) * dir;
       case 'tags': {
         const aTags = (this.requestTags()[a.id] ?? []).join(', ');
         const bTags = (this.requestTags()[b.id] ?? []).join(', ');
@@ -705,10 +699,6 @@ export class RequestsMainListV2 {
         return req.url;
       case 'method':
         return req.method;
-      case 'headers':
-        return req.request_headers;
-      case 'body':
-        return req.body;
       case 'tags':
         return (this.requestTags()[req.id] ?? []).join(', ');
       case 'favourites':
@@ -948,10 +938,6 @@ export class RequestsMainListV2 {
         return 'url';
       case 'method':
         return 'method';
-      case 'headers':
-        return 'request_headers';
-      case 'body':
-        return 'body';
       case 'name':
       default:
         return 'name';
