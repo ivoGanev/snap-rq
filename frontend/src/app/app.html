@@ -63,53 +63,7 @@
 }
 
 @if (variablesOverlayOpen()) {
-  <div class="overlay-backdrop" (click)="closeVariablesOverlay()">
-    <div class="overlay-panel" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Edit variables — {{ state.selectedEnvironment()?.name }}</h3>
-        <div class="overlay-actions">
-          <button class="overlay-delete" type="button" (click)="deleteEnvironment()">
-            Delete env
-          </button>
-          <button class="overlay-close" type="button" (click)="closeVariablesOverlay()">
-            Close
-          </button>
-        </div>
-      </div>
-
-      <div class="overlay-body">
-        @for (variable of variables(); track variable.id) {
-          <div class="variable-row">
-            <input
-              class="variable-input"
-              type="text"
-              placeholder="Key"
-              [ngModel]="variable.key"
-              (ngModelChange)="updateVariableField(variable, 'key', $event)"
-            />
-            <input
-              class="variable-input"
-              type="text"
-              placeholder="Value"
-              [ngModel]="variable.value"
-              (ngModelChange)="updateVariableField(variable, 'value', $event)"
-            />
-            <button
-              class="variable-delete"
-              type="button"
-              (click)="deleteVariable(variable, $event)"
-            >
-              Delete
-            </button>
-          </div>
-        }
-      </div>
-
-      <div class="overlay-footer">
-        <button class="variable-add" type="button" (click)="addVariable()">Add variable</button>
-      </div>
-    </div>
-  </div>
+  <app-variables-editor (close)="closeVariablesOverlay()"></app-variables-editor>
 }
 
 @if (projectEditorOpen()) {

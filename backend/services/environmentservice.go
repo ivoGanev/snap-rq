@@ -3,6 +3,7 @@ package services
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"snap-rq/backend/models"
 )
@@ -21,6 +22,9 @@ func NewEnvironmentService(db *sql.DB) *EnvironmentService {
 func (s *EnvironmentService) CreateEnvironment(env models.Environment) (models.Environment, error) {
 	if env.ProjectID == 0 {
 		return models.Environment{}, fmt.Errorf("project id is required")
+	}
+	if env.CreatedAt.IsZero() {
+		env.CreatedAt = time.Now()
 	}
 
 	result, err := s.db.Exec(

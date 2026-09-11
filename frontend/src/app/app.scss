@@ -271,30 +271,6 @@
   height: 17px;
 }
 
-.variable-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: var(--s-2);
-  align-items: center;
-}
-
-.variable-delete {
-  padding: var(--s-2) var(--s-3);
-  font-size: 0.875rem;
-  font-weight: 700;
-  border: none;
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: filter 0.15s ease;
-  --wails-draggable: no-drag;
-  color: #fff;
-  background: rgba(239, 68, 68, 0.8);
-}
-
-.variable-delete:hover {
-  filter: brightness(1.15);
-}
-
 .project-editor-popup,
 .project-delete-popup {
   width: min(420px, calc(100vw - 2 * var(--s-4)));
