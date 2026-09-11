@@ -5,10 +5,7 @@ import { WailsService } from './wails.service';
 import { WorkspaceStateService } from './core/services/workspace-state.service';
 import { ProjectApiService, type Project } from './core/services/project.service';
 import { EnvironmentApiService, type Environment } from './core/services/environment.service';
-import {
-  EnvironmentVariableApiService,
-  type EnvironmentVariable,
-} from './core/services/environment-variable.service';
+
 import { CollectionApiService } from './core/services/collection.service';
 import { RequestApiService } from './core/services/request.service';
 import { FavouriteApiService } from './core/services/favourite.service';
@@ -18,13 +15,13 @@ import { RequestGroups } from './request-groups/request-groups';
 import { RequestsMainList } from './requests-main-list/requests-main-list';
 import { RequestsMainListV2 } from './requests-main-list-v2/requests-main-list-v2';
 import { RequestPanel } from './request-panel/request-panel';
+import { VariablesEditor } from './variables-editor/variables-editor';
 import { ZenMode } from './zen-mode/zen-mode';
 import { FeatureFlagsService } from './core/feature-flags/feature-flags.service';
-import * as EnvironmentService from '../../bindings/snap-rq/backend/services';
 
 @Component({
   selector: 'app-root',
-  imports: [FormsModule, RequestGroups, RequestsMainList, RequestsMainListV2, RequestPanel, ZenMode],
+  imports: [FormsModule, RequestGroups, RequestsMainList, RequestsMainListV2, RequestPanel, VariablesEditor, ZenMode],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -33,7 +30,6 @@ export class App implements OnInit, AfterViewInit {
   private readonly wails = inject(WailsService);
   private readonly projectApi = inject(ProjectApiService);
   private readonly environmentApi = inject(EnvironmentApiService);
-  private readonly variableApi = inject(EnvironmentVariableApiService);
   private readonly collectionApi = inject(CollectionApiService);
   private readonly requestApi = inject(RequestApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
@@ -44,7 +40,6 @@ export class App implements OnInit, AfterViewInit {
   protected readonly currentTime = this.wails.currentTime;
   protected readonly projects = this.projectApi.projects;
   protected readonly environments = this.environmentApi.environments;
-  protected readonly variables = this.variableApi.variables;
 
   readonly leftColumnWidth = signal(13);
   readonly rightColumnWidth = signal(30);
@@ -186,87 +181,10 @@ export class App implements OnInit, AfterViewInit {
 
   openVariablesOverlay(): void {
     this.variablesOverlayOpen.set(true);
-    const env = this.state.selectedEnvironment();
-    if (env) {
-      this.loadVariables(env.id);
-    }
   }
 
   closeVariablesOverlay(): void {
     this.variablesOverlayOpen.set(false);
-  }
-
-  async loadVariables(environmentId: number): Promise<void> {
-    try {
-      await this.variableApi.loadForEnvironment(environmentId);
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async updateVariableField<K extends keyof EnvironmentVariable>(
-    variable: EnvironmentVariable,
-    field: K,
-    value: EnvironmentVariable[K],
-  ): Promise<void> {
-    const updated = { ...variable, [field]: value };
-
-    const list = this.variables();
-    const index = list.findIndex((v) => v.id === updated.id);
-    if (index !== -1) {
-      const newList = [...list];
-      newList[index] = updated;
-      this.variableApi.variables.set(newList);
-    }
-
-    try {
-      await this.variableApi.update(updated);
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async addVariable(): Promise<void> {
-    const env = this.state.selectedEnvironment();
-    if (!env) return;
-
-    try {
-      const created = await this.variableApi.create({
-        environment_id: env.id,
-        key: 'NEW_KEY',
-        value: '',
-      });
-      this.variableApi.variables.update((list) => [...list, created]);
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async deleteVariable(variable: EnvironmentVariable, event: MouseEvent): Promise<void> {
-    event.stopPropagation();
-    try {
-      await this.variableApi.delete(variable.id);
-      this.variableApi.variables.update((list) => list.filter((v) => v.id !== variable.id));
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async deleteEnvironment(): Promise<void> {
-    const env = this.state.selectedEnvironment();
-    const project = this.state.selectedProject();
-    if (!env || !project) return;
-
-    this.state.loading.set(true);
-    try {
-      await EnvironmentService.EnvironmentService.DeleteEnvironment(env.id);
-      await this.loadEnvironments(project.id);
-      this.closeVariablesOverlay();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      this.state.loading.set(false);
-    }
   }
 
   openProjectEditor(): void {

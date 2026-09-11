@@ -1,0 +1,163 @@
+<div class="overlay-backdrop" (click)="closeDialog()">
+  <div class="overlay-panel variables-editor" (click)="$event.stopPropagation()">
+    <div class="overlay-header variables-editor-header">
+      <h3 class="overlay-title">Edit variables — {{ activeEnvironmentName() }}</h3>
+      <button class="overlay-close" type="button" (click)="closeDialog()">Close</button>
+    </div>
+
+    <div class="variables-editor-body">
+      <!-- Environment chips -->
+      <div class="environment-chips">
+        @for (env of environments(); track env.id) {
+          <button
+            class="environment-chip"
+            [class.is-active]="state.selectedEnvironment()?.id === env.id"
+            type="button"
+            (click)="selectEnvironment(env)"
+          >
+            <span class="environment-chip-name">{{ env.name }}</span>
+            <span
+              class="environment-chip-delete"
+              (click)="promptDeleteEnvironment(env, $event)"
+              aria-label="Delete environment"
+            >
+              ×
+            </span>
+          </button>
+        }
+
+        @if (newEnvironmentInputOpen()) {
+          <form class="new-environment-form" (submit)="$event.preventDefault()">
+            <input
+              #newEnvInput
+              class="new-environment-input"
+              type="text"
+              name="newEnvironmentName"
+              placeholder="Environment name"
+              [ngModel]="newEnvironmentName()"
+              (ngModelChange)="newEnvironmentName.set($event)"
+              (keydown.enter)="addEnvironment()"
+              (keydown.escape)="closeNewEnvironmentInput()"
+              (blur)="addEnvironment()"
+              autofocus
+            />
+          </form>
+        } @else {
+          <button class="environment-chip environment-chip--add" type="button" (click)="openNewEnvironmentInput()">
+            + New environment
+          </button>
+        }
+      </div>
+
+      <!-- Toolbar with sticky Add variable -->
+      <div class="variables-toolbar">
+        <button class="variable-add-button" type="button" (click)="addVariable()">Add variable</button>
+      </div>
+
+      <!-- Variables table -->
+      <div class="variables-table-wrapper">
+        <table class="variables-table">
+          <thead>
+            <tr>
+              <th
+                class="variables-header variables-header--key"
+                [class.is-sorted]="sortIndicator('key')"
+                (click)="toggleSort('key')"
+              >
+                <span class="header-label">Key</span>
+                <span class="sort-arrow" [class.asc]="sortIndicator('key') === 'asc'" aria-hidden="true">
+                  @if (sortIndicator('key') === 'asc') {
+                    ▲
+                  } @else if (sortIndicator('key') === 'desc') {
+                    ▼
+                  } @else {
+                    ⇅
+                  }
+                </span>
+              </th>
+              <th
+                class="variables-header variables-header--value"
+                [class.is-sorted]="sortIndicator('value')"
+                (click)="toggleSort('value')"
+              >
+                <span class="header-label">Value</span>
+                <span class="sort-arrow" [class.asc]="sortIndicator('value') === 'asc'" aria-hidden="true">
+                  @if (sortIndicator('value') === 'asc') {
+                    ▲
+                  } @else if (sortIndicator('value') === 'desc') {
+                    ▼
+                  } @else {
+                    ⇅
+                  }
+                </span>
+              </th>
+              <th class="variables-header variables-header--action" aria-hidden="true"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (variable of sortedVariables(); track variable.id) {
+              <tr class="variables-row">
+                <td class="variables-cell variables-cell--key">
+                  <input
+                    class="variables-input"
+                    type="text"
+                    placeholder="KEY"
+                    [ngModel]="variable.key"
+                    (ngModelChange)="updateVariableField(variable, 'key', $event)"
+                  />
+                </td>
+                <td class="variables-cell variables-cell--value">
+                  <input
+                    class="variables-input"
+                    type="text"
+                    placeholder="Value"
+                    [ngModel]="variable.value"
+                    (ngModelChange)="updateVariableField(variable, 'value', $event)"
+                  />
+                </td>
+                <td class="variables-cell variables-cell--action">
+                  <button
+                    class="row-delete"
+                    type="button"
+                    (click)="deleteVariable(variable, $event)"
+                    aria-label="Delete variable"
+                  >
+                    ×
+                  </button>
+                </td>
+              </tr>
+            }
+            @if (sortedVariables().length === 0) {
+              <tr>
+                <td class="variables-empty" colspan="3">No variables for this environment.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Environment delete confirmation -->
+@if (deleteConfirmOpen()) {
+  <div class="overlay-backdrop confirmation-backdrop" (click)="cancelDeleteEnvironment()">
+    <div class="overlay-panel confirmation-panel" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Delete environment?</h3>
+        <button class="overlay-close" type="button" (click)="cancelDeleteEnvironment()">Cancel</button>
+      </div>
+      <div class="overlay-body">
+        <p class="delete-confirm-message">
+          This will permanently delete <strong>{{ environmentPendingDelete()?.name }}</strong> and all
+          of its variables.
+        </p>
+      </div>
+      <div class="overlay-footer">
+        <button class="overlay-delete" type="button" (click)="confirmDeleteEnvironment()">
+          Delete environment
+        </button>
+      </div>
+    </div>
+  </div>
+}
