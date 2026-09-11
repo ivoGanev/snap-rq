@@ -1,84 +1,51 @@
 #!/usr/bin/env python3
 """
-Inject mock profiles, projects, collections, HTTP requests and responses into
-the Wails SQLite database.
+Seed the Wails SQLite database with a dedicated "Mock Server" collection
+containing one request per mock-server endpoint.
 
-This script ALWAYS drops and recreates the target database file so each run
-starts from a clean state.
+The script is idempotent: re-running it will not duplicate the mock collection
+or its requests. Use --force to drop and recreate the mock collection.
 
 Usage:
-    python scripts/mock_requests.py
+    python tools/seed_scale_test.py
+    python tools/seed_scale_test.py --force
 """
 
+import argparse
 import os
-import random
 import sqlite3
-import string
 import sys
 from pathlib import Path
 
-# -----------------------------------------------------------------------------
-# Scale-test configuration. Edit these constants to change the generated data.
-# -----------------------------------------------------------------------------
-COLLECTION_COUNT = 20
-MIN_REQUESTS_PER_COLLECTION = 10
-MAX_REQUESTS_PER_COLLECTION = 500
+MOCK_COLLECTION_NAME = "Mock Server"
+MOCK_BASE_URL = "http://localhost:18080"
 
-REQUEST_MIN_LEN = 5
-REQUEST_MAX_LEN = 1000
-
-RESPONSE_MIN_LEN = 50
-RESPONSE_MAX_LEN = 5000
-
-# Probability that a request body is a large ~4000 character payload.
-BIG_BODY_CHANCE = 0.1
-BIG_BODY_SIZE = 4000
-
-# Probability that a request has headers. The complement means many requests
-# will have no headers at all.
-REQUEST_HEADERS_CHANCE = 0.5
-RESPONSE_HEADERS_CHANCE = 0.5
-
-# Each request gets exactly one response so every status code is represented
-# across the generated data set.
-STATUS_CODES = [200, 201, 204, 301, 302, 400, 401, 403, 404, 422, 500, 502, 503]
-
-METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
-ENVIRONMENT_NAMES = ["Production", "Staging", "Development", "Testing"]
-VARIABLE_KEYS = [
-    "API_BASE_URL",
-    "API_KEY",
-    "AUTH_TOKEN",
-    "TIMEOUT",
-    "RETRY_COUNT",
-    "LOG_LEVEL",
-    "FEATURE_FLAG",
-    "REGION",
-    "BUCKET_NAME",
-    "DATABASE_URL",
+# Each tuple is (name, method, path, optional_body, optional_headers).
+MOCK_ENDPOINTS = [
+    # Content-type mocks
+    ("JSON response", "GET", "/mock/json", None, None),
+    ("CSV response", "GET", "/mock/csv", None, None),
+    ("HTML response", "GET", "/mock/html", None, None),
+    ("Plain text response", "GET", "/mock/text", None, None),
+    ("XML response", "GET", "/mock/xml", None, None),
+    ("Binary download", "GET", "/mock/binary", None, None),
+    # Status mocks
+    ("200 OK", "GET", "/mock/status/200", None, None),
+    ("201 Created", "GET", "/mock/status/201", None, None),
+    ("204 No Content", "GET", "/mock/status/204", None, None),
+    ("400 Bad Request", "GET", "/mock/status/400", None, None),
+    ("401 Unauthorized", "GET", "/mock/status/401", None, None),
+    ("404 Not Found", "GET", "/mock/status/404", None, None),
+    ("500 Internal Server Error", "GET", "/mock/status/500", None, None),
+    # Special mocks
+    ("Delayed response", "GET", "/mock/delay?ms=2000", None, None),
+    ("Empty response", "GET", "/mock/empty", None, None),
+    # Echo endpoint
+    ("Echo endpoint", "POST", "/echo", '{"hello":"world"}', "Content-Type: application/json"),
 ]
-COLLECTION_NAMES = [
-    "auth",
-    "users",
-    "orders",
-    "products",
-    "search",
-    "checkout",
-    "webhooks",
-    "payments",
-    "inventory",
-    "shipping",
-    "notifications",
-    "reports",
-    "audit",
-    "config",
-    "health",
-    "analytics",
-    "jobs",
-    "files",
-    "comments",
-    "dashboard",
-]
+
+# Distinct appearance for the mock collection so it stands out.
+MOCK_COLLECTION_APPEARANCE = ("color", "#f97316")  # orange-500
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS profiles (
@@ -101,6 +68,16 @@ CREATE TABLE IF NOT EXISTS collections (
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_collections_project_id ON collections(project_id);
+
+CREATE TABLE IF NOT EXISTS collection_appearances (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    collection_id INTEGER NOT NULL,
+    appearance_type TEXT NOT NULL CHECK(appearance_type IN ('icon', 'color')),
+    appearance_value TEXT NOT NULL,
+    FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
+    UNIQUE (collection_id)
+);
+CREATE INDEX IF NOT EXISTS idx_collection_appearances_collection_id ON collection_appearances(collection_id);
 
 CREATE TABLE IF NOT EXISTS http_requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -158,279 +135,151 @@ def default_db_path() -> Path:
     return base / "snap-rq-wails-v3" / "app.db"
 
 
-def random_text(min_len: int, max_len: int) -> str:
-    """Generate a random ASCII string of variable length."""
-    length = random.randint(min_len, max_len)
-    chars = string.ascii_letters + string.digits + string.punctuation + " \n"
-    return "".join(random.choices(chars, k=length))
-
-
-def random_name(min_len: int, max_len: int) -> str:
-    """Generate a readable random name."""
-    length = random.randint(min_len, max_len)
-    words = ["user", "order", "product", "search", "login", "checkout", "profile", "api", "v1", "v2", "webhook", "auth", "token", "refresh", "list", "detail", "create", "update", "delete"]
-    parts = []
-    while len(" ".join(parts)) < length:
-        parts.append(random.choice(words))
-    name = " ".join(parts)
-    if len(name) > max_len:
-        name = name[:max_len].rstrip()
-    return name
-
-
-def random_url(min_len: int, max_len: int) -> str:
-    """Generate a random URL, sometimes with query params and fragments."""
-    hosts = ["api.example.com", "localhost:8080", "test.service.io", "dev.internal.net", "staging.gateway.org"]
-    paths = ["users", "orders", "products", "search", "auth/login", "webhooks", "v1/resources", "v2/items"]
-    url = f"https://{random.choice(hosts)}/{random.choice(paths)}"
-
-    if random.random() < 0.7:
-        url += f"/{random.randint(1, 99999)}"
-    if random.random() < 0.5:
-        params = "&".join(
-            f"{random.choice(['q', 'id', 'page', 'limit', 'filter', 'sort'])}={random.randint(1, 9999)}"
-            for _ in range(random.randint(1, 5))
-        )
-        url += f"?{params}"
-    if random.random() < 0.2:
-        url += "#section"
-
-    if len(url) < min_len:
-        url += "/" + "x" * (min_len - len(url) - 1)
-    if len(url) > max_len:
-        url = url[:max_len]
-    return url
-
-
-def random_request_body(min_len: int, max_len: int) -> str:
-    """Generate a random JSON-like or plain text request body."""
-    if random.random() < BIG_BODY_CHANCE:
-        return random_text(BIG_BODY_SIZE, BIG_BODY_SIZE)
-
-    choice = random.random()
-    if choice < 0.3:
-        return "" if random.random() < 0.5 else "{}"
-    if choice < 0.7:
-        size = random.randint(min_len, max_len)
-        obj = {
-            "id": random.randint(1, 999999),
-            "name": random_name(5, 40),
-            "active": random.choice([True, False]),
-            "tags": [random_name(3, 12) for _ in range(random.randint(0, 10))],
-            "payload": random_text(max(0, size - 100), max(0, size - 50)),
-        }
-        return str(obj).replace("'", '"')
-    return random_text(min_len, max_len)
-
-
-def random_response_body(min_len: int, max_len: int) -> str:
-    """Generate a random response body, often JSON-like and large."""
-    choice = random.random()
-    if choice < 0.2:
-        return ""
-    if choice < 0.7:
-        size = random.randint(min_len, max_len)
-        obj = {
-            "status": random.choice(["ok", "error", "pending"]),
-            "data": {
-                "id": random.randint(1, 999999),
-                "name": random_name(5, 40),
-                "items": [
-                    {
-                        "id": random.randint(1, 9999),
-                        "value": random_text(10, 60),
-                    }
-                    for _ in range(random.randint(1, max(1, size // 200)))
-                ],
-                "notes": random_text(max(0, size - 300), max(0, size - 100)),
-            },
-            "meta": {"page": random.randint(1, 100), "total": random.randint(1, 10000)},
-        }
-        return str(obj).replace("'", '"')
-    return random_text(min_len, max_len)
-
-
-def random_headers(min_len: int, max_len: int, chance: float) -> str:
-    """Generate random HTTP headers as a single string, or empty if rolled below chance."""
-    if random.random() > chance:
-        return ""
-    headers = []
-    header_pool = [
-        ("Content-Type", random.choice(["application/json", "application/xml", "text/plain", "multipart/form-data"])),
-        ("Authorization", f"Bearer {random_text(20, 60)}"),
-        ("X-Request-ID", random_text(10, 40)),
-        ("Accept", "application/json"),
-        ("User-Agent", "MockClient/1.0"),
-        ("X-Custom-Header", random_text(5, 30)),
-    ]
-    random.shuffle(header_pool)
-    for name, value in header_pool[: random.randint(1, len(header_pool))]:
-        headers.append(f"{name}: {value}")
-    text = "\n".join(headers)
-    if len(text) < min_len:
-        text += "\n" + random_text(max(0, min_len - len(text) - 1), max(0, max_len - len(text) - 1))
-    if len(text) > max_len:
-        text = text[:max_len].rstrip()
-    return text
-
-
-def drop_database(db_path: Path) -> None:
-    """Remove the existing database file and its WAL/SHM siblings."""
-    for suffix in ("", "-wal", "-shm"):
-        candidate = db_path.with_suffix(db_path.suffix + suffix) if suffix else db_path
-        if candidate.exists():
-            candidate.unlink()
-            print(f"Removed {candidate}")
-
-
 def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create the schema if it does not exist."""
     conn.executescript(SCHEMA)
     conn.commit()
 
 
-def create_hierarchy(conn: sqlite3.Connection) -> tuple[int, list[int]]:
-    """Create a default profile, project and COLLECTION_COUNT collections. Returns project_id and collection ids."""
+def ensure_profile_and_project(conn: sqlite3.Connection) -> tuple[int, int]:
+    """Return the first existing profile/project ids, creating defaults if needed."""
     cursor = conn.cursor()
 
-    cursor.execute("INSERT INTO profiles (name) VALUES (?)", ("Default Profile",))
-    profile_id = cursor.lastrowid
+    cursor.execute("SELECT id FROM profiles ORDER BY id LIMIT 1")
+    row = cursor.fetchone()
+    if row:
+        profile_id = row[0]
+    else:
+        cursor.execute("INSERT INTO profiles (name) VALUES (?)", ("Default Profile",))
+        profile_id = cursor.lastrowid
+        print(f"Created profile '{profile_id}'.")
 
+    cursor.execute("SELECT id FROM projects WHERE profile_id = ? ORDER BY id LIMIT 1", (profile_id,))
+    row = cursor.fetchone()
+    if row:
+        project_id = row[0]
+    else:
+        cursor.execute(
+            "INSERT INTO projects (profile_id, name) VALUES (?, ?)",
+            (profile_id, "Default Project"),
+        )
+        project_id = cursor.lastrowid
+        print(f"Created project '{project_id}'.")
+
+    conn.commit()
+    return profile_id, project_id
+
+
+def find_mock_collection(conn: sqlite3.Connection, project_id: int) -> int | None:
+    """Return the mock collection id if it exists, otherwise None."""
+    cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO projects (profile_id, name) VALUES (?, ?)",
-        (profile_id, "Default Project"),
+        "SELECT id FROM collections WHERE project_id = ? AND name = ?",
+        (project_id, MOCK_COLLECTION_NAME),
     )
-    project_id = cursor.lastrowid
-
-    names = COLLECTION_NAMES[:COLLECTION_COUNT]
-    while len(names) < COLLECTION_COUNT:
-        names.append(f"Collection {len(names) + 1}")
-
-    collection_ids = []
-    for name in names:
-        cursor.execute(
-            "INSERT INTO collections (project_id, name) VALUES (?, ?)",
-            (project_id, name),
-        )
-        collection_ids.append(cursor.lastrowid)
-
-    conn.commit()
-    print(f"Created profile, project and {len(collection_ids)} collection(s).")
-    return project_id, collection_ids
+    row = cursor.fetchone()
+    return row[0] if row else None
 
 
-def create_environments(conn: sqlite3.Connection, project_id: int) -> list[int]:
-    """Create environments for the project with dummy variables. Returns environment ids."""
+def delete_mock_collection(conn: sqlite3.Connection, project_id: int) -> None:
+    """Remove the mock collection and all associated requests/responses."""
     cursor = conn.cursor()
-    environment_ids = []
-
-    for name in ENVIRONMENT_NAMES:
-        cursor.execute(
-            "INSERT INTO environments (project_id, name) VALUES (?, ?)",
-            (project_id, name),
-        )
-        environment_id = cursor.lastrowid
-        environment_ids.append(environment_id)
-
-        # Create a random subset of variables for this environment.
-        keys = random.sample(VARIABLE_KEYS, k=random.randint(3, len(VARIABLE_KEYS)))
-        for key in keys:
-            value = random_text(5, 60) if key not in ("TIMEOUT", "RETRY_COUNT", "LOG_LEVEL") else random.choice(["1000", "5000", "30", "60", "3", "5", "DEBUG", "INFO", "WARN"])
-            cursor.execute(
-                "INSERT INTO environment_variables (environment_id, key, value) VALUES (?, ?, ?)",
-                (environment_id, key, value),
-            )
-
-    conn.commit()
-    print(f"Created {len(environment_ids)} environment(s) with dummy variables.")
-    return environment_ids
+    cursor.execute(
+        "SELECT id FROM collections WHERE project_id = ? AND name = ?",
+        (project_id, MOCK_COLLECTION_NAME),
+    )
+    row = cursor.fetchone()
+    if row:
+        collection_id = row[0]
+        # Cascading deletes will remove requests and responses; manually clean up
+        # appearance row first to avoid orphan rows in older schemas.
+        cursor.execute("DELETE FROM collection_appearances WHERE collection_id = ?", (collection_id,))
+        cursor.execute("DELETE FROM collections WHERE id = ?", (collection_id,))
+        conn.commit()
+        print(f"Removed existing '{MOCK_COLLECTION_NAME}' collection.")
 
 
-def insert_mock_data(conn: sqlite3.Connection, collection_ids: list[int]) -> tuple[int, int]:
-    """Insert mock requests and responses. Returns (requests, responses)."""
+def create_mock_collection(conn: sqlite3.Connection, project_id: int) -> int:
+    """Create the mock collection with a distinct appearance and return its id."""
     cursor = conn.cursor()
-    total_requests = 0
-    total_responses = 0
-    status_cycle = iter(STATUS_CODES)
+    cursor.execute(
+        "INSERT INTO collections (project_id, name) VALUES (?, ?)",
+        (project_id, MOCK_COLLECTION_NAME),
+    )
+    collection_id = cursor.lastrowid
 
-    for collection_id in collection_ids:
-        request_count = random.randint(MIN_REQUESTS_PER_COLLECTION, MAX_REQUESTS_PER_COLLECTION)
-        for i in range(request_count):
-            field_min = random.randint(REQUEST_MIN_LEN, max(1, REQUEST_MAX_LEN // 4))
-            field_max = random.randint(field_min, max(field_min, REQUEST_MAX_LEN))
-
-            name = random_name(field_min, field_max)
-            url = random_url(field_min, field_max)
-            method = random.choice(METHODS)
-            body = random_request_body(field_min, field_max)
-            headers = random_headers(field_min, field_max, REQUEST_HEADERS_CHANCE)
-
-            cursor.execute(
-                """
-                INSERT INTO http_requests (collection_id, name, url, method, body, request_headers, status_code, response_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (collection_id, name, url, method, body, headers, 0, 0),
-            )
-            request_id = cursor.lastrowid
-            total_requests += 1
-
-            # Rotate through STATUS_CODES so every code appears at least once,
-            # then fall back to random.
-            try:
-                resp_status = next(status_cycle)
-            except StopIteration:
-                resp_status = random.choice(STATUS_CODES)
-
-            resp_field_min = random.randint(RESPONSE_MIN_LEN, max(1, RESPONSE_MAX_LEN // 4))
-            resp_field_max = random.randint(resp_field_min, max(resp_field_min, RESPONSE_MAX_LEN))
-
-            resp_headers = random_headers(resp_field_min, resp_field_max, RESPONSE_HEADERS_CHANCE)
-            resp_body = random_response_body(resp_field_min, resp_field_max)
-
-            cursor.execute(
-                """
-                INSERT INTO responses (request_id, headers, status_code, body)
-                VALUES (?, ?, ?, ?)
-                """,
-                (request_id, resp_headers, resp_status, resp_body),
-            )
-            response_id = cursor.lastrowid
-            total_responses += 1
-
-            cursor.execute(
-                "UPDATE http_requests SET status_code = ?, response_id = ? WHERE id = ?",
-                (resp_status, response_id, request_id),
-            )
-
-            if total_requests % 500 == 0:
-                conn.commit()
-                print(f"  processed {total_requests} requests...")
+    appearance_type, appearance_value = MOCK_COLLECTION_APPEARANCE
+    cursor.execute(
+        """
+        INSERT INTO collection_appearances (collection_id, appearance_type, appearance_value)
+        VALUES (?, ?, ?)
+        """,
+        (collection_id, appearance_type, appearance_value),
+    )
 
     conn.commit()
-    return total_requests, total_responses
+    print(f"Created '{MOCK_COLLECTION_NAME}' collection with {appearance_type} appearance.")
+    return collection_id
+
+
+def create_mock_requests(conn: sqlite3.Connection, collection_id: int) -> int:
+    """Insert one request per mock endpoint into the collection. Returns request count."""
+    cursor = conn.cursor()
+    count = 0
+
+    for name, method, path, body, headers in MOCK_ENDPOINTS:
+        url = f"{MOCK_BASE_URL}{path}"
+        body = body if body is not None else ""
+        headers = headers if headers is not None else ""
+
+        cursor.execute(
+            """
+            INSERT INTO http_requests (collection_id, name, url, method, body, request_headers, status_code, response_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (collection_id, name, url, method, body, headers, 0, 0),
+        )
+        count += 1
+
+    conn.commit()
+    return count
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Seed the Snap RQ database with a Mock Server collection."
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Remove and recreate the mock collection if it already exists.",
+    )
+    args = parser.parse_args()
+
     db_path = default_db_path().resolve()
     print(f"Database: {db_path}")
-    print("Dropping existing database...")
-    drop_database(db_path)
-
-    print(
-        f"Creating hierarchy and ~{COLLECTION_COUNT * (MIN_REQUESTS_PER_COLLECTION + MAX_REQUESTS_PER_COLLECTION) // 2} "
-        "mock request(s) (one response each)..."
-    )
 
     db_path.parent.mkdir(parents=True, exist_ok=True)
-
     conn = sqlite3.connect(db_path)
+
     try:
         ensure_schema(conn)
-        project_id, collection_ids = create_hierarchy(conn)
-        create_environments(conn, project_id)
-        requests, responses = insert_mock_data(conn, collection_ids)
-        print(f"Done. Inserted {requests} request(s), {responses} response(s), across {len(collection_ids)} collection(s).")
+        _profile_id, project_id = ensure_profile_and_project(conn)
+
+        existing_id = find_mock_collection(conn, project_id)
+        if existing_id is not None:
+            if args.force:
+                delete_mock_collection(conn, project_id)
+            else:
+                print(
+                    f"'{MOCK_COLLECTION_NAME}' collection already exists (id={existing_id}). "
+                    "Use --force to recreate it."
+                )
+                return 0
+
+        collection_id = create_mock_collection(conn, project_id)
+        requests = create_mock_requests(conn, collection_id)
+        print(f"Done. Inserted {requests} mock request(s) into '{MOCK_COLLECTION_NAME}'.")
     finally:
         conn.close()
 
