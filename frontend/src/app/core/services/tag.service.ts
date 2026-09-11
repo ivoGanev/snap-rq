@@ -1,8 +1,8 @@
 import { Injectable, signal } from '@angular/core';
 import * as TagService from '../../../../bindings/snap-rq/backend/services';
-import type { Tag, HttpRequest } from '../../../../bindings/snap-rq/backend/models';
+import type { Tag, TagAppearance, HttpRequest } from '../../../../bindings/snap-rq/backend/models';
 
-export type { Tag };
+export type { Tag, TagAppearance };
 
 @Injectable({ providedIn: 'root' })
 export class TagApiService {
@@ -50,6 +50,46 @@ export class TagApiService {
       ...map,
       [requestId]: (map[requestId] ?? []).filter(t => t !== tagName),
     }));
+  }
+
+  async updateAppearance(
+    tagId: number,
+    appearance: Omit<TagAppearance, 'id' | 'tag_id'>,
+  ): Promise<TagAppearance> {
+    const updated = await TagService.TagService.UpdateTagAppearance(
+      tagId,
+      { ...appearance, id: 0, tag_id: tagId } as TagAppearance,
+    );
+    this.allTags.update(list =>
+      list.map(t => (t.id === tagId ? { ...t, appearance: updated } : t)),
+    );
+    return updated;
+  }
+
+  async renameTag(oldName: string, newName: string): Promise<Tag> {
+    const normalised = newName.trim().toLowerCase();
+    if (!normalised || normalised === oldName.toLowerCase()) {
+      throw new Error('Invalid tag name');
+    }
+
+    const oldTag = this.allTags().find((t) => t.name === oldName);
+    const tag = await TagService.TagService.AddTagToRequest(0, normalised);
+    // Preserve the original tag's appearance on the renamed tag.
+    if (oldTag && tag.id !== oldTag.id) {
+      await this.updateAppearance(tag.id, {
+        appearance_type: oldTag.appearance.appearance_type,
+        appearance_value: oldTag.appearance.appearance_value,
+      });
+    }
+    // Move all request associations from old tag to new tag.
+    const requests = await this.getRequestsForTag(oldName);
+    for (const req of requests) {
+      await TagService.TagService.AddTagToRequest(req.id, normalised);
+      await TagService.TagService.RemoveTagFromRequest(req.id, oldName);
+    }
+    await TagService.TagService.DeleteTag(oldName);
+    await this.loadAllTags();
+    return tag;
   }
 
   async deleteTag(tagName: string): Promise<void> {

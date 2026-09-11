@@ -2,8 +2,9 @@ package models
 
 // Tag is a free-text label that can be attached to many requests.
 type Tag struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
+	ID         int64         `json:"id"`
+	Name       string        `json:"name"`
+	Appearance TagAppearance `json:"appearance"`
 }
 
 // RequestTag links a tag to a specific request.

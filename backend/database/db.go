@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"snap-rq/backend/models"
+
 	"github.com/adrg/xdg"
 	_ "modernc.org/sqlite"
 )
@@ -167,7 +169,133 @@ func migrate(db *sql.DB) error {
 	if err := dropCollectionColumnIfExists(db, "color"); err != nil {
 		return err
 	}
+	if err := createFavouriteAppearancesTable(db); err != nil {
+		return err
+	}
+	if err := createTagAppearancesTable(db); err != nil {
+		return err
+	}
+	if err := ensureFavouriteAppearances(db); err != nil {
+		return err
+	}
+	if err := ensureTagAppearances(db); err != nil {
+		return err
+	}
 
+	return nil
+}
+
+func createFavouriteAppearancesTable(db *sql.DB) error {
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS favourite_appearances (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			favourite_collection_id INTEGER NOT NULL,
+			appearance_type TEXT NOT NULL CHECK(appearance_type IN ('icon', 'color')),
+			appearance_value TEXT NOT NULL,
+			FOREIGN KEY (favourite_collection_id) REFERENCES favourite_collections(id) ON DELETE CASCADE,
+			UNIQUE (favourite_collection_id)
+		);
+		CREATE INDEX IF NOT EXISTS idx_favourite_appearances_collection_id ON favourite_appearances(favourite_collection_id);
+	`)
+	if err != nil {
+		return fmt.Errorf("creating favourite_appearances table: %w", err)
+	}
+	return nil
+}
+
+func createTagAppearancesTable(db *sql.DB) error {
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS tag_appearances (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			tag_id INTEGER NOT NULL,
+			appearance_type TEXT NOT NULL CHECK(appearance_type IN ('icon', 'color')),
+			appearance_value TEXT NOT NULL,
+			FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+			UNIQUE (tag_id)
+		);
+		CREATE INDEX IF NOT EXISTS idx_tag_appearances_tag_id ON tag_appearances(tag_id);
+	`)
+	if err != nil {
+		return fmt.Errorf("creating tag_appearances table: %w", err)
+	}
+	return nil
+}
+
+func ensureFavouriteAppearances(db *sql.DB) error {
+	rows, err := db.Query("SELECT id FROM favourite_collections")
+	if err != nil {
+		return fmt.Errorf("listing favourite collections for appearance backfill: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return fmt.Errorf("scanning favourite collection id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterating favourite collection ids: %w", err)
+	}
+
+	for _, id := range ids {
+		var count int
+		if err := db.QueryRow("SELECT COUNT(*) FROM favourite_appearances WHERE favourite_collection_id = ?", id).Scan(&count); err != nil {
+			return fmt.Errorf("checking favourite appearance exists: %w", err)
+		}
+		if count > 0 {
+			continue
+		}
+		defaultAppearance := models.DefaultFavouriteAppearance()
+		_, err := db.Exec(
+			"INSERT INTO favourite_appearances (favourite_collection_id, appearance_type, appearance_value) VALUES (?, ?, ?)",
+			id, defaultAppearance.AppearanceType, defaultAppearance.AppearanceValue,
+		)
+		if err != nil {
+			return fmt.Errorf("creating default favourite appearance for %d: %w", id, err)
+		}
+	}
+	return nil
+}
+
+func ensureTagAppearances(db *sql.DB) error {
+	rows, err := db.Query("SELECT id FROM tags")
+	if err != nil {
+		return fmt.Errorf("listing tags for appearance backfill: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return fmt.Errorf("scanning tag id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterating tag ids: %w", err)
+	}
+
+	for _, id := range ids {
+		var count int
+		if err := db.QueryRow("SELECT COUNT(*) FROM tag_appearances WHERE tag_id = ?", id).Scan(&count); err != nil {
+			return fmt.Errorf("checking tag appearance exists: %w", err)
+		}
+		if count > 0 {
+			continue
+		}
+		defaultAppearance := models.DefaultTagAppearance()
+		_, err := db.Exec(
+			"INSERT INTO tag_appearances (tag_id, appearance_type, appearance_value) VALUES (?, ?, ?)",
+			id, defaultAppearance.AppearanceType, defaultAppearance.AppearanceValue,
+		)
+		if err != nil {
+			return fmt.Errorf("creating default tag appearance for %d: %w", id, err)
+		}
+	}
 	return nil
 }
 
