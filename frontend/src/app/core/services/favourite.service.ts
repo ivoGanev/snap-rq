@@ -1,8 +1,8 @@
 import { Injectable, signal } from '@angular/core';
 import * as FavouriteService from '../../../../bindings/snap-rq/backend/services';
-import type { FavouriteCollection, FavouriteItem, HttpRequest } from '../../../../bindings/snap-rq/backend/models';
+import type { FavouriteCollection, FavouriteItem, FavouriteAppearance, HttpRequest } from '../../../../bindings/snap-rq/backend/models';
 
-export type { FavouriteCollection, FavouriteItem };
+export type { FavouriteCollection, FavouriteItem, FavouriteAppearance };
 
 /**
  * Angular wrapper around the Wails-generated FavouriteService bindings.
@@ -15,8 +15,12 @@ export class FavouriteApiService {
   /** Membership for many requests at once, keyed by request id. */
   readonly requestsMembership = signal<Record<number, number[]>>({});
 
-  async createCollection(collection: Omit<FavouriteCollection, 'id' | 'created_at'>): Promise<FavouriteCollection> {
-    const created = await FavouriteService.FavouriteService.CreateFavouriteCollection(collection as FavouriteCollection);
+  async createCollection(
+    collection: Omit<FavouriteCollection, 'id' | 'created_at' | 'appearance'>,
+  ): Promise<FavouriteCollection> {
+    const created = await FavouriteService.FavouriteService.CreateFavouriteCollection(
+      collection as FavouriteCollection,
+    );
     await this.loadCollectionsForProfile(collection.profile_id);
     return created;
   }
@@ -30,6 +34,20 @@ export class FavouriteApiService {
     const updated = await FavouriteService.FavouriteService.UpdateFavouriteCollection(collection);
     this.collections.update(list =>
       list.map(c => (c.id === updated.id ? updated : c)),
+    );
+    return updated;
+  }
+
+  async updateAppearance(
+    favouriteCollectionId: number,
+    appearance: Omit<FavouriteAppearance, 'id' | 'favourite_collection_id'>,
+  ): Promise<FavouriteAppearance> {
+    const updated = await FavouriteService.FavouriteService.UpdateFavouriteAppearance(
+      favouriteCollectionId,
+      { ...appearance, id: 0, favourite_collection_id: favouriteCollectionId } as FavouriteAppearance,
+    );
+    this.collections.update(list =>
+      list.map(c => (c.id === favouriteCollectionId ? { ...c, appearance: updated } : c)),
     );
     return updated;
   }

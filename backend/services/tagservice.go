@@ -18,9 +18,13 @@ func NewTagService(db *sql.DB) *TagService {
 	return &TagService{db: db}
 }
 
-// GetAllTags returns every tag in the database, ordered by name.
+// GetAllTags returns every tag in the database, ordered by name, including their appearances.
 func (s *TagService) GetAllTags() ([]models.Tag, error) {
-	rows, err := s.db.Query("SELECT id, name FROM tags ORDER BY name")
+	rows, err := s.db.Query(`
+		SELECT t.id, t.name, COALESCE(ta.appearance_type, 'icon'), COALESCE(ta.appearance_value, 'default')
+		FROM tags t
+		LEFT JOIN tag_appearances ta ON ta.tag_id = t.id
+		ORDER BY t.name`)
 	if err != nil {
 		return nil, fmt.Errorf("listing tags: %w", err)
 	}
@@ -29,9 +33,10 @@ func (s *TagService) GetAllTags() ([]models.Tag, error) {
 	var tags []models.Tag
 	for rows.Next() {
 		var tag models.Tag
-		if err := rows.Scan(&tag.ID, &tag.Name); err != nil {
+		if err := rows.Scan(&tag.ID, &tag.Name, &tag.Appearance.AppearanceType, &tag.Appearance.AppearanceValue); err != nil {
 			return nil, fmt.Errorf("scanning tag: %w", err)
 		}
+		tag.Appearance.TagID = tag.ID
 		tags = append(tags, tag)
 	}
 
@@ -117,6 +122,7 @@ func (s *TagService) GetTagsForRequests(requestIDs []int64) (map[int64][]string,
 }
 
 // AddTagToRequest normalises the tag name, creates the tag if needed, and links it to the request.
+// Passing requestID == 0 creates the tag without linking it to any request.
 func (s *TagService) AddTagToRequest(requestID int64, tagName string) (models.Tag, error) {
 	name := normaliseTagName(tagName)
 	if name == "" {
@@ -128,12 +134,14 @@ func (s *TagService) AddTagToRequest(requestID int64, tagName string) (models.Ta
 		return models.Tag{}, err
 	}
 
-	_, err = s.db.Exec(
-		"INSERT OR IGNORE INTO request_tags (request_id, tag_id) VALUES (?, ?)",
-		requestID, tag.ID,
-	)
-	if err != nil {
-		return models.Tag{}, fmt.Errorf("linking tag to request: %w", err)
+	if requestID != 0 {
+		_, err = s.db.Exec(
+			"INSERT OR IGNORE INTO request_tags (request_id, tag_id) VALUES (?, ?)",
+			requestID, tag.ID,
+		)
+		if err != nil {
+			return models.Tag{}, fmt.Errorf("linking tag to request: %w", err)
+		}
 	}
 
 	return tag, nil
@@ -211,6 +219,30 @@ func (s *TagService) SetRequestTags(requestID int64, tagNames []string) error {
 	return nil
 }
 
+// UpdateTagAppearance updates or inserts the appearance row for a tag.
+func (s *TagService) UpdateTagAppearance(tagID int64, appearance models.TagAppearance) (models.TagAppearance, error) {
+	if tagID == 0 {
+		return models.TagAppearance{}, fmt.Errorf("tag id is required")
+	}
+	if appearance.AppearanceType != "icon" && appearance.AppearanceType != "color" {
+		return models.TagAppearance{}, fmt.Errorf("appearance_type must be 'icon' or 'color'")
+	}
+
+	_, err := s.db.Exec(`
+		INSERT INTO tag_appearances (tag_id, appearance_type, appearance_value)
+		VALUES (?, ?, ?)
+		ON CONFLICT(tag_id)
+		DO UPDATE SET appearance_type = excluded.appearance_type, appearance_value = excluded.appearance_value`,
+		tagID, appearance.AppearanceType, appearance.AppearanceValue,
+	)
+	if err != nil {
+		return models.TagAppearance{}, fmt.Errorf("updating tag appearance: %w", err)
+	}
+
+	appearance.TagID = tagID
+	return appearance, nil
+}
+
 // DeleteTag removes a tag from the database, unlinking it from all requests.
 func (s *TagService) DeleteTag(tagName string) error {
 	name := normaliseTagName(tagName)
@@ -260,8 +292,13 @@ func (s *TagService) GetRequestsForTag(tagName string) ([]models.HttpRequest, er
 
 func (s *TagService) findOrCreateTag(name string) (models.Tag, error) {
 	var tag models.Tag
-	err := s.db.QueryRow("SELECT id, name FROM tags WHERE name = ?", name).Scan(&tag.ID, &tag.Name)
+	err := s.db.QueryRow(`
+		SELECT t.id, t.name, COALESCE(ta.appearance_type, 'icon'), COALESCE(ta.appearance_value, 'default')
+		FROM tags t
+		LEFT JOIN tag_appearances ta ON ta.tag_id = t.id
+		WHERE t.name = ?`, name).Scan(&tag.ID, &tag.Name, &tag.Appearance.AppearanceType, &tag.Appearance.AppearanceValue)
 	if err == nil {
+		tag.Appearance.TagID = tag.ID
 		return tag, nil
 	}
 	if err != sql.ErrNoRows {
@@ -279,13 +316,29 @@ func (s *TagService) findOrCreateTag(name string) (models.Tag, error) {
 
 	tag.ID = id
 	tag.Name = name
+
+	defaultAppearance := models.DefaultTagAppearance()
+	if _, err := s.db.Exec(
+		"INSERT INTO tag_appearances (tag_id, appearance_type, appearance_value) VALUES (?, ?, ?)",
+		tag.ID, defaultAppearance.AppearanceType, defaultAppearance.AppearanceValue,
+	); err != nil {
+		return models.Tag{}, fmt.Errorf("creating tag appearance: %w", err)
+	}
+	tag.Appearance = defaultAppearance
+	tag.Appearance.TagID = tag.ID
+
 	return tag, nil
 }
 
 func (s *TagService) findOrCreateTagTx(tx *sql.Tx, name string) (models.Tag, error) {
 	var tag models.Tag
-	err := tx.QueryRow("SELECT id, name FROM tags WHERE name = ?", name).Scan(&tag.ID, &tag.Name)
+	err := tx.QueryRow(`
+		SELECT t.id, t.name, COALESCE(ta.appearance_type, 'icon'), COALESCE(ta.appearance_value, 'default')
+		FROM tags t
+		LEFT JOIN tag_appearances ta ON ta.tag_id = t.id
+		WHERE t.name = ?`, name).Scan(&tag.ID, &tag.Name, &tag.Appearance.AppearanceType, &tag.Appearance.AppearanceValue)
 	if err == nil {
+		tag.Appearance.TagID = tag.ID
 		return tag, nil
 	}
 	if err != sql.ErrNoRows {
@@ -303,6 +356,17 @@ func (s *TagService) findOrCreateTagTx(tx *sql.Tx, name string) (models.Tag, err
 
 	tag.ID = id
 	tag.Name = name
+
+	defaultAppearance := models.DefaultTagAppearance()
+	if _, err := tx.Exec(
+		"INSERT INTO tag_appearances (tag_id, appearance_type, appearance_value) VALUES (?, ?, ?)",
+		tag.ID, defaultAppearance.AppearanceType, defaultAppearance.AppearanceValue,
+	); err != nil {
+		return models.Tag{}, fmt.Errorf("creating tag appearance: %w", err)
+	}
+	tag.Appearance = defaultAppearance
+	tag.Appearance.TagID = tag.ID
+
 	return tag, nil
 }
 

@@ -18,13 +18,19 @@ func NewFavouriteService(db *sql.DB) *FavouriteService {
 	return &FavouriteService{db: db}
 }
 
-// CreateFavouriteCollection saves a new favourite collection.
+// CreateFavouriteCollection saves a new favourite collection and creates its default appearance row.
 func (s *FavouriteService) CreateFavouriteCollection(collection models.FavouriteCollection) (models.FavouriteCollection, error) {
 	if collection.ProfileID == 0 {
 		return models.FavouriteCollection{}, fmt.Errorf("profile id is required")
 	}
 
-	result, err := s.db.Exec(
+	tx, err := s.db.Begin()
+	if err != nil {
+		return models.FavouriteCollection{}, fmt.Errorf("beginning transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	result, err := tx.Exec(
 		"INSERT INTO favourite_collections (profile_id, name) VALUES (?, ?)",
 		collection.ProfileID, collection.Name,
 	)
@@ -36,32 +42,53 @@ func (s *FavouriteService) CreateFavouriteCollection(collection models.Favourite
 	if err != nil {
 		return models.FavouriteCollection{}, fmt.Errorf("getting last insert id: %w", err)
 	}
-
 	collection.ID = id
+
+	defaultAppearance := models.DefaultFavouriteAppearance()
+	if _, err := tx.Exec(
+		"INSERT INTO favourite_appearances (favourite_collection_id, appearance_type, appearance_value) VALUES (?, ?, ?)",
+		collection.ID, defaultAppearance.AppearanceType, defaultAppearance.AppearanceValue,
+	); err != nil {
+		return models.FavouriteCollection{}, fmt.Errorf("creating favourite appearance: %w", err)
+	}
+	collection.Appearance = defaultAppearance
+
+	if err := tx.Commit(); err != nil {
+		return models.FavouriteCollection{}, fmt.Errorf("committing transaction: %w", err)
+	}
+
 	return collection, nil
 }
 
-// GetFavouriteCollection retrieves a single favourite collection by ID.
+// GetFavouriteCollection retrieves a single favourite collection by ID, including its appearance.
 func (s *FavouriteService) GetFavouriteCollection(id int64) (models.FavouriteCollection, error) {
 	var collection models.FavouriteCollection
-	row := s.db.QueryRow(
-		"SELECT id, profile_id, name, created_at FROM favourite_collections WHERE id = ?",
+	row := s.db.QueryRow(`
+		SELECT fc.id, fc.profile_id, fc.name, fc.created_at, COALESCE(fa.appearance_type, 'icon'), COALESCE(fa.appearance_value, 'default')
+		FROM favourite_collections fc
+		LEFT JOIN favourite_appearances fa ON fa.favourite_collection_id = fc.id
+		WHERE fc.id = ?`,
 		id,
 	)
-	err := row.Scan(&collection.ID, &collection.ProfileID, &collection.Name, &collection.CreatedAt)
+	err := row.Scan(&collection.ID, &collection.ProfileID, &collection.Name, &collection.CreatedAt, &collection.Appearance.AppearanceType, &collection.Appearance.AppearanceValue)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return models.FavouriteCollection{}, fmt.Errorf("favourite collection not found")
 		}
 		return models.FavouriteCollection{}, fmt.Errorf("getting favourite collection: %w", err)
 	}
+	collection.Appearance.FavouriteCollectionID = collection.ID
 	return collection, nil
 }
 
-// GetFavouriteCollectionsForProfile returns all favourite collections for a profile, newest first.
+// GetFavouriteCollectionsForProfile returns all favourite collections for a profile, newest first, including their appearances.
 func (s *FavouriteService) GetFavouriteCollectionsForProfile(profileID int64) ([]models.FavouriteCollection, error) {
-	rows, err := s.db.Query(
-		"SELECT id, profile_id, name, created_at FROM favourite_collections WHERE profile_id = ? ORDER BY created_at DESC",
+	rows, err := s.db.Query(`
+		SELECT fc.id, fc.profile_id, fc.name, fc.created_at, COALESCE(fa.appearance_type, 'icon'), COALESCE(fa.appearance_value, 'default')
+		FROM favourite_collections fc
+		LEFT JOIN favourite_appearances fa ON fa.favourite_collection_id = fc.id
+		WHERE fc.profile_id = ?
+		ORDER BY fc.created_at DESC`,
 		profileID,
 	)
 	if err != nil {
@@ -72,9 +99,10 @@ func (s *FavouriteService) GetFavouriteCollectionsForProfile(profileID int64) ([
 	var collections []models.FavouriteCollection
 	for rows.Next() {
 		var collection models.FavouriteCollection
-		if err := rows.Scan(&collection.ID, &collection.ProfileID, &collection.Name, &collection.CreatedAt); err != nil {
+		if err := rows.Scan(&collection.ID, &collection.ProfileID, &collection.Name, &collection.CreatedAt, &collection.Appearance.AppearanceType, &collection.Appearance.AppearanceValue); err != nil {
 			return nil, fmt.Errorf("scanning favourite collection: %w", err)
 		}
+		collection.Appearance.FavouriteCollectionID = collection.ID
 		collections = append(collections, collection)
 	}
 
@@ -100,6 +128,30 @@ func (s *FavouriteService) UpdateFavouriteCollection(collection models.Favourite
 	}
 
 	return collection, nil
+}
+
+// UpdateFavouriteAppearance updates or inserts the appearance row for a favourite collection.
+func (s *FavouriteService) UpdateFavouriteAppearance(favouriteCollectionID int64, appearance models.FavouriteAppearance) (models.FavouriteAppearance, error) {
+	if favouriteCollectionID == 0 {
+		return models.FavouriteAppearance{}, fmt.Errorf("favourite collection id is required")
+	}
+	if appearance.AppearanceType != "icon" && appearance.AppearanceType != "color" {
+		return models.FavouriteAppearance{}, fmt.Errorf("appearance_type must be 'icon' or 'color'")
+	}
+
+	_, err := s.db.Exec(`
+		INSERT INTO favourite_appearances (favourite_collection_id, appearance_type, appearance_value)
+		VALUES (?, ?, ?)
+		ON CONFLICT(favourite_collection_id)
+		DO UPDATE SET appearance_type = excluded.appearance_type, appearance_value = excluded.appearance_value`,
+		favouriteCollectionID, appearance.AppearanceType, appearance.AppearanceValue,
+	)
+	if err != nil {
+		return models.FavouriteAppearance{}, fmt.Errorf("updating favourite appearance: %w", err)
+	}
+
+	appearance.FavouriteCollectionID = favouriteCollectionID
+	return appearance, nil
 }
 
 // DeleteFavouriteCollection removes a favourite collection and its items.
