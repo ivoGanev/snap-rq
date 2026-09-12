@@ -29,6 +29,7 @@ const COLLECTION_COLOR_PALETTE: string[] = [
 
 type SidebarFolder = 'collections' | 'favourites' | 'tags';
 type SidebarItemType = 'collection' | 'favourite' | 'tag';
+type FolderFilter = 'all' | SidebarFolder;
 type Appearance = CollectionAppearance | FavouriteAppearance | TagAppearance;
 
 interface SidebarItem {
@@ -72,6 +73,9 @@ export class RequestGroups {
   protected readonly searchQuery = signal('');
   protected readonly addMenuOpen = signal(false);
 
+  // Filter for which folders are visible ('all' shows every folder).
+  protected readonly folderFilter = signal<FolderFilter>('all');
+
   // Expansion state manually controlled by the user; restored when search is cleared.
   protected readonly userExpanded = signal<Set<SidebarFolder>>(new Set(['collections', 'tags']));
   private expandedBeforeSearch: Set<SidebarFolder> | null = null;
@@ -103,13 +107,18 @@ export class RequestGroups {
 
   readonly filteredItems = computed<SidebarItem[]>(() => {
     const query = this.searchQuery().trim().toLowerCase();
+    const filter = this.folderFilter();
     const items: SidebarItem[] = [
       ...this.collections().map((c) => this.toSidebarItem(c, 'collection')),
       ...this.favouriteCollections().map((f) => this.toSidebarItem(f, 'favourite')),
       ...this.allTags().map((t) => this.toSidebarItem(t, 'tag')),
     ];
-    if (!query) return items;
-    return items.filter((item) => item.name.toLowerCase().includes(query));
+    let visible = items;
+    if (filter !== 'all') {
+      visible = visible.filter((item) => item.folder === filter);
+    }
+    if (!query) return visible;
+    return visible.filter((item) => item.name.toLowerCase().includes(query));
   });
 
   readonly filteredCollections = computed(() =>
@@ -123,9 +132,13 @@ export class RequestGroups {
   readonly expandedFolders = computed<Set<SidebarFolder>>(() => {
     const query = this.searchQuery().trim();
     if (!query) {
-      return this.userExpanded();
+      const filter = this.folderFilter();
+      if (filter === 'all') {
+        return this.userExpanded();
+      }
+      return this.userExpanded().has(filter) ? new Set([filter]) : new Set<SidebarFolder>();
     }
-    // While searching, expand any folder that has matches.
+    // While searching, expand any visible folder that has matches.
     const expanded = new Set<SidebarFolder>();
     for (const item of this.filteredItems()) {
       expanded.add(item.folder);
@@ -200,6 +213,15 @@ export class RequestGroups {
     return this.expandedFolders().has(folder);
   }
 
+  isFolderVisible(folder: SidebarFolder): boolean {
+    const filter = this.folderFilter();
+    return filter === 'all' || filter === folder;
+  }
+
+  setFolderFilter(filter: FolderFilter): void {
+    this.folderFilter.set(filter);
+  }
+
   toggleFolder(folder: SidebarFolder, event?: MouseEvent): void {
     event?.stopPropagation();
     const current = new Set(this.userExpanded());
@@ -235,6 +257,30 @@ export class RequestGroups {
     this.state.selectedCollection.set(null);
     this.state.selectedFavouriteCollection.set(null);
     this.expandFolder('tags');
+  }
+
+  selectSidebarItem(item: SidebarItem): void {
+    if (item.type === 'collection') {
+      this.selectCollection(item.data);
+    } else if (item.type === 'favourite') {
+      this.selectFavouriteCollection(item.data);
+    } else {
+      this.selectTag(item.data);
+    }
+  }
+
+  activeFilterEmptyMessage(): string {
+    const query = this.searchQuery().trim();
+    switch (this.folderFilter()) {
+      case 'collections':
+        return query ? 'No matching collections.' : 'No collections.';
+      case 'favourites':
+        return query ? 'No matching favourites.' : 'No favourite collections.';
+      case 'tags':
+        return query ? 'No matching tags.' : 'No tags yet.';
+      default:
+        return '';
+    }
   }
 
   private expandFolder(folder: SidebarFolder): void {

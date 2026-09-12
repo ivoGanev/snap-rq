@@ -121,6 +121,58 @@
   background: rgba(255, 255, 255, 0.4);
 }
 
+.folder-filter-bar {
+  flex: 0 0 auto;
+  display: flex;
+  gap: var(--s-1);
+  padding: var(--s-2) var(--s-3) var(--s-3);
+  border-top: 1px solid var(--glass-border);
+  background: rgba(6, 7, 15, 0.55);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.folder-filter-button {
+  flex: 1 1 0;
+  padding: var(--s-1) var(--s-1);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+  white-space: nowrap;
+  --wails-draggable: no-drag;
+}
+
+.folder-filter-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+}
+
+.folder-filter-button.is-active {
+  color: #fff;
+  background: rgba(255, 77, 77, 0.2);
+  border-color: rgba(255, 77, 77, 0.55);
+}
+
+.folder-filter-button--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-1);
+}
+
+.folder-filter-button--icon svg {
+  width: 16px;
+  height: 16px;
+}
+
 .folder + .folder {
   margin-top: var(--s-1);
 }
