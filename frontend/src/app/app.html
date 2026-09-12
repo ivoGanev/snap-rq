@@ -1,4 +1,4 @@
-<div class="bg" aria-hidden="true"></div>
+<div class="bg" [style.background]="backgroundStyle()" aria-hidden="true"></div>
 
 <div class="top-bar">
   <div class="environment-selector">
@@ -140,7 +140,45 @@
 }
 
 <footer class="footer">
-  <span class="footer-version">v3</span>
+  <div class="footer-theme">
+    <button
+      class="footer-theme-button"
+      type="button"
+      (click)="openBackgroundSelector()"
+      aria-label="Choose background"
+      title="Choose background"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+        <path d="M2 12h20"/>
+      </svg>
+      <span>Theme</span>
+    </button>
+
+    @if (backgroundSelectorOpen()) {
+      <div class="theme-selector-backdrop" (click)="closeBackgroundSelector()">
+        <div class="theme-selector-popup" (click)="$event.stopPropagation()">
+          @for (option of backgroundOptions; track option.id) {
+            <button
+              class="theme-option"
+              [class.is-active]="(selectedBackground() === null && option.id === 'none') || selectedBackground() === option.url"
+              type="button"
+              (click)="selectBackground(option.id)"
+            >
+              @if (option.url) {
+                <span class="theme-option-thumb" [style.background-image]="'url(' + option.url + ')'"></span>
+              } @else {
+                <span class="theme-option-thumb theme-option-thumb--default"></span>
+              }
+              <span class="theme-option-label">{{ option.label }}</span>
+            </button>
+          }
+        </div>
+      </div>
+    }
+  </div>
+
   <span class="footer-time">
     <svg
       viewBox="0 0 24 24"

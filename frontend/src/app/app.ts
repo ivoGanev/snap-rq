@@ -51,6 +51,16 @@ export class App implements OnInit, AfterViewInit {
   readonly projectDeleteConfirmOpen = signal(false);
   readonly projectPendingDelete = signal<Project | null>(null);
 
+  readonly backgroundSelectorOpen = signal(false);
+  readonly selectedBackground = signal<string | null>(null);
+
+  readonly backgroundOptions = [
+    { id: 'none', label: 'Default', url: null },
+    { id: 'ryan-kim', label: 'Ryan Kim', url: '/background/ryan-kim-ADvoB9pDkow-unsplash.jpg' },
+    { id: 'kellen-riggin', label: 'Kellen Riggin', url: '/background/kellen-riggin-ZHnTWmiz000-unsplash.jpg' },
+    { id: 'jake-blucker', label: 'Jake Bluker', url: '/background/jake-blucker-tMzCrBkM99Y-unsplash.jpg' },
+  ];
+
   private resizeStartX = 0;
   private resizeStartWidth = 0;
 
@@ -79,6 +89,32 @@ export class App implements OnInit, AfterViewInit {
       this.closeProjectEditor();
       return;
     }
+    if (this.backgroundSelectorOpen()) {
+      this.closeBackgroundSelector();
+      return;
+    }
+  }
+
+  openBackgroundSelector(): void {
+    this.backgroundSelectorOpen.set(true);
+  }
+
+  closeBackgroundSelector(): void {
+    this.backgroundSelectorOpen.set(false);
+  }
+
+  selectBackground(backgroundId: string): void {
+    const option = this.backgroundOptions.find((b) => b.id === backgroundId);
+    this.selectedBackground.set(option?.url ?? null);
+    this.closeBackgroundSelector();
+  }
+
+  backgroundStyle(): string {
+    const url = this.selectedBackground();
+    if (!url) {
+      return 'rgba(6, 7, 15, 1)';
+    }
+    return `url('${url}') center / auto no-repeat`;
   }
 
   startColumnResize(side: 'left' | 'right', event: MouseEvent): void {

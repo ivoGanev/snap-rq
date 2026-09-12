@@ -12,16 +12,6 @@
   position: fixed;
   inset: 0;
   z-index: -1;
-  background:
-    linear-gradient(
-      90deg,
-      rgba(6, 7, 15, 0.94) 0%,
-      rgba(6, 7, 15, 0.78) 32%,
-      rgba(6, 7, 15, 0.42) 64%,
-      rgba(6, 7, 15, 0.3) 100%
-    ),
-    linear-gradient(0deg, rgba(6, 7, 15, 0.7) 0%, rgba(6, 7, 15, 0.1) 45%),
-    url('/bg-desktop.jpg') center / cover no-repeat;
 }
 
 .top-bar {
@@ -228,11 +218,108 @@
   backdrop-filter: blur(8px);
 }
 
-.footer-version {
+.footer-theme {
   justify-self: start;
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+}
+
+.footer-theme-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.footer-theme-button:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--glass-border);
+}
+
+.footer-theme-button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.theme-selector-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+}
+
+.theme-selector-popup {
+  position: absolute;
+  bottom: 28px;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 160px;
+  padding: var(--s-2);
+  background: rgba(6, 7, 15, 0.98);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  z-index: 111;
+}
+
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: var(--s-1) var(--s-2);
+  color: var(--text);
+  font-size: 0.875rem;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.theme-option:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.theme-option.is-active {
+  background: rgba(255, 77, 77, 0.15);
+  border-color: rgba(255, 77, 77, 0.45);
+}
+
+.theme-option-thumb {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius);
+  background-size: cover;
+  background-position: center;
+  border: 1px solid var(--glass-border);
+}
+
+.theme-option-thumb--default {
+  background: rgba(6, 7, 15, 1);
+}
+
+.theme-option-label {
   white-space: nowrap;
 }
 
