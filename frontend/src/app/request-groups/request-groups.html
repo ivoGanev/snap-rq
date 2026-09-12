@@ -35,203 +35,306 @@
 }
 
 <div class="folder-tree">
-  <!-- Collections -->
-  <div class="folder" [class.is-expanded]="isFolderExpanded('collections')">
-    <div
-      class="folder-header"
-      (click)="toggleFolder('collections')"
-      (contextmenu)="openFolderContextMenu('collections', $event)"
-    >
-      <span class="folder-chevron" aria-hidden="true">▸</span>
-      <span class="folder-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/>
-        </svg>
-      </span>
-      <span class="folder-label">Collections</span>
-    </div>
+  @if (folderFilter() === 'all') {
+    <!-- Collections -->
+    @if (isFolderVisible('collections')) {
+      <div class="folder" [class.is-expanded]="isFolderExpanded('collections')">
+        <div
+          class="folder-header"
+          (click)="toggleFolder('collections')"
+          (contextmenu)="openFolderContextMenu('collections', $event)"
+        >
+          <span class="folder-chevron" aria-hidden="true">▸</span>
+          <span class="folder-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/>
+            </svg>
+          </span>
+          <span class="folder-label">Collections</span>
+        </div>
 
-    @if (isFolderExpanded('collections')) {
-      <ul class="folder-children">
-        @if (loading()) {
-          <li class="state-message">Loading…</li>
-        }
-        @if (!loading() && filteredCollections().length === 0) {
-          <li class="state-message">{{ searchQuery().trim() ? 'No matching collections.' : 'No collections.' }}</li>
-        }
-        @for (item of filteredCollections(); track item.id) {
-          <li
-            class="tree-item"
-            [class.is-selected]="isSelected(item)"
-            (click)="selectCollection(item.data)"
-            (contextmenu)="openItemContextMenu(item, $event)"
-          >
-            @if (renamingItem()?.id === item.id && renamingItem()?.type === item.type) {
-              <form class="rename-form" (submit)="saveRename($event)">
-                <input
-                  class="rename-input"
-                  type="text"
-                  [ngModel]="renameValue()"
-                  (ngModelChange)="renameValue.set($event)"
-                  (keydown.escape)="cancelRename()"
-                  (blur)="saveRename()"
-                  autofocus
-                />
-              </form>
-            } @else {
-              <button
-                class="item-indicator"
-                type="button"
-                [style.background-color]="colorValue(item.appearance) ?? null"
-                (click)="openAppearancePopup(item, $event)"
-                [attr.aria-label]="'Edit appearance for ' + item.name"
-              >
-                @let cp = iconPath(item.appearance);
-                @if (cp) {
-                  <img [src]="cp" alt="" />
-                } @else if (isDefaultAppearance(item.appearance)) {
-                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/>
-                  </svg>
-                }
-              </button>
-              <span class="tree-item-label">{{ item.name }}</span>
+        @if (isFolderExpanded('collections')) {
+          <ul class="folder-children">
+            @if (loading()) {
+              <li class="state-message">Loading…</li>
             }
-          </li>
-        }
-      </ul>
-    }
-  </div>
-
-  <!-- Favourites -->
-  <div class="folder" [class.is-expanded]="isFolderExpanded('favourites')">
-    <div
-      class="folder-header"
-      (click)="toggleFolder('favourites')"
-      (contextmenu)="openFolderContextMenu('favourites', $event)"
-    >
-      <span class="folder-chevron" aria-hidden="true">▸</span>
-      <span class="folder-icon folder-icon--favourite" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-        </svg>
-      </span>
-      <span class="folder-label">Favourites</span>
-    </div>
-
-    @if (isFolderExpanded('favourites')) {
-      <ul class="folder-children">
-        @if (filteredFavourites().length === 0) {
-          <li class="state-message">{{ searchQuery().trim() ? 'No matching favourites.' : 'No favourite collections.' }}</li>
-        }
-        @for (item of filteredFavourites(); track item.id) {
-          <li
-            class="tree-item"
-            [class.is-selected]="isSelected(item)"
-            (click)="selectFavouriteCollection(item.data)"
-            (contextmenu)="openItemContextMenu(item, $event)"
-          >
-            @if (renamingItem()?.id === item.id && renamingItem()?.type === item.type) {
-              <form class="rename-form" (submit)="saveRename($event)">
-                <input
-                  class="rename-input"
-                  type="text"
-                  [ngModel]="renameValue()"
-                  (ngModelChange)="renameValue.set($event)"
-                  (keydown.escape)="cancelRename()"
-                  (blur)="saveRename()"
-                  autofocus
-                />
-              </form>
-            } @else {
-              <button
-                class="item-indicator"
-                type="button"
-                [style.background-color]="colorValue(item.appearance) ?? null"
-                (click)="openAppearancePopup(item, $event)"
-                [attr.aria-label]="'Edit appearance for ' + item.name"
-              >
-                @let cp = iconPath(item.appearance);
-                @if (cp) {
-                  <img [src]="cp" alt="" />
-                } @else if (isDefaultAppearance(item.appearance)) {
-                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                  </svg>
-                }
-              </button>
-              <span class="tree-item-label">{{ item.name }}</span>
+            @if (!loading() && filteredCollections().length === 0) {
+              <li class="state-message">{{ searchQuery().trim() ? 'No matching collections.' : 'No collections.' }}</li>
             }
-          </li>
-        }
-      </ul>
-    }
-  </div>
-
-  <!-- Tags -->
-  <div class="folder" [class.is-expanded]="isFolderExpanded('tags')">
-    <div
-      class="folder-header"
-      (click)="toggleFolder('tags')"
-      (contextmenu)="openFolderContextMenu('tags', $event)"
-    >
-      <span class="folder-chevron" aria-hidden="true">▸</span>
-      <span class="folder-icon folder-icon--tag" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-        </svg>
-      </span>
-      <span class="folder-label">Tags</span>
-    </div>
-
-    @if (isFolderExpanded('tags')) {
-      <ul class="folder-children">
-        @if (filteredTags().length === 0) {
-          <li class="state-message">{{ searchQuery().trim() ? 'No matching tags.' : 'No tags yet.' }}</li>
-        }
-        @for (item of filteredTags(); track item.id) {
-          <li
-            class="tree-item"
-            [class.is-selected]="isSelected(item)"
-            (click)="selectTag(item.data)"
-            (contextmenu)="openItemContextMenu(item, $event)"
-          >
-            @if (renamingItem()?.id === item.id && renamingItem()?.type === item.type) {
-              <form class="rename-form" (submit)="saveRename($event)">
-                <input
-                  class="rename-input"
-                  type="text"
-                  [ngModel]="renameValue()"
-                  (ngModelChange)="renameValue.set($event)"
-                  (keydown.escape)="cancelRename()"
-                  (blur)="saveRename()"
-                  autofocus
-                />
-              </form>
-            } @else {
-              <button
-                class="item-indicator"
-                type="button"
-                [style.background-color]="colorValue(item.appearance) ?? null"
-                (click)="openAppearancePopup(item, $event)"
-                [attr.aria-label]="'Edit appearance for ' + item.name"
+            @for (item of filteredCollections(); track item.id) {
+              <li
+                class="tree-item"
+                [class.is-selected]="isSelected(item)"
+                (click)="selectCollection(item.data)"
+                (contextmenu)="openItemContextMenu(item, $event)"
               >
-                @let cp = iconPath(item.appearance);
-                @if (cp) {
-                  <img [src]="cp" alt="" />
-                } @else if (isDefaultAppearance(item.appearance)) {
-                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-                  </svg>
+                @if (renamingItem()?.id === item.id && renamingItem()?.type === item.type) {
+                  <form class="rename-form" (submit)="saveRename($event)">
+                    <input
+                      class="rename-input"
+                      type="text"
+                      [ngModel]="renameValue()"
+                      (ngModelChange)="renameValue.set($event)"
+                      (keydown.escape)="cancelRename()"
+                      (blur)="saveRename()"
+                      autofocus
+                    />
+                  </form>
+                } @else {
+                  <button
+                    class="item-indicator"
+                    type="button"
+                    [style.background-color]="colorValue(item.appearance) ?? null"
+                    (click)="openAppearancePopup(item, $event)"
+                    [attr.aria-label]="'Edit appearance for ' + item.name"
+                  >
+                    @let cp = iconPath(item.appearance);
+                    @if (cp) {
+                      <img [src]="cp" alt="" />
+                    } @else if (isDefaultAppearance(item.appearance)) {
+                      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/>
+                      </svg>
+                    }
+                  </button>
+                  <span class="tree-item-label">{{ item.name }}</span>
                 }
-              </button>
-              <span class="tree-item-label">{{ item.name }}</span>
+              </li>
             }
-          </li>
+          </ul>
         }
-      </ul>
+      </div>
     }
-  </div>
+
+    <!-- Favourites -->
+    @if (isFolderVisible('favourites')) {
+      <div class="folder" [class.is-expanded]="isFolderExpanded('favourites')">
+        <div
+          class="folder-header"
+          (click)="toggleFolder('favourites')"
+          (contextmenu)="openFolderContextMenu('favourites', $event)"
+        >
+          <span class="folder-chevron" aria-hidden="true">▸</span>
+          <span class="folder-icon folder-icon--favourite" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+            </svg>
+          </span>
+          <span class="folder-label">Favourites</span>
+        </div>
+
+        @if (isFolderExpanded('favourites')) {
+          <ul class="folder-children">
+            @if (filteredFavourites().length === 0) {
+              <li class="state-message">{{ searchQuery().trim() ? 'No matching favourites.' : 'No favourite collections.' }}</li>
+            }
+            @for (item of filteredFavourites(); track item.id) {
+              <li
+                class="tree-item"
+                [class.is-selected]="isSelected(item)"
+                (click)="selectFavouriteCollection(item.data)"
+                (contextmenu)="openItemContextMenu(item, $event)"
+              >
+                @if (renamingItem()?.id === item.id && renamingItem()?.type === item.type) {
+                  <form class="rename-form" (submit)="saveRename($event)">
+                    <input
+                      class="rename-input"
+                      type="text"
+                      [ngModel]="renameValue()"
+                      (ngModelChange)="renameValue.set($event)"
+                      (keydown.escape)="cancelRename()"
+                      (blur)="saveRename()"
+                      autofocus
+                    />
+                  </form>
+                } @else {
+                  <button
+                    class="item-indicator"
+                    type="button"
+                    [style.background-color]="colorValue(item.appearance) ?? null"
+                    (click)="openAppearancePopup(item, $event)"
+                    [attr.aria-label]="'Edit appearance for ' + item.name"
+                  >
+                    @let cp = iconPath(item.appearance);
+                    @if (cp) {
+                      <img [src]="cp" alt="" />
+                    } @else if (isDefaultAppearance(item.appearance)) {
+                      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                      </svg>
+                    }
+                  </button>
+                  <span class="tree-item-label">{{ item.name }}</span>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    }
+
+    <!-- Tags -->
+    @if (isFolderVisible('tags')) {
+      <div class="folder" [class.is-expanded]="isFolderExpanded('tags')">
+        <div
+          class="folder-header"
+          (click)="toggleFolder('tags')"
+          (contextmenu)="openFolderContextMenu('tags', $event)"
+        >
+          <span class="folder-chevron" aria-hidden="true">▸</span>
+          <span class="folder-icon folder-icon--tag" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+            </svg>
+          </span>
+          <span class="folder-label">Tags</span>
+        </div>
+
+        @if (isFolderExpanded('tags')) {
+          <ul class="folder-children">
+            @if (filteredTags().length === 0) {
+              <li class="state-message">{{ searchQuery().trim() ? 'No matching tags.' : 'No tags yet.' }}</li>
+            }
+            @for (item of filteredTags(); track item.id) {
+              <li
+                class="tree-item"
+                [class.is-selected]="isSelected(item)"
+                (click)="selectTag(item.data)"
+                (contextmenu)="openItemContextMenu(item, $event)"
+              >
+                @if (renamingItem()?.id === item.id && renamingItem()?.type === item.type) {
+                  <form class="rename-form" (submit)="saveRename($event)">
+                    <input
+                      class="rename-input"
+                      type="text"
+                      [ngModel]="renameValue()"
+                      (ngModelChange)="renameValue.set($event)"
+                      (keydown.escape)="cancelRename()"
+                      (blur)="saveRename()"
+                      autofocus
+                    />
+                  </form>
+                } @else {
+                  <button
+                    class="item-indicator"
+                    type="button"
+                    [style.background-color]="colorValue(item.appearance) ?? null"
+                    (click)="openAppearancePopup(item, $event)"
+                    [attr.aria-label]="'Edit appearance for ' + item.name"
+                  >
+                    @let cp = iconPath(item.appearance);
+                    @if (cp) {
+                      <img [src]="cp" alt="" />
+                    } @else if (isDefaultAppearance(item.appearance)) {
+                      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                      </svg>
+                    }
+                  </button>
+                  <span class="tree-item-label">{{ item.name }}</span>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    }
+  } @else {
+    <!-- Flat list for a single selected folder -->
+    <ul class="folder-children folder-children--flat">
+      @if (filteredItems().length === 0) {
+        <li class="state-message">{{ activeFilterEmptyMessage() }}</li>
+      }
+      @for (item of filteredItems(); track item.id + '-' + item.type) {
+        <li
+          class="tree-item"
+          [class.is-selected]="isSelected(item)"
+          (click)="selectSidebarItem(item)"
+          (contextmenu)="openItemContextMenu(item, $event)"
+        >
+          @if (renamingItem()?.id === item.id && renamingItem()?.type === item.type) {
+            <form class="rename-form" (submit)="saveRename($event)">
+              <input
+                class="rename-input"
+                type="text"
+                [ngModel]="renameValue()"
+                (ngModelChange)="renameValue.set($event)"
+                (keydown.escape)="cancelRename()"
+                (blur)="saveRename()"
+                autofocus
+              />
+            </form>
+          } @else {
+            <button
+              class="item-indicator"
+              type="button"
+              [style.background-color]="colorValue(item.appearance) ?? null"
+              (click)="openAppearancePopup(item, $event)"
+              [attr.aria-label]="'Edit appearance for ' + item.name"
+            >
+              @let cp = iconPath(item.appearance);
+              @if (cp) {
+                <img [src]="cp" alt="" />
+              } @else if (isDefaultAppearance(item.appearance)) {
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                </svg>
+              }
+            </button>
+            <span class="tree-item-label">{{ item.name }}</span>
+          }
+        </li>
+      }
+    </ul>
+  }
+</div>
+
+<!-- Sticky folder filter buttons -->
+<div class="folder-filter-bar">
+  <button
+    class="folder-filter-button"
+    [class.is-active]="folderFilter() === 'all'"
+    type="button"
+    (click)="setFolderFilter('all')"
+  >
+    All
+  </button>
+  <button
+    class="folder-filter-button folder-filter-button--icon"
+    [class.is-active]="folderFilter() === 'collections'"
+    type="button"
+    (click)="setFolderFilter('collections')"
+    aria-label="Collections"
+    title="Collections"
+  >
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/>
+    </svg>
+  </button>
+  <button
+    class="folder-filter-button folder-filter-button--icon"
+    [class.is-active]="folderFilter() === 'favourites'"
+    type="button"
+    (click)="setFolderFilter('favourites')"
+    aria-label="Favourites"
+    title="Favourites"
+  >
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+    </svg>
+  </button>
+  <button
+    class="folder-filter-button folder-filter-button--icon"
+    [class.is-active]="folderFilter() === 'tags'"
+    type="button"
+    (click)="setFolderFilter('tags')"
+    aria-label="Tags"
+    title="Tags"
+  >
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+    </svg>
+  </button>
 </div>
 
 <!-- Add: Collection -->
