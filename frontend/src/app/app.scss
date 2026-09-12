@@ -323,17 +323,11 @@
   white-space: nowrap;
 }
 
-.footer-time {
+.footer-copyright {
   justify-self: center;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.footer-time svg {
-  width: 19px;
-  height: 19px;
-  opacity: 0.85;
+  color: var(--muted);
+  font-size: 12.5px;
+  white-space: nowrap;
 }
 
 .footer-docs {

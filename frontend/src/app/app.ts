@@ -1,7 +1,6 @@
 import { AfterViewInit, Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WML } from '@wailsio/runtime';
-import { WailsService } from './wails.service';
 import { WorkspaceStateService } from './core/services/workspace-state.service';
 import { ProjectApiService, type Project } from './core/services/project.service';
 import { EnvironmentApiService, type Environment } from './core/services/environment.service';
@@ -27,7 +26,6 @@ import { FeatureFlagsService } from './core/feature-flags/feature-flags.service'
 })
 export class App implements OnInit, AfterViewInit {
   protected readonly state = inject(WorkspaceStateService);
-  private readonly wails = inject(WailsService);
   private readonly projectApi = inject(ProjectApiService);
   private readonly environmentApi = inject(EnvironmentApiService);
   private readonly collectionApi = inject(CollectionApiService);
@@ -37,7 +35,6 @@ export class App implements OnInit, AfterViewInit {
   private readonly tagApi = inject(TagApiService);
   protected readonly featureFlags = inject(FeatureFlagsService);
 
-  protected readonly currentTime = this.wails.currentTime;
   protected readonly projects = this.projectApi.projects;
   protected readonly environments = this.environmentApi.environments;
 
