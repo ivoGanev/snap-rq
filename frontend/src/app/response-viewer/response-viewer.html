@@ -9,8 +9,9 @@
         class="response-chip"
         [class.is-active]="state.selectedResponse()?.id === resp.id"
         (click)="selectResponse(resp)"
+        [title]="formatTime(resp.created_at)"
       >
-        #{{ resp.id }}
+        {{ formatTime(resp.created_at) }}
         <span class="chip-status" [class.is-error]="resp.status_code >= 400">{{ resp.status_code }}</span>
       </button>
     }

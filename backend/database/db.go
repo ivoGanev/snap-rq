@@ -37,6 +37,10 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
+	if err := addResponseCreatedAtColumn(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
 	if err := ensureDefaultCollection(db); err != nil {
 		return nil, fmt.Errorf("ensuring default collection: %w", err)
 	}
@@ -92,6 +96,7 @@ func migrate(db *sql.DB) error {
 			headers TEXT,
 			status_code INTEGER NOT NULL DEFAULT 0,
 			body TEXT,
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE
 		);
 		CREATE INDEX IF NOT EXISTS idx_responses_request_id ON responses(request_id);
@@ -397,6 +402,26 @@ func appearanceExists(db *sql.DB, collectionID int64) bool {
 		return false
 	}
 	return count > 0
+}
+
+func addResponseCreatedAtColumn(db *sql.DB) error {
+	if !columnExists(db, "responses", "created_at") {
+		_, err := db.Exec("ALTER TABLE responses ADD COLUMN created_at TEXT")
+		if err != nil {
+			return fmt.Errorf("adding created_at column to responses: %w", err)
+		}
+		_, err = db.Exec("UPDATE responses SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL")
+		if err != nil {
+			return fmt.Errorf("backfilling response created_at: %w", err)
+		}
+	}
+
+	_, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_responses_created_at ON responses(created_at)")
+	if err != nil {
+		return fmt.Errorf("creating responses created_at index: %w", err)
+	}
+
+	return nil
 }
 
 func columnExists(db *sql.DB, table, column string) bool {
