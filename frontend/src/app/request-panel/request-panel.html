@@ -14,10 +14,14 @@
   }
 </div>
 
-@if (!state.selectedRequest()) {
+@if (state.multiSelectionActive()) {
+  <div class="state-message">You are in multi selection mode.</div>
+}
+
+@if (!state.selectedRequest() && !state.multiSelectionActive()) {
   <div class="state-message">Select a request to view its response.</div>
 }
 
-@if (state.selectedRequest()) {
+@if (state.selectedRequest() && !state.multiSelectionActive()) {
   <app-response-viewer></app-response-viewer>
 }
