@@ -208,6 +208,9 @@
         Add to favourites…
       </button>
       <div class="context-menu-divider" aria-hidden="true"></div>
+      <button class="context-menu-item" type="button" (click)="duplicateSelectedRequest()">
+        Duplicate
+      </button>
       <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteSelectedRequests()">
         {{ state.selectedFavouriteCollection() ? 'Remove from favourites' : 'Delete' }}
       </button>

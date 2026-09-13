@@ -37,7 +37,7 @@ const DRAG_THRESHOLD_PX = 5;
   host: {
     class: 'main-column',
     'aria-label': 'Requests V2',
-    '(window:keydown.escape)': 'onEscapePressed()',
+    '(window:keydown)': 'onWindowKeydown($event)',
     '(window:mousemove)': 'onWindowMouseMove($event)',
     '(window:mouseup)': 'onWindowMouseUp()',
   },
@@ -264,6 +264,18 @@ export class RequestsMainListV2 {
     }
   }
 
+  onWindowKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.onEscapePressed();
+      return;
+    }
+
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'd') {
+      event.preventDefault();
+      void this.duplicateSelectedRequest();
+    }
+  }
+
   onEscapePressed(): void {
     if (this.contextMenuOpen()) {
       this.closeContextMenu();
@@ -469,6 +481,46 @@ export class RequestsMainListV2 {
 
   closeContextMenu(): void {
     this.contextMenuOpen.set(false);
+  }
+
+  async duplicateSelectedRequest(): Promise<void> {
+    const requests = this.selectedRequests();
+    if (requests.length === 0) return;
+
+    const original = requests[0];
+    this.closeContextMenu();
+    this.state.loading.set(true);
+
+    try {
+      const duplicated = await this.requestApi.duplicate(original.id);
+
+      const collection = this.state.selectedCollection();
+      const favourite = this.state.selectedFavouriteCollection();
+      const tag = this.state.selectedTag();
+
+      if (collection) {
+        await this.requestApi.loadForCollection(collection.id);
+      }
+      if (favourite) {
+        await this.favouriteApi.loadRequestsForCollection(favourite.id);
+      }
+      if (tag) {
+        const requests = await this.tagApi.getRequestsForTag(tag);
+        this.tagRequests.set(requests);
+      }
+
+      const active = this.activeRequests();
+      await Promise.all([
+        this.tagApi.loadTagsForRequests(active),
+        this.favouriteApi.loadMembershipForRequests(active),
+      ]);
+
+      this.selectCell(duplicated, 'name');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      this.state.loading.set(false);
+    }
   }
 
   async deleteSelectedRequests(): Promise<void> {
