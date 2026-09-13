@@ -7,4 +7,5 @@ type HttpResponse struct {
 	Headers    string `json:"headers"`
 	StatusCode int    `json:"status_code"`
 	Body       string `json:"body"`
+	CreatedAt  string `json:"created_at"`
 }

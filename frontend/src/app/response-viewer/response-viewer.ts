@@ -16,4 +16,19 @@ export class ResponseViewer {
   selectResponse(resp: HttpResponse): void {
     this.state.selectedResponse.set(resp);
   }
+
+  formatTime(createdAt: string): string {
+    const utc = createdAt.replace(' ', 'T') + 'Z';
+    const date = new Date(utc);
+    if (Number.isNaN(date.getTime())) {
+      return createdAt;
+    }
+    return date.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+  }
 }
