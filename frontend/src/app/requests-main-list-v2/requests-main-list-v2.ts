@@ -202,8 +202,13 @@ export class RequestsMainListV2 {
       this.requestSearchQuery.set('');
       this.clearSelection();
       this.state.selectedRequest.set(null);
+      this.state.multiSelectionActive.set(false);
 
       void this.loadActiveGroup(version, collection?.id ?? null, favourite?.id ?? null, tag);
+    });
+
+    effect(() => {
+      this.state.multiSelectionActive.set(this.selectedRowIds().size > 1);
     });
   }
 
@@ -320,7 +325,7 @@ export class RequestsMainListV2 {
   selectCell(req: HttpRequest, column: ColumnKey): void {
     this.selectedRowIds.set(new Set([req.id]));
     this.selectedCell.set({ requestId: req.id, column });
-    this.state.selectedRequest.set(req);
+    this.syncWorkspaceSelection(req);
 
     const collection = this.state.selectedCollection();
     if (collection) {
@@ -382,7 +387,26 @@ export class RequestsMainListV2 {
     this.selectedRowIds.set(set);
     this.selectedCell.set({ requestId: req.id, column });
     this.lastClickedRowId.set(req.id);
-    this.state.selectedRequest.set(set.has(req.id) ? req : this.activeRequests().find((r) => set.has(r.id)) ?? null);
+    this.syncWorkspaceSelection(req);
+  }
+
+  private syncWorkspaceSelection(fallbackReq: HttpRequest | null): void {
+    const set = this.selectedRowIds();
+    if (set.size > 1) {
+      this.state.selectedRequest.set(null);
+      this.state.selectedResponse.set(null);
+      return;
+    }
+
+    if (set.size === 0) {
+      this.state.selectedRequest.set(null);
+      this.state.selectedResponse.set(null);
+      return;
+    }
+
+    const id = [...set][0];
+    const req = this.activeRequests().find((r) => r.id === id) ?? fallbackReq;
+    this.state.selectedRequest.set(req ?? null);
   }
 
   private selectRangeTo(req: HttpRequest, column: ColumnKey): void {
@@ -405,7 +429,7 @@ export class RequestsMainListV2 {
     }
     this.selectedRowIds.set(next);
     this.selectedCell.set({ requestId: req.id, column });
-    this.state.selectedRequest.set(req);
+    this.syncWorkspaceSelection(req);
   }
 
   // ---------- Drag selection ----------
@@ -433,7 +457,7 @@ export class RequestsMainListV2 {
           this.selectedRowIds.set(new Set([startReq.id]));
           this.selectedCell.set({ requestId: startReq.id, column: 'name' });
           this.lastClickedRowId.set(startReq.id);
-          this.state.selectedRequest.set(startReq);
+          this.syncWorkspaceSelection(startReq);
         }
       }
     }
@@ -447,7 +471,7 @@ export class RequestsMainListV2 {
       return next;
     });
     this.selectedCell.set({ requestId: req.id, column: 'name' });
-    this.state.selectedRequest.set(req);
+    this.syncWorkspaceSelection(req);
   }
 
   onWindowMouseUp(): void {
@@ -487,12 +511,14 @@ export class RequestsMainListV2 {
     const requests = this.selectedRequests();
     if (requests.length === 0) return;
 
-    const original = requests[0];
     this.closeContextMenu();
     this.state.loading.set(true);
 
     try {
-      const duplicated = await this.requestApi.duplicate(original.id);
+      let lastDuplicated: HttpRequest | null = null;
+      for (const original of requests) {
+        lastDuplicated = await this.requestApi.duplicate(original.id);
+      }
 
       const collection = this.state.selectedCollection();
       const favourite = this.state.selectedFavouriteCollection();
@@ -515,7 +541,9 @@ export class RequestsMainListV2 {
         this.favouriteApi.loadMembershipForRequests(active),
       ]);
 
-      this.selectCell(duplicated, 'name');
+      if (lastDuplicated) {
+        this.selectCell(lastDuplicated, 'name');
+      }
     } catch (err) {
       console.error(err);
     } finally {
