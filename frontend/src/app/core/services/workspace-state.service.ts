@@ -27,6 +27,7 @@ export class WorkspaceStateService {
   readonly selectedTag = signal<string | null>(null);
   readonly selectedRequest = signal<HttpRequest | null>(null);
   readonly selectedResponse = signal<HttpResponse | null>(null);
+  readonly multiSelectionActive = signal(false);
   readonly zenModeOpen = signal(false);
 
   readonly requestSendStartTime = signal<number | null>(null);

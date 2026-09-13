@@ -21,6 +21,12 @@ export class RequestPanel {
 
   constructor() {
     effect(() => {
+      if (this.state.multiSelectionActive()) {
+        this.requestApi.responses.set([]);
+        this.state.selectedResponse.set(null);
+        return;
+      }
+
       const req = this.state.selectedRequest();
       if (req) {
         this.state.loadResponses(req.id);
