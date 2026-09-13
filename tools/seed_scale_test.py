@@ -100,9 +100,11 @@ CREATE TABLE IF NOT EXISTS responses (
     headers TEXT,
     status_code INTEGER NOT NULL DEFAULT 0,
     body TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_responses_request_id ON responses(request_id);
+CREATE INDEX IF NOT EXISTS idx_responses_created_at ON responses(created_at);
 
 CREATE TABLE IF NOT EXISTS environments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -136,8 +138,16 @@ def default_db_path() -> Path:
 
 
 def ensure_schema(conn: sqlite3.Connection) -> None:
-    """Create the schema if it does not exist."""
+    """Create the schema if it does not exist and apply additive migrations."""
     conn.executescript(SCHEMA)
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(responses)")
+    columns = {row[1] for row in cursor.fetchall()}
+    if "created_at" not in columns:
+        cursor.execute(
+            "ALTER TABLE responses ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
+        )
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_responses_created_at ON responses(created_at)")
     conn.commit()
 
 

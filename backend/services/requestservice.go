@@ -370,10 +370,14 @@ func (s *RequestService) DeleteRequest(id int64) error {
 
 // CreateResponse saves a new response for a request and returns it with its generated ID.
 func (s *RequestService) CreateResponse(resp models.HttpResponse) (models.HttpResponse, error) {
+	if resp.CreatedAt == "" {
+		resp.CreatedAt = time.Now().UTC().Format("2006-01-02 15:04:05")
+	}
+
 	result, err := s.db.Exec(
-		`INSERT INTO responses (request_id, headers, status_code, body)
-		 VALUES (?, ?, ?, ?)`,
-		resp.RequestID, resp.Headers, resp.StatusCode, resp.Body,
+		`INSERT INTO responses (request_id, headers, status_code, body, created_at)
+		 VALUES (?, ?, ?, ?, ?)`,
+		resp.RequestID, resp.Headers, resp.StatusCode, resp.Body, resp.CreatedAt,
 	)
 	if err != nil {
 		return models.HttpResponse{}, fmt.Errorf("creating response: %w", err)
@@ -385,17 +389,17 @@ func (s *RequestService) CreateResponse(resp models.HttpResponse) (models.HttpRe
 	}
 
 	resp.ID = id
-	return resp, nil
+	return s.GetResponse(id)
 }
 
 // GetResponse retrieves a single response by ID.
 func (s *RequestService) GetResponse(id int64) (models.HttpResponse, error) {
 	var resp models.HttpResponse
 	row := s.db.QueryRow(
-		`SELECT id, request_id, headers, status_code, body FROM responses WHERE id = ?`,
+		`SELECT id, request_id, headers, status_code, body, created_at FROM responses WHERE id = ?`,
 		id,
 	)
-	err := row.Scan(&resp.ID, &resp.RequestID, &resp.Headers, &resp.StatusCode, &resp.Body)
+	err := row.Scan(&resp.ID, &resp.RequestID, &resp.Headers, &resp.StatusCode, &resp.Body, &resp.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return models.HttpResponse{}, fmt.Errorf("response not found")
@@ -408,10 +412,10 @@ func (s *RequestService) GetResponse(id int64) (models.HttpResponse, error) {
 // GetResponsesForRequest returns all responses for a given request ID, newest first.
 func (s *RequestService) GetResponsesForRequest(requestID int64) ([]models.HttpResponse, error) {
 	rows, err := s.db.Query(
-		`SELECT id, request_id, headers, status_code, body
+		`SELECT id, request_id, headers, status_code, body, created_at
 		 FROM responses
 		 WHERE request_id = ?
-		 ORDER BY id DESC`,
+		 ORDER BY created_at DESC, id DESC`,
 		requestID,
 	)
 	if err != nil {
@@ -422,7 +426,7 @@ func (s *RequestService) GetResponsesForRequest(requestID int64) ([]models.HttpR
 	var responses []models.HttpResponse
 	for rows.Next() {
 		var resp models.HttpResponse
-		if err := rows.Scan(&resp.ID, &resp.RequestID, &resp.Headers, &resp.StatusCode, &resp.Body); err != nil {
+		if err := rows.Scan(&resp.ID, &resp.RequestID, &resp.Headers, &resp.StatusCode, &resp.Body, &resp.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scanning response: %w", err)
 		}
 		responses = append(responses, resp)
