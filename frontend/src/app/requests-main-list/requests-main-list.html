@@ -221,6 +221,9 @@
       [style.top.px]="requestContextMenuY()"
       (click)="$event.stopPropagation()"
     >
+      <button class="context-menu-item" type="button" (click)="duplicateRequest()">
+        Duplicate
+      </button>
       <button
         class="context-menu-item context-menu-item--danger"
         type="button"

@@ -18,6 +18,10 @@ export class RequestApiService {
     return created;
   }
 
+  async duplicate(id: number): Promise<HttpRequest> {
+    return RequestService.RequestService.DuplicateRequest(id);
+  }
+
   async get(id: number): Promise<HttpRequest> {
     return RequestService.RequestService.GetRequest(id);
   }

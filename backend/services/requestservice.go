@@ -24,6 +24,61 @@ func NewRequestService(db *sql.DB) *RequestService {
 	return &RequestService{db: db}
 }
 
+// DuplicateRequest creates a copy of an existing request, including its tags and
+// favourite memberships. The copy receives a new ID, a "(copy)" name suffix and
+// a fresh status/response.
+func (s *RequestService) DuplicateRequest(id int64) (models.HttpRequest, error) {
+	original, err := s.GetRequest(id)
+	if err != nil {
+		return models.HttpRequest{}, fmt.Errorf("loading original request: %w", err)
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return models.HttpRequest{}, fmt.Errorf("beginning transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	result, err := tx.Exec(
+		`INSERT INTO http_requests (collection_id, name, url, method, body, request_headers, status_code, response_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		original.CollectionID, original.Name+" (copy)", original.URL, original.Method, original.Body,
+		original.RequestHeaders, 0, 0,
+	)
+	if err != nil {
+		return models.HttpRequest{}, fmt.Errorf("duplicating request: %w", err)
+	}
+
+	newID, err := result.LastInsertId()
+	if err != nil {
+		return models.HttpRequest{}, fmt.Errorf("getting duplicated request id: %w", err)
+	}
+
+	_, err = tx.Exec(
+		`INSERT INTO request_tags (request_id, tag_id)
+		 SELECT ?, tag_id FROM request_tags WHERE request_id = ?`,
+		newID, id,
+	)
+	if err != nil {
+		return models.HttpRequest{}, fmt.Errorf("copying tags: %w", err)
+	}
+
+	_, err = tx.Exec(
+		`INSERT INTO favourite_items (favourite_collection_id, http_request_id, sort_order)
+		 SELECT favourite_collection_id, ?, sort_order FROM favourite_items WHERE http_request_id = ?`,
+		newID, id,
+	)
+	if err != nil {
+		return models.HttpRequest{}, fmt.Errorf("copying favourites: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return models.HttpRequest{}, fmt.Errorf("committing duplicate: %w", err)
+	}
+
+	return s.GetRequest(newID)
+}
+
 // CreateRequest saves a new HTTP request and returns it with its generated ID.
 func (s *RequestService) CreateRequest(req models.HttpRequest) (models.HttpRequest, error) {
 	if req.CollectionID == 0 {

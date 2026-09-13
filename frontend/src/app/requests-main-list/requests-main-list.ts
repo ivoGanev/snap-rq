@@ -14,7 +14,7 @@ import { TagApiService } from '../core/services/tag.service';
   host: {
     class: 'main-column',
     'aria-label': 'Requests',
-    '(window:keydown.escape)': 'onEscapePressed()',
+    '(window:keydown)': 'onWindowKeydown($event)',
   },
 })
 export class RequestsMainList {
@@ -141,6 +141,22 @@ export class RequestsMainList {
     }
   }
 
+  onWindowKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.onEscapePressed();
+      return;
+    }
+
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'd') {
+      event.preventDefault();
+      const selected = this.state.selectedRequest();
+      if (selected) {
+        this.requestContextMenuTarget.set(selected);
+        void this.duplicateRequest();
+      }
+    }
+  }
+
   onEscapePressed(): void {
     if (this.requestContextMenuOpen()) {
       this.closeRequestContextMenu();
@@ -188,6 +204,38 @@ export class RequestsMainList {
   closeRequestContextMenu(): void {
     this.requestContextMenuOpen.set(false);
     this.requestContextMenuTarget.set(null);
+  }
+
+  async duplicateRequest(): Promise<void> {
+    const req = this.requestContextMenuTarget();
+    if (!req) return;
+
+    this.state.loading.set(true);
+    try {
+      const duplicated = await this.requestApi.duplicate(req.id);
+
+      const collection = this.state.selectedCollection();
+      const favourite = this.state.selectedFavouriteCollection();
+      const tag = this.state.selectedTag();
+
+      if (collection) {
+        await this.requestApi.loadForCollection(collection.id);
+      }
+      if (favourite) {
+        await this.favouriteApi.loadRequestsForCollection(favourite.id);
+      }
+      if (tag) {
+        const requests = await this.tagApi.getRequestsForTag(tag);
+        this.tagRequests.set(requests);
+      }
+
+      this.selectRequest(duplicated);
+      this.closeRequestContextMenu();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      this.state.loading.set(false);
+    }
   }
 
   async deleteRequest(): Promise<void> {
