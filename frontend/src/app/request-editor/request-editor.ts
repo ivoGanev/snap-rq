@@ -87,10 +87,11 @@ export class RequestEditor {
 
   async addTagToRequest(req: HttpRequest, tagName: string): Promise<void> {
     const name = tagName.trim();
-    if (!name) return;
+    const project = this.state.selectedProject();
+    if (!name || !project) return;
 
     try {
-      await this.tagApi.addTagToRequest(req.id, name);
+      await this.tagApi.addTagToRequest(req.id, project.id, name);
       this.closeTagInput();
     } catch (err) {
       console.error(err);

@@ -1,8 +1,10 @@
 package models
 
 // Tag is a free-text label that can be attached to many requests.
+// It belongs to a project so each project has its own independent tag set.
 type Tag struct {
 	ID         int64         `json:"id"`
+	ProjectID  int64         `json:"project_id"`
 	Name       string        `json:"name"`
 	Appearance TagAppearance `json:"appearance"`
 }

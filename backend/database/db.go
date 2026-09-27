@@ -49,10 +49,6 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("ensuring default collection: %w", err)
 	}
 
-	if err := ensureDefaultFavouriteCollections(db); err != nil {
-		return nil, fmt.Errorf("ensuring default favourite collections: %w", err)
-	}
-
 	return db, nil
 }
 
@@ -126,12 +122,12 @@ func migrate(db *sql.DB) error {
 
 		CREATE TABLE IF NOT EXISTS favourite_collections (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			profile_id INTEGER NOT NULL,
+			project_id INTEGER NOT NULL,
 			name TEXT NOT NULL,
 			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+			FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 		);
-		CREATE INDEX IF NOT EXISTS idx_favourite_collections_profile_id ON favourite_collections(profile_id);
+		CREATE INDEX IF NOT EXISTS idx_favourite_collections_project_id ON favourite_collections(project_id);
 
 		CREATE TABLE IF NOT EXISTS favourite_items (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -148,9 +144,12 @@ func migrate(db *sql.DB) error {
 
 		CREATE TABLE IF NOT EXISTS tags (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			name TEXT NOT NULL UNIQUE
+			project_id INTEGER NOT NULL,
+			name TEXT NOT NULL,
+			FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+			UNIQUE (project_id, name)
 		);
-		CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
+		CREATE INDEX IF NOT EXISTS idx_tags_project_id_name ON tags(project_id, name);
 
 		CREATE TABLE IF NOT EXISTS request_tags (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -507,50 +506,9 @@ func ensureDefaultCollection(db *sql.DB) error {
 		return fmt.Errorf("creating default collection: %w", err)
 	}
 
-	_, err = db.Exec("INSERT INTO favourite_collections (profile_id, name) VALUES (?, ?)", profileID, "default")
+	_, err = db.Exec("INSERT INTO favourite_collections (project_id, name) VALUES (?, ?)", projectID, "default")
 	if err != nil {
 		return fmt.Errorf("creating default favourite collection: %w", err)
-	}
-
-	return nil
-}
-
-// ensureDefaultFavouriteCollections creates a 'default' favourite collection for
-// every profile that does not already have one. This backfills existing
-// profiles created before the favourites feature was added.
-func ensureDefaultFavouriteCollections(db *sql.DB) error {
-	rows, err := db.Query(`
-		SELECT p.id FROM profiles p
-		WHERE NOT EXISTS (
-			SELECT 1 FROM favourite_collections fc WHERE fc.profile_id = p.id
-		)
-	`)
-	if err != nil {
-		return fmt.Errorf("finding profiles without favourite collections: %w", err)
-	}
-	defer rows.Close()
-
-	var profileIDs []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return fmt.Errorf("scanning profile id: %w", err)
-		}
-		profileIDs = append(profileIDs, id)
-	}
-
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("iterating profile ids: %w", err)
-	}
-
-	for _, profileID := range profileIDs {
-		_, err := db.Exec(
-			"INSERT INTO favourite_collections (profile_id, name) VALUES (?, ?)",
-			profileID, "default",
-		)
-		if err != nil {
-			return fmt.Errorf("creating default favourite collection for profile %d: %w", profileID, err)
-		}
 	}
 
 	return nil

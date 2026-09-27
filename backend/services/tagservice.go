@@ -18,13 +18,14 @@ func NewTagService(db *sql.DB) *TagService {
 	return &TagService{db: db}
 }
 
-// GetAllTags returns every tag in the database, ordered by name, including their appearances.
-func (s *TagService) GetAllTags() ([]models.Tag, error) {
+// GetTagsForProject returns every tag for a project, ordered by name, including their appearances.
+func (s *TagService) GetTagsForProject(projectID int64) ([]models.Tag, error) {
 	rows, err := s.db.Query(`
-		SELECT t.id, t.name, COALESCE(ta.appearance_type, 'icon'), COALESCE(ta.appearance_value, 'default')
+		SELECT t.id, t.project_id, t.name, COALESCE(ta.appearance_type, 'icon'), COALESCE(ta.appearance_value, 'default')
 		FROM tags t
 		LEFT JOIN tag_appearances ta ON ta.tag_id = t.id
-		ORDER BY t.name`)
+		WHERE t.project_id = ?
+		ORDER BY t.name`, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("listing tags: %w", err)
 	}
@@ -33,7 +34,7 @@ func (s *TagService) GetAllTags() ([]models.Tag, error) {
 	var tags []models.Tag
 	for rows.Next() {
 		var tag models.Tag
-		if err := rows.Scan(&tag.ID, &tag.Name, &tag.Appearance.AppearanceType, &tag.Appearance.AppearanceValue); err != nil {
+		if err := rows.Scan(&tag.ID, &tag.ProjectID, &tag.Name, &tag.Appearance.AppearanceType, &tag.Appearance.AppearanceValue); err != nil {
 			return nil, fmt.Errorf("scanning tag: %w", err)
 		}
 		tag.Appearance.TagID = tag.ID
@@ -122,14 +123,18 @@ func (s *TagService) GetTagsForRequests(requestIDs []int64) (map[int64][]string,
 }
 
 // AddTagToRequest normalises the tag name, creates the tag if needed, and links it to the request.
-// Passing requestID == 0 creates the tag without linking it to any request.
-func (s *TagService) AddTagToRequest(requestID int64, tagName string) (models.Tag, error) {
+// Passing requestID == 0 creates the tag without linking it to any request. Tags are scoped to
+// a project, so projectID is always required.
+func (s *TagService) AddTagToRequest(requestID int64, projectID int64, tagName string) (models.Tag, error) {
 	name := normaliseTagName(tagName)
 	if name == "" {
 		return models.Tag{}, fmt.Errorf("tag name is required")
 	}
+	if projectID == 0 {
+		return models.Tag{}, fmt.Errorf("project id is required")
+	}
 
-	tag, err := s.findOrCreateTag(name)
+	tag, err := s.findOrCreateTag(projectID, name)
 	if err != nil {
 		return models.Tag{}, err
 	}
@@ -187,6 +192,16 @@ func (s *TagService) SetRequestTags(requestID int64, tagNames []string) error {
 		normalised = append(normalised, name)
 	}
 
+	var projectID int64
+	err := s.db.QueryRow(`
+		SELECT c.project_id
+		FROM http_requests hr
+		JOIN collections c ON c.id = hr.collection_id
+		WHERE hr.id = ?`, requestID).Scan(&projectID)
+	if err != nil {
+		return fmt.Errorf("finding request project: %w", err)
+	}
+
 	tx, err := s.db.Begin()
 	if err != nil {
 		return fmt.Errorf("beginning transaction: %w", err)
@@ -199,7 +214,7 @@ func (s *TagService) SetRequestTags(requestID int64, tagNames []string) error {
 	}
 
 	for _, name := range normalised {
-		tag, err := s.findOrCreateTagTx(tx, name)
+		tag, err := s.findOrCreateTagTx(tx, projectID, name)
 		if err != nil {
 			return err
 		}
@@ -244,30 +259,30 @@ func (s *TagService) UpdateTagAppearance(tagID int64, appearance models.TagAppea
 }
 
 // DeleteTag removes a tag from the database, unlinking it from all requests.
-func (s *TagService) DeleteTag(tagName string) error {
+func (s *TagService) DeleteTag(projectID int64, tagName string) error {
 	name := normaliseTagName(tagName)
 	if name == "" {
 		return fmt.Errorf("tag name is required")
 	}
 
-	_, err := s.db.Exec("DELETE FROM tags WHERE name = ?", name)
+	_, err := s.db.Exec("DELETE FROM tags WHERE project_id = ? AND name = ?", projectID, name)
 	if err != nil {
 		return fmt.Errorf("deleting tag: %w", err)
 	}
 	return nil
 }
 
-// GetRequestsForTag returns all requests that have the given tag.
-func (s *TagService) GetRequestsForTag(tagName string) ([]models.HttpRequest, error) {
+// GetRequestsForTag returns all requests in the project that have the given tag.
+func (s *TagService) GetRequestsForTag(projectID int64, tagName string) ([]models.HttpRequest, error) {
 	name := normaliseTagName(tagName)
 	rows, err := s.db.Query(`
 		SELECT r.id, r.collection_id, r.name, r.url, r.method, r.body, r.request_headers, r.status_code, r.response_id
 		FROM http_requests r
 		JOIN request_tags rt ON rt.request_id = r.id
 		JOIN tags t ON t.id = rt.tag_id
-		WHERE t.name = ?
+		WHERE t.project_id = ? AND t.name = ?
 		ORDER BY r.name`,
-		name,
+		projectID, name,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("listing requests for tag: %w", err)
@@ -290,13 +305,13 @@ func (s *TagService) GetRequestsForTag(tagName string) ([]models.HttpRequest, er
 	return requests, nil
 }
 
-func (s *TagService) findOrCreateTag(name string) (models.Tag, error) {
+func (s *TagService) findOrCreateTag(projectID int64, name string) (models.Tag, error) {
 	var tag models.Tag
 	err := s.db.QueryRow(`
-		SELECT t.id, t.name, COALESCE(ta.appearance_type, 'icon'), COALESCE(ta.appearance_value, 'default')
+		SELECT t.id, t.project_id, t.name, COALESCE(ta.appearance_type, 'icon'), COALESCE(ta.appearance_value, 'default')
 		FROM tags t
 		LEFT JOIN tag_appearances ta ON ta.tag_id = t.id
-		WHERE t.name = ?`, name).Scan(&tag.ID, &tag.Name, &tag.Appearance.AppearanceType, &tag.Appearance.AppearanceValue)
+		WHERE t.project_id = ? AND t.name = ?`, projectID, name).Scan(&tag.ID, &tag.ProjectID, &tag.Name, &tag.Appearance.AppearanceType, &tag.Appearance.AppearanceValue)
 	if err == nil {
 		tag.Appearance.TagID = tag.ID
 		return tag, nil
@@ -305,7 +320,7 @@ func (s *TagService) findOrCreateTag(name string) (models.Tag, error) {
 		return models.Tag{}, fmt.Errorf("finding tag: %w", err)
 	}
 
-	result, err := s.db.Exec("INSERT INTO tags (name) VALUES (?)", name)
+	result, err := s.db.Exec("INSERT INTO tags (project_id, name) VALUES (?, ?)", projectID, name)
 	if err != nil {
 		return models.Tag{}, fmt.Errorf("creating tag: %w", err)
 	}
@@ -315,6 +330,7 @@ func (s *TagService) findOrCreateTag(name string) (models.Tag, error) {
 	}
 
 	tag.ID = id
+	tag.ProjectID = projectID
 	tag.Name = name
 
 	defaultAppearance := models.DefaultTagAppearance()
@@ -330,13 +346,13 @@ func (s *TagService) findOrCreateTag(name string) (models.Tag, error) {
 	return tag, nil
 }
 
-func (s *TagService) findOrCreateTagTx(tx *sql.Tx, name string) (models.Tag, error) {
+func (s *TagService) findOrCreateTagTx(tx *sql.Tx, projectID int64, name string) (models.Tag, error) {
 	var tag models.Tag
 	err := tx.QueryRow(`
-		SELECT t.id, t.name, COALESCE(ta.appearance_type, 'icon'), COALESCE(ta.appearance_value, 'default')
+		SELECT t.id, t.project_id, t.name, COALESCE(ta.appearance_type, 'icon'), COALESCE(ta.appearance_value, 'default')
 		FROM tags t
 		LEFT JOIN tag_appearances ta ON ta.tag_id = t.id
-		WHERE t.name = ?`, name).Scan(&tag.ID, &tag.Name, &tag.Appearance.AppearanceType, &tag.Appearance.AppearanceValue)
+		WHERE t.project_id = ? AND t.name = ?`, projectID, name).Scan(&tag.ID, &tag.ProjectID, &tag.Name, &tag.Appearance.AppearanceType, &tag.Appearance.AppearanceValue)
 	if err == nil {
 		tag.Appearance.TagID = tag.ID
 		return tag, nil
@@ -345,7 +361,7 @@ func (s *TagService) findOrCreateTagTx(tx *sql.Tx, name string) (models.Tag, err
 		return models.Tag{}, fmt.Errorf("finding tag: %w", err)
 	}
 
-	result, err := tx.Exec("INSERT INTO tags (name) VALUES (?)", name)
+	result, err := tx.Exec("INSERT INTO tags (project_id, name) VALUES (?, ?)", projectID, name)
 	if err != nil {
 		return models.Tag{}, fmt.Errorf("creating tag: %w", err)
 	}
@@ -355,6 +371,7 @@ func (s *TagService) findOrCreateTagTx(tx *sql.Tx, name string) (models.Tag, err
 	}
 
 	tag.ID = id
+	tag.ProjectID = projectID
 	tag.Name = name
 
 	defaultAppearance := models.DefaultTagAppearance()

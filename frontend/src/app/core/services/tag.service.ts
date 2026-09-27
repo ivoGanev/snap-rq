@@ -9,8 +9,8 @@ export class TagApiService {
   readonly allTags = signal<Tag[]>([]);
   readonly requestTags = signal<Record<number, string[] | undefined>>({});
 
-  async loadAllTags(): Promise<void> {
-    const tags = await TagService.TagService.GetAllTags();
+  async loadTagsForProject(projectId: number): Promise<void> {
+    const tags = await TagService.TagService.GetTagsForProject(projectId);
     this.allTags.set(tags ?? []);
   }
 
@@ -29,18 +29,20 @@ export class TagApiService {
     this.requestTags.set(mapped);
   }
 
-  async addTagToRequest(requestId: number, tagName: string): Promise<Tag> {
-    const tag = await TagService.TagService.AddTagToRequest(requestId, tagName);
+  async addTagToRequest(requestId: number, projectId: number, tagName: string): Promise<Tag> {
+    const tag = await TagService.TagService.AddTagToRequest(requestId, projectId, tagName);
     this.allTags.update(list => {
       if (list.some(t => t.id === tag.id)) {
         return list;
       }
       return [...list, tag];
     });
-    this.requestTags.update(map => ({
-      ...map,
-      [requestId]: [...(map[requestId] ?? []), tag.name],
-    }));
+    if (requestId !== 0) {
+      this.requestTags.update(map => ({
+        ...map,
+        [requestId]: [...(map[requestId] ?? []), tag.name],
+      }));
+    }
     return tag;
   }
 
@@ -66,14 +68,14 @@ export class TagApiService {
     return updated;
   }
 
-  async renameTag(oldName: string, newName: string): Promise<Tag> {
+  async renameTag(projectId: number, oldName: string, newName: string): Promise<Tag> {
     const normalised = newName.trim().toLowerCase();
     if (!normalised || normalised === oldName.toLowerCase()) {
       throw new Error('Invalid tag name');
     }
 
     const oldTag = this.allTags().find((t) => t.name === oldName);
-    const tag = await TagService.TagService.AddTagToRequest(0, normalised);
+    const tag = await TagService.TagService.AddTagToRequest(0, projectId, normalised);
     // Preserve the original tag's appearance on the renamed tag.
     if (oldTag && tag.id !== oldTag.id) {
       await this.updateAppearance(tag.id, {
@@ -82,18 +84,18 @@ export class TagApiService {
       });
     }
     // Move all request associations from old tag to new tag.
-    const requests = await this.getRequestsForTag(oldName);
+    const requests = await this.getRequestsForTag(projectId, oldName);
     for (const req of requests) {
-      await TagService.TagService.AddTagToRequest(req.id, normalised);
+      await TagService.TagService.AddTagToRequest(req.id, projectId, normalised);
       await TagService.TagService.RemoveTagFromRequest(req.id, oldName);
     }
-    await TagService.TagService.DeleteTag(oldName);
-    await this.loadAllTags();
+    await TagService.TagService.DeleteTag(projectId, oldName);
+    await this.loadTagsForProject(projectId);
     return tag;
   }
 
-  async deleteTag(tagName: string): Promise<void> {
-    await TagService.TagService.DeleteTag(tagName);
+  async deleteTag(projectId: number, tagName: string): Promise<void> {
+    await TagService.TagService.DeleteTag(projectId, tagName);
     this.allTags.update(list => list.filter(t => t.name !== tagName));
     this.requestTags.update(map => {
       const next: Record<number, string[] | undefined> = {};
@@ -104,7 +106,7 @@ export class TagApiService {
     });
   }
 
-  async getRequestsForTag(tagName: string): Promise<HttpRequest[]> {
-    return (await TagService.TagService.GetRequestsForTag(tagName)) ?? [];
+  async getRequestsForTag(projectId: number, tagName: string): Promise<HttpRequest[]> {
+    return (await TagService.TagService.GetRequestsForTag(projectId, tagName)) ?? [];
   }
 }

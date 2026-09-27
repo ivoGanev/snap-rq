@@ -100,7 +100,9 @@ export class RequestsMainList {
   ): Promise<void> {
     try {
       if (tag) {
-        const requests = await this.tagApi.getRequestsForTag(tag);
+        const project = this.state.selectedProject();
+        if (!project) return;
+        const requests = await this.tagApi.getRequestsForTag(project.id, tag);
         if (version !== this.loadVersion) return;
         this.tagRequests.set(requests);
         await this.tagApi.loadTagsForRequests(requests);
@@ -225,7 +227,9 @@ export class RequestsMainList {
         await this.favouriteApi.loadRequestsForCollection(favourite.id);
       }
       if (tag) {
-        const requests = await this.tagApi.getRequestsForTag(tag);
+        const project = this.state.selectedProject();
+        if (!project) return;
+        const requests = await this.tagApi.getRequestsForTag(project.id, tag);
         this.tagRequests.set(requests);
       }
 
@@ -349,11 +353,11 @@ export class RequestsMainList {
 
   async addFavouriteCollection(): Promise<void> {
     const name = this.newFavouriteName().trim();
-    const profile = this.state.selectedProject();
-    if (!name || !profile) return;
+    const project = this.state.selectedProject();
+    if (!name || !project) return;
 
     try {
-      await this.favouriteApi.createCollection({ profile_id: profile.profile_id, name });
+      await this.favouriteApi.createCollection({ project_id: project.id, name });
       this.newFavouriteName.set('');
     } catch (err) {
       console.error(err);
