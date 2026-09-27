@@ -121,9 +121,10 @@ func (s *RequestService) GetRequest(id int64) (models.HttpRequest, error) {
 	return req, nil
 }
 
-// ExecuteRequest runs the saved HTTP request, stores the response, updates the
-// request's latest status/response id and returns the stored response. Network
-// or client errors are captured as a response with the error message in the body
+// ExecuteRequest runs the saved HTTP request and returns the response data.
+// The response is not persisted; callers are responsible for creating/updating
+// the response record (e.g. via CreateResponse/UpdateResponse). Network or
+// client errors are captured as a response with the error message in the body
 // and status code 0.
 // If environmentID is non-zero, any {{variable_name}} placeholders in the URL,
 // headers and body are interpolated using variables from that environment.
@@ -156,7 +157,12 @@ func (s *RequestService) ExecuteRequest(id int64, environmentID int64) (models.H
 
 	httpReq, err := http.NewRequest(method, req.URL, bodyReader)
 	if err != nil {
-		return s.storeErrorResponse(id, fmt.Errorf("building request: %w", err))
+		return models.HttpResponse{
+			RequestID:  id,
+			StatusCode: 0,
+			Body:       fmt.Errorf("building request: %w", err).Error(),
+			DurationMs: 0,
+		}, nil
 	}
 
 	for _, line := range strings.Split(req.RequestHeaders, "\n") {
@@ -172,15 +178,27 @@ func (s *RequestService) ExecuteRequest(id int64, environmentID int64) (models.H
 	}
 
 	client := &http.Client{Timeout: 30 * time.Second}
+	start := time.Now()
 	httpResp, err := client.Do(httpReq)
+	duration := time.Since(start).Milliseconds()
 	if err != nil {
-		return s.storeErrorResponse(id, fmt.Errorf("request failed: %w", err))
+		return models.HttpResponse{
+			RequestID:  id,
+			StatusCode: 0,
+			Body:       fmt.Errorf("request failed: %w", err).Error(),
+			DurationMs: duration,
+		}, nil
 	}
 	defer httpResp.Body.Close()
 
 	respBody, err := io.ReadAll(httpResp.Body)
 	if err != nil {
-		return s.storeErrorResponse(id, fmt.Errorf("reading response body: %w", err))
+		return models.HttpResponse{
+			RequestID:  id,
+			StatusCode: 0,
+			Body:       fmt.Errorf("reading response body: %w", err).Error(),
+			DurationMs: duration,
+		}, nil
 	}
 
 	var respHeaders strings.Builder
@@ -190,27 +208,13 @@ func (s *RequestService) ExecuteRequest(id int64, environmentID int64) (models.H
 		}
 	}
 
-	resp := models.HttpResponse{
+	return models.HttpResponse{
 		RequestID:  id,
 		StatusCode: httpResp.StatusCode,
 		Headers:    strings.TrimSpace(respHeaders.String()),
 		Body:       string(respBody),
-	}
-
-	created, err := s.CreateResponse(resp)
-	if err != nil {
-		return models.HttpResponse{}, fmt.Errorf("saving response: %w", err)
-	}
-
-	_, err = s.db.Exec(
-		`UPDATE http_requests SET status_code = ?, response_id = ? WHERE id = ?`,
-		created.StatusCode, created.ID, id,
-	)
-	if err != nil {
-		return models.HttpResponse{}, fmt.Errorf("updating request: %w", err)
-	}
-
-	return created, nil
+		DurationMs: duration,
+	}, nil
 }
 
 func (s *RequestService) loadVariables(environmentID int64) (map[string]string, error) {
@@ -255,29 +259,6 @@ func interpolate(input string, variables map[string]string) string {
 		}
 		return match
 	})
-}
-
-func (s *RequestService) storeErrorResponse(requestID int64, execErr error) (models.HttpResponse, error) {
-	resp := models.HttpResponse{
-		RequestID:  requestID,
-		StatusCode: 0,
-		Headers:    "",
-		Body:       execErr.Error(),
-	}
-	created, err := s.CreateResponse(resp)
-	if err != nil {
-		return models.HttpResponse{}, fmt.Errorf("saving error response: %w", err)
-	}
-
-	_, err = s.db.Exec(
-		`UPDATE http_requests SET status_code = ?, response_id = ? WHERE id = ?`,
-		0, created.ID, requestID,
-	)
-	if err != nil {
-		return models.HttpResponse{}, fmt.Errorf("updating request after error: %w", err)
-	}
-
-	return created, nil
 }
 
 // GetAllRequests returns all saved HTTP requests ordered by name.
@@ -375,9 +356,9 @@ func (s *RequestService) CreateResponse(resp models.HttpResponse) (models.HttpRe
 	}
 
 	result, err := s.db.Exec(
-		`INSERT INTO responses (request_id, headers, status_code, body, created_at)
-		 VALUES (?, ?, ?, ?, ?)`,
-		resp.RequestID, resp.Headers, resp.StatusCode, resp.Body, resp.CreatedAt,
+		`INSERT INTO responses (request_id, headers, status_code, body, created_at, duration_ms)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		resp.RequestID, resp.Headers, resp.StatusCode, resp.Body, resp.CreatedAt, resp.DurationMs,
 	)
 	if err != nil {
 		return models.HttpResponse{}, fmt.Errorf("creating response: %w", err)
@@ -392,14 +373,31 @@ func (s *RequestService) CreateResponse(resp models.HttpResponse) (models.HttpRe
 	return s.GetResponse(id)
 }
 
+// UpdateResponse updates an existing response record.
+func (s *RequestService) UpdateResponse(resp models.HttpResponse) (models.HttpResponse, error) {
+	if resp.ID == 0 {
+		return models.HttpResponse{}, fmt.Errorf("response id is required")
+	}
+
+	_, err := s.db.Exec(
+		`UPDATE responses SET request_id = ?, headers = ?, status_code = ?, body = ?, created_at = ?, duration_ms = ? WHERE id = ?`,
+		resp.RequestID, resp.Headers, resp.StatusCode, resp.Body, resp.CreatedAt, resp.DurationMs, resp.ID,
+	)
+	if err != nil {
+		return models.HttpResponse{}, fmt.Errorf("updating response: %w", err)
+	}
+
+	return s.GetResponse(resp.ID)
+}
+
 // GetResponse retrieves a single response by ID.
 func (s *RequestService) GetResponse(id int64) (models.HttpResponse, error) {
 	var resp models.HttpResponse
 	row := s.db.QueryRow(
-		`SELECT id, request_id, headers, status_code, body, created_at FROM responses WHERE id = ?`,
+		`SELECT id, request_id, headers, status_code, body, created_at, duration_ms FROM responses WHERE id = ?`,
 		id,
 	)
-	err := row.Scan(&resp.ID, &resp.RequestID, &resp.Headers, &resp.StatusCode, &resp.Body, &resp.CreatedAt)
+	err := row.Scan(&resp.ID, &resp.RequestID, &resp.Headers, &resp.StatusCode, &resp.Body, &resp.CreatedAt, &resp.DurationMs)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return models.HttpResponse{}, fmt.Errorf("response not found")
@@ -412,7 +410,7 @@ func (s *RequestService) GetResponse(id int64) (models.HttpResponse, error) {
 // GetResponsesForRequest returns all responses for a given request ID, newest first.
 func (s *RequestService) GetResponsesForRequest(requestID int64) ([]models.HttpResponse, error) {
 	rows, err := s.db.Query(
-		`SELECT id, request_id, headers, status_code, body, created_at
+		`SELECT id, request_id, headers, status_code, body, created_at, duration_ms
 		 FROM responses
 		 WHERE request_id = ?
 		 ORDER BY created_at DESC, id DESC`,
@@ -426,7 +424,7 @@ func (s *RequestService) GetResponsesForRequest(requestID int64) ([]models.HttpR
 	var responses []models.HttpResponse
 	for rows.Next() {
 		var resp models.HttpResponse
-		if err := rows.Scan(&resp.ID, &resp.RequestID, &resp.Headers, &resp.StatusCode, &resp.Body, &resp.CreatedAt); err != nil {
+		if err := rows.Scan(&resp.ID, &resp.RequestID, &resp.Headers, &resp.StatusCode, &resp.Body, &resp.CreatedAt, &resp.DurationMs); err != nil {
 			return nil, fmt.Errorf("scanning response: %w", err)
 		}
 		responses = append(responses, resp)
