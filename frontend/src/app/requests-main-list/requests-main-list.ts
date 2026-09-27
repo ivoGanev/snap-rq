@@ -34,10 +34,12 @@ export class RequestsMainList {
   readonly requestContextMenuX = signal(0);
   readonly requestContextMenuY = signal(0);
   readonly requestContextMenuTarget = signal<HttpRequest | null>(null);
+  readonly newRequestPopupMode = signal<'manual' | 'curl'>('manual');
   readonly newRequestPopupOpen = signal(false);
   readonly newRequestName = signal('My new snappy API');
   readonly newRequestUrl = signal('');
   readonly newRequestMethod = signal('GET');
+  readonly newRequestCurl = signal('');
   readonly favouritePopupOpen = signal(false);
   readonly favouritePopupRequest = signal<HttpRequest | null>(null);
   readonly newFavouriteName = signal('');
@@ -208,6 +210,20 @@ export class RequestsMainList {
     this.requestContextMenuTarget.set(null);
   }
 
+  async copyRequestCurl(): Promise<void> {
+    const req = this.requestContextMenuTarget();
+    if (!req) return;
+
+    try {
+      const curl = await this.requestApi.requestToCurl(req);
+      await navigator.clipboard.writeText(curl);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      this.closeRequestContextMenu();
+    }
+  }
+
   async duplicateRequest(): Promise<void> {
     const req = this.requestContextMenuTarget();
     if (!req) return;
@@ -283,6 +299,8 @@ export class RequestsMainList {
     this.newRequestName.set('My new snappy API');
     this.newRequestUrl.set('');
     this.newRequestMethod.set('GET');
+    this.newRequestCurl.set('');
+    this.newRequestPopupMode.set('manual');
     this.newRequestPopupOpen.set(true);
   }
 
@@ -290,9 +308,19 @@ export class RequestsMainList {
     this.newRequestPopupOpen.set(false);
   }
 
+  setNewRequestPopupMode(mode: 'manual' | 'curl'): void {
+    this.newRequestPopupMode.set(mode);
+  }
+
   async addRequest(): Promise<void> {
     const collection = this.state.selectedCollection();
     if (!collection) return;
+
+    const mode = this.newRequestPopupMode();
+    if (mode === 'curl') {
+      await this.addRequestFromCurl(collection.id);
+      return;
+    }
 
     const name = this.newRequestName().trim();
     if (!name) return;
@@ -310,6 +338,32 @@ export class RequestsMainList {
         response_id: 0,
       });
       await this.requestApi.loadForCollection(collection.id);
+      this.closeNewRequestPopup();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      this.state.loading.set(false);
+    }
+  }
+
+  private async addRequestFromCurl(collectionId: number): Promise<void> {
+    const curl = this.newRequestCurl().trim();
+    if (!curl) return;
+
+    this.state.loading.set(true);
+    try {
+      const req = await this.requestApi.curlToRequest(collectionId, curl);
+      await this.requestApi.create({
+        collection_id: collectionId,
+        name: req.name,
+        url: req.url,
+        method: req.method,
+        body: req.body,
+        request_headers: req.request_headers,
+        status_code: 0,
+        response_id: 0,
+      });
+      await this.requestApi.loadForCollection(collectionId);
       this.closeNewRequestPopup();
     } catch (err) {
       console.error(err);
