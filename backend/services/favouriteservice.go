@@ -20,8 +20,8 @@ func NewFavouriteService(db *sql.DB) *FavouriteService {
 
 // CreateFavouriteCollection saves a new favourite collection and creates its default appearance row.
 func (s *FavouriteService) CreateFavouriteCollection(collection models.FavouriteCollection) (models.FavouriteCollection, error) {
-	if collection.ProfileID == 0 {
-		return models.FavouriteCollection{}, fmt.Errorf("profile id is required")
+	if collection.ProjectID == 0 {
+		return models.FavouriteCollection{}, fmt.Errorf("project id is required")
 	}
 
 	tx, err := s.db.Begin()
@@ -31,8 +31,8 @@ func (s *FavouriteService) CreateFavouriteCollection(collection models.Favourite
 	defer tx.Rollback()
 
 	result, err := tx.Exec(
-		"INSERT INTO favourite_collections (profile_id, name) VALUES (?, ?)",
-		collection.ProfileID, collection.Name,
+		"INSERT INTO favourite_collections (project_id, name) VALUES (?, ?)",
+		collection.ProjectID, collection.Name,
 	)
 	if err != nil {
 		return models.FavouriteCollection{}, fmt.Errorf("creating favourite collection: %w", err)
@@ -64,13 +64,13 @@ func (s *FavouriteService) CreateFavouriteCollection(collection models.Favourite
 func (s *FavouriteService) GetFavouriteCollection(id int64) (models.FavouriteCollection, error) {
 	var collection models.FavouriteCollection
 	row := s.db.QueryRow(`
-		SELECT fc.id, fc.profile_id, fc.name, fc.created_at, COALESCE(fa.appearance_type, 'icon'), COALESCE(fa.appearance_value, 'default')
+		SELECT fc.id, fc.project_id, fc.name, fc.created_at, COALESCE(fa.appearance_type, 'icon'), COALESCE(fa.appearance_value, 'default')
 		FROM favourite_collections fc
 		LEFT JOIN favourite_appearances fa ON fa.favourite_collection_id = fc.id
 		WHERE fc.id = ?`,
 		id,
 	)
-	err := row.Scan(&collection.ID, &collection.ProfileID, &collection.Name, &collection.CreatedAt, &collection.Appearance.AppearanceType, &collection.Appearance.AppearanceValue)
+	err := row.Scan(&collection.ID, &collection.ProjectID, &collection.Name, &collection.CreatedAt, &collection.Appearance.AppearanceType, &collection.Appearance.AppearanceValue)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return models.FavouriteCollection{}, fmt.Errorf("favourite collection not found")
@@ -81,15 +81,15 @@ func (s *FavouriteService) GetFavouriteCollection(id int64) (models.FavouriteCol
 	return collection, nil
 }
 
-// GetFavouriteCollectionsForProfile returns all favourite collections for a profile, newest first, including their appearances.
-func (s *FavouriteService) GetFavouriteCollectionsForProfile(profileID int64) ([]models.FavouriteCollection, error) {
+// GetFavouriteCollectionsForProject returns all favourite collections for a project, newest first, including their appearances.
+func (s *FavouriteService) GetFavouriteCollectionsForProject(projectID int64) ([]models.FavouriteCollection, error) {
 	rows, err := s.db.Query(`
-		SELECT fc.id, fc.profile_id, fc.name, fc.created_at, COALESCE(fa.appearance_type, 'icon'), COALESCE(fa.appearance_value, 'default')
+		SELECT fc.id, fc.project_id, fc.name, fc.created_at, COALESCE(fa.appearance_type, 'icon'), COALESCE(fa.appearance_value, 'default')
 		FROM favourite_collections fc
 		LEFT JOIN favourite_appearances fa ON fa.favourite_collection_id = fc.id
-		WHERE fc.profile_id = ?
+		WHERE fc.project_id = ?
 		ORDER BY fc.created_at DESC`,
-		profileID,
+		projectID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("listing favourite collections: %w", err)
@@ -99,7 +99,7 @@ func (s *FavouriteService) GetFavouriteCollectionsForProfile(profileID int64) ([
 	var collections []models.FavouriteCollection
 	for rows.Next() {
 		var collection models.FavouriteCollection
-		if err := rows.Scan(&collection.ID, &collection.ProfileID, &collection.Name, &collection.CreatedAt, &collection.Appearance.AppearanceType, &collection.Appearance.AppearanceValue); err != nil {
+		if err := rows.Scan(&collection.ID, &collection.ProjectID, &collection.Name, &collection.CreatedAt, &collection.Appearance.AppearanceType, &collection.Appearance.AppearanceValue); err != nil {
 			return nil, fmt.Errorf("scanning favourite collection: %w", err)
 		}
 		collection.Appearance.FavouriteCollectionID = collection.ID
