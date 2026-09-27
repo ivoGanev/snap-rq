@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { RequestApiService, type HttpRequest, type HttpResponse } from './request.service';
+import { ResponseApiService } from './response.service';
 import { FavouriteApiService, type FavouriteCollection } from './favourite.service';
 import type { Collection } from './collection.service';
 import type { Project } from './project.service';
@@ -17,6 +18,7 @@ import type { Environment } from './environment.service';
 @Injectable({ providedIn: 'root' })
 export class WorkspaceStateService {
   private readonly requestApi = inject(RequestApiService);
+  private readonly responseApi = inject(ResponseApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
 
   readonly loading = signal(false);
@@ -30,12 +32,6 @@ export class WorkspaceStateService {
   readonly multiSelectionActive = signal(false);
   readonly zenModeOpen = signal(false);
 
-  readonly requestSendStartTime = signal<number | null>(null);
-  readonly requestElapsedMs = signal(0);
-  readonly lastResponseDurationMs = signal<number | null>(null);
-
-  private elapsedIntervalId: number | null = null;
-
   async loadResponses(requestId: number): Promise<void> {
     try {
       await this.requestApi.loadResponsesForRequest(requestId);
@@ -48,10 +44,20 @@ export class WorkspaceStateService {
 
   async sendRequest(req: HttpRequest, event: MouseEvent): Promise<void> {
     event.stopPropagation();
-    this.startRequestTimer();
     try {
       const environmentId = this.selectedEnvironment()?.id ?? 0;
-      const resp = await this.requestApi.execute(req.id, environmentId);
+      const resp = await this.responseApi.sendRequest(req, environmentId, {
+        onPending: pending => {
+          if (this.selectedRequest()?.id === req.id) {
+            this.selectedResponse.set(pending);
+          }
+        },
+        onUpdate: updated => {
+          if (this.selectedResponse()?.id === updated.id) {
+            this.selectedResponse.set(updated);
+          }
+        },
+      });
       if (this.selectedCollection()) {
         await this.requestApi.loadForCollection(this.selectedCollection()!.id);
       }
@@ -59,23 +65,11 @@ export class WorkspaceStateService {
         await this.favouriteApi.loadRequestsForCollection(this.selectedFavouriteCollection()!.id);
       }
       if (this.selectedRequest()?.id === req.id) {
-        await this.loadResponses(req.id);
         this.selectedResponse.set(resp);
       }
     } catch (err) {
       console.error(err);
-    } finally {
-      this.stopRequestTimer();
     }
-  }
-
-  private startRequestTimer(): void {
-    const start = Date.now();
-    this.requestSendStartTime.set(start);
-    this.requestElapsedMs.set(0);
-    this.elapsedIntervalId = window.setInterval(() => {
-      this.requestElapsedMs.set(Date.now() - start);
-    }, 50);
   }
 
   openZenMode(): void {
@@ -84,17 +78,5 @@ export class WorkspaceStateService {
 
   closeZenMode(): void {
     this.zenModeOpen.set(false);
-  }
-
-  private stopRequestTimer(): void {
-    if (this.elapsedIntervalId !== null) {
-      clearInterval(this.elapsedIntervalId);
-      this.elapsedIntervalId = null;
-    }
-    const start = this.requestSendStartTime();
-    if (start !== null) {
-      this.lastResponseDurationMs.set(Date.now() - start);
-    }
-    this.requestSendStartTime.set(null);
   }
 }

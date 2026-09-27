@@ -41,6 +41,10 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
+	if err := addResponseDurationMsColumn(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
 	if err := ensureDefaultCollection(db); err != nil {
 		return nil, fmt.Errorf("ensuring default collection: %w", err)
 	}
@@ -97,6 +101,7 @@ func migrate(db *sql.DB) error {
 			status_code INTEGER NOT NULL DEFAULT 0,
 			body TEXT,
 			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			duration_ms INTEGER NOT NULL DEFAULT 0,
 			FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE
 		);
 		CREATE INDEX IF NOT EXISTS idx_responses_request_id ON responses(request_id);
@@ -419,6 +424,17 @@ func addResponseCreatedAtColumn(db *sql.DB) error {
 	_, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_responses_created_at ON responses(created_at)")
 	if err != nil {
 		return fmt.Errorf("creating responses created_at index: %w", err)
+	}
+
+	return nil
+}
+
+func addResponseDurationMsColumn(db *sql.DB) error {
+	if !columnExists(db, "responses", "duration_ms") {
+		_, err := db.Exec("ALTER TABLE responses ADD COLUMN duration_ms INTEGER NOT NULL DEFAULT 0")
+		if err != nil {
+			return fmt.Errorf("adding duration_ms column to responses: %w", err)
+		}
 	}
 
 	return nil
