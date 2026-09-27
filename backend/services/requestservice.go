@@ -349,6 +349,17 @@ func (s *RequestService) DeleteRequest(id int64) error {
 	return nil
 }
 
+// RequestToCurl converts an HttpRequest into an equivalent curl command string.
+func (s *RequestService) RequestToCurl(req models.HttpRequest) string {
+	return RequestToCurl(req)
+}
+
+// CurlToRequest parses a curl command string and returns an HttpRequest with
+// the given collection ID attached. The request is not persisted.
+func (s *RequestService) CurlToRequest(collectionID int64, curl string) (models.HttpRequest, error) {
+	return CurlToRequest(collectionID, curl)
+}
+
 // CreateResponse saves a new response for a request and returns it with its generated ID.
 func (s *RequestService) CreateResponse(resp models.HttpResponse) (models.HttpResponse, error) {
 	if resp.CreatedAt == "" {

@@ -57,4 +57,12 @@ export class RequestApiService {
   async execute(requestId: number, environmentId: number): Promise<HttpResponse> {
     return RequestService.RequestService.ExecuteRequest(requestId, environmentId);
   }
+
+  async requestToCurl(req: HttpRequest): Promise<string> {
+    return RequestService.RequestService.RequestToCurl(req);
+  }
+
+  async curlToRequest(collectionId: number, curl: string): Promise<HttpRequest> {
+    return RequestService.RequestService.CurlToRequest(collectionId, curl);
+  }
 }
