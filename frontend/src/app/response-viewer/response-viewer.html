@@ -24,9 +24,7 @@
       <span class="response-status" [class.is-error]="state.selectedResponse()!.status_code >= 400">
         Status: {{ state.selectedResponse()!.status_code }}
       </span>
-      @if (state.lastResponseDurationMs() !== null) {
-        <span class="response-duration">Duration: {{ state.lastResponseDurationMs() }} ms</span>
-      }
+      <span class="response-duration">Duration: {{ state.selectedResponse()!.duration_ms }} ms</span>
     </div>
 
     <div class="response-section">

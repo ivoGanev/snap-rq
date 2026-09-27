@@ -8,4 +8,5 @@ type HttpResponse struct {
 	StatusCode int    `json:"status_code"`
 	Body       string `json:"body"`
 	CreatedAt  string `json:"created_at"`
+	DurationMs int64  `json:"duration_ms"`
 }
