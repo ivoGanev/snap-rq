@@ -157,12 +157,14 @@ export class App implements OnInit, AfterViewInit {
         this.state.selectedEnvironment.set(null);
         this.state.selectedCollection.set(null);
         this.state.selectedFavouriteCollection.set(null);
+        this.state.selectedTag.set(null);
         this.state.selectedRequest.set(null);
         this.state.selectedResponse.set(null);
         this.collectionApi.collections.set([]);
         this.requestApi.requests.set([]);
         this.favouriteApi.collections.set([]);
         this.favouriteApi.requests.set([]);
+        this.tagApi.allTags.set([]);
       }
     } catch (err) {
       console.error(err);
@@ -179,11 +181,13 @@ export class App implements OnInit, AfterViewInit {
     this.state.selectedRequest.set(null);
     this.state.selectedResponse.set(null);
     this.requestApi.requests.set([]);
+    this.favouriteApi.requests.set([]);
+    this.tagApi.requestTags.set({});
 
     await this.loadEnvironments(project.id);
-    await this.favouriteApi.loadCollectionsForProfile(project.profile_id);
+    await this.favouriteApi.loadCollectionsForProject(project.id);
     await this.collectionApi.loadForProject(project.id);
-    await this.tagApi.loadAllTags();
+    await this.tagApi.loadTagsForProject(project.id);
 
     const collections = this.collectionApi.collections();
     if (collections.length > 0) {
@@ -303,12 +307,14 @@ export class App implements OnInit, AfterViewInit {
           this.state.selectedEnvironment.set(null);
           this.state.selectedCollection.set(null);
           this.state.selectedFavouriteCollection.set(null);
+          this.state.selectedTag.set(null);
           this.state.selectedRequest.set(null);
           this.state.selectedResponse.set(null);
           this.collectionApi.collections.set([]);
           this.requestApi.requests.set([]);
           this.favouriteApi.collections.set([]);
           this.favouriteApi.requests.set([]);
+          this.tagApi.allTags.set([]);
           this.environmentApi.environments.set([]);
         }
       }

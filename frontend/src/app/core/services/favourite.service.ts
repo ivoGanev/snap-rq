@@ -21,12 +21,12 @@ export class FavouriteApiService {
     const created = await FavouriteService.FavouriteService.CreateFavouriteCollection(
       collection as FavouriteCollection,
     );
-    await this.loadCollectionsForProfile(collection.profile_id);
+    await this.loadCollectionsForProject(collection.project_id);
     return created;
   }
 
-  async loadCollectionsForProfile(profileId: number): Promise<void> {
-    const all = await FavouriteService.FavouriteService.GetFavouriteCollectionsForProfile(profileId);
+  async loadCollectionsForProject(projectId: number): Promise<void> {
+    const all = await FavouriteService.FavouriteService.GetFavouriteCollectionsForProject(projectId);
     this.collections.set(all ?? []);
   }
 

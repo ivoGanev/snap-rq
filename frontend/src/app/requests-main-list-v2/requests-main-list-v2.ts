@@ -220,7 +220,9 @@ export class RequestsMainListV2 {
   ): Promise<void> {
     try {
       if (tag) {
-        const requests = await this.tagApi.getRequestsForTag(tag);
+        const project = this.state.selectedProject();
+        if (!project) return;
+        const requests = await this.tagApi.getRequestsForTag(project.id, tag);
         if (version !== this.loadVersion) return;
         this.tagRequests.set(requests);
         await this.tagApi.loadTagsForRequests(requests);
@@ -531,7 +533,9 @@ export class RequestsMainListV2 {
         await this.favouriteApi.loadRequestsForCollection(favourite.id);
       }
       if (tag) {
-        const requests = await this.tagApi.getRequestsForTag(tag);
+        const project = this.state.selectedProject();
+        if (!project) return;
+        const requests = await this.tagApi.getRequestsForTag(project.id, tag);
         this.tagRequests.set(requests);
       }
 
@@ -586,7 +590,9 @@ export class RequestsMainListV2 {
       this.clearSelection();
 
       if (tag) {
-        const requests = await this.tagApi.getRequestsForTag(tag);
+        const project = this.state.selectedProject();
+        if (!project) return;
+        const requests = await this.tagApi.getRequestsForTag(project.id, tag);
         this.tagRequests.set(requests);
         await this.tagApi.loadTagsForRequests(requests);
       }
@@ -629,7 +635,9 @@ export class RequestsMainListV2 {
         await this.favouriteApi.loadRequestsForCollection(currentFavourite.id);
       }
       if (tag) {
-        const tagRequests = await this.tagApi.getRequestsForTag(tag);
+        const project = this.state.selectedProject();
+        if (!project) return;
+        const tagRequests = await this.tagApi.getRequestsForTag(project.id, tag);
         this.tagRequests.set(tagRequests);
         await this.tagApi.loadTagsForRequests(tagRequests);
       }
@@ -658,7 +666,8 @@ export class RequestsMainListV2 {
 
   async addBulkTag(tagName: string): Promise<void> {
     const name = tagName.trim();
-    if (!name) return;
+    const project = this.state.selectedProject();
+    if (!name || !project) return;
 
     const requests = this.selectedRequests();
     if (requests.length === 0) return;
@@ -666,7 +675,7 @@ export class RequestsMainListV2 {
     this.state.loading.set(true);
     try {
       for (const req of requests) {
-        await this.tagApi.addTagToRequest(req.id, name);
+        await this.tagApi.addTagToRequest(req.id, project.id, name);
       }
       await this.tagApi.loadTagsForRequests(requests);
       this.bulkTagName.set('');
@@ -925,10 +934,11 @@ export class RequestsMainListV2 {
 
   async addTagToRequest(req: HttpRequest, tagName: string): Promise<void> {
     const name = tagName.trim();
-    if (!name) return;
+    const project = this.state.selectedProject();
+    if (!name || !project) return;
 
     try {
-      await this.tagApi.addTagToRequest(req.id, name);
+      await this.tagApi.addTagToRequest(req.id, project.id, name);
       this.tagsModalNewTagName.set('');
     } catch (err) {
       console.error(err);
@@ -981,11 +991,11 @@ export class RequestsMainListV2 {
 
   async addFavouriteCollection(): Promise<void> {
     const name = this.newFavouriteName().trim();
-    const profile = this.state.selectedProject();
-    if (!name || !profile) return;
+    const project = this.state.selectedProject();
+    if (!name || !project) return;
 
     try {
-      await this.favouriteApi.createCollection({ profile_id: profile.profile_id, name });
+      await this.favouriteApi.createCollection({ project_id: project.id, name });
       this.newFavouriteName.set('');
     } catch (err) {
       console.error(err);

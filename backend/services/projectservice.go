@@ -17,9 +17,16 @@ func NewProjectService(db *sql.DB) *ProjectService {
 	return &ProjectService{db: db}
 }
 
-// CreateProject saves a new project and returns it with its generated ID.
+// CreateProject saves a new project, seeds a default favourite collection for it,
+// and returns it with its generated ID.
 func (s *ProjectService) CreateProject(project models.Project) (models.Project, error) {
-	result, err := s.db.Exec(
+	tx, err := s.db.Begin()
+	if err != nil {
+		return models.Project{}, fmt.Errorf("beginning transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	result, err := tx.Exec(
 		"INSERT INTO projects (profile_id, name) VALUES (?, ?)",
 		project.ProfileID, project.Name,
 	)
@@ -31,6 +38,19 @@ func (s *ProjectService) CreateProject(project models.Project) (models.Project, 
 		return models.Project{}, fmt.Errorf("getting last insert id: %w", err)
 	}
 	project.ID = id
+
+	_, err = tx.Exec(
+		"INSERT INTO favourite_collections (project_id, name) VALUES (?, ?)",
+		project.ID, "default",
+	)
+	if err != nil {
+		return models.Project{}, fmt.Errorf("creating default favourite collection: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return models.Project{}, fmt.Errorf("committing transaction: %w", err)
+	}
+
 	return project, nil
 }
 

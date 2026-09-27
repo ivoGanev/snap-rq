@@ -354,14 +354,14 @@ export class RequestGroups {
   }
 
   async addFavouriteCollection(): Promise<void> {
-    const profile = this.state.selectedProject();
-    if (!profile) return;
+    const project = this.state.selectedProject();
+    if (!project) return;
 
     const name = this.newFavouriteName().trim();
     if (!name) return;
 
     try {
-      await this.favouriteApi.createCollection({ profile_id: profile.profile_id, name });
+      await this.favouriteApi.createCollection({ project_id: project.id, name });
       this.closeNewFavouritePopup();
       this.expandFolder('favourites');
     } catch (err) {
@@ -370,11 +370,12 @@ export class RequestGroups {
   }
 
   async addTag(): Promise<void> {
+    const project = this.state.selectedProject();
     const name = this.newTagName().trim().toLowerCase();
-    if (!name) return;
+    if (!project || !name) return;
 
     try {
-      await this.tagApi.addTagToRequest(0, name);
+      await this.tagApi.addTagToRequest(0, project.id, name);
       this.closeNewTagPopup();
       this.expandFolder('tags');
     } catch (err) {
@@ -444,8 +445,10 @@ export class RequestGroups {
         const favourite = item.data as FavouriteCollection;
         await this.favouriteApi.updateCollection({ ...favourite, name: newName });
       } else {
+        const project = this.state.selectedProject();
         const tag = item.data as Tag;
-        await this.tagApi.renameTag(tag.name, newName);
+        if (!project) return;
+        await this.tagApi.renameTag(project.id, tag.name, newName);
         if (this.state.selectedTag() === tag.name) {
           this.state.selectedTag.set(newName);
         }
@@ -566,8 +569,11 @@ export class RequestGroups {
   }
 
   private async deleteTag(tag: Tag): Promise<void> {
+    const project = this.state.selectedProject();
+    if (!project) return;
+
     try {
-      await this.tagApi.deleteTag(tag.name);
+      await this.tagApi.deleteTag(project.id, tag.name);
       if (this.state.selectedTag() === tag.name) {
         this.state.selectedTag.set(null);
       }
