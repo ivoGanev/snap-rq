@@ -27,6 +27,7 @@ export class WorkspaceStateService {
   readonly selectedCollection = signal<Collection | null>(null);
   readonly selectedFavouriteCollection = signal<FavouriteCollection | null>(null);
   readonly selectedTag = signal<string | null>(null);
+  readonly showingAllRequests = signal(false);
   readonly selectedRequest = signal<HttpRequest | null>(null);
   readonly selectedResponse = signal<HttpResponse | null>(null);
   readonly multiSelectionActive = signal(false);

@@ -122,10 +122,14 @@ export class RequestsMainListV2 {
     if (this.state.selectedCollection()) {
       return this.requestApi.requests();
     }
+    if (this.state.showingAllRequests()) {
+      return this.requestApi.requests();
+    }
     return [];
   });
 
   readonly activeGroupName = computed<string | null>(() => {
+    if (this.state.showingAllRequests()) return 'All requests';
     const tag = this.state.selectedTag();
     if (tag) return tag;
     const favourite = this.state.selectedFavouriteCollection();
@@ -201,6 +205,8 @@ export class RequestsMainListV2 {
       const collection = this.state.selectedCollection();
       const favourite = this.state.selectedFavouriteCollection();
       const tag = this.state.selectedTag();
+      const showAll = this.state.showingAllRequests();
+      const project = this.state.selectedProject();
 
       const version = ++this.loadVersion;
       this.requestSearchQuery.set('');
@@ -208,7 +214,7 @@ export class RequestsMainListV2 {
       this.state.selectedRequest.set(null);
       this.state.multiSelectionActive.set(false);
 
-      void this.loadActiveGroup(version, collection?.id ?? null, favourite?.id ?? null, tag);
+      void this.loadActiveGroup(version, collection?.id ?? null, favourite?.id ?? null, tag, showAll, project?.id ?? null);
     });
 
     effect(() => {
@@ -221,6 +227,8 @@ export class RequestsMainListV2 {
     collectionId: number | null,
     favouriteId: number | null,
     tag: string | null,
+    showAll: boolean,
+    projectId: number | null,
   ): Promise<void> {
     try {
       if (tag) {
@@ -257,6 +265,17 @@ export class RequestsMainListV2 {
         ]);
         const rememberedId = this.selectionState.getSelectedRequestForCollection(collectionId);
         this.restoreRememberedRequest(requests, rememberedId);
+        return;
+      }
+
+      if (showAll && projectId !== null) {
+        await this.requestApi.loadForProject(projectId);
+        if (version !== this.loadVersion) return;
+        const requests = this.requestApi.requests();
+        await Promise.all([
+          this.tagApi.loadTagsForRequests(requests),
+          this.favouriteApi.loadMembershipForRequests(requests),
+        ]);
         return;
       }
 

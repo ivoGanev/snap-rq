@@ -1,3 +1,49 @@
+.all-requests-button {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: var(--s-2) var(--s-3) 0;
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.all-requests-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.all-requests-button.is-active {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+.all-requests-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.all-requests-button__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+}
+
+.all-requests-button.is-active .all-requests-button__icon {
+  color: var(--accent);
+}
+
 .sidebar-toolbar {
   display: flex;
   align-items: center;

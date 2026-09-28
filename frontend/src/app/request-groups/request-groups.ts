@@ -235,11 +235,19 @@ export class RequestGroups {
 
   // ---------- Selection ----------
 
+  selectAll(): void {
+    this.state.selectedCollection.set(null);
+    this.state.selectedFavouriteCollection.set(null);
+    this.state.selectedTag.set(null);
+    this.state.showingAllRequests.set(true);
+  }
+
   selectCollection(data: Collection | FavouriteCollection | Tag): void {
     const collection = data as Collection;
     this.state.selectedCollection.set(collection);
     this.state.selectedFavouriteCollection.set(null);
     this.state.selectedTag.set(null);
+    this.state.showingAllRequests.set(false);
     this.expandFolder('collections');
   }
 
@@ -248,6 +256,7 @@ export class RequestGroups {
     this.state.selectedFavouriteCollection.set(collection);
     this.state.selectedCollection.set(null);
     this.state.selectedTag.set(null);
+    this.state.showingAllRequests.set(false);
     this.expandFolder('favourites');
   }
 
@@ -256,6 +265,7 @@ export class RequestGroups {
     this.state.selectedTag.set(tag.name);
     this.state.selectedCollection.set(null);
     this.state.selectedFavouriteCollection.set(null);
+    this.state.showingAllRequests.set(false);
     this.expandFolder('tags');
   }
 
