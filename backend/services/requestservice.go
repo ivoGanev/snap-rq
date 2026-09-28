@@ -472,6 +472,30 @@ func (s *RequestService) DeleteRequest(id int64) error {
 	return nil
 }
 
+// BulkDeleteRequests removes multiple HTTP requests in a single transaction.
+func (s *RequestService) BulkDeleteRequests(ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("beginning bulk delete transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	for _, id := range ids {
+		if _, err := tx.Exec(`DELETE FROM http_requests WHERE id = ?`, id); err != nil {
+			return fmt.Errorf("deleting request %d: %w", id, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("committing bulk delete: %w", err)
+	}
+	return nil
+}
+
 // RequestToCurl converts an HttpRequest into an equivalent curl command string.
 func (s *RequestService) RequestToCurl(req models.HttpRequest) string {
 	return RequestToCurl(req)
