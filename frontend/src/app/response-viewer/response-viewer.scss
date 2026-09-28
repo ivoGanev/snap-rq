@@ -101,6 +101,32 @@
   color: var(--muted);
 }
 
+.download-response-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.download-response-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.download-response-button svg {
+  width: 14px;
+  height: 14px;
+}
+
 .response-section {
   display: flex;
   flex-direction: column;
