@@ -1,7 +1,7 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
-import { RequestApiService, type HttpRequest } from '../core/services/request.service';
+import { RequestApiService, type HttpRequest, type HttpRequestSummary } from '../core/services/request.service';
 import { FavouriteApiService, type FavouriteCollection } from '../core/services/favourite.service';
 import { SelectionStateService } from '../core/services/selection-state.service';
 import { TagApiService } from '../core/services/tag.service';
@@ -29,11 +29,11 @@ export class RequestsMainList {
   protected readonly favouriteMembership = this.favouriteApi.membership;
 
   readonly requestSearchQuery = signal('');
-  readonly tagRequests = signal<HttpRequest[]>([]);
+  readonly tagRequests = signal<HttpRequestSummary[]>([]);
   readonly requestContextMenuOpen = signal(false);
   readonly requestContextMenuX = signal(0);
   readonly requestContextMenuY = signal(0);
-  readonly requestContextMenuTarget = signal<HttpRequest | null>(null);
+  readonly requestContextMenuTarget = signal<HttpRequestSummary | null>(null);
   readonly newRequestPopupMode = signal<'manual' | 'curl'>('manual');
   readonly newRequestPopupOpen = signal(false);
   readonly newRequestName = signal('My new snappy API');
@@ -41,12 +41,12 @@ export class RequestsMainList {
   readonly newRequestMethod = signal('GET');
   readonly newRequestCurl = signal('');
   readonly favouritePopupOpen = signal(false);
-  readonly favouritePopupRequest = signal<HttpRequest | null>(null);
+  readonly favouritePopupRequest = signal<HttpRequestSummary | null>(null);
   readonly newFavouriteName = signal('');
 
   private loadVersion = 0;
 
-  readonly activeRequests = computed<HttpRequest[]>(() => {
+  readonly activeRequests = computed<HttpRequestSummary[]>(() => {
     if (this.state.selectedTag()) {
       return this.tagRequests();
     }
@@ -73,7 +73,7 @@ export class RequestsMainList {
     return null;
   });
 
-  readonly filteredActiveRequests = computed<HttpRequest[]>(() => {
+  readonly filteredActiveRequests = computed<HttpRequestSummary[]>(() => {
     const query = this.requestSearchQuery().trim().toLowerCase();
     const requests = this.activeRequests();
     if (!query) return requests;
@@ -153,11 +153,16 @@ export class RequestsMainList {
     }
   }
 
-  private restoreRememberedRequest(requests: HttpRequest[], rememberedId: number | null): void {
+  private restoreRememberedRequest(requests: HttpRequestSummary[], rememberedId: number | null): void {
     if (rememberedId === null) return;
     const remembered = requests.find((r) => r.id === rememberedId);
     if (remembered) {
-      this.state.selectedRequest.set(remembered);
+      this.state.selectedRequest.set(null);
+      void this.requestApi.get(remembered.id).then(full => {
+        if (this.state.selectedRequest()?.id === remembered.id || this.state.selectedRequest() === null) {
+          this.state.selectedRequest.set(full);
+        }
+      }).catch(err => console.error(err));
     }
   }
 
@@ -192,8 +197,24 @@ export class RequestsMainList {
     }
   }
 
-  selectRequest(req: HttpRequest): void {
-    this.state.selectedRequest.set(req);
+  async sendRequest(req: HttpRequestSummary, event: MouseEvent): Promise<void> {
+    event.stopPropagation();
+    try {
+      const full = await this.requestApi.get(req.id);
+      await this.state.sendRequest(full, event);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  selectRequest(req: HttpRequestSummary): void {
+    this.state.selectedRequest.set(null);
+    this.state.selectedResponse.set(null);
+    void this.requestApi.get(req.id).then(full => {
+      if (this.state.selectedRequest()?.id === req.id || this.state.selectedRequest() === null) {
+        this.state.selectedRequest.set(full);
+      }
+    }).catch(err => console.error(err));
 
     const collection = this.state.selectedCollection();
     if (collection) {
@@ -207,14 +228,15 @@ export class RequestsMainList {
     }
   }
 
-  openZenMode(req: HttpRequest, event: MouseEvent): void {
+  openZenMode(req: HttpRequestSummary, event: MouseEvent): void {
     event.stopPropagation();
     this.selectRequest(req);
     this.state.zenModeOpen.set(true);
   }
 
-  openRequestContextMenu(req: HttpRequest, event: MouseEvent): void {
+  openRequestContextMenu(req: HttpRequestSummary, event: MouseEvent): void {
     event.preventDefault();
+    event.stopPropagation();
     this.requestContextMenuTarget.set(req);
     this.requestContextMenuX.set(event.clientX);
     this.requestContextMenuY.set(event.clientY);
@@ -231,7 +253,8 @@ export class RequestsMainList {
     if (!req) return;
 
     try {
-      const curl = await this.requestApi.requestToCurl(req);
+      const full = await this.requestApi.get(req.id);
+      const curl = await this.requestApi.requestToCurl(full);
       await navigator.clipboard.writeText(curl);
     } catch (err) {
       console.error(err);
@@ -388,7 +411,7 @@ export class RequestsMainList {
     }
   }
 
-  openFavouritePopup(req: HttpRequest, event: MouseEvent): void {
+  openFavouritePopup(req: HttpRequestSummary, event: MouseEvent): void {
     event.stopPropagation();
     this.favouritePopupRequest.set(req);
     this.favouritePopupOpen.set(true);
