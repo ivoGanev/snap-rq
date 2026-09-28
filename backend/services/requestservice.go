@@ -350,6 +350,97 @@ func (s *RequestService) GetRequestsForProject(projectID int64) ([]models.HttpRe
 	return requests, nil
 }
 
+// GetAllRequestSummaries returns a lightweight projection of all saved HTTP
+// requests ordered by name. It omits body and headers to keep IPC payloads small.
+func (s *RequestService) GetAllRequestSummaries() ([]models.HttpRequestSummary, error) {
+	rows, err := s.db.Query(
+		`SELECT id, collection_id, name, url, method, status_code, response_id
+		 FROM http_requests ORDER BY name`,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("listing request summaries: %w", err)
+	}
+	defer rows.Close()
+
+	var requests []models.HttpRequestSummary
+	for rows.Next() {
+		var req models.HttpRequestSummary
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID); err != nil {
+			return nil, fmt.Errorf("scanning request summary: %w", err)
+		}
+		requests = append(requests, req)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating request summaries: %w", err)
+	}
+
+	return requests, nil
+}
+
+// GetRequestSummariesForCollection returns a lightweight projection of all
+// requests belonging to a collection.
+func (s *RequestService) GetRequestSummariesForCollection(collectionID int64) ([]models.HttpRequestSummary, error) {
+	rows, err := s.db.Query(
+		`SELECT id, collection_id, name, url, method, status_code, response_id
+		 FROM http_requests
+		 WHERE collection_id = ?
+		 ORDER BY name`,
+		collectionID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("listing request summaries: %w", err)
+	}
+	defer rows.Close()
+
+	var requests []models.HttpRequestSummary
+	for rows.Next() {
+		var req models.HttpRequestSummary
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID); err != nil {
+			return nil, fmt.Errorf("scanning request summary: %w", err)
+		}
+		requests = append(requests, req)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating request summaries: %w", err)
+	}
+
+	return requests, nil
+}
+
+// GetRequestSummariesForProject returns a lightweight projection of every HTTP
+// request across all collections in a project.
+func (s *RequestService) GetRequestSummariesForProject(projectID int64) ([]models.HttpRequestSummary, error) {
+	rows, err := s.db.Query(
+		`SELECT hr.id, hr.collection_id, hr.name, hr.url, hr.method, hr.status_code, hr.response_id
+		 FROM http_requests hr
+		 JOIN collections c ON c.id = hr.collection_id
+		 WHERE c.project_id = ?
+		 ORDER BY hr.name`,
+		projectID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("listing project request summaries: %w", err)
+	}
+	defer rows.Close()
+
+	var requests []models.HttpRequestSummary
+	for rows.Next() {
+		var req models.HttpRequestSummary
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID); err != nil {
+			return nil, fmt.Errorf("scanning request summary: %w", err)
+		}
+		requests = append(requests, req)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating project request summaries: %w", err)
+	}
+
+	return requests, nil
+}
+
 // UpdateRequest updates an existing HTTP request.
 func (s *RequestService) UpdateRequest(req models.HttpRequest) (models.HttpRequest, error) {
 	if req.ID == 0 {

@@ -1,7 +1,7 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
-import { RequestApiService, type HttpRequest } from '../core/services/request.service';
+import { RequestApiService, type HttpRequest, type HttpRequestSummary } from '../core/services/request.service';
 import { FavouriteApiService, type FavouriteCollection } from '../core/services/favourite.service';
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
 import { SelectionStateService } from '../core/services/selection-state.service';
@@ -59,7 +59,7 @@ export class RequestsMainListV2 {
   protected readonly collections = this.collectionApi.collections;
 
   readonly requestSearchQuery = signal('');
-  readonly tagRequests = signal<HttpRequest[]>([]);
+  readonly tagRequests = signal<HttpRequestSummary[]>([]);
   readonly newRequestPopupOpen = signal(false);
   readonly newRequestName = signal('My new snappy API');
   readonly newRequestUrl = signal('');
@@ -81,26 +81,26 @@ export class RequestsMainListV2 {
   // Single-cell edit modals
   readonly editModalOpen = signal(false);
   readonly editModalColumn = signal<ColumnKey | null>(null);
-  readonly editModalRequest = signal<HttpRequest | null>(null);
+  readonly editModalRequest = signal<HttpRequestSummary | null>(null);
   readonly editModalValue = signal('');
 
   readonly methodModalOpen = signal(false);
-  readonly methodModalRequest = signal<HttpRequest | null>(null);
+  readonly methodModalRequest = signal<HttpRequestSummary | null>(null);
   readonly methodModalValue = signal('GET');
 
   readonly tagsModalOpen = signal(false);
-  readonly tagsModalRequest = signal<HttpRequest | null>(null);
+  readonly tagsModalRequest = signal<HttpRequestSummary | null>(null);
   readonly tagsModalNewTagName = signal('');
 
   readonly favouritesModalOpen = signal(false);
-  readonly favouritesModalRequest = signal<HttpRequest | null>(null);
+  readonly favouritesModalRequest = signal<HttpRequestSummary | null>(null);
   readonly newFavouriteName = signal('');
 
   // Bulk / context menu
   readonly contextMenuOpen = signal(false);
   readonly contextMenuX = signal(0);
   readonly contextMenuY = signal(0);
-  readonly contextMenuTarget = signal<HttpRequest | null>(null);
+  readonly contextMenuTarget = signal<HttpRequestSummary | null>(null);
 
   readonly newRequestPopupMode = signal<'manual' | 'curl'>('manual');
   readonly newRequestCurl = signal('');
@@ -112,7 +112,7 @@ export class RequestsMainListV2 {
 
   private loadVersion = 0;
 
-  readonly activeRequests = computed<HttpRequest[]>(() => {
+  readonly activeRequests = computed<HttpRequestSummary[]>(() => {
     if (this.state.selectedTag()) {
       return this.tagRequests();
     }
@@ -139,7 +139,7 @@ export class RequestsMainListV2 {
     return null;
   });
 
-  readonly filteredActiveRequests = computed<HttpRequest[]>(() => {
+  readonly filteredActiveRequests = computed<HttpRequestSummary[]>(() => {
     const query = this.requestSearchQuery().trim().toLowerCase();
     const requests = this.activeRequests();
     let result = requests;
@@ -161,13 +161,13 @@ export class RequestsMainListV2 {
     return result;
   });
 
-  readonly selectedRequest = computed<HttpRequest | null>(() => {
+  readonly selectedRequest = computed<HttpRequestSummary | null>(() => {
     const cell = this.selectedCell();
     if (!cell) return null;
     return this.activeRequests().find((r) => r.id === cell.requestId) ?? null;
   });
 
-  readonly selectedRequests = computed<HttpRequest[]>(() => {
+  readonly selectedRequests = computed<HttpRequestSummary[]>(() => {
     const ids = this.selectedRowIds();
     return this.activeRequests().filter((r) => ids.has(r.id));
   });
@@ -286,7 +286,7 @@ export class RequestsMainListV2 {
     }
   }
 
-  private restoreRememberedRequest(requests: HttpRequest[], rememberedId: number | null): void {
+  private restoreRememberedRequest(requests: HttpRequestSummary[], rememberedId: number | null): void {
     if (rememberedId === null) return;
     const remembered = requests.find((r) => r.id === rememberedId);
     if (remembered) {
@@ -347,7 +347,7 @@ export class RequestsMainListV2 {
 
   // ---------- Selection ----------
 
-  selectCell(req: HttpRequest, column: ColumnKey): void {
+  selectCell(req: HttpRequestSummary, column: ColumnKey): void {
     this.selectedRowIds.set(new Set([req.id]));
     this.selectedCell.set({ requestId: req.id, column });
     this.syncWorkspaceSelection(req);
@@ -369,17 +369,17 @@ export class RequestsMainListV2 {
     this.selectedCell.set(null);
   }
 
-  isRowSelected(req: HttpRequest): boolean {
+  isRowSelected(req: HttpRequestSummary): boolean {
     return this.selectedRowIds().has(req.id);
   }
 
-  isCellSelected(req: HttpRequest, column: ColumnKey): boolean {
+  isCellSelected(req: HttpRequestSummary, column: ColumnKey): boolean {
     if (this.selectedRowIds().size > 1) return false;
     const cell = this.selectedCell();
     return cell?.requestId === req.id && cell.column === column;
   }
 
-  onRowClick(req: HttpRequest, event: MouseEvent, column: ColumnKey): void {
+  onRowClick(req: HttpRequestSummary, event: MouseEvent, column: ColumnKey): void {
     if (event.button !== 0) return;
 
     if (this.ignoreNextClick()) {
@@ -402,7 +402,7 @@ export class RequestsMainListV2 {
     this.lastClickedRowId.set(req.id);
   }
 
-  private toggleRowSelection(req: HttpRequest, column: ColumnKey): void {
+  private toggleRowSelection(req: HttpRequestSummary, column: ColumnKey): void {
     const set = new Set(this.selectedRowIds());
     if (set.has(req.id)) {
       set.delete(req.id);
@@ -415,7 +415,7 @@ export class RequestsMainListV2 {
     this.syncWorkspaceSelection(req);
   }
 
-  private syncWorkspaceSelection(fallbackReq: HttpRequest | null): void {
+  private syncWorkspaceSelection(fallbackReq: HttpRequestSummary | null): void {
     const set = this.selectedRowIds();
     if (set.size > 1) {
       this.state.selectedRequest.set(null);
@@ -430,11 +430,30 @@ export class RequestsMainListV2 {
     }
 
     const id = [...set][0];
-    const req = this.activeRequests().find((r) => r.id === id) ?? fallbackReq;
-    this.state.selectedRequest.set(req ?? null);
+    const current = this.state.selectedRequest();
+    if (current?.id === id) {
+      return;
+    }
+
+    if (this.isDragging()) {
+      // During drag selection only clear the workspace detail; load the full
+      // request once the drag ends to avoid one IPC call per row crossed.
+      this.state.selectedRequest.set(null);
+      this.state.selectedResponse.set(null);
+      return;
+    }
+
+    this.state.selectedRequest.set(null);
+    this.state.selectedResponse.set(null);
+
+    void this.requestApi.get(id).then(full => {
+      if (this.selectedRowIds().has(id)) {
+        this.state.selectedRequest.set(full);
+      }
+    }).catch(err => console.error(err));
   }
 
-  private selectRangeTo(req: HttpRequest, column: ColumnKey): void {
+  private selectRangeTo(req: HttpRequestSummary, column: ColumnKey): void {
     const anchor = this.lastClickedRowId();
     const visible = this.filteredActiveRequests();
     const ids = visible.map((r) => r.id);
@@ -459,7 +478,7 @@ export class RequestsMainListV2 {
 
   // ---------- Drag selection ----------
 
-  onRowMouseDown(req: HttpRequest, event: MouseEvent): void {
+  onRowMouseDown(req: HttpRequestSummary, event: MouseEvent): void {
     if (event.button !== 0) return;
     if (event.ctrlKey || event.shiftKey) return;
 
@@ -488,7 +507,7 @@ export class RequestsMainListV2 {
     }
   }
 
-  onRowMouseEnter(req: HttpRequest): void {
+  onRowMouseEnter(req: HttpRequestSummary): void {
     if (!this.isDragging()) return;
     this.selectedRowIds.update((set) => {
       const next = new Set(set);
@@ -502,7 +521,8 @@ export class RequestsMainListV2 {
   onWindowMouseUp(): void {
     if (this.dragStartRowId() === null) return;
 
-    if (this.isDragging() || this.dragHasMoved()) {
+    const wasDragging = this.isDragging() || this.dragHasMoved();
+    if (wasDragging) {
       this.ignoreNextClick.set(true);
     }
 
@@ -510,11 +530,18 @@ export class RequestsMainListV2 {
     this.dragStartClientY.set(0);
     this.isDragging.set(false);
     this.dragHasMoved.set(false);
+
+    if (wasDragging) {
+      const req = this.activeRequests().find(r => this.selectedRowIds().has(r.id)) ?? null;
+      if (req) {
+        this.syncWorkspaceSelection(req);
+      }
+    }
   }
 
   // ---------- Context menu ----------
 
-  onRowContextMenu(req: HttpRequest, event: MouseEvent): void {
+  onRowContextMenu(req: HttpRequestSummary, event: MouseEvent): void {
     event.preventDefault();
     event.stopPropagation();
 
@@ -539,7 +566,8 @@ export class RequestsMainListV2 {
     if (!req) return;
 
     try {
-      const curl = await this.requestApi.requestToCurl(req);
+      const full = await this.requestApi.get(req.id);
+      const curl = await this.requestApi.requestToCurl(full);
       await navigator.clipboard.writeText(curl);
     } catch (err) {
       console.error(err);
@@ -556,7 +584,7 @@ export class RequestsMainListV2 {
     this.state.loading.set(true);
 
     try {
-      let lastDuplicated: HttpRequest | null = null;
+      let lastDuplicated: HttpRequestSummary | null = null;
       for (const original of requests) {
         lastDuplicated = await this.requestApi.duplicate(original.id);
       }
@@ -660,7 +688,8 @@ export class RequestsMainListV2 {
     this.state.loading.set(true);
     try {
       for (const req of requests) {
-        await this.requestApi.update({ ...req, collection_id: collection.id });
+        const full = await this.requestApi.get(req.id);
+        await this.requestApi.update({ ...full, collection_id: collection.id });
       }
 
       const currentCollection = this.state.selectedCollection();
@@ -791,7 +820,7 @@ export class RequestsMainListV2 {
     return this.sortDirection();
   }
 
-  private compareRequests(a: HttpRequest, b: HttpRequest, column: ColumnKey): number {
+  private compareRequests(a: HttpRequestSummary, b: HttpRequestSummary, column: ColumnKey): number {
     const dir = this.sortDirection() === 'asc' ? 1 : -1;
 
     switch (column) {
@@ -817,7 +846,7 @@ export class RequestsMainListV2 {
     }
   }
 
-  getCellValue(req: HttpRequest, column: ColumnKey): string {
+  getCellValue(req: HttpRequestSummary, column: ColumnKey): string {
     switch (column) {
       case 'name':
         return req.name;
@@ -834,7 +863,7 @@ export class RequestsMainListV2 {
     }
   }
 
-  getFavouriteCount(req: HttpRequest): number {
+  getFavouriteCount(req: HttpRequestSummary): number {
     return this.requestFavouriteIds()[req.id]?.length ?? 0;
   }
 
@@ -918,18 +947,27 @@ export class RequestsMainListV2 {
   }
 
   async sendSelectedRequest(event: MouseEvent): Promise<void> {
-    const req = this.selectedRequest();
-    if (!req) return;
+    let req = this.state.selectedRequest();
+    if (!req) {
+      const selectedId = this.selectedCell()?.requestId ?? [...this.selectedRowIds()][0];
+      if (!selectedId) return;
+      try {
+        req = await this.requestApi.get(selectedId);
+      } catch (err) {
+        console.error(err);
+        return;
+      }
+    }
     await this.state.sendRequest(req, event);
   }
 
-  openZenMode(req: HttpRequest, event: MouseEvent): void {
+  openZenMode(req: HttpRequestSummary, event: MouseEvent): void {
     event.stopPropagation();
     this.selectCell(req, 'name');
     this.state.zenModeOpen.set(true);
   }
 
-  onCellDoubleClick(req: HttpRequest, column: ColumnKey): void {
+  onCellDoubleClick(req: HttpRequestSummary, column: ColumnKey): void {
     if (column === 'method') {
       this.openMethodModal(req);
       return;
@@ -947,7 +985,7 @@ export class RequestsMainListV2 {
 
   // ---------- Text edit modal ----------
 
-  openEditModal(req: HttpRequest, column: ColumnKey): void {
+  openEditModal(req: HttpRequestSummary, column: ColumnKey): void {
     this.editModalRequest.set(req);
     this.editModalColumn.set(column);
     this.editModalValue.set(this.getCellValue(req, column));
@@ -975,7 +1013,7 @@ export class RequestsMainListV2 {
 
   // ---------- Method modal ----------
 
-  openMethodModal(req: HttpRequest): void {
+  openMethodModal(req: HttpRequestSummary): void {
     this.methodModalRequest.set(req);
     this.methodModalValue.set(req.method);
     this.methodModalOpen.set(true);
@@ -997,7 +1035,7 @@ export class RequestsMainListV2 {
 
   // ---------- Tags modal (single request) ----------
 
-  openTagsModal(req: HttpRequest): void {
+  openTagsModal(req: HttpRequestSummary): void {
     this.tagsModalRequest.set(req);
     this.tagsModalNewTagName.set('');
     this.tagsModalOpen.set(true);
@@ -1009,7 +1047,7 @@ export class RequestsMainListV2 {
     this.tagsModalNewTagName.set('');
   }
 
-  async addTagToRequest(req: HttpRequest, tagName: string): Promise<void> {
+  async addTagToRequest(req: HttpRequestSummary, tagName: string): Promise<void> {
     const name = tagName.trim();
     const project = this.state.selectedProject();
     if (!name || !project) return;
@@ -1022,7 +1060,7 @@ export class RequestsMainListV2 {
     }
   }
 
-  async removeTagFromRequest(req: HttpRequest, tagName: string, event: MouseEvent): Promise<void> {
+  async removeTagFromRequest(req: HttpRequestSummary, tagName: string, event: MouseEvent): Promise<void> {
     event.stopPropagation();
     try {
       await this.tagApi.removeTagFromRequest(req.id, tagName);
@@ -1033,7 +1071,7 @@ export class RequestsMainListV2 {
 
   // ---------- Favourites modal (single request) ----------
 
-  openFavouritesModal(req: HttpRequest): void {
+  openFavouritesModal(req: HttpRequestSummary): void {
     this.favouritesModalRequest.set(req);
     this.newFavouriteName.set('');
     this.favouritesModalOpen.set(true);
@@ -1097,7 +1135,7 @@ export class RequestsMainListV2 {
 
   // ---------- Request updates ----------
 
-  private columnToRequestField(column: ColumnKey): keyof HttpRequest {
+  private columnToRequestField(column: ColumnKey): keyof HttpRequestSummary {
     switch (column) {
       case 'url':
         return 'url';
@@ -1109,17 +1147,27 @@ export class RequestsMainListV2 {
     }
   }
 
-  private async updateRequestField<K extends keyof HttpRequest>(
-    req: HttpRequest,
+  private async updateRequestField<K extends keyof HttpRequestSummary>(
+    req: HttpRequestSummary,
     field: K,
-    value: HttpRequest[K],
+    value: HttpRequestSummary[K],
   ): Promise<void> {
-    const updated = { ...req, [field]: value } as HttpRequest;
-
     this.state.loading.set(true);
     try {
+      const full = await this.requestApi.get(req.id);
+      const updated = { ...full, [field]: value } as HttpRequest;
       await this.requestApi.update({ ...updated, collection_id: req.collection_id });
-      this.patchRequestInLists(updated);
+
+      const summaryUpdate: HttpRequestSummary = {
+        id: updated.id,
+        collection_id: updated.collection_id,
+        name: updated.name,
+        url: updated.url,
+        method: updated.method,
+        status_code: updated.status_code,
+        response_id: updated.response_id,
+      };
+      this.patchRequestInLists(summaryUpdate);
 
       const selected = this.state.selectedRequest();
       if (selected?.id === updated.id) {
@@ -1132,8 +1180,8 @@ export class RequestsMainListV2 {
     }
   }
 
-  private patchRequestInLists(updated: HttpRequest): void {
-    const patch = (list: HttpRequest[]) => {
+  private patchRequestInLists(updated: HttpRequestSummary): void {
+    const patch = (list: HttpRequestSummary[]) => {
       const index = list.findIndex((r) => r.id === updated.id);
       if (index === -1) return list;
       const next = [...list];

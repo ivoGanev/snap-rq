@@ -1,15 +1,16 @@
 import { Injectable, signal } from '@angular/core';
 import * as RequestService from '../../../../bindings/snap-rq/backend/services';
-import type { HttpRequest, HttpResponse } from '../../../../bindings/snap-rq/backend/models';
+import type { HttpRequest, HttpResponse, HttpRequestSummary } from '../../../../bindings/snap-rq/backend/models';
 
-export type { HttpRequest, HttpResponse };
+export type { HttpRequest, HttpResponse, HttpRequestSummary };
 
 /**
  * Angular wrapper around the Wails-generated RequestService bindings.
  */
 @Injectable({ providedIn: 'root' })
 export class RequestApiService {
-  readonly requests = signal<HttpRequest[]>([]);
+  /** Request list used by collection/all-request views (lightweight summary). */
+  readonly requests = signal<HttpRequestSummary[]>([]);
   readonly responses = signal<HttpResponse[]>([]);
 
   async create(req: Omit<HttpRequest, 'id'>): Promise<HttpRequest> {
@@ -27,17 +28,17 @@ export class RequestApiService {
   }
 
   async loadAll(): Promise<void> {
-    const all = await RequestService.RequestService.GetAllRequests();
+    const all = await RequestService.RequestService.GetAllRequestSummaries();
     this.requests.set(all ?? []);
   }
 
   async loadForCollection(collectionId: number): Promise<void> {
-    const all = await RequestService.RequestService.GetRequestsForCollection(collectionId);
+    const all = await RequestService.RequestService.GetRequestSummariesForCollection(collectionId);
     this.requests.set(all ?? []);
   }
 
   async loadForProject(projectId: number): Promise<void> {
-    const all = await RequestService.RequestService.GetRequestsForProject(projectId);
+    const all = await RequestService.RequestService.GetRequestSummariesForProject(projectId);
     this.requests.set(all ?? []);
   }
 

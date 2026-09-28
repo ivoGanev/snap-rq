@@ -1,5 +1,18 @@
 package models
 
+// HttpRequestSummary is a lightweight projection of HttpRequest for list views.
+// It omits the body and headers so large payloads are not serialized over IPC
+// when only id/name/url/method/status are needed.
+type HttpRequestSummary struct {
+	ID           int64  `json:"id"`
+	CollectionID int64  `json:"collection_id"`
+	Name         string `json:"name"`
+	URL          string `json:"url"`
+	Method       string `json:"method"`
+	StatusCode   int    `json:"status_code"`
+	ResponseID   int64  `json:"response_id"`
+}
+
 // HttpRequest represents a saved REST API request.
 type HttpRequest struct {
 	ID             int64  `json:"id"`
