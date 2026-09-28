@@ -132,7 +132,8 @@
 
 .spreadsheet-wrapper {
   flex: 1 1 auto;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   padding: 0 var(--s-3);
 }
@@ -142,18 +143,23 @@
   user-select: none;
 }
 
-.spreadsheet {
+.spreadsheet-header-row,
+.spreadsheet-row {
+  display: grid;
+  grid-template-columns: 3% 28% 29% 10% 15% 15%;
   width: 100%;
-  table-layout: fixed;
-  border-collapse: separate;
-  border-spacing: 0;
-  font-size: 0.875rem;
+}
+
+.spreadsheet-viewport {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.spreadsheet-viewport .cdk-virtual-scroll-content-wrapper {
+  width: 100%;
 }
 
 .spreadsheet-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
   padding: var(--s-2) var(--s-3);
   text-align: left;
   font-weight: 700;
@@ -169,7 +175,6 @@
 .spreadsheet-header:hover {
   background: rgba(255, 255, 255, 0.08);
 }
-
 
 .header-label {
   vertical-align: middle;
@@ -189,6 +194,8 @@
 }
 
 .spreadsheet-row {
+  height: 40px;
+  border-bottom: 1px solid var(--glass-border);
   transition:
     background 0.15s ease,
     box-shadow 0.15s ease;
@@ -212,15 +219,25 @@
 }
 
 .spreadsheet-cell {
-  padding: var(--s-2) var(--s-3);
-  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 var(--s-3);
   color: var(--text);
-  vertical-align: middle;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
   transition: outline 0.1s ease;
+}
+
+.spreadsheet-cell > * {
+  min-width: 0;
+}
+
+.cell-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .spreadsheet-cell.is-cell-selected {
@@ -229,21 +246,17 @@
 }
 
 .spreadsheet-header--action {
-  width: 3%;
   padding-left: var(--s-2);
   padding-right: var(--s-2);
 }
 
 .spreadsheet-cell--action {
-  width: 3%;
+  justify-content: center;
   padding-left: var(--s-2);
   padding-right: var(--s-2);
-  text-align: center;
-  vertical-align: middle;
 }
 
 .spreadsheet-cell--name {
-  width: 28%;
   font-weight: 600;
 }
 
@@ -287,21 +300,11 @@
 }
 
 .spreadsheet-cell--url {
-  width: 35%;
   color: var(--muted);
 }
 
-.spreadsheet-cell--method {
-  width: 5%;
-}
-
-.spreadsheet-cell--tags {
-  width: 10%;
-}
-
 .spreadsheet-cell--favourites {
-  width: 10%;
-  text-align: center;
+  justify-content: center;
 }
 
 .request-method {

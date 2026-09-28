@@ -57,134 +57,125 @@
 
 @if (activeGroupName() && filteredActiveRequests().length > 0) {
   <div class="spreadsheet-wrapper" [class.is-dragging]="isDragging()">
-    <table class="spreadsheet">
-      <colgroup>
-        <col style="width: 3%;" />
-        <col style="width: 28%;" />
-        <col style="width: 29%;" />
-        <col style="width: 10%;" />
-        <col style="width: 15%;" />
-        <col style="width: 15%;" />
-      </colgroup>
-      <thead>
-        <tr>
-          <th class="spreadsheet-header spreadsheet-header--action" aria-hidden="true"></th>
-          @for (col of columns; track col.key) {
-            <th
-              class="spreadsheet-header"
-              [class.spreadsheet-header--method]="col.key === 'method'"
-              [class.is-sorted]="sortIndicator(col.key)"
-              (click)="toggleSort(col.key)"
+    <div class="spreadsheet-header-row">
+      <div class="spreadsheet-header spreadsheet-header--action" aria-hidden="true"></div>
+      @for (col of columns; track col.key) {
+        <div
+          class="spreadsheet-header"
+          [class.spreadsheet-header--method]="col.key === 'method'"
+          [class.is-sorted]="sortIndicator(col.key)"
+          (click)="toggleSort(col.key)"
+        >
+          <span class="header-label">{{ col.label }}</span>
+          <span class="sort-arrow" [class.asc]="sortIndicator(col.key) === 'asc'" aria-hidden="true">
+            @if (sortIndicator(col.key) === 'asc') {
+              ▲
+            } @else if (sortIndicator(col.key) === 'desc') {
+              ▼
+            } @else {
+              ⇅
+            }
+          </span>
+        </div>
+      }
+    </div>
+
+    <cdk-virtual-scroll-viewport
+      itemSize="40"
+      class="spreadsheet-viewport"
+      (mousemove)="onViewportMouseMove($event)"
+    >
+      <div
+        *cdkVirtualFor="let req of filteredActiveRequests(); trackBy: trackById"
+        class="spreadsheet-row"
+        [class.is-selected]="rowState()[req.id]?.isSelected"
+        [class.is-active-drag-row]="dragStartRowId() === req.id"
+        (mousedown)="onRowMouseDown(req, $event)"
+        (contextmenu)="onRowContextMenu(req, $event)"
+      >
+        <div class="spreadsheet-cell spreadsheet-cell--action">
+          @if (selectedRowIds().size <= 1) {
+            <button
+              class="zen-mode-button"
+              type="button"
+              (click)="openZenMode(req, $event)"
+              aria-label="Open edit mode"
             >
-              <span class="header-label">{{ col.label }}</span>
-              <span class="sort-arrow" [class.asc]="sortIndicator(col.key) === 'asc'" aria-hidden="true">
-                @if (sortIndicator(col.key) === 'asc') {
-                  ▲
-                } @else if (sortIndicator(col.key) === 'desc') {
-                  ▼
-                } @else {
-                  ⇅
-                }
-              </span>
-            </th>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path
+                  d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
+                />
+              </svg>
+            </button>
           }
-        </tr>
-      </thead>
-      <tbody>
-        @for (req of filteredActiveRequests(); track req.id) {
-          <tr
-            class="spreadsheet-row"
-            [class.is-selected]="isRowSelected(req)"
-            [class.is-active-drag-row]="dragStartRowId() === req.id"
-            (mousedown)="onRowMouseDown(req, $event)"
-            (contextmenu)="onRowContextMenu(req, $event)"
-            (mouseenter)="onRowMouseEnter(req)"
-          >
-            <td class="spreadsheet-cell spreadsheet-cell--action">
-              @if (selectedRowIds().size <= 1) {
-                <button
-                  class="zen-mode-button"
-                  type="button"
-                  (click)="openZenMode(req, $event)"
-                  aria-label="Open edit mode"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
-                    />
-                  </svg>
-                </button>
+        </div>
+        <div
+          class="spreadsheet-cell spreadsheet-cell--name"
+          [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['name']"
+          (click)="onRowClick(req, $event, 'name')"
+          (dblclick)="onCellDoubleClick(req, 'name')"
+          [title]="req.name"
+        >
+          <span class="cell-text">{{ req.name }}</span>
+        </div>
+        <div
+          class="spreadsheet-cell spreadsheet-cell--url"
+          [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['url']"
+          (click)="onRowClick(req, $event, 'url')"
+          (dblclick)="onCellDoubleClick(req, 'url')"
+          [title]="req.url"
+        >
+          <span class="cell-text">{{ req.url }}</span>
+        </div>
+        <div
+          class="spreadsheet-cell spreadsheet-cell--method"
+          [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['method']"
+          (click)="onRowClick(req, $event, 'method')"
+          (dblclick)="onCellDoubleClick(req, 'method')"
+        >
+          <span class="request-method" [attr.data-method]="req.method">{{ req.method }}</span>
+        </div>
+        <div
+          class="spreadsheet-cell spreadsheet-cell--tags"
+          [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['tags']"
+          (click)="onRowClick(req, $event, 'tags')"
+          (dblclick)="onCellDoubleClick(req, 'tags')"
+        >
+          @if (requestTags()[req.id]?.length) {
+            <div class="request-tags">
+              @for (tag of requestTags()[req.id]; track tag) {
+                <span class="tag-chip tag-chip--inline">{{ tag }}</span>
               }
-            </td>
-            <td
-              class="spreadsheet-cell spreadsheet-cell--name"
-              [class.is-cell-selected]="isCellSelected(req, 'name')"
-              (click)="onRowClick(req, $event, 'name')"
-              (dblclick)="onCellDoubleClick(req, 'name')"
-              [title]="req.name"
-            >
-              {{ req.name }}
-            </td>
-            <td
-              class="spreadsheet-cell spreadsheet-cell--url"
-              [class.is-cell-selected]="isCellSelected(req, 'url')"
-              (click)="onRowClick(req, $event, 'url')"
-              (dblclick)="onCellDoubleClick(req, 'url')"
-              [title]="req.url"
-            >
-              {{ req.url }}
-            </td>
-            <td
-              class="spreadsheet-cell spreadsheet-cell--method"
-              [class.is-cell-selected]="isCellSelected(req, 'method')"
-              (click)="onRowClick(req, $event, 'method')"
-              (dblclick)="onCellDoubleClick(req, 'method')"
-            >
-              <span class="request-method" [attr.data-method]="req.method">{{ req.method }}</span>
-            </td>
-            <td
-              class="spreadsheet-cell spreadsheet-cell--tags"
-              [class.is-cell-selected]="isCellSelected(req, 'tags')"
-              (click)="onRowClick(req, $event, 'tags')"
-              (dblclick)="onCellDoubleClick(req, 'tags')"
-            >
-              @if (requestTags()[req.id]?.length) {
-                <div class="request-tags">
-                  @for (tag of requestTags()[req.id]; track tag) {
-                    <span class="tag-chip tag-chip--inline">{{ tag }}</span>
-                  }
-                </div>
-              }
-            </td>
-            <td
-              class="spreadsheet-cell spreadsheet-cell--favourites"
-              [class.is-cell-selected]="isCellSelected(req, 'favourites')"
-              (click)="onRowClick(req, $event, 'favourites')"
-              (dblclick)="onCellDoubleClick(req, 'favourites')"
-            >
-              @if (getFavouriteCount(req) > 0) {
-                <span class="favourite-count" [title]="getFavouriteCount(req) + ' favourite group(s)'">
-                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path
-                      d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                    />
-                  </svg>
-                  {{ getFavouriteCount(req) }}
-                </span>
-              }
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+            </div>
+          }
+        </div>
+        <div
+          class="spreadsheet-cell spreadsheet-cell--favourites"
+          [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['favourites']"
+          (click)="onRowClick(req, $event, 'favourites')"
+          (dblclick)="onCellDoubleClick(req, 'favourites')"
+        >
+          @if (rowState()[req.id]?.favouriteCount) {
+            <span class="favourite-count" [title]="rowState()[req.id]?.favouriteCount + ' favourite group(s)'">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path
+                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                />
+              </svg>
+              {{ rowState()[req.id]?.favouriteCount }}
+            </span>
+          }
+        </div>
+      </div>
+    </cdk-virtual-scroll-viewport>
   </div>
 }
 

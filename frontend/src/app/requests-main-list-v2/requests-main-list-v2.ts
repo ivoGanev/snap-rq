@@ -1,5 +1,6 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { RequestApiService, type HttpRequest, type HttpRequestSummary } from '../core/services/request.service';
 import { FavouriteApiService, type FavouriteCollection } from '../core/services/favourite.service';
@@ -13,6 +14,12 @@ type SortDirection = 'asc' | 'desc';
 interface SelectedCell {
   requestId: number;
   column: ColumnKey;
+}
+
+interface RowState {
+  isSelected: boolean;
+  isCellSelected: Record<ColumnKey, boolean>;
+  favouriteCount: number;
 }
 
 const COLUMNS: { key: ColumnKey; label: string }[] = [
@@ -31,9 +38,10 @@ const DRAG_THRESHOLD_PX = 5;
  */
 @Component({
   selector: 'app-requests-main-list-v2',
-  imports: [FormsModule],
+  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll],
   templateUrl: './requests-main-list-v2.html',
   styleUrl: './requests-main-list-v2.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     class: 'main-column',
     'aria-label': 'Requests V2',
@@ -49,6 +57,9 @@ export class RequestsMainListV2 {
   private readonly collectionApi = inject(CollectionApiService);
   private readonly selectionState = inject(SelectionStateService);
   private readonly tagApi = inject(TagApiService);
+
+  @ViewChild(CdkVirtualScrollViewport, { static: false })
+  private readonly viewport!: CdkVirtualScrollViewport;
 
   protected readonly columns = COLUMNS;
   protected readonly httpMethods = HTTP_METHODS;
@@ -158,6 +169,49 @@ export class RequestsMainListV2 {
       result = [...result].sort((a, b) => this.compareRequests(a, b, sortCol));
     }
 
+    return result;
+  });
+
+  /**
+   * Precomputed per-row view state, keyed by request id, for template bindings.
+   *
+   * Why: the template used to call `isRowSelected(req)`,
+   * `isCellSelected(req, col)` and `getFavouriteCount(req)` directly — that is
+   * ~9 method calls per rendered row on every change-detection pass (a
+   * 1,000-row list re-ran ~9,000 calls each time any signal changed).
+   *
+   * Instead this computed builds ONE lookup table in a single pass, and only
+   * re-runs when a dependency signal actually changed (row selection, the
+   * selected cell, favourite membership, or the filtered/sorted list itself).
+   * The template then performs cheap dictionary reads like
+   * `rowState()[req.id]?.isSelected`.
+   */
+  readonly rowState = computed<Record<number, RowState>>(() => {
+    const selectedIds = this.selectedRowIds();
+    const cell = this.selectedCell();
+    const favouriteIds = this.requestFavouriteIds();
+    const result: Record<number, RowState> = {};
+
+    for (const req of this.filteredActiveRequests()) {
+      const isSelected = selectedIds.has(req.id);
+      // The dashed cell outline is only shown for single-row selection; when
+      // multiple rows are selected the outline would be meaningless noise.
+      const isCellSelected: Record<ColumnKey, boolean> = {
+        name: false,
+        url: false,
+        method: false,
+        tags: false,
+        favourites: false,
+      };
+      if (isSelected && selectedIds.size <= 1 && cell?.requestId === req.id) {
+        isCellSelected[cell.column] = true;
+      }
+      result[req.id] = {
+        isSelected,
+        isCellSelected,
+        favouriteCount: favouriteIds[req.id]?.length ?? 0,
+      };
+    }
     return result;
   });
 
@@ -288,9 +342,15 @@ export class RequestsMainListV2 {
 
   private restoreRememberedRequest(requests: HttpRequestSummary[], rememberedId: number | null): void {
     if (rememberedId === null) return;
-    const remembered = requests.find((r) => r.id === rememberedId);
-    if (remembered) {
-      this.selectCell(remembered, 'name');
+    const index = requests.findIndex((r) => r.id === rememberedId);
+    if (index === -1) return;
+
+    const remembered = requests[index];
+    this.selectCell(remembered, 'name');
+
+    // Ensure the remembered row is visible in the virtual viewport.
+    if (this.viewport) {
+      this.viewport.scrollToIndex(index, 'auto');
     }
   }
 
@@ -369,14 +429,8 @@ export class RequestsMainListV2 {
     this.selectedCell.set(null);
   }
 
-  isRowSelected(req: HttpRequestSummary): boolean {
-    return this.selectedRowIds().has(req.id);
-  }
-
-  isCellSelected(req: HttpRequestSummary, column: ColumnKey): boolean {
-    if (this.selectedRowIds().size > 1) return false;
-    const cell = this.selectedCell();
-    return cell?.requestId === req.id && cell.column === column;
+  trackById(_index: number, req: HttpRequestSummary): number {
+    return req.id;
   }
 
   onRowClick(req: HttpRequestSummary, event: MouseEvent, column: ColumnKey): void {
@@ -507,15 +561,58 @@ export class RequestsMainListV2 {
     }
   }
 
-  onRowMouseEnter(req: HttpRequestSummary): void {
-    if (!this.isDragging()) return;
-    this.selectedRowIds.update((set) => {
-      const next = new Set(set);
-      next.add(req.id);
-      return next;
-    });
-    this.selectedCell.set({ requestId: req.id, column: 'name' });
-    this.syncWorkspaceSelection(req);
+  /**
+   * Extends an in-progress drag selection to the row under the cursor.
+   *
+   * Why not per-row `mouseenter` (the old approach): with virtual scrolling
+   * only the ~15-20 visible rows exist in the DOM. Rows scrolled out of view
+   * have no element and would never fire events, and fast drags would skip
+   * rendered rows entirely. So we locate the target row arithmetically:
+   *
+   *   relativeY     = mouse Y inside the visible viewport (px from its top edge)
+   *   scrollOffset  = how far the list is currently scrolled down (px)
+   *   relativeY + scrollOffset = mouse Y within the *entire* virtual content
+   *
+   * Dividing that by the fixed row height (40px, must match the viewport's
+   * `itemSize`) yields the index of the row under the cursor, which is then
+   * clamped to the list bounds. Finally we select every row between the drag
+   * start row and the row under the cursor.
+   */
+  onViewportMouseMove(event: MouseEvent): void {
+    if (!this.isDragging() || this.dragStartRowId() === null) return;
+
+    const viewport = this.viewport.elementRef.nativeElement;
+    const rect = viewport.getBoundingClientRect();
+    const relativeY = event.clientY - rect.top;
+    const scrollOffset = this.viewport.measureScrollOffset('top');
+    const rowHeight = 40;
+    // Clamp so dragging above the first row or below the last row (or past the
+    // bottom edge of the content) keeps the selection within the list.
+    const index = Math.max(
+      0,
+      Math.min(
+        Math.floor((scrollOffset + relativeY) / rowHeight),
+        this.filteredActiveRequests().length - 1,
+      ),
+    );
+
+    const requests = this.filteredActiveRequests();
+    const currentReq = requests[index];
+    if (!currentReq) return;
+
+    const startIndex = requests.findIndex(r => r.id === this.dragStartRowId());
+    if (startIndex === -1) return;
+
+    // Select the whole span between the drag anchor and the current row.
+    const rangeStart = Math.min(startIndex, index);
+    const rangeEnd = Math.max(startIndex, index);
+    const next = new Set<number>();
+    for (let i = rangeStart; i <= rangeEnd; i++) {
+      next.add(requests[i].id);
+    }
+
+    this.selectedRowIds.set(next);
+    this.selectedCell.set({ requestId: currentReq.id, column: 'name' });
   }
 
   onWindowMouseUp(): void {
@@ -861,10 +958,6 @@ export class RequestsMainListV2 {
       default:
         return '';
     }
-  }
-
-  getFavouriteCount(req: HttpRequestSummary): number {
-    return this.requestFavouriteIds()[req.id]?.length ?? 0;
   }
 
   // ---------- New request ----------
