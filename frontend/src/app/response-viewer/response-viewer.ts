@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core';
+import { Dialogs } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { RequestApiService, type HttpResponse } from '../core/services/request.service';
 
@@ -30,5 +31,24 @@ export class ResponseViewer {
       minute: '2-digit',
       second: '2-digit',
     });
+  }
+
+  async downloadResponse(): Promise<void> {
+    const resp = this.state.selectedResponse();
+    if (!resp) return;
+
+    const defaultName = `response-${resp.id}.txt`;
+    try {
+      const filePath = await Dialogs.SaveFile({
+        Filename: defaultName,
+        Title: 'Download response',
+        ButtonText: 'Save',
+      });
+      if (!filePath) return;
+
+      await this.requestApi.saveResponseToFile(resp.id, filePath);
+    } catch (err) {
+      console.error('Failed to download response:', err);
+    }
   }
 }

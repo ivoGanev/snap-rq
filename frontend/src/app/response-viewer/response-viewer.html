@@ -24,6 +24,17 @@
       <span class="response-status" [class.is-error]="state.selectedResponse()!.status_code >= 400">
         Status: {{ state.selectedResponse()!.status_code }}
       </span>
+      <button
+        class="download-response-button"
+        type="button"
+        (click)="downloadResponse()"
+        title="Download response body"
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+        </svg>
+        <span>Download</span>
+      </button>
       <span class="response-duration">Duration: {{ state.selectedResponse()!.duration_ms }} ms</span>
     </div>
 

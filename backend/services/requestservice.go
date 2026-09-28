@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -484,6 +485,18 @@ func (s *RequestService) DeleteResponse(id int64) error {
 	_, err := s.db.Exec(`DELETE FROM responses WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("deleting response: %w", err)
+	}
+	return nil
+}
+
+// SaveResponseToFile writes a response's body to the given file path.
+func (s *RequestService) SaveResponseToFile(responseID int64, filePath string) error {
+	resp, err := s.GetResponse(responseID)
+	if err != nil {
+		return fmt.Errorf("getting response: %w", err)
+	}
+	if err := os.WriteFile(filePath, []byte(resp.Body), 0644); err != nil {
+		return fmt.Errorf("writing response file: %w", err)
 	}
 	return nil
 }

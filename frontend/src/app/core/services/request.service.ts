@@ -70,4 +70,8 @@ export class RequestApiService {
   async curlToRequest(collectionId: number, curl: string): Promise<HttpRequest> {
     return RequestService.RequestService.CurlToRequest(collectionId, curl);
   }
+
+  async saveResponseToFile(responseId: number, filePath: string): Promise<void> {
+    await RequestService.RequestService.SaveResponseToFile(responseId, filePath);
+  }
 }
