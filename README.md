@@ -1,6 +1,19 @@
 # Snap RQ
 
-Your #1 API testing partner!
+Your #1 REST API testing client!
+
+## Why Snap-RQ?
+
+1. User-efficient workflow
+2. No vendor/cloud lock-in
+3. Free to use
+4. Custom themes
+
+## Tech stack
+
+- **Backend:** Go (Wails v3)
+- **Frontend:** Angular
+- **Database:** SQLite
 
 ## How to run in dev mode (Wails)
 
@@ -66,3 +79,7 @@ go run .
 ```
 
 This is not a replacement for automated client tests.
+
+## License
+
+Snap-rq is licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later).
