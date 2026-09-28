@@ -318,6 +318,37 @@ func (s *RequestService) GetRequestsForCollection(collectionID int64) ([]models.
 	return requests, nil
 }
 
+// GetRequestsForProject returns every HTTP request across all collections in a project.
+func (s *RequestService) GetRequestsForProject(projectID int64) ([]models.HttpRequest, error) {
+	rows, err := s.db.Query(
+		`SELECT hr.id, hr.collection_id, hr.name, hr.url, hr.method, hr.body, hr.request_headers, hr.status_code, hr.response_id
+		 FROM http_requests hr
+		 JOIN collections c ON c.id = hr.collection_id
+		 WHERE c.project_id = ?
+		 ORDER BY hr.name`,
+		projectID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("listing project requests: %w", err)
+	}
+	defer rows.Close()
+
+	var requests []models.HttpRequest
+	for rows.Next() {
+		var req models.HttpRequest
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.Name, &req.URL, &req.Method, &req.Body, &req.RequestHeaders, &req.StatusCode, &req.ResponseID); err != nil {
+			return nil, fmt.Errorf("scanning request: %w", err)
+		}
+		requests = append(requests, req)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating project requests: %w", err)
+	}
+
+	return requests, nil
+}
+
 // UpdateRequest updates an existing HTTP request.
 func (s *RequestService) UpdateRequest(req models.HttpRequest) (models.HttpRequest, error) {
 	if req.ID == 0 {

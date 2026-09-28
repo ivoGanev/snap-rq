@@ -1,3 +1,18 @@
+<button
+  class="all-requests-button"
+  type="button"
+  [class.is-active]="state.showingAllRequests()"
+  [disabled]="!state.selectedProject()"
+  (click)="selectAll()"
+>
+  <span class="all-requests-button__icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+    </svg>
+  </span>
+  <span class="all-requests-button__label">All requests</span>
+</button>
+
 <div class="sidebar-toolbar">
   <button
     class="add-button"

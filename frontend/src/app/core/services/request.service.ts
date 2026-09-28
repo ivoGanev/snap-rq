@@ -36,6 +36,11 @@ export class RequestApiService {
     this.requests.set(all ?? []);
   }
 
+  async loadForProject(projectId: number): Promise<void> {
+    const all = await RequestService.RequestService.GetRequestsForProject(projectId);
+    this.requests.set(all ?? []);
+  }
+
   async update(req: HttpRequest): Promise<HttpRequest> {
     return RequestService.RequestService.UpdateRequest(req);
   }
