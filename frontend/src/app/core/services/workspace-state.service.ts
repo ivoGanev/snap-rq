@@ -59,12 +59,19 @@ export class WorkspaceStateService {
           }
         },
       });
-      if (this.selectedCollection()) {
-        await this.requestApi.loadForCollection(this.selectedCollection()!.id);
-      }
-      if (this.selectedFavouriteCollection()) {
-        await this.favouriteApi.loadRequestsForCollection(this.selectedFavouriteCollection()!.id);
-      }
+      this.requestApi.patchRequest({
+        id: req.id,
+        status_code: resp.status_code,
+        response_id: resp.id,
+      });
+      this.favouriteApi.requests.update(list =>
+        list.map(r =>
+          r.id === req.id
+            ? { ...r, status_code: resp.status_code, response_id: resp.id }
+            : r,
+        ),
+      );
+
       if (this.selectedRequest()?.id === req.id) {
         this.selectedResponse.set(resp);
       }
