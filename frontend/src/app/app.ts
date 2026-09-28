@@ -158,6 +158,7 @@ export class App implements OnInit, AfterViewInit {
         this.state.selectedCollection.set(null);
         this.state.selectedFavouriteCollection.set(null);
         this.state.selectedTag.set(null);
+        this.state.showingAllRequests.set(false);
         this.state.selectedRequest.set(null);
         this.state.selectedResponse.set(null);
         this.collectionApi.collections.set([]);
@@ -178,6 +179,7 @@ export class App implements OnInit, AfterViewInit {
     this.state.selectedCollection.set(null);
     this.state.selectedFavouriteCollection.set(null);
     this.state.selectedTag.set(null);
+    this.state.showingAllRequests.set(true);
     this.state.selectedRequest.set(null);
     this.state.selectedResponse.set(null);
     this.requestApi.requests.set([]);
@@ -188,11 +190,7 @@ export class App implements OnInit, AfterViewInit {
     await this.favouriteApi.loadCollectionsForProject(project.id);
     await this.collectionApi.loadForProject(project.id);
     await this.tagApi.loadTagsForProject(project.id);
-
-    const collections = this.collectionApi.collections();
-    if (collections.length > 0) {
-      this.state.selectedCollection.set(collections[0]);
-    }
+    await this.requestApi.loadForProject(project.id);
   }
 
   async loadEnvironments(projectId: number): Promise<void> {
@@ -308,6 +306,7 @@ export class App implements OnInit, AfterViewInit {
           this.state.selectedCollection.set(null);
           this.state.selectedFavouriteCollection.set(null);
           this.state.selectedTag.set(null);
+          this.state.showingAllRequests.set(false);
           this.state.selectedRequest.set(null);
           this.state.selectedResponse.set(null);
           this.collectionApi.collections.set([]);
