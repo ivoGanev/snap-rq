@@ -584,34 +584,31 @@ export class RequestsMainListV2 {
     this.state.loading.set(true);
 
     try {
-      let lastDuplicated: HttpRequestSummary | null = null;
+      const duplicated: { originalId: number; request: HttpRequestSummary }[] = [];
       for (const original of requests) {
-        lastDuplicated = await this.requestApi.duplicate(original.id);
+        duplicated.push({ originalId: original.id, request: await this.requestApi.duplicate(original.id) });
       }
 
-      const collection = this.state.selectedCollection();
       const favourite = this.state.selectedFavouriteCollection();
-      const tag = this.state.selectedTag();
-
-      if (collection) {
-        await this.requestApi.loadForCollection(collection.id);
-      }
       if (favourite) {
-        await this.favouriteApi.loadRequestsForCollection(favourite.id);
-      }
-      if (tag) {
-        const project = this.state.selectedProject();
-        if (!project) return;
-        const requests = await this.tagApi.getRequestsForTag(project.id, tag);
-        this.tagRequests.set(requests);
+        // Duplicates inherit favourite memberships, so keep the local list in sync.
+        const inThisFavourite = duplicated
+          .filter(d => (this.requestFavouriteIds()[d.originalId] ?? []).includes(favourite.id))
+          .map(d => d.request);
+        if (inThisFavourite.length > 0) {
+          this.favouriteApi.requests.update(list =>
+            [...list, ...inThisFavourite].sort((a, b) => a.name.localeCompare(b.name)),
+          );
+        }
       }
 
-      const active = this.activeRequests();
+      const duplicatedRequests = duplicated.map(d => d.request);
       await Promise.all([
-        this.tagApi.loadTagsForRequests(active),
-        this.favouriteApi.loadMembershipForRequests(active),
+        this.tagApi.loadTagsForRequests(duplicatedRequests),
+        this.favouriteApi.loadMembershipForRequests(duplicatedRequests),
       ]);
 
+      const lastDuplicated = duplicatedRequests[duplicatedRequests.length - 1] ?? null;
       if (lastDuplicated) {
         this.selectCell(lastDuplicated, 'name');
       }
@@ -638,14 +635,11 @@ export class RequestsMainListV2 {
         for (const id of ids) {
           await this.favouriteApi.removeRequest(favourite.id, id);
         }
-        await this.favouriteApi.loadRequestsForCollection(favourite.id);
+        this.favouriteApi.requests.update(list => list.filter(r => !ids.includes(r.id)));
       } else {
+        await this.requestApi.deleteMany(ids);
         for (const id of ids) {
-          await this.requestApi.delete(id);
           this.selectionState.deleteRequest(id);
-        }
-        if (collection) {
-          await this.requestApi.loadForCollection(collection.id);
         }
       }
 
@@ -657,11 +651,8 @@ export class RequestsMainListV2 {
       this.clearSelection();
 
       if (tag) {
-        const project = this.state.selectedProject();
-        if (!project) return;
-        const requests = await this.tagApi.getRequestsForTag(project.id, tag);
-        this.tagRequests.set(requests);
-        await this.tagApi.loadTagsForRequests(requests);
+        this.tagRequests.update(list => list.filter(r => !ids.includes(r.id)));
+        await this.tagApi.loadTagsForRequests(this.tagRequests());
       }
     } catch (err) {
       console.error(err);
@@ -693,21 +684,11 @@ export class RequestsMainListV2 {
       }
 
       const currentCollection = this.state.selectedCollection();
-      const currentFavourite = this.state.selectedFavouriteCollection();
-      const tag = this.state.selectedTag();
-
       if (currentCollection) {
-        await this.requestApi.loadForCollection(currentCollection.id);
-      }
-      if (currentFavourite) {
-        await this.favouriteApi.loadRequestsForCollection(currentFavourite.id);
-      }
-      if (tag) {
-        const project = this.state.selectedProject();
-        if (!project) return;
-        const tagRequests = await this.tagApi.getRequestsForTag(project.id, tag);
-        this.tagRequests.set(tagRequests);
-        await this.tagApi.loadTagsForRequests(tagRequests);
+        // The modal only shows other collections, so the moved requests leave
+        // the current collection view.
+        const ids = requests.map(r => r.id);
+        this.requestApi.requests.update(list => list.filter(r => !ids.includes(r.id)));
       }
 
       this.clearSelection();
@@ -745,7 +726,6 @@ export class RequestsMainListV2 {
       for (const req of requests) {
         await this.tagApi.addTagToRequest(req.id, project.id, name);
       }
-      await this.tagApi.loadTagsForRequests(requests);
       this.bulkTagName.set('');
     } catch (err) {
       console.error(err);
@@ -791,11 +771,31 @@ export class RequestsMainListV2 {
         }
       }
 
-      await this.favouriteApi.loadMembershipForRequests(requests);
+      const ids = requests.map(r => r.id);
+      this.favouriteApi.requestsMembership.update(map => {
+        const next = { ...map };
+        for (const id of ids) {
+          const current = next[id] ?? [];
+          next[id] = allIn
+            ? current.filter(cid => cid !== collection.id)
+            : Array.from(new Set([...current, collection.id]));
+        }
+        return next;
+      });
 
       const currentFavourite = this.state.selectedFavouriteCollection();
       if (currentFavourite?.id === collection.id) {
-        await this.favouriteApi.loadRequestsForCollection(currentFavourite.id);
+        if (allIn) {
+          this.favouriteApi.requests.update(list => list.filter(r => !ids.includes(r.id)));
+        } else {
+          this.favouriteApi.requests.update(list => {
+            const existingIds = new Set(list.map(r => r.id));
+            const added = requests.filter(r => !existingIds.has(r.id));
+            return added.length > 0
+              ? [...list, ...added].sort((a, b) => a.name.localeCompare(b.name))
+              : list;
+          });
+        }
       }
     } catch (err) {
       console.error(err);
@@ -911,7 +911,6 @@ export class RequestsMainListV2 {
         status_code: 0,
         response_id: 0,
       });
-      await this.requestApi.loadForCollection(collection.id);
       this.closeNewRequestPopup();
     } catch (err) {
       console.error(err);
@@ -937,7 +936,6 @@ export class RequestsMainListV2 {
         status_code: 0,
         response_id: 0,
       });
-      await this.requestApi.loadForCollection(collectionId);
       this.closeNewRequestPopup();
     } catch (err) {
       console.error(err);
@@ -1095,10 +1093,22 @@ export class RequestsMainListV2 {
       } else {
         await this.favouriteApi.addRequest(collection.id, req.id);
       }
+
+      this.favouriteApi.requestsMembership.update(map => {
+        const current = map[req.id] ?? [];
+        return {
+          ...map,
+          [req.id]: isMember
+            ? current.filter(cid => cid !== collection.id)
+            : Array.from(new Set([...current, collection.id])),
+        };
+      });
+
       if (this.state.selectedFavouriteCollection()?.id === collection.id) {
-        await this.favouriteApi.loadRequestsForCollection(collection.id);
+        this.favouriteApi.requests.update(list =>
+          isMember ? list.filter(r => r.id !== req.id) : [...list, req].sort((a, b) => a.name.localeCompare(b.name)),
+        );
       }
-      await this.favouriteApi.loadMembershipForRequests([req]);
     } catch (err) {
       console.error(err);
     }
