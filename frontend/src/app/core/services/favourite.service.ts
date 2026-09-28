@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import * as FavouriteService from '../../../../bindings/snap-rq/backend/services';
-import type { FavouriteCollection, FavouriteItem, FavouriteAppearance, HttpRequest } from '../../../../bindings/snap-rq/backend/models';
+import type { FavouriteCollection, FavouriteItem, FavouriteAppearance, HttpRequestSummary } from '../../../../bindings/snap-rq/backend/models';
 
 export type { FavouriteCollection, FavouriteItem, FavouriteAppearance };
 
@@ -10,7 +10,8 @@ export type { FavouriteCollection, FavouriteItem, FavouriteAppearance };
 @Injectable({ providedIn: 'root' })
 export class FavouriteApiService {
   readonly collections = signal<FavouriteCollection[]>([]);
-  readonly requests = signal<HttpRequest[]>([]);
+  /** Favourite collection contents are displayed as list items (summary view). */
+  readonly requests = signal<HttpRequestSummary[]>([]);
   readonly membership = signal<Set<number>>(new Set());
   /** Membership for many requests at once, keyed by request id. */
   readonly requestsMembership = signal<Record<number, number[]>>({});
@@ -59,7 +60,7 @@ export class FavouriteApiService {
 
   async loadRequestsForCollection(collectionId: number): Promise<void> {
     const all = await FavouriteService.FavouriteService.GetRequestsForFavouriteCollection(collectionId);
-    this.requests.set(all ?? []);
+    this.requests.set((all as HttpRequestSummary[] | null) ?? []);
   }
 
   async loadMembershipForRequest(requestId: number): Promise<void> {
@@ -92,7 +93,7 @@ export class FavouriteApiService {
    * column without forcing a separate round-trip per visible row on every
    * interaction.
    */
-  async loadMembershipForRequests(requests: HttpRequest[]): Promise<void> {
+  async loadMembershipForRequests(requests: HttpRequestSummary[]): Promise<void> {
     if (requests.length === 0) {
       this.requestsMembership.set({});
       return;

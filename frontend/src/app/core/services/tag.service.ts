@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import * as TagService from '../../../../bindings/snap-rq/backend/services';
-import type { Tag, TagAppearance, HttpRequest } from '../../../../bindings/snap-rq/backend/models';
+import type { Tag, TagAppearance, HttpRequestSummary } from '../../../../bindings/snap-rq/backend/models';
 
 export type { Tag, TagAppearance };
 
@@ -14,7 +14,7 @@ export class TagApiService {
     this.allTags.set(tags ?? []);
   }
 
-  async loadTagsForRequests(requests: HttpRequest[]): Promise<void> {
+  async loadTagsForRequests(requests: HttpRequestSummary[]): Promise<void> {
     if (requests.length === 0) {
       this.requestTags.set({});
       return;
@@ -106,7 +106,7 @@ export class TagApiService {
     });
   }
 
-  async getRequestsForTag(projectId: number, tagName: string): Promise<HttpRequest[]> {
-    return (await TagService.TagService.GetRequestsForTag(projectId, tagName)) ?? [];
+  async getRequestsForTag(projectId: number, tagName: string): Promise<HttpRequestSummary[]> {
+    return ((await TagService.TagService.GetRequestsForTag(projectId, tagName)) as HttpRequestSummary[] | null) ?? [];
   }
 }
