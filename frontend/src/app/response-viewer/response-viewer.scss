@@ -188,6 +188,8 @@
   line-height: 1.5;
   white-space: pre;
   overflow: auto;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .response-headers {
@@ -213,4 +215,6 @@
   line-height: 20px;
   font-family: inherit;
   font-size: inherit;
+  -webkit-user-select: text;
+  user-select: text;
 }
