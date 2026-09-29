@@ -355,6 +355,7 @@ export class RequestsMainList {
     try {
       await this.requestApi.create({
         collection_id: collection.id,
+        project_id: collection.project_id,
         name,
         url: this.newRequestUrl().trim(),
         method: this.newRequestMethod(),
@@ -377,9 +378,11 @@ export class RequestsMainList {
 
     this.state.loading.set(true);
     try {
+      const projectId = this.state.selectedProject()?.id ?? 0;
       const req = await this.requestApi.curlToRequest(collectionId, curl);
       await this.requestApi.create({
         collection_id: collectionId,
+        project_id: projectId,
         name: req.name,
         url: req.url,
         method: req.method,

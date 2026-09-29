@@ -2,6 +2,7 @@ import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { RequestApiService, type HttpRequest, type HttpRequestSummary } from '../core/services/request.service';
+import { ApiRequestsService } from '../core/services/api-requests.service';
 import { FavouriteApiService } from '../core/services/favourite.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
 
@@ -14,6 +15,7 @@ import { TagApiService, type Tag } from '../core/services/tag.service';
 export class RequestEditor {
   protected readonly state = inject(WorkspaceStateService);
   private readonly requestApi = inject(RequestApiService);
+  private readonly apiRequests = inject(ApiRequestsService);
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly tagApi = inject(TagApiService);
 
@@ -52,32 +54,14 @@ export class RequestEditor {
     this.draftRequest.set(updated);
 
     try {
-      await this.requestApi.update({ ...updated, collection_id: collection.id });
-      this.state.selectedRequest.set(updated);
-
-      const summaryUpdate: HttpRequestSummary = {
-        id: updated.id,
-        collection_id: updated.collection_id,
-        name: updated.name,
-        url: updated.url,
-        method: updated.method,
-        status_code: updated.status_code,
-        response_id: updated.response_id,
-      };
-
-      const list = this.requestApi.requests();
-      const index = list.findIndex(r => r.id === updated.id);
-      if (index !== -1) {
-        const newList = [...list];
-        newList[index] = summaryUpdate;
-        this.requestApi.requests.set(newList);
-      }
+      const saved = await this.apiRequests.update({ ...updated, collection_id: collection.id });
+      this.state.selectedRequest.set(saved);
 
       const favList = this.favouriteApi.requests();
-      const favIndex = favList.findIndex(r => r.id === updated.id);
+      const favIndex = favList.findIndex(r => r.id === saved.id);
       if (favIndex !== -1) {
         const newFavList = [...favList];
-        newFavList[favIndex] = summaryUpdate;
+        newFavList[favIndex] = saved;
         this.favouriteApi.requests.set(newFavList);
       }
     } catch (err) {
@@ -95,7 +79,7 @@ export class RequestEditor {
     this.newTagName.set('');
   }
 
-  async addTagToRequest(req: HttpRequestSummary, tagName: string): Promise<void> {
+  async addTagToRequest(req: HttpRequest | HttpRequestSummary, tagName: string): Promise<void> {
     const name = tagName.trim();
     const project = this.state.selectedProject();
     if (!name || !project) return;
@@ -108,7 +92,7 @@ export class RequestEditor {
     }
   }
 
-  async removeTagFromRequest(req: HttpRequestSummary, tagName: string, event: MouseEvent): Promise<void> {
+  async removeTagFromRequest(req: HttpRequest | HttpRequestSummary, tagName: string, event: MouseEvent): Promise<void> {
     event.stopPropagation();
     try {
       await this.tagApi.removeTagFromRequest(req.id, tagName);

@@ -100,19 +100,20 @@ func (s *RequestService) CreateRequest(req models.HttpRequest) (models.HttpReque
 		return models.HttpRequest{}, fmt.Errorf("getting last insert id: %w", err)
 	}
 
-	req.ID = id
-	return req, nil
+	return s.GetRequest(id)
 }
 
 // GetRequest retrieves a single HTTP request by ID.
 func (s *RequestService) GetRequest(id int64) (models.HttpRequest, error) {
 	var req models.HttpRequest
 	row := s.db.QueryRow(
-		`SELECT id, collection_id, name, url, method, body, request_headers, status_code, response_id
-		 FROM http_requests WHERE id = ?`,
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.request_headers, hr.status_code, hr.response_id
+		 FROM http_requests hr
+		 JOIN collections c ON c.id = hr.collection_id
+		 WHERE hr.id = ?`,
 		id,
 	)
-	err := row.Scan(&req.ID, &req.CollectionID, &req.Name, &req.URL, &req.Method, &req.Body, &req.RequestHeaders, &req.StatusCode, &req.ResponseID)
+	err := row.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.RequestHeaders, &req.StatusCode, &req.ResponseID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return models.HttpRequest{}, fmt.Errorf("request not found")
@@ -265,8 +266,10 @@ func interpolate(input string, variables map[string]string) string {
 // GetAllRequests returns all saved HTTP requests ordered by name.
 func (s *RequestService) GetAllRequests() ([]models.HttpRequest, error) {
 	rows, err := s.db.Query(
-		`SELECT id, collection_id, name, url, method, body, request_headers, status_code, response_id
-		 FROM http_requests ORDER BY name`,
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.request_headers, hr.status_code, hr.response_id
+		 FROM http_requests hr
+		 JOIN collections c ON c.id = hr.collection_id
+		 ORDER BY hr.name`,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("listing requests: %w", err)
@@ -276,7 +279,7 @@ func (s *RequestService) GetAllRequests() ([]models.HttpRequest, error) {
 	var requests []models.HttpRequest
 	for rows.Next() {
 		var req models.HttpRequest
-		if err := rows.Scan(&req.ID, &req.CollectionID, &req.Name, &req.URL, &req.Method, &req.Body, &req.RequestHeaders, &req.StatusCode, &req.ResponseID); err != nil {
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.RequestHeaders, &req.StatusCode, &req.ResponseID); err != nil {
 			return nil, fmt.Errorf("scanning request: %w", err)
 		}
 		requests = append(requests, req)
@@ -292,10 +295,11 @@ func (s *RequestService) GetAllRequests() ([]models.HttpRequest, error) {
 // GetRequestsForCollection returns all requests belonging to a collection.
 func (s *RequestService) GetRequestsForCollection(collectionID int64) ([]models.HttpRequest, error) {
 	rows, err := s.db.Query(
-		`SELECT id, collection_id, name, url, method, body, request_headers, status_code, response_id
-		 FROM http_requests
-		 WHERE collection_id = ?
-		 ORDER BY name`,
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.request_headers, hr.status_code, hr.response_id
+		 FROM http_requests hr
+		 JOIN collections c ON c.id = hr.collection_id
+		 WHERE hr.collection_id = ?
+		 ORDER BY hr.name`,
 		collectionID,
 	)
 	if err != nil {
@@ -306,7 +310,7 @@ func (s *RequestService) GetRequestsForCollection(collectionID int64) ([]models.
 	var requests []models.HttpRequest
 	for rows.Next() {
 		var req models.HttpRequest
-		if err := rows.Scan(&req.ID, &req.CollectionID, &req.Name, &req.URL, &req.Method, &req.Body, &req.RequestHeaders, &req.StatusCode, &req.ResponseID); err != nil {
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.RequestHeaders, &req.StatusCode, &req.ResponseID); err != nil {
 			return nil, fmt.Errorf("scanning request: %w", err)
 		}
 		requests = append(requests, req)
@@ -322,7 +326,7 @@ func (s *RequestService) GetRequestsForCollection(collectionID int64) ([]models.
 // GetRequestsForProject returns every HTTP request across all collections in a project.
 func (s *RequestService) GetRequestsForProject(projectID int64) ([]models.HttpRequest, error) {
 	rows, err := s.db.Query(
-		`SELECT hr.id, hr.collection_id, hr.name, hr.url, hr.method, hr.body, hr.request_headers, hr.status_code, hr.response_id
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.request_headers, hr.status_code, hr.response_id
 		 FROM http_requests hr
 		 JOIN collections c ON c.id = hr.collection_id
 		 WHERE c.project_id = ?
@@ -337,7 +341,7 @@ func (s *RequestService) GetRequestsForProject(projectID int64) ([]models.HttpRe
 	var requests []models.HttpRequest
 	for rows.Next() {
 		var req models.HttpRequest
-		if err := rows.Scan(&req.ID, &req.CollectionID, &req.Name, &req.URL, &req.Method, &req.Body, &req.RequestHeaders, &req.StatusCode, &req.ResponseID); err != nil {
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.RequestHeaders, &req.StatusCode, &req.ResponseID); err != nil {
 			return nil, fmt.Errorf("scanning request: %w", err)
 		}
 		requests = append(requests, req)
@@ -354,8 +358,10 @@ func (s *RequestService) GetRequestsForProject(projectID int64) ([]models.HttpRe
 // requests ordered by name. It omits body and headers to keep IPC payloads small.
 func (s *RequestService) GetAllRequestSummaries() ([]models.HttpRequestSummary, error) {
 	rows, err := s.db.Query(
-		`SELECT id, collection_id, name, url, method, status_code, response_id
-		 FROM http_requests ORDER BY name`,
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.status_code, hr.response_id
+		 FROM http_requests hr
+		 JOIN collections c ON c.id = hr.collection_id
+		 ORDER BY hr.name`,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("listing request summaries: %w", err)
@@ -365,7 +371,7 @@ func (s *RequestService) GetAllRequestSummaries() ([]models.HttpRequestSummary, 
 	var requests []models.HttpRequestSummary
 	for rows.Next() {
 		var req models.HttpRequestSummary
-		if err := rows.Scan(&req.ID, &req.CollectionID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID); err != nil {
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID); err != nil {
 			return nil, fmt.Errorf("scanning request summary: %w", err)
 		}
 		requests = append(requests, req)
@@ -382,10 +388,11 @@ func (s *RequestService) GetAllRequestSummaries() ([]models.HttpRequestSummary, 
 // requests belonging to a collection.
 func (s *RequestService) GetRequestSummariesForCollection(collectionID int64) ([]models.HttpRequestSummary, error) {
 	rows, err := s.db.Query(
-		`SELECT id, collection_id, name, url, method, status_code, response_id
-		 FROM http_requests
-		 WHERE collection_id = ?
-		 ORDER BY name`,
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.status_code, hr.response_id
+		 FROM http_requests hr
+		 JOIN collections c ON c.id = hr.collection_id
+		 WHERE hr.collection_id = ?
+		 ORDER BY hr.name`,
 		collectionID,
 	)
 	if err != nil {
@@ -396,7 +403,7 @@ func (s *RequestService) GetRequestSummariesForCollection(collectionID int64) ([
 	var requests []models.HttpRequestSummary
 	for rows.Next() {
 		var req models.HttpRequestSummary
-		if err := rows.Scan(&req.ID, &req.CollectionID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID); err != nil {
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID); err != nil {
 			return nil, fmt.Errorf("scanning request summary: %w", err)
 		}
 		requests = append(requests, req)
@@ -413,7 +420,7 @@ func (s *RequestService) GetRequestSummariesForCollection(collectionID int64) ([
 // request across all collections in a project.
 func (s *RequestService) GetRequestSummariesForProject(projectID int64) ([]models.HttpRequestSummary, error) {
 	rows, err := s.db.Query(
-		`SELECT hr.id, hr.collection_id, hr.name, hr.url, hr.method, hr.status_code, hr.response_id
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.status_code, hr.response_id
 		 FROM http_requests hr
 		 JOIN collections c ON c.id = hr.collection_id
 		 WHERE c.project_id = ?
@@ -428,7 +435,7 @@ func (s *RequestService) GetRequestSummariesForProject(projectID int64) ([]model
 	var requests []models.HttpRequestSummary
 	for rows.Next() {
 		var req models.HttpRequestSummary
-		if err := rows.Scan(&req.ID, &req.CollectionID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID); err != nil {
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID); err != nil {
 			return nil, fmt.Errorf("scanning request summary: %w", err)
 		}
 		requests = append(requests, req)
@@ -460,7 +467,7 @@ func (s *RequestService) UpdateRequest(req models.HttpRequest) (models.HttpReque
 		return models.HttpRequest{}, fmt.Errorf("updating request: %w", err)
 	}
 
-	return req, nil
+	return s.GetRequest(req.ID)
 }
 
 // DeleteRequest removes an HTTP request by ID.

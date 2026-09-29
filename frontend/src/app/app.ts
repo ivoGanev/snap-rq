@@ -7,6 +7,7 @@ import { EnvironmentApiService, type Environment } from './core/services/environ
 
 import { CollectionApiService } from './core/services/collection.service';
 import { RequestApiService } from './core/services/request.service';
+import { ApiRequestsService } from './core/services/api-requests.service';
 import { FavouriteApiService } from './core/services/favourite.service';
 import { SelectionStateService } from './core/services/selection-state.service';
 import { TagApiService } from './core/services/tag.service';
@@ -28,6 +29,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly state = inject(WorkspaceStateService);
   private readonly projectApi = inject(ProjectApiService);
   private readonly environmentApi = inject(EnvironmentApiService);
+  private readonly apiRequests = inject(ApiRequestsService);
   private readonly collectionApi = inject(CollectionApiService);
   private readonly requestApi = inject(RequestApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
@@ -190,7 +192,7 @@ export class App implements OnInit, AfterViewInit {
     await this.favouriteApi.loadCollectionsForProject(project.id);
     await this.collectionApi.loadForProject(project.id);
     await this.tagApi.loadTagsForProject(project.id);
-    await this.requestApi.loadForProject(project.id);
+    await this.apiRequests.loadAll();
   }
 
   async loadEnvironments(projectId: number): Promise<void> {
