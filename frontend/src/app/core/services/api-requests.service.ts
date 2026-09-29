@@ -1,6 +1,8 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import * as RequestService from '../../../../bindings/snap-rq/backend/services';
 import { RequestApiService, type HttpRequest, type HttpRequestSummary } from './request.service';
+import { TagApiService } from './tag.service';
+import { FavouriteApiService } from './favourite.service';
 
 /**
  * In-memory store for all request summaries across every project.
@@ -16,6 +18,8 @@ import { RequestApiService, type HttpRequest, type HttpRequestSummary } from './
 @Injectable({ providedIn: 'root' })
 export class ApiRequestsService {
   private readonly requestApi = inject(RequestApiService);
+  private readonly tagApi = inject(TagApiService);
+  private readonly favouriteApi = inject(FavouriteApiService);
 
   /** Every request summary keyed by id. Populated once on startup. */
   readonly allRequests = signal<Record<number, HttpRequestSummary>>({});
@@ -109,8 +113,21 @@ export class ApiRequestsService {
   // Internal map mutators
   // ---------------------------------------------------------------------------
 
-  private addOrReplace(req: HttpRequestSummary): void {
+  addOrReplace(req: HttpRequestSummary): void {
     this.allRequests.update(map => ({ ...map, [req.id]: req }));
+  }
+
+  /**
+   * Brings a restored request back into the in-memory stores and reloads its
+   * tags and favourite memberships.
+   */
+  async restoreRequest(req: HttpRequestSummary): Promise<void> {
+    this.requestApi.addToRequests(req);
+    this.addOrReplace(req);
+    await Promise.all([
+      this.tagApi.loadTagsForRequests([req]),
+      this.favouriteApi.loadMembershipForRequests([req]),
+    ]);
   }
 
   patch(id: number, changes: Partial<HttpRequestSummary>): void {

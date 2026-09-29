@@ -164,6 +164,46 @@
   background: rgba(255, 255, 255, 0.18);
 }
 
+.restore-button {
+  padding: 8px 18px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: filter 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.restore-button:hover {
+  filter: brightness(1.15);
+}
+
+.delete-button--top-bar {
+  padding: 8px 18px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(239, 68, 68, 0.8);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: filter 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.delete-button--top-bar:hover {
+  filter: brightness(1.15);
+}
+
+.state-message--bin strong {
+  display: inline-block;
+  margin-bottom: 0.25rem;
+  color: var(--text);
+}
+
 .spreadsheet-wrapper {
   flex: 1 1 auto;
   display: flex;

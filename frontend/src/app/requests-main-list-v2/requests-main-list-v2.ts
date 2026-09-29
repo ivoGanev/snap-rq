@@ -8,6 +8,7 @@ import { FavouriteApiService, type FavouriteCollection } from '../core/services/
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
 import { SelectionStateService } from '../core/services/selection-state.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
+import { BinApiService, type HttpBinnedRequestSummary, type RestoreBinnedRequestInput } from '../core/services/bin.service';
 
 type ColumnKey = 'name' | 'url' | 'method' | 'tags';
 type SortDirection = 'asc' | 'desc';
@@ -57,6 +58,7 @@ export class RequestsMainListV2 {
   private readonly collectionApi = inject(CollectionApiService);
   private readonly selectionState = inject(SelectionStateService);
   private readonly tagApi = inject(TagApiService);
+  private readonly binApi = inject(BinApiService);
 
   @ViewChild(CdkVirtualScrollViewport, { static: false })
   private readonly viewport!: CdkVirtualScrollViewport;
@@ -121,9 +123,17 @@ export class RequestsMainListV2 {
   readonly bulkTagName = signal('');
   readonly bulkFavouritesModalOpen = signal(false);
 
+  // Restore collection picker (used when the original collection is gone).
+  readonly restoreCollectionModalOpen = signal(false);
+  readonly restorePickerBinIds = signal<number[]>([]);
+
   private loadVersion = 0;
 
   readonly activeRequests = computed<HttpRequestSummary[]>(() => {
+    if (this.state.showingBin()) {
+      return this.binApi.binnedRequests() as HttpRequestSummary[];
+    }
+
     const tag = this.state.selectedTag();
     if (tag) {
       return this.tagRequests();
@@ -147,6 +157,7 @@ export class RequestsMainListV2 {
   });
 
   readonly activeGroupName = computed<string | null>(() => {
+    if (this.state.showingBin()) return 'Trash bin';
     if (this.state.showingAllRequests()) return 'All requests';
     const tag = this.state.selectedTag();
     if (tag) return tag;
@@ -264,15 +275,18 @@ export class RequestsMainListV2 {
       const favourite = this.state.selectedFavouriteCollection();
       const tag = this.state.selectedTag();
       const showAll = this.state.showingAllRequests();
+      const showBin = this.state.showingBin();
       const project = this.state.selectedProject();
 
       const version = ++this.loadVersion;
       this.requestSearchQuery.set('');
       this.clearSelection();
       this.state.selectedRequest.set(null);
+      this.state.selectedResponse.set(null);
+      this.state.selectedBinnedRequest.set(null);
       this.state.multiSelectionActive.set(false);
 
-      void this.loadActiveGroup(version, collection?.id ?? null, favourite?.id ?? null, tag, showAll, project?.id ?? null);
+      void this.loadActiveGroup(version, collection?.id ?? null, favourite?.id ?? null, tag, showAll, showBin, project?.id ?? null);
     });
 
     effect(() => {
@@ -286,9 +300,16 @@ export class RequestsMainListV2 {
     favouriteId: number | null,
     tag: string | null,
     showAll: boolean,
+    showBin: boolean,
     projectId: number | null,
   ): Promise<void> {
     try {
+      if (showBin && projectId !== null) {
+        await this.binApi.loadForProject(projectId);
+        if (version !== this.loadVersion) return;
+        return;
+      }
+
       if (tag) {
         const project = this.state.selectedProject();
         if (!project) return;
@@ -355,6 +376,7 @@ export class RequestsMainListV2 {
 
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'd') {
       event.preventDefault();
+      if (this.state.showingBin()) return;
       void this.duplicateSelectedRequest();
     }
   }
@@ -400,10 +422,14 @@ export class RequestsMainListV2 {
 
   // ---------- Selection ----------
 
-  selectCell(req: HttpRequestSummary, column: ColumnKey): void {
+  selectCell(req: HttpRequestSummary | HttpBinnedRequestSummary, column: ColumnKey): void {
     this.selectedRowIds.set(new Set([req.id]));
     this.selectedCell.set({ requestId: req.id, column });
     this.syncWorkspaceSelection(req);
+
+    if (this.state.showingBin()) {
+      return;
+    }
 
     const collection = this.state.selectedCollection();
     if (collection) {
@@ -426,7 +452,7 @@ export class RequestsMainListV2 {
     return req.id;
   }
 
-  onRowClick(req: HttpRequestSummary, event: MouseEvent, column: ColumnKey): void {
+  onRowClick(req: HttpRequestSummary | HttpBinnedRequestSummary, event: MouseEvent, column: ColumnKey): void {
     if (event.button !== 0) return;
 
     if (this.ignoreNextClick()) {
@@ -449,7 +475,7 @@ export class RequestsMainListV2 {
     this.lastClickedRowId.set(req.id);
   }
 
-  private toggleRowSelection(req: HttpRequestSummary, column: ColumnKey): void {
+  private toggleRowSelection(req: HttpRequestSummary | HttpBinnedRequestSummary, column: ColumnKey): void {
     const set = new Set(this.selectedRowIds());
     if (set.has(req.id)) {
       set.delete(req.id);
@@ -462,21 +488,32 @@ export class RequestsMainListV2 {
     this.syncWorkspaceSelection(req);
   }
 
-  private syncWorkspaceSelection(fallbackReq: HttpRequestSummary | null): void {
+  private syncWorkspaceSelection(fallbackReq: HttpRequestSummary | HttpBinnedRequestSummary | null): void {
     const set = this.selectedRowIds();
     if (set.size > 1) {
       this.state.selectedRequest.set(null);
+      this.state.selectedBinnedRequest.set(null);
       this.state.selectedResponse.set(null);
       return;
     }
 
     if (set.size === 0) {
       this.state.selectedRequest.set(null);
+      this.state.selectedBinnedRequest.set(null);
       this.state.selectedResponse.set(null);
       return;
     }
 
     const id = [...set][0];
+
+    if (this.state.showingBin()) {
+      const binned = this.activeRequests().find(r => r.id === id) ?? null;
+      this.state.selectedBinnedRequest.set(binned as HttpBinnedRequestSummary | null);
+      this.state.selectedRequest.set(null);
+      this.state.selectedResponse.set(null);
+      return;
+    }
+
     const current = this.state.selectedRequest();
     if (current?.id === id) {
       return;
@@ -500,7 +537,7 @@ export class RequestsMainListV2 {
     }).catch(err => console.error(err));
   }
 
-  private selectRangeTo(req: HttpRequestSummary, column: ColumnKey): void {
+  private selectRangeTo(req: HttpRequestSummary | HttpBinnedRequestSummary, column: ColumnKey): void {
     const anchor = this.lastClickedRowId();
     const visible = this.filteredActiveRequests();
     const ids = visible.map((r) => r.id);
@@ -525,7 +562,7 @@ export class RequestsMainListV2 {
 
   // ---------- Drag selection ----------
 
-  onRowMouseDown(req: HttpRequestSummary, event: MouseEvent): void {
+  onRowMouseDown(req: HttpRequestSummary | HttpBinnedRequestSummary, event: MouseEvent): void {
     if (event.button !== 0) return;
     if (event.ctrlKey || event.shiftKey) return;
 
@@ -631,7 +668,7 @@ export class RequestsMainListV2 {
 
   // ---------- Context menu ----------
 
-  onRowContextMenu(req: HttpRequestSummary, event: MouseEvent): void {
+  onRowContextMenu(req: HttpRequestSummary | HttpBinnedRequestSummary, event: MouseEvent): void {
     event.preventDefault();
     event.stopPropagation();
 
@@ -640,7 +677,7 @@ export class RequestsMainListV2 {
       this.lastClickedRowId.set(req.id);
     }
 
-    this.contextMenuTarget.set(req);
+    this.contextMenuTarget.set(req as HttpRequestSummary);
     this.contextMenuX.set(event.clientX);
     this.contextMenuY.set(event.clientY);
     this.contextMenuOpen.set(true);
@@ -717,6 +754,13 @@ export class RequestsMainListV2 {
     this.state.loading.set(true);
 
     try {
+      if (this.state.showingBin()) {
+        await this.binApi.deleteManyPermanently(ids);
+        this.state.selectedBinnedRequest.set(null);
+        this.clearSelection();
+        return;
+      }
+
       const favourite = this.state.selectedFavouriteCollection();
       const collection = this.state.selectedCollection();
       const tag = this.state.selectedTag();
@@ -751,6 +795,65 @@ export class RequestsMainListV2 {
     }
   }
 
+  // ---------- Restore from bin ----------
+
+  openRestoreCollectionPicker(): void {
+    this.closeContextMenu();
+    const selectedIds = [...this.selectedRowIds()];
+    const binned = this.binApi.binnedRequests().filter(r => selectedIds.includes(r.id));
+    const collections = this.collectionApi.collections();
+    const missingOriginal = binned.some(r => !collections.some(c => c.id === r.original_collection_id));
+
+    if (!missingOriginal) {
+      const inputs = binned.map(r => ({
+        bin_id: r.id,
+        target_collection_id: r.original_collection_id,
+      }));
+      void this.doRestore(inputs);
+      return;
+    }
+
+    this.restorePickerBinIds.set(selectedIds);
+    this.restoreCollectionModalOpen.set(true);
+  }
+
+  closeRestoreCollectionModal(): void {
+    this.restoreCollectionModalOpen.set(false);
+    this.restorePickerBinIds.set([]);
+  }
+
+  async restoreSelectedRequestsToCollection(collection: Collection): Promise<void> {
+    const selectedIds = this.restorePickerBinIds();
+    const binned = this.binApi.binnedRequests().filter(r => selectedIds.includes(r.id));
+    const collections = this.collectionApi.collections();
+
+    const inputs = binned.map(r => {
+      const originalExists = collections.some(c => c.id === r.original_collection_id);
+      return {
+        bin_id: r.id,
+        target_collection_id: originalExists ? r.original_collection_id : collection.id,
+      };
+    });
+
+    await this.doRestore(inputs);
+    this.closeRestoreCollectionModal();
+  }
+
+  private async doRestore(inputs: RestoreBinnedRequestInput[]): Promise<void> {
+    if (inputs.length === 0) return;
+
+    this.state.loading.set(true);
+    try {
+      await this.binApi.restoreMany(inputs);
+      this.state.selectedBinnedRequest.set(null);
+      this.clearSelection();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      this.state.loading.set(false);
+    }
+  }
+
   // ---------- Move to Collection ----------
 
   openMoveCollectionModal(): void {
@@ -763,7 +866,8 @@ export class RequestsMainListV2 {
   }
 
   async moveSelectedRequestsToCollection(collection: Collection): Promise<void> {
-    const requests = this.selectedRequests();
+    if (this.state.showingBin()) return;
+    const requests = this.selectedRequests() as HttpRequestSummary[];
     if (requests.length === 0) return;
 
     this.state.loading.set(true);
@@ -795,11 +899,12 @@ export class RequestsMainListV2 {
   }
 
   async addBulkTag(tagName: string): Promise<void> {
+    if (this.state.showingBin()) return;
     const name = tagName.trim();
     const project = this.state.selectedProject();
     if (!name || !project) return;
 
-    const requests = this.selectedRequests();
+    const requests = this.selectedRequests() as HttpRequestSummary[];
     if (requests.length === 0) return;
 
     this.state.loading.set(true);
@@ -832,13 +937,15 @@ export class RequestsMainListV2 {
   }
 
   isAllSelectedInCollection(collectionId: number): boolean {
-    const requests = this.selectedRequests();
+    if (this.state.showingBin()) return false;
+    const requests = this.selectedRequests() as HttpRequestSummary[];
     if (requests.length === 0) return false;
     return requests.every((req) => (this.requestFavouriteIds()[req.id] ?? []).includes(collectionId));
   }
 
   async toggleBulkFavouriteMembership(collection: FavouriteCollection): Promise<void> {
-    const requests = this.selectedRequests();
+    if (this.state.showingBin()) return;
+    const requests = this.selectedRequests() as HttpRequestSummary[];
     if (requests.length === 0) return;
 
     const allIn = this.isAllSelectedInCollection(collection.id);
@@ -1017,6 +1124,8 @@ export class RequestsMainListV2 {
   }
 
   async sendSelectedRequest(event: MouseEvent): Promise<void> {
+    if (this.state.showingBin()) return;
+
     let req = this.state.selectedRequest();
     if (!req) {
       const selectedId = this.selectedCell()?.requestId ?? [...this.selectedRowIds()][0];
@@ -1042,22 +1151,25 @@ export class RequestsMainListV2 {
     }
   }
 
-  openZenMode(req: HttpRequestSummary, event: MouseEvent): void {
+  openZenMode(req: HttpRequestSummary | HttpBinnedRequestSummary, event: MouseEvent): void {
     event.stopPropagation();
-    this.selectCell(req, 'name');
+    if (this.state.showingBin()) return;
+    this.selectCell(req as HttpRequestSummary, 'name');
     this.state.zenModeOpen.set(true);
   }
 
-  onCellDoubleClick(req: HttpRequestSummary, column: ColumnKey): void {
+  onCellDoubleClick(req: HttpRequestSummary | HttpBinnedRequestSummary, column: ColumnKey): void {
+    if (this.state.showingBin()) return;
+    const request = req as HttpRequestSummary;
     if (column === 'method') {
-      this.openMethodModal(req);
+      this.openMethodModal(request);
       return;
     }
     if (column === 'tags') {
-      this.openTagsModal(req);
+      this.openTagsModal(request);
       return;
     }
-    this.openEditModal(req, column);
+    this.openEditModal(request, column);
   }
 
   // ---------- Text edit modal ----------
