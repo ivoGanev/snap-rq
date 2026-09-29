@@ -1,12 +1,13 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
+import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { Dialogs } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { RequestApiService, type HttpResponse } from '../core/services/request.service';
-import { PrettifyResponsePipe } from '../core/pipes/prettify-response.pipe';
+import { prettifyResponseBody } from '../core/prettifiers/response-prettifier';
 
 @Component({
   selector: 'app-response-viewer',
-  imports: [PrettifyResponsePipe],
+  imports: [CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll],
   templateUrl: './response-viewer.html',
   styleUrl: './response-viewer.scss',
 })
@@ -16,6 +17,19 @@ export class ResponseViewer {
 
   protected readonly responses = this.requestApi.responses;
   protected readonly prettifyEnabled = signal(true);
+
+  readonly bodyLines = computed<string[]>(() => {
+    const resp = this.state.selectedResponse();
+    if (!resp || !resp.body || resp.body.length === 0) {
+      return [];
+    }
+    const formatted = prettifyResponseBody(resp.body, resp.headers, this.prettifyEnabled());
+    return formatted.length > 0 ? formatted.split('\n') : [];
+  });
+
+  trackByLine(index: number, line: string): number {
+    return index;
+  }
 
   selectResponse(resp: HttpResponse): void {
     this.state.selectedResponse.set(resp);

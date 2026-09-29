@@ -54,7 +54,19 @@
 
     <div class="response-section response-body-section">
       <h3 class="section-title">Body</h3>
-      <pre class="response-block response-body">{{ (state.selectedResponse()!.body | prettifyResponse : state.selectedResponse()!.headers : prettifyEnabled()) || 'No body' }}</pre>
+      @if (bodyLines().length === 0) {
+        <pre class="response-block response-body">No body</pre>
+      } @else {
+        <cdk-virtual-scroll-viewport
+          itemSize="20"
+          class="response-block response-body response-body-viewport"
+        >
+          <div
+            *cdkVirtualFor="let line of bodyLines(); trackBy: trackByLine"
+            class="response-body-line"
+          >{{ line }}</div>
+        </cdk-virtual-scroll-viewport>
+      }
     </div>
   </div>
 }
