@@ -32,3 +32,150 @@
 .big-send-button:active {
   transform: scale(0.98);
 }
+
+.binned-request-panel {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--s-3);
+}
+
+.binned-request-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+}
+
+.binned-request-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.binned-request-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.binned-request-url {
+  font-size: 0.875rem;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.binned-request-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.binned-request-actions {
+  display: flex;
+  gap: var(--s-2);
+  margin-top: auto;
+}
+
+.restore-button {
+  padding: 8px 18px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: filter 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.restore-button:hover {
+  filter: brightness(1.15);
+}
+
+.delete-button {
+  padding: 8px 18px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(239, 68, 68, 0.8);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: filter 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.delete-button:hover {
+  filter: brightness(1.15);
+}
+
+.request-method {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+}
+
+.request-method[data-method='GET'] {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+}
+
+.request-method[data-method='POST'] {
+  background: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+}
+
+.request-method[data-method='PUT'] {
+  background: rgba(234, 179, 8, 0.2);
+  color: #fde047;
+}
+
+.request-method[data-method='DELETE'] {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+.request-method[data-method='PATCH'] {
+  background: rgba(168, 85, 247, 0.2);
+  color: #d8b4fe;
+}
+
+.collection-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.collection-row {
+  padding: var(--s-2) var(--s-3);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.collection-row:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 77, 77, 0.35);
+}

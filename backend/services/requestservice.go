@@ -470,37 +470,16 @@ func (s *RequestService) UpdateRequest(req models.HttpRequest) (models.HttpReque
 	return s.GetRequest(req.ID)
 }
 
-// DeleteRequest removes an HTTP request by ID.
+// DeleteRequest moves an HTTP request to the trash bin.
 func (s *RequestService) DeleteRequest(id int64) error {
-	_, err := s.db.Exec(`DELETE FROM http_requests WHERE id = ?`, id)
-	if err != nil {
-		return fmt.Errorf("deleting request: %w", err)
-	}
-	return nil
+	_, err := s.BinRequest(id)
+	return err
 }
 
-// BulkDeleteRequests removes multiple HTTP requests in a single transaction.
+// BulkDeleteRequests moves multiple HTTP requests to the trash bin.
 func (s *RequestService) BulkDeleteRequests(ids []int64) error {
-	if len(ids) == 0 {
-		return nil
-	}
-
-	tx, err := s.db.Begin()
-	if err != nil {
-		return fmt.Errorf("beginning bulk delete transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	for _, id := range ids {
-		if _, err := tx.Exec(`DELETE FROM http_requests WHERE id = ?`, id); err != nil {
-			return fmt.Errorf("deleting request %d: %w", id, err)
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("committing bulk delete: %w", err)
-	}
-	return nil
+	_, err := s.BinRequests(ids)
+	return err
 }
 
 // RequestToCurl converts an HttpRequest into an equivalent curl command string.
@@ -622,3 +601,436 @@ func (s *RequestService) SaveResponseToFile(responseID int64, filePath string) e
 	}
 	return nil
 }
+
+// ---------------------------------------------------------------------------
+// Trash bin
+// ---------------------------------------------------------------------------
+
+func (s *RequestService) getRequestWithProjectTx(tx *sql.Tx, id int64) (models.HttpRequest, error) {
+	var req models.HttpRequest
+	row := tx.QueryRow(`
+		SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.request_headers, hr.status_code, hr.response_id
+		FROM http_requests hr
+		JOIN collections c ON c.id = hr.collection_id
+		WHERE hr.id = ?`, id)
+	err := row.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.RequestHeaders, &req.StatusCode, &req.ResponseID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return models.HttpRequest{}, fmt.Errorf("request not found")
+		}
+		return models.HttpRequest{}, fmt.Errorf("loading request: %w", err)
+	}
+	return req, nil
+}
+
+func (s *RequestService) getBinnedResponsesTx(tx *sql.Tx, requestID int64) ([]models.BinnedResponseSnapshot, error) {
+	rows, err := tx.Query(`
+		SELECT id, headers, status_code, body, created_at, duration_ms
+		FROM responses
+		WHERE request_id = ?
+		ORDER BY id`, requestID)
+	if err != nil {
+		return nil, fmt.Errorf("loading responses: %w", err)
+	}
+	defer rows.Close()
+
+	var snapshots []models.BinnedResponseSnapshot
+	for rows.Next() {
+		var snap models.BinnedResponseSnapshot
+		if err := rows.Scan(&snap.ID, &snap.Headers, &snap.StatusCode, &snap.Body, &snap.CreatedAt, &snap.DurationMs); err != nil {
+			return nil, fmt.Errorf("scanning response: %w", err)
+		}
+		snapshots = append(snapshots, snap)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating responses: %w", err)
+	}
+	return snapshots, nil
+}
+
+func (s *RequestService) getBinnedTagsTx(tx *sql.Tx, requestID int64) ([]models.BinnedTagSnapshot, error) {
+	rows, err := tx.Query(`
+		SELECT t.id, t.name
+		FROM request_tags rt
+		JOIN tags t ON t.id = rt.tag_id
+		WHERE rt.request_id = ?
+		ORDER BY t.name`, requestID)
+	if err != nil {
+		return nil, fmt.Errorf("loading tags: %w", err)
+	}
+	defer rows.Close()
+
+	var snapshots []models.BinnedTagSnapshot
+	for rows.Next() {
+		var snap models.BinnedTagSnapshot
+		if err := rows.Scan(&snap.ID, &snap.Name); err != nil {
+			return nil, fmt.Errorf("scanning tag: %w", err)
+		}
+		snapshots = append(snapshots, snap)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating tags: %w", err)
+	}
+	return snapshots, nil
+}
+
+func (s *RequestService) getBinnedFavouritesTx(tx *sql.Tx, requestID int64) ([]models.BinnedFavouriteSnapshot, error) {
+	rows, err := tx.Query(`
+		SELECT fc.id, fc.name
+		FROM favourite_items fi
+		JOIN favourite_collections fc ON fc.id = fi.favourite_collection_id
+		WHERE fi.http_request_id = ?
+		ORDER BY fc.name`, requestID)
+	if err != nil {
+		return nil, fmt.Errorf("loading favourites: %w", err)
+	}
+	defer rows.Close()
+
+	var snapshots []models.BinnedFavouriteSnapshot
+	for rows.Next() {
+		var snap models.BinnedFavouriteSnapshot
+		if err := rows.Scan(&snap.ID, &snap.Name); err != nil {
+			return nil, fmt.Errorf("scanning favourite: %w", err)
+		}
+		snapshots = append(snapshots, snap)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating favourites: %w", err)
+	}
+	return snapshots, nil
+}
+
+// binRequestTx moves a single request into the trash bin inside an existing
+// transaction. It returns the generated bin row id.
+func (s *RequestService) binRequestTx(tx *sql.Tx, id int64) (int64, error) {
+	req, err := s.getRequestWithProjectTx(tx, id)
+	if err != nil {
+		return 0, err
+	}
+
+	responses, err := s.getBinnedResponsesTx(tx, id)
+	if err != nil {
+		return 0, err
+	}
+
+	tags, err := s.getBinnedTagsTx(tx, id)
+	if err != nil {
+		return 0, err
+	}
+
+	favourites, err := s.getBinnedFavouritesTx(tx, id)
+	if err != nil {
+		return 0, err
+	}
+
+	snapshot := models.BinnedRequestSnapshot{
+		Responses:  responses,
+		Tags:       tags,
+		Favourites: favourites,
+	}
+	snapshotJSON, err := snapshot.MarshalJSON()
+	if err != nil {
+		return 0, fmt.Errorf("serialising snapshot: %w", err)
+	}
+
+	var collectionName string
+	if err := tx.QueryRow("SELECT name FROM collections WHERE id = ?", req.CollectionID).Scan(&collectionName); err != nil {
+		collectionName = ""
+	}
+
+	result, err := tx.Exec(`
+		INSERT INTO binned_requests (
+			original_request_id, project_id, collection_id, original_collection_id, original_collection_name,
+			name, url, method, body, request_headers, status_code, response_id, snapshot_json
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		req.ID, req.ProjectID, req.CollectionID, req.CollectionID, collectionName,
+		req.Name, req.URL, req.Method, req.Body, req.RequestHeaders, req.StatusCode, req.ResponseID, snapshotJSON)
+	if err != nil {
+		return 0, fmt.Errorf("inserting binned request: %w", err)
+	}
+
+	binID, err := result.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("getting bin id: %w", err)
+	}
+
+	if _, err := tx.Exec(`DELETE FROM http_requests WHERE id = ?`, id); err != nil {
+		return 0, fmt.Errorf("deleting original request: %w", err)
+	}
+
+	return binID, nil
+}
+
+// BinRequest moves a single request and its related data into the trash bin.
+// It returns the generated bin row id.
+func (s *RequestService) BinRequest(id int64) (int64, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("beginning bin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	binID, err := s.binRequestTx(tx, id)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("committing bin transaction: %w", err)
+	}
+	return binID, nil
+}
+
+// BinRequests moves multiple requests into the trash bin atomically. It returns
+// the bin row ids in the same order as the input ids.
+func (s *RequestService) BinRequests(ids []int64) ([]int64, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("beginning bulk bin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	binIDs := make([]int64, 0, len(ids))
+	for _, id := range ids {
+		binID, err := s.binRequestTx(tx, id)
+		if err != nil {
+			return nil, fmt.Errorf("binning request %d: %w", id, err)
+		}
+		binIDs = append(binIDs, binID)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("committing bulk bin transaction: %w", err)
+	}
+	return binIDs, nil
+}
+
+// GetBinnedRequestsForProject returns every binned request for a project,
+// newest first.
+func (s *RequestService) GetBinnedRequestsForProject(projectID int64) ([]models.HttpBinnedRequestSummary, error) {
+	rows, err := s.db.Query(`
+		SELECT id, original_request_id, project_id, collection_id, original_collection_id, original_collection_name,
+		       name, url, method, status_code, response_id, deleted_at
+		FROM binned_requests
+		WHERE project_id = ?
+		ORDER BY deleted_at DESC, id DESC`, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("listing binned requests: %w", err)
+	}
+	defer rows.Close()
+
+	var summaries []models.HttpBinnedRequestSummary
+	for rows.Next() {
+		var summary models.HttpBinnedRequestSummary
+		if err := rows.Scan(
+			&summary.ID, &summary.OriginalRequestID, &summary.ProjectID, &summary.CollectionID,
+			&summary.OriginalCollectionID, &summary.OriginalCollectionName,
+			&summary.Name, &summary.URL, &summary.Method, &summary.StatusCode,
+			&summary.ResponseID, &summary.DeletedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scanning binned request: %w", err)
+		}
+		summaries = append(summaries, summary)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating binned requests: %w", err)
+	}
+	return summaries, nil
+}
+
+// RestoreBinnedRequest restores a binned request into the given collection.
+// The request is recreated with a new id and any still-existing tags and
+// favourites are re-attached.
+func (s *RequestService) RestoreBinnedRequest(binID int64, targetCollectionID int64) (models.HttpRequest, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return models.HttpRequest{}, fmt.Errorf("beginning restore transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var targetProjectID int64
+	if err := tx.QueryRow("SELECT project_id FROM collections WHERE id = ?", targetCollectionID).Scan(&targetProjectID); err != nil {
+		if err == sql.ErrNoRows {
+			return models.HttpRequest{}, fmt.Errorf("target collection not found")
+		}
+		return models.HttpRequest{}, fmt.Errorf("loading target collection: %w", err)
+	}
+
+	var binned struct {
+		ProjectID       int64
+		Name            string
+		URL             string
+		Method          string
+		Body            string
+		RequestHeaders  string
+		StatusCode      int
+		ResponseID      int64
+		SnapshotJSON    string
+	}
+	if err := tx.QueryRow(`
+		SELECT project_id, name, url, method, body, request_headers, status_code, response_id, snapshot_json
+		FROM binned_requests
+		WHERE id = ?`, binID).Scan(
+		&binned.ProjectID, &binned.Name, &binned.URL, &binned.Method,
+		&binned.Body, &binned.RequestHeaders, &binned.StatusCode,
+		&binned.ResponseID, &binned.SnapshotJSON,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return models.HttpRequest{}, fmt.Errorf("binned request not found")
+		}
+		return models.HttpRequest{}, fmt.Errorf("loading binned request: %w", err)
+	}
+
+	if binned.ProjectID != targetProjectID {
+		return models.HttpRequest{}, fmt.Errorf("target collection does not belong to the binned request's project")
+	}
+
+	snapshot, err := models.UnmarshalBinnedRequestSnapshot(binned.SnapshotJSON)
+	if err != nil {
+		return models.HttpRequest{}, fmt.Errorf("parsing snapshot: %w", err)
+	}
+
+	result, err := tx.Exec(`
+		INSERT INTO http_requests (collection_id, name, url, method, body, request_headers, status_code, response_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		targetCollectionID, binned.Name, binned.URL, binned.Method,
+		binned.Body, binned.RequestHeaders, binned.StatusCode, 0)
+	if err != nil {
+		return models.HttpRequest{}, fmt.Errorf("restoring request: %w", err)
+	}
+	newRequestID, err := result.LastInsertId()
+	if err != nil {
+		return models.HttpRequest{}, fmt.Errorf("getting restored request id: %w", err)
+	}
+
+	responseIDMap := make(map[int64]int64)
+	for _, resp := range snapshot.Responses {
+		res, err := tx.Exec(`
+			INSERT INTO responses (request_id, headers, status_code, body, created_at, duration_ms)
+			VALUES (?, ?, ?, ?, ?, ?)`,
+			newRequestID, resp.Headers, resp.StatusCode, resp.Body, resp.CreatedAt, resp.DurationMs)
+		if err != nil {
+			return models.HttpRequest{}, fmt.Errorf("restoring response: %w", err)
+		}
+		newResponseID, err := res.LastInsertId()
+		if err != nil {
+			return models.HttpRequest{}, fmt.Errorf("getting restored response id: %w", err)
+		}
+		responseIDMap[resp.ID] = newResponseID
+	}
+
+	if binned.ResponseID != 0 {
+		if newResponseID, ok := responseIDMap[binned.ResponseID]; ok {
+			if _, err := tx.Exec(`UPDATE http_requests SET response_id = ? WHERE id = ?`, newResponseID, newRequestID); err != nil {
+				return models.HttpRequest{}, fmt.Errorf("updating response_id: %w", err)
+			}
+		}
+	}
+
+	for _, tag := range snapshot.Tags {
+		var tagID int64
+		err := tx.QueryRow(`SELECT id FROM tags WHERE id = ? AND project_id = ?`, tag.ID, targetProjectID).Scan(&tagID)
+		if err != nil {
+			if err != sql.ErrNoRows {
+				return models.HttpRequest{}, fmt.Errorf("looking up tag: %w", err)
+			}
+			err = tx.QueryRow(`SELECT id FROM tags WHERE name = ? AND project_id = ?`, tag.Name, targetProjectID).Scan(&tagID)
+			if err != nil {
+				if err != sql.ErrNoRows {
+					return models.HttpRequest{}, fmt.Errorf("looking up tag by name: %w", err)
+				}
+				continue
+			}
+		}
+		if _, err := tx.Exec(`INSERT OR IGNORE INTO request_tags (request_id, tag_id) VALUES (?, ?)`, newRequestID, tagID); err != nil {
+			return models.HttpRequest{}, fmt.Errorf("reattaching tag: %w", err)
+		}
+	}
+
+	for _, fav := range snapshot.Favourites {
+		var favID int64
+		err := tx.QueryRow(`SELECT id FROM favourite_collections WHERE id = ? AND project_id = ?`, fav.ID, targetProjectID).Scan(&favID)
+		if err != nil {
+			if err != sql.ErrNoRows {
+				return models.HttpRequest{}, fmt.Errorf("looking up favourite: %w", err)
+			}
+			err = tx.QueryRow(`SELECT id FROM favourite_collections WHERE name = ? AND project_id = ?`, fav.Name, targetProjectID).Scan(&favID)
+			if err != nil {
+				if err != sql.ErrNoRows {
+					return models.HttpRequest{}, fmt.Errorf("looking up favourite by name: %w", err)
+				}
+				continue
+			}
+		}
+		if _, err := tx.Exec(`INSERT OR IGNORE INTO favourite_items (favourite_collection_id, http_request_id) VALUES (?, ?)`, favID, newRequestID); err != nil {
+			return models.HttpRequest{}, fmt.Errorf("reattaching favourite: %w", err)
+		}
+	}
+
+	if _, err := tx.Exec(`DELETE FROM binned_requests WHERE id = ?`, binID); err != nil {
+		return models.HttpRequest{}, fmt.Errorf("deleting binned row: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return models.HttpRequest{}, fmt.Errorf("committing restore: %w", err)
+	}
+
+	restored, err := s.GetRequest(newRequestID)
+	if err != nil {
+		return models.HttpRequest{}, fmt.Errorf("loading restored request: %w", err)
+	}
+	return restored, nil
+}
+
+// RestoreBinnedRequests restores multiple binned requests. Each input carries
+// its own target collection id so the frontend can resolve fallbacks per
+// request.
+func (s *RequestService) RestoreBinnedRequests(inputs []models.RestoreBinnedRequestInput) ([]models.HttpRequest, error) {
+	restored := make([]models.HttpRequest, 0, len(inputs))
+	for _, input := range inputs {
+		req, err := s.RestoreBinnedRequest(input.BinID, input.TargetCollectionID)
+		if err != nil {
+			return nil, fmt.Errorf("restoring binned request %d: %w", input.BinID, err)
+		}
+		restored = append(restored, req)
+	}
+	return restored, nil
+}
+
+// PermanentlyDeleteBinnedRequest removes a single binned request forever.
+func (s *RequestService) PermanentlyDeleteBinnedRequest(binID int64) error {
+	_, err := s.db.Exec(`DELETE FROM binned_requests WHERE id = ?`, binID)
+	if err != nil {
+		return fmt.Errorf("deleting binned request: %w", err)
+	}
+	return nil
+}
+
+// PermanentlyDeleteBinnedRequests removes multiple binned requests forever.
+func (s *RequestService) PermanentlyDeleteBinnedRequests(binIDs []int64) error {
+	if len(binIDs) == 0 {
+		return nil
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("beginning permanent delete transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	for _, binID := range binIDs {
+		if _, err := tx.Exec(`DELETE FROM binned_requests WHERE id = ?`, binID); err != nil {
+			return fmt.Errorf("deleting binned request %d: %w", binID, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("committing permanent delete: %w", err)
+	}
+	return nil
+}
+

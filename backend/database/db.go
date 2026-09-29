@@ -37,6 +37,10 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
+	if err := addBinnedRequestsCollectionIdColumn(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
 	if err := addResponseCreatedAtColumn(db); err != nil {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
@@ -161,6 +165,26 @@ func migrate(db *sql.DB) error {
 		);
 		CREATE INDEX IF NOT EXISTS idx_request_tags_request_id ON request_tags(request_id);
 		CREATE INDEX IF NOT EXISTS idx_request_tags_tag_id ON request_tags(tag_id);
+
+		CREATE TABLE IF NOT EXISTS binned_requests (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			original_request_id INTEGER NOT NULL,
+			project_id INTEGER NOT NULL,
+			collection_id INTEGER NOT NULL DEFAULT 0,
+			original_collection_id INTEGER NOT NULL,
+			original_collection_name TEXT NOT NULL,
+			name TEXT NOT NULL,
+			url TEXT NOT NULL,
+			method TEXT NOT NULL,
+			body TEXT,
+			request_headers TEXT,
+			status_code INTEGER NOT NULL DEFAULT 0,
+			response_id INTEGER NOT NULL DEFAULT 0,
+			deleted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			snapshot_json TEXT NOT NULL
+		);
+		CREATE INDEX IF NOT EXISTS idx_binned_requests_project_id ON binned_requests(project_id);
+		CREATE INDEX IF NOT EXISTS idx_binned_requests_deleted_at ON binned_requests(deleted_at);
 	`, "")
 	if err != nil {
 		return err
@@ -406,6 +430,16 @@ func appearanceExists(db *sql.DB, collectionID int64) bool {
 		return false
 	}
 	return count > 0
+}
+
+func addBinnedRequestsCollectionIdColumn(db *sql.DB) error {
+	if !columnExists(db, "binned_requests", "collection_id") {
+		_, err := db.Exec("ALTER TABLE binned_requests ADD COLUMN collection_id INTEGER NOT NULL DEFAULT 0")
+		if err != nil {
+			return fmt.Errorf("adding collection_id column to binned_requests: %w", err)
+		}
+	}
+	return nil
 }
 
 func addResponseCreatedAtColumn(db *sql.DB) error {

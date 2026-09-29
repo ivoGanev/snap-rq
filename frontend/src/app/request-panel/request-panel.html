@@ -18,10 +18,55 @@
   <div class="state-message">You are in multi selection mode.</div>
 }
 
-@if (!state.selectedRequest() && !state.multiSelectionActive()) {
+@if (!state.selectedRequest() && !state.selectedBinnedRequest() && !state.multiSelectionActive()) {
   <div class="state-message">Select a request to view its response.</div>
 }
 
-@if (state.selectedRequest() && !state.multiSelectionActive()) {
+@if (state.selectedRequest() && !state.multiSelectionActive() && !state.showingBin()) {
   <app-response-viewer></app-response-viewer>
+}
+
+@if (state.selectedBinnedRequest() && !state.multiSelectionActive()) {
+  <div class="binned-request-panel">
+    <div class="binned-request-card">
+      <h3 class="binned-request-title">{{ state.selectedBinnedRequest()!.name }}</h3>
+      <div class="binned-request-meta">
+        <span class="request-method" [attr.data-method]="state.selectedBinnedRequest()!.method">
+          {{ state.selectedBinnedRequest()!.method }}
+        </span>
+        <span class="binned-request-url">{{ state.selectedBinnedRequest()!.url }}</span>
+      </div>
+      <div class="binned-request-info">
+        <span>Original collection: {{ state.selectedBinnedRequest()!.original_collection_name || 'Deleted' }}</span>
+        <span>Deleted: {{ state.selectedBinnedRequest()!.deleted_at }}</span>
+      </div>
+      <div class="binned-request-actions">
+        <button class="restore-button" type="button" (click)="openRestorePicker()">Restore</button>
+        <button class="delete-button" type="button" (click)="deletePermanently()">Delete permanently</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (restoreCollectionModalOpen()) {
+  <div class="overlay-backdrop" (click)="closeRestoreCollectionModal()">
+    <div class="overlay-panel" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Restore to collection</h3>
+        <button class="overlay-close" type="button" (click)="closeRestoreCollectionModal()">Cancel</button>
+      </div>
+      <div class="overlay-body">
+        @if (collectionApi.collections().length === 0) {
+          <div class="state-message">No collections available.</div>
+        }
+        <ul class="collection-list">
+          @for (collection of collectionApi.collections(); track collection.id) {
+            <li class="collection-row" (click)="restoreToCollection(collection)">
+              {{ collection.name }}
+            </li>
+          }
+        </ul>
+      </div>
+    </div>
+  </div>
 }

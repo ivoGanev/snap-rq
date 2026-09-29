@@ -5,6 +5,8 @@ import { RequestApiService, type HttpRequest, type HttpRequestSummary } from '..
 import { FavouriteApiService, type FavouriteCollection } from '../core/services/favourite.service';
 import { SelectionStateService } from '../core/services/selection-state.service';
 import { TagApiService } from '../core/services/tag.service';
+import { BinApiService, type HttpBinnedRequestSummary, type RestoreBinnedRequestInput } from '../core/services/bin.service';
+import { CollectionApiService, type Collection } from '../core/services/collection.service';
 
 @Component({
   selector: 'app-requests-main-list',
@@ -23,6 +25,8 @@ export class RequestsMainList {
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly selectionState = inject(SelectionStateService);
   private readonly tagApi = inject(TagApiService);
+  private readonly binApi = inject(BinApiService);
+  protected readonly collectionApi = inject(CollectionApiService);
 
   protected readonly requestTags = this.tagApi.requestTags;
   protected readonly favouriteCollections = this.favouriteApi.collections;
@@ -33,7 +37,9 @@ export class RequestsMainList {
   readonly requestContextMenuOpen = signal(false);
   readonly requestContextMenuX = signal(0);
   readonly requestContextMenuY = signal(0);
-  readonly requestContextMenuTarget = signal<HttpRequestSummary | null>(null);
+  readonly requestContextMenuTarget = signal<HttpRequestSummary | HttpBinnedRequestSummary | null>(null);
+  readonly restoreCollectionModalOpen = signal(false);
+  readonly restorePickerBinId = signal<number | null>(null);
   readonly newRequestPopupMode = signal<'manual' | 'curl'>('manual');
   readonly newRequestPopupOpen = signal(false);
   readonly newRequestName = signal('My new snappy API');
@@ -47,6 +53,9 @@ export class RequestsMainList {
   private loadVersion = 0;
 
   readonly activeRequests = computed<HttpRequestSummary[]>(() => {
+    if (this.state.showingBin()) {
+      return this.binApi.binnedRequests() as HttpRequestSummary[];
+    }
     if (this.state.selectedTag()) {
       return this.tagRequests();
     }
@@ -63,6 +72,7 @@ export class RequestsMainList {
   });
 
   readonly activeGroupName = computed<string | null>(() => {
+    if (this.state.showingBin()) return 'Trash bin';
     if (this.state.showingAllRequests()) return 'All requests';
     const tag = this.state.selectedTag();
     if (tag) return tag;
@@ -91,12 +101,15 @@ export class RequestsMainList {
       const favourite = this.state.selectedFavouriteCollection();
       const tag = this.state.selectedTag();
       const showAll = this.state.showingAllRequests();
+      const showBin = this.state.showingBin();
       const project = this.state.selectedProject();
 
       const version = ++this.loadVersion;
       this.requestSearchQuery.set('');
       this.state.selectedRequest.set(null);
-      void this.loadActiveGroup(version, collection?.id ?? null, favourite?.id ?? null, tag, showAll, project?.id ?? null);
+      this.state.selectedBinnedRequest.set(null);
+      this.state.selectedResponse.set(null);
+      void this.loadActiveGroup(version, collection?.id ?? null, favourite?.id ?? null, tag, showAll, showBin, project?.id ?? null);
     });
   }
 
@@ -106,9 +119,15 @@ export class RequestsMainList {
     favouriteId: number | null,
     tag: string | null,
     showAll: boolean,
+    showBin: boolean,
     projectId: number | null,
   ): Promise<void> {
     try {
+      if (showBin && projectId !== null) {
+        await this.binApi.loadForProject(projectId);
+        return;
+      }
+
       if (tag) {
         const project = this.state.selectedProject();
         if (!project) return;
@@ -197,8 +216,9 @@ export class RequestsMainList {
     }
   }
 
-  async sendRequest(req: HttpRequestSummary, event: MouseEvent): Promise<void> {
+  async sendRequest(req: HttpRequestSummary | HttpBinnedRequestSummary, event: MouseEvent): Promise<void> {
     event.stopPropagation();
+    if (this.state.showingBin()) return;
     try {
       const full = await this.requestApi.get(req.id);
       await this.state.sendRequest(full, event);
@@ -207,8 +227,16 @@ export class RequestsMainList {
     }
   }
 
-  selectRequest(req: HttpRequestSummary): void {
+  selectRequest(req: HttpRequestSummary | HttpBinnedRequestSummary): void {
+    if (this.state.showingBin()) {
+      this.state.selectedBinnedRequest.set(req as HttpBinnedRequestSummary);
+      this.state.selectedRequest.set(null);
+      this.state.selectedResponse.set(null);
+      return;
+    }
+
     this.state.selectedRequest.set(null);
+    this.state.selectedBinnedRequest.set(null);
     this.state.selectedResponse.set(null);
     void this.requestApi.get(req.id).then(full => {
       if (this.state.selectedRequest()?.id === req.id || this.state.selectedRequest() === null) {
@@ -228,13 +256,14 @@ export class RequestsMainList {
     }
   }
 
-  openZenMode(req: HttpRequestSummary, event: MouseEvent): void {
+  openZenMode(req: HttpRequestSummary | HttpBinnedRequestSummary, event: MouseEvent): void {
     event.stopPropagation();
-    this.selectRequest(req);
+    if (this.state.showingBin()) return;
+    this.selectRequest(req as HttpRequestSummary);
     this.state.zenModeOpen.set(true);
   }
 
-  openRequestContextMenu(req: HttpRequestSummary, event: MouseEvent): void {
+  openRequestContextMenu(req: HttpRequestSummary | HttpBinnedRequestSummary, event: MouseEvent): void {
     event.preventDefault();
     event.stopPropagation();
     this.requestContextMenuTarget.set(req);
@@ -250,7 +279,7 @@ export class RequestsMainList {
 
   async copyRequestCurl(): Promise<void> {
     const req = this.requestContextMenuTarget();
-    if (!req) return;
+    if (!req || this.state.showingBin()) return;
 
     try {
       const full = await this.requestApi.get(req.id);
@@ -291,17 +320,31 @@ export class RequestsMainList {
     const req = this.requestContextMenuTarget();
     if (!req) return;
 
-    const collection = this.state.selectedCollection();
-    const favourite = this.state.selectedFavouriteCollection();
-
     this.state.loading.set(true);
     try {
-      if (collection) {
-        await this.requestApi.delete(req.id);
-        this.selectionState.deleteRequest(req.id);
-      } else if (favourite) {
+      if (this.state.showingBin()) {
+        await this.binApi.deletePermanently(req.id);
+        if (this.state.selectedBinnedRequest()?.id === req.id) {
+          this.state.selectedBinnedRequest.set(null);
+        }
+        this.closeRequestContextMenu();
+        return;
+      }
+
+      const collection = this.state.selectedCollection();
+      const favourite = this.state.selectedFavouriteCollection();
+      const tag = this.state.selectedTag();
+
+      if (favourite) {
         await this.favouriteApi.removeRequest(favourite.id, req.id);
         this.selectionState.setSelectedRequestForFavourite(favourite.id, null);
+        this.favouriteApi.requests.update(list => list.filter(r => r.id !== req.id));
+      } else {
+        await this.requestApi.delete(req.id);
+        this.selectionState.deleteRequest(req.id);
+        if (tag) {
+          this.tagRequests.update(list => list.filter(r => r.id !== req.id));
+        }
       }
 
       if (this.state.selectedRequest()?.id === req.id) {
@@ -309,11 +352,53 @@ export class RequestsMainList {
         this.state.selectedResponse.set(null);
       }
 
-      if (favourite) {
-        this.favouriteApi.requests.update(list => list.filter(r => r.id !== req.id));
-      }
-
       this.closeRequestContextMenu();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      this.state.loading.set(false);
+    }
+  }
+
+  openRestorePicker(): void {
+    const req = this.requestContextMenuTarget();
+    if (!req || !this.state.showingBin()) return;
+
+    const binned = req as HttpBinnedRequestSummary;
+    const collections = this.collectionApi.collections();
+    const originalExists = collections.some(c => c.id === binned.original_collection_id);
+
+    if (originalExists) {
+      void this.doRestore([{ bin_id: binned.id, target_collection_id: binned.original_collection_id } as RestoreBinnedRequestInput]);
+      this.closeRequestContextMenu();
+      return;
+    }
+
+    this.restorePickerBinId.set(binned.id);
+    this.restoreCollectionModalOpen.set(true);
+    this.closeRequestContextMenu();
+  }
+
+  closeRestoreCollectionModal(): void {
+    this.restoreCollectionModalOpen.set(false);
+    this.restorePickerBinId.set(null);
+  }
+
+  async restoreToCollection(collection: Collection): Promise<void> {
+    const binId = this.restorePickerBinId();
+    if (binId === null) return;
+
+    await this.doRestore([{ bin_id: binId, target_collection_id: collection.id }]);
+    this.closeRestoreCollectionModal();
+  }
+
+  private async doRestore(inputs: RestoreBinnedRequestInput[]): Promise<void> {
+    if (inputs.length === 0) return;
+
+    this.state.loading.set(true);
+    try {
+      await this.binApi.restoreMany(inputs);
+      this.state.selectedBinnedRequest.set(null);
     } catch (err) {
       console.error(err);
     } finally {
@@ -399,12 +484,14 @@ export class RequestsMainList {
     }
   }
 
-  openFavouritePopup(req: HttpRequestSummary, event: MouseEvent): void {
+  openFavouritePopup(req: HttpRequestSummary | HttpBinnedRequestSummary, event: MouseEvent): void {
     event.stopPropagation();
-    this.favouritePopupRequest.set(req);
+    if (this.state.showingBin()) return;
+    const request = req as HttpRequestSummary;
+    this.favouritePopupRequest.set(request);
     this.favouritePopupOpen.set(true);
     this.newFavouriteName.set('');
-    this.favouriteApi.loadMembershipForRequest(req.id);
+    void this.favouriteApi.loadMembershipForRequest(request.id);
   }
 
   closeFavouritePopup(): void {
