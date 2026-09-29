@@ -8,7 +8,7 @@ import { CollectionApiService, type Collection } from '../core/services/collecti
 import { SelectionStateService } from '../core/services/selection-state.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
 
-type ColumnKey = 'name' | 'url' | 'method' | 'tags' | 'favourites';
+type ColumnKey = 'name' | 'url' | 'method' | 'tags';
 type SortDirection = 'asc' | 'desc';
 
 interface SelectedCell {
@@ -19,7 +19,6 @@ interface SelectedCell {
 interface RowState {
   isSelected: boolean;
   isCellSelected: Record<ColumnKey, boolean>;
-  favouriteCount: number;
 }
 
 const COLUMNS: { key: ColumnKey; label: string }[] = [
@@ -27,7 +26,6 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: 'url', label: 'URL' },
   { key: 'method', label: 'Method' },
   { key: 'tags', label: 'Tags' },
-  { key: 'favourites', label: 'Favourites' },
 ];
 
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
@@ -189,7 +187,6 @@ export class RequestsMainListV2 {
   readonly rowState = computed<Record<number, RowState>>(() => {
     const selectedIds = this.selectedRowIds();
     const cell = this.selectedCell();
-    const favouriteIds = this.requestFavouriteIds();
     const result: Record<number, RowState> = {};
 
     for (const req of this.filteredActiveRequests()) {
@@ -201,7 +198,6 @@ export class RequestsMainListV2 {
         url: false,
         method: false,
         tags: false,
-        favourites: false,
       };
       if (isSelected && selectedIds.size <= 1 && cell?.requestId === req.id) {
         isCellSelected[cell.column] = true;
@@ -209,7 +205,6 @@ export class RequestsMainListV2 {
       result[req.id] = {
         isSelected,
         isCellSelected,
-        favouriteCount: favouriteIds[req.id]?.length ?? 0,
       };
     }
     return result;
@@ -932,12 +927,6 @@ export class RequestsMainListV2 {
         const bTags = (this.requestTags()[b.id] ?? []).join(', ');
         return aTags.localeCompare(bTags) * dir;
       }
-      case 'favourites': {
-        const aCount = this.requestFavouriteIds()[a.id]?.length ?? 0;
-        const bCount = this.requestFavouriteIds()[b.id]?.length ?? 0;
-        if (aCount !== bCount) return (aCount - bCount) * dir;
-        return (a.id - b.id) * dir;
-      }
       default:
         return 0;
     }
@@ -953,8 +942,6 @@ export class RequestsMainListV2 {
         return req.method;
       case 'tags':
         return (this.requestTags()[req.id] ?? []).join(', ');
-      case 'favourites':
-        return '';
       default:
         return '';
     }
@@ -1052,6 +1039,17 @@ export class RequestsMainListV2 {
     await this.state.sendRequest(req, event);
   }
 
+  onFavouriteButtonClick(): void {
+    if (this.selectedRowIds().size <= 1) {
+      const req = this.selectedRequest() ?? this.selectedRequests()[0];
+      if (req) {
+        this.openFavouritesModal(req);
+      }
+    } else {
+      this.openBulkFavouritesModal();
+    }
+  }
+
   openZenMode(req: HttpRequestSummary, event: MouseEvent): void {
     event.stopPropagation();
     this.selectCell(req, 'name');
@@ -1065,10 +1063,6 @@ export class RequestsMainListV2 {
     }
     if (column === 'tags') {
       this.openTagsModal(req);
-      return;
-    }
-    if (column === 'favourites') {
-      this.openFavouritesModal(req);
       return;
     }
     this.openEditModal(req, column);
@@ -1095,7 +1089,7 @@ export class RequestsMainListV2 {
     const column = this.editModalColumn();
     if (!req || !column) return;
 
-    if (column === 'tags' || column === 'favourites') return;
+    if (column === 'tags') return;
 
     const field = this.columnToRequestField(column);
     await this.updateRequestField(req, field, this.editModalValue());
