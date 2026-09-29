@@ -197,3 +197,20 @@
 .response-body {
   min-height: 120px;
 }
+
+.response-body-viewport {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.response-body-viewport .cdk-virtual-scroll-content-wrapper {
+  min-width: 100%;
+}
+
+.response-body-line {
+  white-space: pre;
+  min-height: 20px;
+  line-height: 20px;
+  font-family: inherit;
+  font-size: inherit;
+}
