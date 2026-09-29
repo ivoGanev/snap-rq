@@ -564,6 +564,11 @@ export class RequestsMainListV2 {
 
   onRowMouseDown(req: HttpRequestSummary | HttpBinnedRequestSummary, event: MouseEvent): void {
     if (event.button !== 0) return;
+    // A new mousedown always starts a new gesture: clear any stale
+    // ignoreNextClick left over from a previous drag release whose trailing
+    // click never landed on a row. Without this, the first deliberate click
+    // after a drag would be swallowed (requiring two clicks to select).
+    this.ignoreNextClick.set(false);
     if (event.ctrlKey || event.shiftKey) return;
 
     this.dragStartRowId.set(req.id);
