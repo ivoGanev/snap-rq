@@ -295,10 +295,7 @@ export class RequestsMainListV2 {
         await this.favouriteApi.loadRequestsForCollection(favouriteId);
         if (version !== this.loadVersion) return;
         const requests = this.favouriteApi.requests();
-        await Promise.all([
-          this.tagApi.loadTagsForRequests(requests),
-          this.favouriteApi.loadMembershipForRequests(requests),
-        ]);
+        await this.tagApi.loadTagsForRequests(requests);
         const rememberedId = this.selectionState.getSelectedRequestForFavourite(favouriteId);
         this.restoreRememberedRequest(requests, rememberedId);
         return;
@@ -308,10 +305,7 @@ export class RequestsMainListV2 {
         await this.requestApi.loadForCollection(collectionId);
         if (version !== this.loadVersion) return;
         const requests = this.requestApi.requests();
-        await Promise.all([
-          this.tagApi.loadTagsForRequests(requests),
-          this.favouriteApi.loadMembershipForRequests(requests),
-        ]);
+        await this.tagApi.loadTagsForRequests(requests);
         const rememberedId = this.selectionState.getSelectedRequestForCollection(collectionId);
         this.restoreRememberedRequest(requests, rememberedId);
         return;
@@ -321,10 +315,7 @@ export class RequestsMainListV2 {
         await this.requestApi.loadForProject(projectId);
         if (version !== this.loadVersion) return;
         const requests = this.requestApi.requests();
-        await Promise.all([
-          this.tagApi.loadTagsForRequests(requests),
-          this.favouriteApi.loadMembershipForRequests(requests),
-        ]);
+        await this.tagApi.loadTagsForRequests(requests);
         return;
       }
 
