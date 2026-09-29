@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { RequestApiService, type HttpRequest, type HttpRequestSummary } from '../core/services/request.service';
+import { ApiRequestsService } from '../core/services/api-requests.service';
 import { FavouriteApiService, type FavouriteCollection } from '../core/services/favourite.service';
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
 import { SelectionStateService } from '../core/services/selection-state.service';
@@ -51,6 +52,7 @@ const DRAG_THRESHOLD_PX = 5;
 export class RequestsMainListV2 {
   protected readonly state = inject(WorkspaceStateService);
   private readonly requestApi = inject(RequestApiService);
+  private readonly apiRequests = inject(ApiRequestsService);
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly collectionApi = inject(CollectionApiService);
   private readonly selectionState = inject(SelectionStateService);
@@ -122,18 +124,25 @@ export class RequestsMainListV2 {
   private loadVersion = 0;
 
   readonly activeRequests = computed<HttpRequestSummary[]>(() => {
-    if (this.state.selectedTag()) {
+    const tag = this.state.selectedTag();
+    if (tag) {
       return this.tagRequests();
     }
+
     if (this.state.selectedFavouriteCollection()) {
       return this.favouriteApi.requests();
     }
-    if (this.state.selectedCollection()) {
-      return this.requestApi.requests();
+
+    const collection = this.state.selectedCollection();
+    if (collection) {
+      return this.apiRequests.forCollection(collection.id);
     }
+
     if (this.state.showingAllRequests()) {
-      return this.requestApi.requests();
+      const projectId = this.state.selectedProject()?.id;
+      return projectId ? this.apiRequests.forProject(projectId) : [];
     }
+
     return [];
   });
 
@@ -302,9 +311,8 @@ export class RequestsMainListV2 {
       }
 
       if (collectionId !== null) {
-        await this.requestApi.loadForCollection(collectionId);
         if (version !== this.loadVersion) return;
-        const requests = this.requestApi.requests();
+        const requests = this.apiRequests.forCollection(collectionId);
         await this.tagApi.loadTagsForRequests(requests);
         const rememberedId = this.selectionState.getSelectedRequestForCollection(collectionId);
         this.restoreRememberedRequest(requests, rememberedId);
@@ -312,9 +320,8 @@ export class RequestsMainListV2 {
       }
 
       if (showAll && projectId !== null) {
-        await this.requestApi.loadForProject(projectId);
         if (version !== this.loadVersion) return;
-        const requests = this.requestApi.requests();
+        const requests = this.apiRequests.forProject(projectId);
         await this.tagApi.loadTagsForRequests(requests);
         return;
       }
@@ -669,7 +676,7 @@ export class RequestsMainListV2 {
     try {
       const duplicated: { originalId: number; request: HttpRequestSummary }[] = [];
       for (const original of requests) {
-        duplicated.push({ originalId: original.id, request: await this.requestApi.duplicate(original.id) });
+        duplicated.push({ originalId: original.id, request: await this.apiRequests.duplicate(original.id) });
       }
 
       const favourite = this.state.selectedFavouriteCollection();
@@ -720,7 +727,7 @@ export class RequestsMainListV2 {
         }
         this.favouriteApi.requests.update(list => list.filter(r => !ids.includes(r.id)));
       } else {
-        await this.requestApi.deleteMany(ids);
+        await this.apiRequests.deleteMany(ids);
         for (const id of ids) {
           this.selectionState.deleteRequest(id);
         }
@@ -762,16 +769,7 @@ export class RequestsMainListV2 {
     this.state.loading.set(true);
     try {
       for (const req of requests) {
-        const full = await this.requestApi.get(req.id);
-        await this.requestApi.update({ ...full, collection_id: collection.id });
-      }
-
-      const currentCollection = this.state.selectedCollection();
-      if (currentCollection) {
-        // The modal only shows other collections, so the moved requests leave
-        // the current collection view.
-        const ids = requests.map(r => r.id);
-        this.requestApi.requests.update(list => list.filter(r => !ids.includes(r.id)));
+        await this.apiRequests.move(req.id, collection.id, collection.project_id);
       }
 
       this.clearSelection();
@@ -972,8 +970,9 @@ export class RequestsMainListV2 {
 
     this.state.loading.set(true);
     try {
-      await this.requestApi.create({
+      await this.apiRequests.create({
         collection_id: collection.id,
+        project_id: collection.project_id,
         name,
         url: this.newRequestUrl().trim(),
         method: this.newRequestMethod(),
@@ -996,9 +995,11 @@ export class RequestsMainListV2 {
 
     this.state.loading.set(true);
     try {
+      const projectId = this.state.selectedProject()?.id ?? 0;
       const req = await this.requestApi.curlToRequest(collectionId, curl);
-      await this.requestApi.create({
+      await this.apiRequests.create({
         collection_id: collectionId,
+        project_id: projectId,
         name: req.name,
         url: req.url,
         method: req.method,
@@ -1244,22 +1245,12 @@ export class RequestsMainListV2 {
     try {
       const full = await this.requestApi.get(req.id);
       const updated = { ...full, [field]: value } as HttpRequest;
-      await this.requestApi.update({ ...updated, collection_id: req.collection_id });
-
-      const summaryUpdate: HttpRequestSummary = {
-        id: updated.id,
-        collection_id: updated.collection_id,
-        name: updated.name,
-        url: updated.url,
-        method: updated.method,
-        status_code: updated.status_code,
-        response_id: updated.response_id,
-      };
-      this.patchRequestInLists(summaryUpdate);
+      const saved = await this.apiRequests.update(updated);
+      this.patchRequestInLists(saved.id, saved);
 
       const selected = this.state.selectedRequest();
-      if (selected?.id === updated.id) {
-        this.state.selectedRequest.set(updated);
+      if (selected?.id === saved.id) {
+        this.state.selectedRequest.set(saved);
       }
     } catch (err) {
       console.error(err);
@@ -1268,16 +1259,17 @@ export class RequestsMainListV2 {
     }
   }
 
-  private patchRequestInLists(updated: HttpRequestSummary): void {
+  private patchRequestInLists(id: number, changes: Partial<HttpRequestSummary>): void {
+    this.apiRequests.patch(id, changes);
+
     const patch = (list: HttpRequestSummary[]) => {
-      const index = list.findIndex((r) => r.id === updated.id);
+      const index = list.findIndex((r) => r.id === id);
       if (index === -1) return list;
       const next = [...list];
-      next[index] = updated;
+      next[index] = { ...next[index], ...changes };
       return next;
     };
 
-    this.requestApi.requests.update(patch);
     this.favouriteApi.requests.update(patch);
     this.tagRequests.update(patch);
   }
