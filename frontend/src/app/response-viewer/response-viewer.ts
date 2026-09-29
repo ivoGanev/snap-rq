@@ -1,10 +1,12 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { Dialogs } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { RequestApiService, type HttpResponse } from '../core/services/request.service';
+import { PrettifyResponsePipe } from '../core/pipes/prettify-response.pipe';
 
 @Component({
   selector: 'app-response-viewer',
+  imports: [PrettifyResponsePipe],
   templateUrl: './response-viewer.html',
   styleUrl: './response-viewer.scss',
 })
@@ -13,9 +15,14 @@ export class ResponseViewer {
   private readonly requestApi = inject(RequestApiService);
 
   protected readonly responses = this.requestApi.responses;
+  protected readonly prettifyEnabled = signal(true);
 
   selectResponse(resp: HttpResponse): void {
     this.state.selectedResponse.set(resp);
+  }
+
+  togglePrettify(): void {
+    this.prettifyEnabled.update(enabled => !enabled);
   }
 
   formatTime(createdAt: string): string {

@@ -35,6 +35,15 @@
         </svg>
         <span>Download</span>
       </button>
+      <button
+        class="prettify-toggle"
+        type="button"
+        [class.is-active]="prettifyEnabled()"
+        (click)="togglePrettify()"
+        title="Toggle response prettifying"
+      >
+        <span>{{ prettifyEnabled() ? 'Pretty On' : 'Pretty Off' }}</span>
+      </button>
       <span class="response-duration">Duration: {{ state.selectedResponse()!.duration_ms }} ms</span>
     </div>
 
@@ -45,7 +54,7 @@
 
     <div class="response-section response-body-section">
       <h3 class="section-title">Body</h3>
-      <pre class="response-block response-body">{{ state.selectedResponse()!.body || 'No body' }}</pre>
+      <pre class="response-block response-body">{{ (state.selectedResponse()!.body | prettifyResponse : state.selectedResponse()!.headers : prettifyEnabled()) || 'No body' }}</pre>
     </div>
   </div>
 }
