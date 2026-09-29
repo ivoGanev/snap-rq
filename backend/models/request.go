@@ -6,6 +6,7 @@ package models
 type HttpRequestSummary struct {
 	ID           int64  `json:"id"`
 	CollectionID int64  `json:"collection_id"`
+	ProjectID    int64  `json:"project_id"`
 	Name         string `json:"name"`
 	URL          string `json:"url"`
 	Method       string `json:"method"`
@@ -17,6 +18,7 @@ type HttpRequestSummary struct {
 type HttpRequest struct {
 	ID             int64  `json:"id"`
 	CollectionID   int64  `json:"collection_id"`
+	ProjectID      int64  `json:"project_id"`
 	Name           string `json:"name"`
 	URL            string `json:"url"`
 	Method         string `json:"method"`

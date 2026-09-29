@@ -212,8 +212,9 @@ func (s *FavouriteService) RemoveRequestFromFavouriteCollection(favouriteCollect
 // GetRequestsForFavouriteCollection returns all HTTP requests in a favourite collection.
 func (s *FavouriteService) GetRequestsForFavouriteCollection(favouriteCollectionID int64) ([]models.HttpRequest, error) {
 	rows, err := s.db.Query(
-		`SELECT r.id, r.collection_id, r.name, r.url, r.method, r.body, r.request_headers, r.status_code, r.response_id
+		`SELECT r.id, r.collection_id, c.project_id, r.name, r.url, r.method, r.body, r.request_headers, r.status_code, r.response_id
 		 FROM http_requests r
+		 JOIN collections c ON c.id = r.collection_id
 		 JOIN favourite_items fi ON fi.http_request_id = r.id
 		 WHERE fi.favourite_collection_id = ?
 		 ORDER BY fi.sort_order, r.name`,
@@ -228,7 +229,7 @@ func (s *FavouriteService) GetRequestsForFavouriteCollection(favouriteCollection
 	for rows.Next() {
 		var req models.HttpRequest
 		if err := rows.Scan(
-			&req.ID, &req.CollectionID, &req.Name, &req.URL, &req.Method,
+			&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method,
 			&req.Body, &req.RequestHeaders, &req.StatusCode, &req.ResponseID,
 		); err != nil {
 			return nil, fmt.Errorf("scanning request: %w", err)
