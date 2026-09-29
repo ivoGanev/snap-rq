@@ -54,6 +54,20 @@ export class ResponseViewer {
     });
   }
 
+  onBlockKeyDown(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
+      event.preventDefault();
+      const block = event.currentTarget as HTMLElement | null;
+      if (!block) return;
+      const selection = window.getSelection();
+      if (!selection) return;
+      const range = document.createRange();
+      range.selectNodeContents(block);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  }
+
   async downloadResponse(): Promise<void> {
     const resp = this.state.selectedResponse();
     if (!resp) return;
