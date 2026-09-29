@@ -1,0 +1,23 @@
+{
+  "date": "2026-09-29T11:00:37Z",
+  "query": "SELECT id, collection_id, name, url, method, status_code, response_id FROM http_requests ORDER BY name",
+  "function": "RequestService.GetAllRequestSummaries",
+  "iterations": 10,
+  "total_duration": "442.7933ms",
+  "average_duration": "44.27933ms",
+  "min_duration": "41.4337ms",
+  "max_duration": "49.1532ms",
+  "schema": "CREATE INDEX idx_http_requests_collection_id ON http_requests(collection_id);\nCREATE INDEX idx_http_requests_name ON http_requests(name);\nCREATE TABLE http_requests (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    collection_id INTEGER NOT NULL,\n    name TEXT NOT NULL,\n    url TEXT NOT NULL,\n    method TEXT NOT NULL,\n    body TEXT,\n    request_headers TEXT,\n    status_code INTEGER NOT NULL DEFAULT 0,\n    response_id INTEGER NOT NULL DEFAULT 0,\n    FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE\n)",
+  "size": {
+    "row_count": 5135,
+    "payload_bytes": 6567039,
+    "file_bytes": 33103872
+  },
+  "hardware": {
+    "os": "windows",
+    "arch": "amd64",
+    "cpu": "Intel64 Family 6 Model 165 Stepping 5, GenuineIntel",
+    "cpus": 20,
+    "memory_bytes": 0
+  }
+}
