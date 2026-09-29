@@ -88,10 +88,9 @@ export class FavouriteApiService {
   }
 
   /**
-   * Loads the favourite collection IDs for every request in the given list.
-   * This is used by the V2 spreadsheet view to display/sort the Favourites
-   * column without forcing a separate round-trip per visible row on every
-   * interaction.
+   * Loads the favourite collection IDs for every request in the given list in a
+   * single backend call. This avoids thousands of Wails round-trips when the V2
+   * spreadsheet view loads a large request list.
    */
   async loadMembershipForRequests(requests: HttpRequestSummary[]): Promise<void> {
     if (requests.length === 0) {
@@ -99,20 +98,19 @@ export class FavouriteApiService {
       return;
     }
 
-    const map: Record<number, number[]> = {};
-    await Promise.all(
-      requests.map(async (req) => {
-        try {
-          const ids = await FavouriteService.FavouriteService.GetFavouriteCollectionIDsForRequest(
-            req.id,
-          );
-          map[req.id] = (ids ?? []).map((id) => Number(id));
-        } catch (err) {
-          console.error(err);
-          map[req.id] = [];
-        }
-      }),
-    );
-    this.requestsMembership.set(map);
+    const ids = requests.map(req => req.id);
+    const raw = await FavouriteService.FavouriteService.GetFavouriteCollectionIDsForRequests(ids);
+    const mapped: Record<number, number[]> = {};
+    for (const [key, value] of Object.entries(raw ?? {})) {
+      mapped[Number(key)] = (value ?? []).map(id => Number(id));
+    }
+    // Ensure every requested request has an entry even if the backend map shape
+    // only includes requests with at least one favourite.
+    for (const req of requests) {
+      if (!(req.id in mapped)) {
+        mapped[req.id] = [];
+      }
+    }
+    this.requestsMembership.set(mapped);
   }
 }
