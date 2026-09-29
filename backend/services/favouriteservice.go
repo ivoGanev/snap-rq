@@ -3,6 +3,7 @@ package services
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"snap-rq/backend/models"
 )
@@ -268,4 +269,53 @@ func (s *FavouriteService) GetFavouriteCollectionIDsForRequest(httpRequestID int
 	}
 
 	return ids, nil
+}
+
+// GetFavouriteCollectionIDsForRequests returns the favourite collection IDs for
+// many HTTP requests in a single query. The returned map contains an entry for
+// every requested ID, using an empty slice when a request has no favourites.
+func (s *FavouriteService) GetFavouriteCollectionIDsForRequests(httpRequestIDs []int64) (map[int64][]int64, error) {
+	if len(httpRequestIDs) == 0 {
+		return map[int64][]int64{}, nil
+	}
+
+	placeholders := make([]string, len(httpRequestIDs))
+	args := make([]any, len(httpRequestIDs))
+	for i, id := range httpRequestIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	query := fmt.Sprintf(
+		"SELECT http_request_id, favourite_collection_id FROM favourite_items WHERE http_request_id IN (%s)",
+		strings.Join(placeholders, ","),
+	)
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("listing favourite collection ids: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[int64][]int64, len(httpRequestIDs))
+	for rows.Next() {
+		var requestID int64
+		var collectionID int64
+		if err := rows.Scan(&requestID, &collectionID); err != nil {
+			return nil, fmt.Errorf("scanning favourite collection ids: %w", err)
+		}
+		result[requestID] = append(result[requestID], collectionID)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating favourite collection ids: %w", err)
+	}
+
+	// Ensure every requested key is present so callers can rely on the map shape.
+	for _, id := range httpRequestIDs {
+		if _, ok := result[id]; !ok {
+			result[id] = []int64{}
+		}
+	}
+
+	return result, nil
 }
