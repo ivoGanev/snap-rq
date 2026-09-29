@@ -239,11 +239,20 @@ export class RequestGroups {
     this.state.selectedCollection.set(null);
     this.state.selectedFavouriteCollection.set(null);
     this.state.selectedTag.set(null);
+    this.state.exitBinView();
     this.state.showingAllRequests.set(true);
+  }
+
+  selectTrashBin(): void {
+    const project = this.state.selectedProject();
+    if (!project) return;
+    this.state.enterBinView();
+    void this.state.loadBinnedRequests(project.id);
   }
 
   selectCollection(data: Collection | FavouriteCollection | Tag): void {
     const collection = data as Collection;
+    this.state.exitBinView();
     this.state.selectedCollection.set(collection);
     this.state.selectedFavouriteCollection.set(null);
     this.state.selectedTag.set(null);
@@ -253,6 +262,7 @@ export class RequestGroups {
 
   selectFavouriteCollection(data: Collection | FavouriteCollection | Tag): void {
     const collection = data as FavouriteCollection;
+    this.state.exitBinView();
     this.state.selectedFavouriteCollection.set(collection);
     this.state.selectedCollection.set(null);
     this.state.selectedTag.set(null);
@@ -262,6 +272,7 @@ export class RequestGroups {
 
   selectTag(data: Collection | FavouriteCollection | Tag): void {
     const tag = data as Tag;
+    this.state.exitBinView();
     this.state.selectedTag.set(tag.name);
     this.state.selectedCollection.set(null);
     this.state.selectedFavouriteCollection.set(null);

@@ -3,6 +3,7 @@ import { RequestApiService, type HttpRequest, type HttpResponse } from './reques
 import { ApiRequestsService } from './api-requests.service';
 import { ResponseApiService } from './response.service';
 import { FavouriteApiService, type FavouriteCollection } from './favourite.service';
+import { BinApiService, type HttpBinnedRequestSummary } from './bin.service';
 import type { Collection } from './collection.service';
 import type { Project } from './project.service';
 import type { Environment } from './environment.service';
@@ -22,6 +23,7 @@ export class WorkspaceStateService {
   private readonly apiRequests = inject(ApiRequestsService);
   private readonly responseApi = inject(ResponseApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
+  private readonly binApi = inject(BinApiService);
 
   readonly loading = signal(false);
   readonly selectedProject = signal<Project | null>(null);
@@ -32,6 +34,8 @@ export class WorkspaceStateService {
   readonly showingAllRequests = signal(false);
   readonly selectedRequest = signal<HttpRequest | null>(null);
   readonly selectedResponse = signal<HttpResponse | null>(null);
+  readonly selectedBinnedRequest = signal<HttpBinnedRequestSummary | null>(null);
+  readonly showingBin = signal(false);
   readonly multiSelectionActive = signal(false);
   readonly zenModeOpen = signal(false);
 
@@ -40,6 +44,30 @@ export class WorkspaceStateService {
       await this.requestApi.loadResponsesForRequest(requestId);
       const all = this.requestApi.responses();
       this.selectedResponse.set(all.length > 0 ? all[0] : null);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  enterBinView(): void {
+    this.selectedCollection.set(null);
+    this.selectedFavouriteCollection.set(null);
+    this.selectedTag.set(null);
+    this.showingAllRequests.set(false);
+    this.showingBin.set(true);
+    this.selectedRequest.set(null);
+    this.selectedResponse.set(null);
+    this.selectedBinnedRequest.set(null);
+  }
+
+  exitBinView(): void {
+    this.showingBin.set(false);
+    this.selectedBinnedRequest.set(null);
+  }
+
+  async loadBinnedRequests(projectId: number): Promise<void> {
+    try {
+      await this.binApi.loadForProject(projectId);
     } catch (err) {
       console.error(err);
     }

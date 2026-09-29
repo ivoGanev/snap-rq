@@ -1,13 +1,15 @@
 <div class="column-header column-header--requests">
-  <button
-    class="add-request-button"
-    type="button"
-    (click)="openNewRequestPopup()"
-    [disabled]="!state.selectedCollection()"
-    aria-label="Add request"
-  >
-    + Request
-  </button>
+  @if (!state.showingBin()) {
+    <button
+      class="add-request-button"
+      type="button"
+      (click)="openNewRequestPopup()"
+      [disabled]="!state.selectedCollection()"
+      aria-label="Add request"
+    >
+      + Request
+    </button>
+  }
   <h1 class="column-title">Requests</h1>
   @if (activeGroupName()) {
     <input
@@ -34,7 +36,15 @@
 }
 
 @if (activeGroupName() && activeRequests().length === 0) {
-  <div class="state-message">No requests in this group.</div>
+  @if (state.showingBin()) {
+    <div class="state-message state-message--bin">
+      <strong>Trash bin</strong><br />
+      Bin the items you don't see anymore in your collections or want to hide from search.
+      You can permanently delete your requests in here.
+    </div>
+  } @else {
+    <div class="state-message">No requests in this group.</div>
+  }
 }
 
 @if (activeGroupName() && activeRequests().length > 0 && filteredActiveRequests().length === 0) {
@@ -45,53 +55,55 @@
   @for (req of filteredActiveRequests(); track req.id) {
     <li
       class="request-item"
-      [class.is-selected]="state.selectedRequest()?.id === req.id"
+      [class.is-selected]="state.selectedRequest()?.id === req.id || state.selectedBinnedRequest()?.id === req.id"
       (click)="selectRequest(req)"
       (contextmenu)="openRequestContextMenu(req, $event)"
     >
       <div class="request-row">
         <span class="request-method" [attr.data-method]="req.method">{{ req.method }}</span>
         <span class="request-name">{{ req.name }}</span>
-        <button
-          class="zen-mode-button"
-          type="button"
-          (click)="openZenMode(req, $event)"
-          aria-label="Open edit mode"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
+        @if (!state.showingBin()) {
+          <button
+            class="zen-mode-button"
+            type="button"
+            (click)="openZenMode(req, $event)"
+            aria-label="Open edit mode"
           >
-            <path
-              d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
-            />
-          </svg>
-        </button>
-        <button
-          class="favourite-button"
-          type="button"
-          (click)="openFavouritePopup(req, $event)"
-          aria-label="Manage favourites"
-        >
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path
-              d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-            />
-          </svg>
-        </button>
-        <button
-          class="send-button"
-          type="button"
-          (click)="sendRequest(req, $event)"
-          aria-label="Send request"
-        >
-          Send
-        </button>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path
+                d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
+              />
+            </svg>
+          </button>
+          <button
+            class="favourite-button"
+            type="button"
+            (click)="openFavouritePopup(req, $event)"
+            aria-label="Manage favourites"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+              />
+            </svg>
+          </button>
+          <button
+            class="send-button"
+            type="button"
+            (click)="sendRequest(req, $event)"
+            aria-label="Send request"
+          >
+            Send
+          </button>
+        }
       </div>
       <div class="request-url">{{ req.url }}</div>
       @if (requestTags()[req.id]?.length) {
@@ -255,19 +267,54 @@
       [style.top.px]="requestContextMenuY()"
       (click)="$event.stopPropagation()"
     >
-      <button class="context-menu-item" type="button" (click)="copyRequestCurl()">
-        Copy cURL
-      </button>
-      <button class="context-menu-item" type="button" (click)="duplicateRequest()">
-        Duplicate
-      </button>
-      <button
-        class="context-menu-item context-menu-item--danger"
-        type="button"
-        (click)="deleteRequest()"
-      >
-        {{ state.selectedCollection() ? 'Delete request' : 'Remove from favourites' }}
-      </button>
+      @if (state.showingBin()) {
+        <button class="context-menu-item" type="button" (click)="openRestorePicker()">
+          Restore
+        </button>
+        <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteRequest()">
+          Delete permanently
+        </button>
+      } @else {
+        <button class="context-menu-item" type="button" (click)="copyRequestCurl()">
+          Copy cURL
+        </button>
+        <button class="context-menu-item" type="button" (click)="duplicateRequest()">
+          Duplicate
+        </button>
+        <button
+          class="context-menu-item context-menu-item--danger"
+          type="button"
+          (click)="deleteRequest()"
+        >
+          {{ state.selectedFavouriteCollection() ? 'Remove from favourites' : 'Move to Trash' }}
+        </button>
+      }
+    </div>
+  </div>
+}
+
+@if (restoreCollectionModalOpen()) {
+  <div class="overlay-backdrop" (click)="closeRestoreCollectionModal()">
+    <div class="overlay-panel favourite-popup" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Restore to collection</h3>
+        <button class="overlay-close" type="button" (click)="closeRestoreCollectionModal()">Cancel</button>
+      </div>
+      <div class="overlay-body">
+        @if (collectionApi.collections().length === 0) {
+          <div class="state-message">No collections available.</div>
+        }
+        <ul class="collection-list">
+          @for (collection of collectionApi.collections(); track collection.id) {
+            <li
+              class="collection-row"
+              (click)="restoreToCollection(collection)"
+            >
+              {{ collection.name }}
+            </li>
+          }
+        </ul>
+      </div>
     </div>
   </div>
 }
