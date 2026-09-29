@@ -49,17 +49,27 @@
 
     <div class="response-section">
       <h3 class="section-title">Headers</h3>
-      <pre class="response-block response-headers">{{ state.selectedResponse()!.headers || 'No headers' }}</pre>
+      <pre
+        class="response-block response-headers"
+        tabindex="0"
+        (keydown)="onBlockKeyDown($event)"
+      >{{ state.selectedResponse()!.headers || 'No headers' }}</pre>
     </div>
 
     <div class="response-section response-body-section">
       <h3 class="section-title">Body</h3>
       @if (bodyLines().length === 0) {
-        <pre class="response-block response-body">No body</pre>
+        <pre
+          class="response-block response-body"
+          tabindex="0"
+          (keydown)="onBlockKeyDown($event)"
+        >No body</pre>
       } @else {
         <cdk-virtual-scroll-viewport
           itemSize="20"
           class="response-block response-body response-body-viewport"
+          tabindex="0"
+          (keydown)="onBlockKeyDown($event)"
         >
           <div
             *cdkVirtualFor="let line of bodyLines(); trackBy: trackByLine"
