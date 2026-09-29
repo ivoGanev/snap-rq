@@ -31,15 +31,35 @@
   @if (selectedRowIds().size > 1) {
     <span class="selection-count">{{ selectedRowIds().size }} selected</span>
   }
-  @if (selectedRowIds().size === 1 && selectedRequest()) {
-    <button
-      class="send-button send-button--top-bar"
-      type="button"
-      (click)="sendSelectedRequest($event)"
-      aria-label="Send selected request"
-    >
-      Send
-    </button>
+  @if (selectedRowIds().size > 0) {
+    <div class="header-actions">
+      @if (selectedRowIds().size === 1 && selectedRequest()) {
+        <button
+          class="send-button send-button--top-bar"
+          type="button"
+          (click)="sendSelectedRequest($event)"
+          aria-label="Send selected request"
+        >
+          Send
+        </button>
+      }
+      <button
+        class="favourite-button favourite-button--top-bar"
+        type="button"
+        (click)="onFavouriteButtonClick()"
+        [attr.aria-label]="
+          selectedRowIds().size === 1
+            ? 'Manage favourites'
+            : 'Manage favourites for ' + selectedRowIds().size + ' requests'
+        "
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path
+            d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+          />
+        </svg>
+      </button>
+    </div>
   }
 </div>
 
@@ -157,23 +177,7 @@
             </div>
           }
         </div>
-        <div
-          class="spreadsheet-cell spreadsheet-cell--favourites"
-          [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['favourites']"
-          (click)="onRowClick(req, $event, 'favourites')"
-          (dblclick)="onCellDoubleClick(req, 'favourites')"
-        >
-          @if (rowState()[req.id]?.favouriteCount) {
-            <span class="favourite-count" [title]="rowState()[req.id]?.favouriteCount + ' favourite group(s)'">
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path
-                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                />
-              </svg>
-              {{ rowState()[req.id]?.favouriteCount }}
-            </span>
-          }
-        </div>
+
       </div>
     </cdk-virtual-scroll-viewport>
   </div>
