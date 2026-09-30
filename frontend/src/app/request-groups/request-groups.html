@@ -28,10 +28,7 @@
 <div class="sidebar-divider"></div>
 
 <div class="folder-tree folder-tree--flat">
-  @if (folderFilter() === 'collections' && loading()) {
-    <div class="state-message">Loading…</div>
-  }
-  @if (filteredItems().length === 0 && !(folderFilter() === 'collections' && loading())) {
+  @if (filteredItems().length === 0) {
     <div class="state-message">{{ activeFolderEmptyMessage() }}</div>
   }
   <ul class="folder-children folder-children--flat">
