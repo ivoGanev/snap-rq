@@ -395,14 +395,17 @@ export class RequestGroups {
 
   async selectAppearanceIcon(iconId: string): Promise<void> {
     await this.saveAppearance({ appearance_type: 'icon', appearance_value: iconId });
+    this.closeAppearancePopup();
   }
 
   async selectAppearanceColor(color: string): Promise<void> {
     await this.saveAppearance({ appearance_type: 'color', appearance_value: color });
+    this.closeAppearancePopup();
   }
 
   async resetAppearance(): Promise<void> {
     await this.saveAppearance({ appearance_type: 'icon', appearance_value: 'default' });
+    this.closeAppearancePopup();
   }
 
   private async saveAppearance(
