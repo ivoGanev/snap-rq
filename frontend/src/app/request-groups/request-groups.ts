@@ -69,7 +69,6 @@ export class RequestGroups {
   protected readonly collections = this.collectionApi.collections;
   protected readonly favouriteCollections = this.favouriteApi.collections;
   protected readonly allTags = this.tagApi.allTags;
-  protected readonly loading = this.state.loading;
 
   // Filter for which folder is visible.
   protected readonly folderFilter = signal<SidebarFolder>('collections');
