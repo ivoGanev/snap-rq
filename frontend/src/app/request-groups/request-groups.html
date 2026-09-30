@@ -77,7 +77,7 @@
         class="tree-item"
         [class.is-selected]="isSelected(item)"
         (click)="selectSidebarItem(item)"
-        (contextmenu)="openItemContextMenu(item, $event)"
+        (contextmenu)="openItemContextMenu(item, $event, itemContextMenu)"
       >
         @if (renamingItem()?.id === item.id && renamingItem()?.type === item.type) {
           <form class="rename-form" (submit)="saveRename($event)">
@@ -239,47 +239,29 @@
   </div>
 }
 
-<!-- Context menu -->
-@if (contextMenuOpen()) {
-  <div
-    class="context-menu-backdrop"
-    (click)="closeContextMenu()"
-    (contextmenu)="closeContextMenu(); $event.preventDefault()"
-  >
-    <div
-      class="context-menu"
-      [style.left.px]="contextMenuX()"
-      [style.top.px]="contextMenuY()"
-      (click)="$event.stopPropagation()"
-    >
-      @if (contextMenuItem()) {
-        @let item = contextMenuItem()!;
-        @if (item.type !== 'tag') {
-          <button class="context-menu-item" type="button" (click)="startRename()">Rename</button>
-        } @else {
-          <button class="context-menu-item" type="button" (click)="startRename()">Rename Tag</button>
-        }
-        <button class="context-menu-item" type="button" (click)="openAppearancePopup(item)">
-          Change Color/Icon
-        </button>
-        @if (item.type === 'favourite') {
-          <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteItem()">
-            Delete Favourites
-          </button>
-        } @else if (item.type === 'tag') {
-          <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteItem()">
-            Delete Tag
-          </button>
-        } @else {
-          <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteItem()">
-            Delete Collection
-          </button>
-        }
-      }
-
-    </div>
-  </div>
-}
+<ng-template #itemContextMenu let-item>
+  @if (item.type !== 'tag') {
+    <button class="context-menu-item" type="button" (click)="startRename(item)">Rename</button>
+  } @else {
+    <button class="context-menu-item" type="button" (click)="startRename(item)">Rename Tag</button>
+  }
+  <button class="context-menu-item" type="button" (click)="openAppearancePopup(item)">
+    Change Color/Icon
+  </button>
+  @if (item.type === 'favourite') {
+    <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteItem(item)">
+      Delete Favourites
+    </button>
+  } @else if (item.type === 'tag') {
+    <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteItem(item)">
+      Delete Tag
+    </button>
+  } @else {
+    <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteItem(item)">
+      Delete Collection
+    </button>
+  }
+</ng-template>
 
 <!-- Appearance popup -->
 @if (appearancePopupOpen()) {

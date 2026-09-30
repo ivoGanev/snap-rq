@@ -149,7 +149,7 @@
         [class.is-selected]="rowState()[req.id]?.isSelected"
         [class.is-active-drag-row]="dragStartRowId() === req.id"
         (mousedown)="onRowMouseDown(req, $event)"
-        (contextmenu)="onRowContextMenu(req, $event)"
+        (contextmenu)="onRowContextMenu(req, $event, rowContextMenu)"
       >
         <div class="spreadsheet-cell spreadsheet-cell--action">
           @if (!state.showingBin() && selectedRowIds().size <= 1) {
@@ -221,49 +221,36 @@
   </div>
 }
 
-@if (contextMenuOpen()) {
-  <div
-    class="context-menu-backdrop"
-    (click)="closeContextMenu()"
-    (contextmenu)="closeContextMenu(); $event.preventDefault()"
-  >
-    <div
-      class="context-menu"
-      [style.left.px]="contextMenuX()"
-      [style.top.px]="contextMenuY()"
-      (click)="$event.stopPropagation()"
-    >
-      @if (state.showingBin()) {
-        <button class="context-menu-item" type="button" (click)="openRestoreCollectionPicker()">
-          Restore
-        </button>
-        <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteSelectedRequests()">
-          Delete permanently
-        </button>
-      } @else {
-        <button class="context-menu-item" type="button" (click)="copyRequestCurl()">
-          Copy cURL
-        </button>
-        <button class="context-menu-item" type="button" (click)="openMoveCollectionModal()">
-          Move to collection…
-        </button>
-        <button class="context-menu-item" type="button" (click)="openBulkTagModal()">
-          Add tag…
-        </button>
-        <button class="context-menu-item" type="button" (click)="openBulkFavouritesModal()">
-          Add to favourites…
-        </button>
-        <div class="context-menu-divider" aria-hidden="true"></div>
-        <button class="context-menu-item" type="button" (click)="duplicateSelectedRequest()">
-          Duplicate
-        </button>
-        <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteSelectedRequests()">
-          {{ state.selectedFavouriteCollection() ? 'Remove from favourites' : 'Move to Trash' }}
-        </button>
-      }
-    </div>
-  </div>
-}
+<ng-template #rowContextMenu let-req>
+  @if (state.showingBin()) {
+    <button class="context-menu-item" type="button" (click)="openRestoreCollectionPicker()">
+      Restore
+    </button>
+    <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteSelectedRequests()">
+      Delete permanently
+    </button>
+  } @else {
+    <button class="context-menu-item" type="button" (click)="copyRequestCurl(req)">
+      Copy cURL
+    </button>
+    <button class="context-menu-item" type="button" (click)="openMoveCollectionModal()">
+      Move to collection…
+    </button>
+    <button class="context-menu-item" type="button" (click)="openBulkTagModal()">
+      Add tag…
+    </button>
+    <button class="context-menu-item" type="button" (click)="openBulkFavouritesModal()">
+      Add to favourites…
+    </button>
+    <div class="context-menu-divider" aria-hidden="true"></div>
+    <button class="context-menu-item" type="button" (click)="duplicateSelectedRequest()">
+      Duplicate
+    </button>
+    <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteSelectedRequests()">
+      {{ state.selectedFavouriteCollection() ? 'Remove from favourites' : 'Move to Trash' }}
+    </button>
+  }
+</ng-template>
 
 @if (newRequestPopupOpen()) {
   <div class="overlay-backdrop" (click)="closeNewRequestPopup()">
