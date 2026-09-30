@@ -45,6 +45,8 @@
   <app-request-panel [style.width.%]="rightColumnWidth()"></app-request-panel>
 </div>
 
+<app-context-menu-outlet></app-context-menu-outlet>
+
 @if (state.zenModeOpen()) {
   <app-zen-mode></app-zen-mode>
 }

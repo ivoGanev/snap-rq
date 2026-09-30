@@ -1,0 +1,13 @@
+@if (menu.isOpen() && menu.template() && menu.position()) {
+  <div
+    class="context-menu context-menu-panel"
+    [style.left.px]="menu.position()!.x"
+    [style.top.px]="menu.position()!.y"
+    (click)="onMenuClick($event)"
+    (contextmenu)="onMenuContextMenu($event)"
+  >
+    <ng-container
+      *ngTemplateOutlet="menu.template()!; context: { $implicit: menu.context() }"
+    ></ng-container>
+  </div>
+}

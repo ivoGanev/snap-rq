@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, TemplateRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { CollectionApiService, type Collection, type CollectionAppearance } from '../core/services/collection.service';
@@ -7,6 +7,7 @@ import { RequestApiService } from '../core/services/request.service';
 import { SelectionStateService } from '../core/services/selection-state.service';
 import { IconManifestService } from '../core/services/icon-manifest.service';
 import { TagApiService, type Tag, type TagAppearance } from '../core/services/tag.service';
+import { ContextMenuService } from '../core/services/context-menu.service';
 
 const COLLECTION_COLOR_PALETTE: string[] = [
   '#ef4444',
@@ -63,6 +64,7 @@ export class RequestGroups {
   private readonly selectionState = inject(SelectionStateService);
   protected readonly iconManifest = inject(IconManifestService);
   private readonly tagApi = inject(TagApiService);
+  private readonly contextMenu = inject(ContextMenuService);
 
   protected readonly collections = this.collectionApi.collections;
   protected readonly favouriteCollections = this.favouriteApi.collections;
@@ -82,12 +84,6 @@ export class RequestGroups {
   protected readonly newFavouriteName = signal('');
   protected readonly newTagPopupOpen = signal(false);
   protected readonly newTagName = signal('');
-
-  // Context menu
-  protected readonly contextMenuOpen = signal(false);
-  protected readonly contextMenuX = signal(0);
-  protected readonly contextMenuY = signal(0);
-  protected readonly contextMenuItem = signal<SidebarItem | null>(null);
 
   // Rename inline
   protected readonly renamingItem = signal<SidebarItem | null>(null);
@@ -127,8 +123,8 @@ export class RequestGroups {
   }
 
   onEscapePressed(): void {
-    if (this.contextMenuOpen()) {
-      this.closeContextMenu();
+    if (this.contextMenu.isOpen()) {
+      this.contextMenu.close();
       return;
     }
     if (this.appearancePopupOpen()) {
@@ -240,6 +236,7 @@ export class RequestGroups {
   }
 
   openNewCollectionPopup(): void {
+    this.contextMenu.close();
     this.closeAddMenu();
     this.newCollectionName.set('');
     this.newCollectionPopupOpen.set(true);
@@ -250,6 +247,7 @@ export class RequestGroups {
   }
 
   openNewFavouritePopup(): void {
+    this.contextMenu.close();
     this.closeAddMenu();
     this.newFavouriteName.set('');
     this.newFavouritePopupOpen.set(true);
@@ -260,6 +258,7 @@ export class RequestGroups {
   }
 
   openNewTagPopup(): void {
+    this.contextMenu.close();
     this.closeAddMenu();
     this.newTagName.set('');
     this.newTagPopupOpen.set(true);
@@ -323,26 +322,19 @@ export class RequestGroups {
 
   // ---------- Context menu ----------
 
-  openItemContextMenu(item: SidebarItem, event: MouseEvent): void {
+  openItemContextMenu(
+    item: SidebarItem,
+    event: MouseEvent,
+    template: TemplateRef<{ $implicit: SidebarItem }>,
+  ): void {
     event.preventDefault();
     event.stopPropagation();
-    this.contextMenuItem.set(item);
-    this.contextMenuX.set(event.clientX);
-    this.contextMenuY.set(event.clientY);
-    this.contextMenuOpen.set(true);
-  }
-
-  closeContextMenu(): void {
-    this.contextMenuOpen.set(false);
-    this.contextMenuItem.set(null);
+    this.contextMenu.open(template, item, event.clientX, event.clientY);
   }
 
   // ---------- Rename ----------
-
-  startRename(): void {
-    const item = this.contextMenuItem();
-    if (!item) return;
-    this.closeContextMenu();
+  startRename(item: SidebarItem): void {
+    this.contextMenu.close();
     this.renameValue.set(item.name);
     this.renamingItem.set(item);
   }
@@ -390,7 +382,7 @@ export class RequestGroups {
 
   openAppearancePopup(item: SidebarItem, event?: MouseEvent): void {
     event?.stopPropagation();
-    this.closeContextMenu();
+    this.contextMenu.close();
     this.appearanceTarget.set(item);
     this.appearanceTab.set('icon');
     this.appearancePopupOpen.set(true);
@@ -442,10 +434,8 @@ export class RequestGroups {
 
   // ---------- Delete ----------
 
-  async deleteItem(): Promise<void> {
-    const item = this.contextMenuItem();
-    if (!item) return;
-    this.closeContextMenu();
+  async deleteItem(item: SidebarItem): Promise<void> {
+    this.contextMenu.close();
 
     try {
       if (item.type === 'collection') {

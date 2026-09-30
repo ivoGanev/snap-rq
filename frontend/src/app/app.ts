@@ -16,10 +16,11 @@ import { RequestsMainList } from './requests-main-list/requests-main-list';
 import { RequestPanel } from './request-panel/request-panel';
 import { VariablesEditor } from './variables-editor/variables-editor';
 import { ZenMode } from './zen-mode/zen-mode';
+import { ContextMenuOutlet } from './context-menu-outlet/context-menu-outlet';
 
 @Component({
   selector: 'app-root',
-  imports: [FormsModule, RequestGroups, RequestsMainList, RequestPanel, VariablesEditor, ZenMode],
+  imports: [FormsModule, RequestGroups, RequestsMainList, RequestPanel, VariablesEditor, ZenMode, ContextMenuOutlet],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
