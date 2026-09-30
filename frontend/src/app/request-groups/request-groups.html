@@ -13,56 +13,19 @@
   <span class="all-requests-button__label">All requests</span>
 </button>
 
+<div class="sidebar-divider"></div>
+
 <button
-  class="trash-bin-button"
+  class="add-button add-button--full"
   type="button"
-  [class.is-active]="state.showingBin()"
+  (click)="onAddButtonClick()"
   [disabled]="!state.selectedProject()"
-  (click)="selectTrashBin()"
+  [attr.aria-label]="'Add new ' + folderFilter()"
 >
-  <span class="trash-bin-button__icon" aria-hidden="true">
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-    </svg>
-  </span>
-  <span class="trash-bin-button__label">Trash bin</span>
+  +
 </button>
 
-<div class="sidebar-toolbar">
-  <button
-    class="add-button"
-    type="button"
-    (click)="openAddMenu()"
-    [disabled]="!state.selectedProject()"
-    aria-label="Add new item"
-  >
-    +
-  </button>
-
-  <input
-    class="sidebar-search"
-    type="text"
-    placeholder="Search collections, favourites, tags…"
-    [ngModel]="searchQuery()"
-    (ngModelChange)="searchQuery.set($event)"
-  />
-</div>
-
-@if (addMenuOpen()) {
-  <div class="add-menu-backdrop" (click)="closeAddMenu()">
-    <div class="add-menu" (click)="$event.stopPropagation()">
-      <button class="add-menu-item" type="button" (click)="openNewCollectionPopup()">
-        New Collection
-      </button>
-      <button class="add-menu-item" type="button" (click)="openNewFavouritePopup()">
-        New Favourites
-      </button>
-      <button class="add-menu-item" type="button" (click)="openNewTagPopup()">
-        New Tag
-      </button>
-    </div>
-  </div>
-}
+<div class="sidebar-divider"></div>
 
 <div class="folder-tree folder-tree--flat">
   @if (folderFilter() === 'collections' && loading()) {
@@ -154,6 +117,23 @@
     </svg>
   </button>
 </div>
+
+<div class="sidebar-divider"></div>
+
+<button
+  class="trash-bin-button"
+  type="button"
+  [class.is-active]="state.showingBin()"
+  [disabled]="!state.selectedProject()"
+  (click)="selectTrashBin()"
+>
+  <span class="trash-bin-button__icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+    </svg>
+  </span>
+  <span class="trash-bin-button__label">Trash bin</span>
+</button>
 
 <!-- Add: Collection -->
 @if (newCollectionPopupOpen()) {
