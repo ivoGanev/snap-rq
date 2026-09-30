@@ -13,15 +13,13 @@ import { SelectionStateService } from './core/services/selection-state.service';
 import { TagApiService } from './core/services/tag.service';
 import { RequestGroups } from './request-groups/request-groups';
 import { RequestsMainList } from './requests-main-list/requests-main-list';
-import { RequestsMainListV2 } from './requests-main-list-v2/requests-main-list-v2';
 import { RequestPanel } from './request-panel/request-panel';
 import { VariablesEditor } from './variables-editor/variables-editor';
 import { ZenMode } from './zen-mode/zen-mode';
-import { FeatureFlagsService } from './core/feature-flags/feature-flags.service';
 
 @Component({
   selector: 'app-root',
-  imports: [FormsModule, RequestGroups, RequestsMainList, RequestsMainListV2, RequestPanel, VariablesEditor, ZenMode],
+  imports: [FormsModule, RequestGroups, RequestsMainList, RequestPanel, VariablesEditor, ZenMode],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -35,7 +33,6 @@ export class App implements OnInit, AfterViewInit {
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly selectionState = inject(SelectionStateService);
   private readonly tagApi = inject(TagApiService);
-  protected readonly featureFlags = inject(FeatureFlagsService);
 
   protected readonly projects = this.projectApi.projects;
   protected readonly environments = this.environmentApi.environments;
