@@ -29,6 +29,68 @@
       in {{ activeGroupName() }}
     </span>
   }
+  <span class="header-spacer"></span>
+  @if (selectedRowIds().size > 1) {
+    <span class="selection-count">{{ selectedRowIds().size }} selected</span>
+  }
+  @if (selectedRowIds().size > 0) {
+    <div class="header-actions">
+      @if (!state.showingBin() && selectedRowIds().size === 1 && selectedRequest()) {
+        <button
+          class="send-button send-button--top-bar"
+          type="button"
+          (click)="sendSelectedRequest($event)"
+          aria-label="Send selected request"
+        >
+          Send
+        </button>
+      }
+      @if (!state.showingBin()) {
+        <button
+          class="favourite-button favourite-button--top-bar"
+          type="button"
+          (click)="onFavouriteButtonClick()"
+          [attr.aria-label]="
+            selectedRowIds().size === 1
+              ? 'Manage favourites'
+              : 'Manage favourites for ' + selectedRowIds().size + ' requests'
+          "
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path
+              d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+            />
+          </svg>
+        </button>
+      }
+      @if (state.showingBin()) {
+        <button
+          class="restore-button"
+          type="button"
+          (click)="openRestoreCollectionPicker()"
+          [attr.aria-label]="
+            selectedRowIds().size === 1
+              ? 'Restore selected request'
+              : 'Restore ' + selectedRowIds().size + ' requests'
+          "
+        >
+          Restore
+        </button>
+        <button
+          class="delete-button delete-button--top-bar"
+          type="button"
+          (click)="deleteSelectedRequests()"
+          [attr.aria-label]="
+            selectedRowIds().size === 1
+              ? 'Delete selected request permanently'
+              : 'Delete ' + selectedRowIds().size + ' requests permanently'
+          "
+        >
+          Delete
+        </button>
+      }
+    </div>
+  }
 </div>
 
 @if (!activeGroupName()) {
@@ -51,71 +113,157 @@
   <div class="state-message">No requests match your search.</div>
 }
 
-<ul class="request-list">
-  @for (req of filteredActiveRequests(); track req.id) {
-    <li
-      class="request-item"
-      [class.is-selected]="state.selectedRequest()?.id === req.id || state.selectedBinnedRequest()?.id === req.id"
-      (click)="selectRequest(req)"
-      (contextmenu)="openRequestContextMenu(req, $event)"
-    >
-      <div class="request-row">
-        <span class="request-method" [attr.data-method]="req.method">{{ req.method }}</span>
-        <span class="request-name">{{ req.name }}</span>
-        @if (!state.showingBin()) {
-          <button
-            class="zen-mode-button"
-            type="button"
-            (click)="openZenMode(req, $event)"
-            aria-label="Open edit mode"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path
-                d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
-              />
-            </svg>
-          </button>
-          <button
-            class="favourite-button"
-            type="button"
-            (click)="openFavouritePopup(req, $event)"
-            aria-label="Manage favourites"
-          >
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path
-                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-              />
-            </svg>
-          </button>
-          <button
-            class="send-button"
-            type="button"
-            (click)="sendRequest(req, $event)"
-            aria-label="Send request"
-          >
-            Send
-          </button>
-        }
-      </div>
-      <div class="request-url">{{ req.url }}</div>
-      @if (requestTags()[req.id]?.length) {
-        <div class="request-tags">
-          @for (tag of requestTags()[req.id]; track tag) {
-            <span class="tag-chip tag-chip--inline">{{ tag }}</span>
-          }
+@if (activeGroupName() && filteredActiveRequests().length > 0) {
+  <div class="spreadsheet-wrapper" [class.is-dragging]="isDragging()">
+    <div class="spreadsheet-header-row">
+      <div class="spreadsheet-header spreadsheet-header--action" aria-hidden="true"></div>
+      @for (col of columns; track col.key) {
+        <div
+          class="spreadsheet-header"
+          [class.spreadsheet-header--method]="col.key === 'method'"
+          [class.is-sorted]="sortIndicator(col.key)"
+          (click)="toggleSort(col.key)"
+        >
+          <span class="header-label">{{ col.label }}</span>
+          <span class="sort-arrow" [class.asc]="sortIndicator(col.key) === 'asc'" aria-hidden="true">
+            @if (sortIndicator(col.key) === 'asc') {
+              ▲
+            } @else if (sortIndicator(col.key) === 'desc') {
+              ▼
+            } @else {
+              ⇅
+            }
+          </span>
         </div>
       }
-    </li>
-  }
-</ul>
+    </div>
+
+    <cdk-virtual-scroll-viewport
+      itemSize="40"
+      class="spreadsheet-viewport"
+      (mousemove)="onViewportMouseMove($event)"
+    >
+      <div
+        *cdkVirtualFor="let req of filteredActiveRequests(); trackBy: trackById"
+        class="spreadsheet-row"
+        [class.is-selected]="rowState()[req.id]?.isSelected"
+        [class.is-active-drag-row]="dragStartRowId() === req.id"
+        (mousedown)="onRowMouseDown(req, $event)"
+        (contextmenu)="onRowContextMenu(req, $event)"
+      >
+        <div class="spreadsheet-cell spreadsheet-cell--action">
+          @if (!state.showingBin() && selectedRowIds().size <= 1) {
+            <button
+              class="zen-mode-button"
+              type="button"
+              (click)="openZenMode(req, $event)"
+              aria-label="Open edit mode"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path
+                  d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
+                />
+              </svg>
+            </button>
+          }
+        </div>
+        <div
+          class="spreadsheet-cell spreadsheet-cell--name"
+          [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['name']"
+          (click)="onRowClick(req, $event, 'name')"
+          (dblclick)="onCellDoubleClick(req, 'name')"
+          [title]="req.name"
+        >
+          <span class="cell-text">{{ req.name }}</span>
+        </div>
+        <div
+          class="spreadsheet-cell spreadsheet-cell--url"
+          [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['url']"
+          (click)="onRowClick(req, $event, 'url')"
+          (dblclick)="onCellDoubleClick(req, 'url')"
+          [title]="req.url"
+        >
+          <span class="cell-text">{{ req.url }}</span>
+        </div>
+        <div
+          class="spreadsheet-cell spreadsheet-cell--method"
+          [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['method']"
+          (click)="onRowClick(req, $event, 'method')"
+          (dblclick)="onCellDoubleClick(req, 'method')"
+        >
+          <span class="request-method" [attr.data-method]="req.method">{{ req.method }}</span>
+        </div>
+        <div
+          class="spreadsheet-cell spreadsheet-cell--tags"
+          [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['tags']"
+          (click)="onRowClick(req, $event, 'tags')"
+          (dblclick)="onCellDoubleClick(req, 'tags')"
+        >
+          @if (requestTags()[req.id]?.length) {
+            <div class="request-tags">
+              @for (tag of requestTags()[req.id]; track tag) {
+                <span class="tag-chip tag-chip--inline">{{ tag }}</span>
+              }
+            </div>
+          }
+        </div>
+
+      </div>
+    </cdk-virtual-scroll-viewport>
+  </div>
+}
+
+@if (contextMenuOpen()) {
+  <div
+    class="context-menu-backdrop"
+    (click)="closeContextMenu()"
+    (contextmenu)="closeContextMenu(); $event.preventDefault()"
+  >
+    <div
+      class="context-menu"
+      [style.left.px]="contextMenuX()"
+      [style.top.px]="contextMenuY()"
+      (click)="$event.stopPropagation()"
+    >
+      @if (state.showingBin()) {
+        <button class="context-menu-item" type="button" (click)="openRestoreCollectionPicker()">
+          Restore
+        </button>
+        <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteSelectedRequests()">
+          Delete permanently
+        </button>
+      } @else {
+        <button class="context-menu-item" type="button" (click)="copyRequestCurl()">
+          Copy cURL
+        </button>
+        <button class="context-menu-item" type="button" (click)="openMoveCollectionModal()">
+          Move to collection…
+        </button>
+        <button class="context-menu-item" type="button" (click)="openBulkTagModal()">
+          Add tag…
+        </button>
+        <button class="context-menu-item" type="button" (click)="openBulkFavouritesModal()">
+          Add to favourites…
+        </button>
+        <div class="context-menu-divider" aria-hidden="true"></div>
+        <button class="context-menu-item" type="button" (click)="duplicateSelectedRequest()">
+          Duplicate
+        </button>
+        <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteSelectedRequests()">
+          {{ state.selectedFavouriteCollection() ? 'Remove from favourites' : 'Move to Trash' }}
+        </button>
+      }
+    </div>
+  </div>
+}
 
 @if (newRequestPopupOpen()) {
   <div class="overlay-backdrop" (click)="closeNewRequestPopup()">
@@ -187,13 +335,9 @@
               [ngModel]="newRequestMethod()"
               (ngModelChange)="newRequestMethod.set($event)"
             >
-              <option>GET</option>
-              <option>POST</option>
-              <option>PUT</option>
-              <option>DELETE</option>
-              <option>PATCH</option>
-              <option>HEAD</option>
-              <option>OPTIONS</option>
+              @for (method of httpMethods; track method) {
+                <option>{{ method }}</option>
+              }
             </select>
           </label>
         }
@@ -208,12 +352,126 @@
   </div>
 }
 
-@if (favouritePopupOpen()) {
-  <div class="overlay-backdrop" (click)="closeFavouritePopup()">
-    <div class="overlay-panel favourite-popup" (click)="$event.stopPropagation()">
+@if (editModalOpen()) {
+  <div class="overlay-backdrop" (click)="closeEditModal()">
+    <div class="overlay-panel edit-modal" (click)="$event.stopPropagation()">
       <div class="overlay-header">
-        <h3 class="overlay-title">Favourites — {{ favouritePopupRequest()?.name }}</h3>
-        <button class="overlay-close" type="button" (click)="closeFavouritePopup()">Close</button>
+        <h3 class="overlay-title">Edit {{ editModalColumn() }}</h3>
+        <button class="overlay-close" type="button" (click)="closeEditModal()">Cancel</button>
+      </div>
+
+      <div class="overlay-body">
+        @if (editModalColumn() === 'name' || editModalColumn() === 'url') {
+          <input
+            class="edit-input"
+            type="text"
+            [ngModel]="editModalValue()"
+            (ngModelChange)="editModalValue.set($event)"
+            (keydown.enter)="saveEditModal()"
+          />
+        } @else {
+          <textarea
+            class="edit-textarea edit-textarea--modal"
+            rows="12"
+            [ngModel]="editModalValue()"
+            (ngModelChange)="editModalValue.set($event)"
+          ></textarea>
+        }
+      </div>
+
+      <div class="overlay-footer">
+        <button class="variable-add" type="button" (click)="saveEditModal()">Save</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (methodModalOpen()) {
+  <div class="overlay-backdrop" (click)="closeMethodModal()">
+    <div class="overlay-panel method-modal" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Edit method</h3>
+        <button class="overlay-close" type="button" (click)="closeMethodModal()">Cancel</button>
+      </div>
+
+      <div class="overlay-body">
+        <select
+          class="edit-select"
+          [ngModel]="methodModalValue()"
+          (ngModelChange)="methodModalValue.set($event)"
+        >
+          @for (method of httpMethods; track method) {
+            <option>{{ method }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="overlay-footer">
+        <button class="variable-add" type="button" (click)="saveMethodModal()">Save</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (tagsModalOpen()) {
+  <div class="overlay-backdrop" (click)="closeTagsModal()">
+    <div class="overlay-panel tags-modal" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Tags</h3>
+        <button class="overlay-close" type="button" (click)="closeTagsModal()">Close</button>
+      </div>
+
+      <div class="overlay-body">
+        <div class="request-tags request-tags--editable">
+          @for (tag of requestTags()[tagsModalRequest()!.id] ?? []; track tag) {
+            <span class="tag-chip tag-chip--editable">
+              {{ tag }}
+              <button
+                class="tag-chip-remove"
+                type="button"
+                (click)="removeTagFromRequest(tagsModalRequest()!, tag, $event)"
+                aria-label="Remove tag"
+              >
+                ×
+              </button>
+            </span>
+          }
+        </div>
+
+        <div class="tag-input-wrap">
+          <input
+            class="tag-input"
+            type="text"
+            placeholder="Add tag…"
+            [ngModel]="tagsModalNewTagName()"
+            (ngModelChange)="tagsModalNewTagName.set($event)"
+            (keydown.enter)="addTagToRequest(tagsModalRequest()!, tagsModalNewTagName())"
+          />
+          @if (tagSuggestions().length && tagsModalNewTagName().trim()) {
+            <div class="tag-suggestions">
+              @for (tag of tagSuggestions(); track tag.id) {
+                <button
+                  class="tag-suggestion"
+                  type="button"
+                  (click)="addTagToRequest(tagsModalRequest()!, tag.name)"
+                >
+                  {{ tag.name }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+@if (favouritesModalOpen()) {
+  <div class="overlay-backdrop" (click)="closeFavouritesModal()">
+    <div class="overlay-panel favourites-modal" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Favourites</h3>
+        <button class="overlay-close" type="button" (click)="closeFavouritesModal()">Close</button>
       </div>
 
       <div class="overlay-body">
@@ -255,65 +513,143 @@
   </div>
 }
 
-@if (requestContextMenuOpen()) {
-  <div
-    class="context-menu-backdrop"
-    (click)="closeRequestContextMenu()"
-    (contextmenu)="closeRequestContextMenu(); $event.preventDefault()"
-  >
-    <div
-      class="context-menu"
-      [style.left.px]="requestContextMenuX()"
-      [style.top.px]="requestContextMenuY()"
-      (click)="$event.stopPropagation()"
-    >
-      @if (state.showingBin()) {
-        <button class="context-menu-item" type="button" (click)="openRestorePicker()">
-          Restore
-        </button>
-        <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteRequest()">
-          Delete permanently
-        </button>
-      } @else {
-        <button class="context-menu-item" type="button" (click)="copyRequestCurl()">
-          Copy cURL
-        </button>
-        <button class="context-menu-item" type="button" (click)="duplicateRequest()">
-          Duplicate
-        </button>
-        <button
-          class="context-menu-item context-menu-item--danger"
-          type="button"
-          (click)="deleteRequest()"
-        >
-          {{ state.selectedFavouriteCollection() ? 'Remove from favourites' : 'Move to Trash' }}
-        </button>
-      }
+@if (moveCollectionModalOpen()) {
+  <div class="overlay-backdrop" (click)="closeMoveCollectionModal()">
+    <div class="overlay-panel move-collection-modal" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Move {{ selectedRowIds().size }} request(s) to collection</h3>
+        <button class="overlay-close" type="button" (click)="closeMoveCollectionModal()">Cancel</button>
+      </div>
+
+      <div class="overlay-body">
+        @if (availableCollectionsForMove().length === 0) {
+          <div class="state-message">No other collections available.</div>
+        }
+        <ul class="collection-list">
+          @for (collection of availableCollectionsForMove(); track collection.id) {
+            <li
+              class="collection-row"
+              (click)="moveSelectedRequestsToCollection(collection)"
+            >
+              {{ collection.name }}
+            </li>
+          }
+        </ul>
+      </div>
     </div>
   </div>
 }
 
 @if (restoreCollectionModalOpen()) {
   <div class="overlay-backdrop" (click)="closeRestoreCollectionModal()">
-    <div class="overlay-panel favourite-popup" (click)="$event.stopPropagation()">
+    <div class="overlay-panel move-collection-modal" (click)="$event.stopPropagation()">
       <div class="overlay-header">
         <h3 class="overlay-title">Restore to collection</h3>
         <button class="overlay-close" type="button" (click)="closeRestoreCollectionModal()">Cancel</button>
       </div>
+
       <div class="overlay-body">
-        @if (collectionApi.collections().length === 0) {
+        @if (availableCollectionsForMove().length === 0) {
           <div class="state-message">No collections available.</div>
         }
         <ul class="collection-list">
-          @for (collection of collectionApi.collections(); track collection.id) {
+          @for (collection of availableCollectionsForMove(); track collection.id) {
             <li
               class="collection-row"
-              (click)="restoreToCollection(collection)"
+              (click)="restoreSelectedRequestsToCollection(collection)"
             >
               {{ collection.name }}
             </li>
           }
         </ul>
+      </div>
+    </div>
+  </div>
+}
+
+@if (bulkTagModalOpen()) {
+  <div class="overlay-backdrop" (click)="closeBulkTagModal()">
+    <div class="overlay-panel tags-modal" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Add tag to {{ selectedRowIds().size }} request(s)</h3>
+        <button class="overlay-close" type="button" (click)="closeBulkTagModal()">Close</button>
+      </div>
+
+      <div class="overlay-body">
+        <div class="tag-input-wrap">
+          <input
+            class="tag-input"
+            type="text"
+            placeholder="Tag name"
+            [ngModel]="bulkTagName()"
+            (ngModelChange)="bulkTagName.set($event)"
+            (keydown.enter)="addBulkTag(bulkTagName())"
+          />
+          @if (bulkTagSuggestions().length && bulkTagName().trim()) {
+            <div class="tag-suggestions">
+              @for (tag of bulkTagSuggestions(); track tag.id) {
+                <button
+                  class="tag-suggestion"
+                  type="button"
+                  (click)="addBulkTag(tag.name)"
+                >
+                  {{ tag.name }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="overlay-footer">
+        <button class="variable-add" type="button" (click)="addBulkTag(bulkTagName())">Add tag</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (bulkFavouritesModalOpen()) {
+  <div class="overlay-backdrop" (click)="closeBulkFavouritesModal()">
+    <div class="overlay-panel favourites-modal" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Favourites — {{ selectedRowIds().size }} request(s)</h3>
+        <button class="overlay-close" type="button" (click)="closeBulkFavouritesModal()">Close</button>
+      </div>
+
+      <div class="overlay-body">
+        @for (collection of favouriteCollections(); track collection.id) {
+          <div class="favourite-collection-row">
+            <label class="favourite-checkbox">
+              <input
+                type="checkbox"
+                [checked]="isAllSelectedInCollection(collection.id)"
+                (change)="toggleBulkFavouriteMembership(collection)"
+              />
+              <span class="favourite-checkmark"></span>
+              <span class="favourite-collection-name">{{ collection.name }}</span>
+            </label>
+            <button
+              class="favourite-collection-delete"
+              type="button"
+              (click)="deleteFavouriteCollection(collection, $event)"
+              aria-label="Delete favourite collection"
+            >
+              Delete
+            </button>
+          </div>
+        }
+      </div>
+
+      <div class="overlay-footer favourite-popup-footer">
+        <input
+          class="variable-input favourite-name-input"
+          type="text"
+          placeholder="New favourite group"
+          [ngModel]="newFavouriteName()"
+          (ngModelChange)="newFavouriteName.set($event)"
+          (keydown.enter)="addFavouriteCollection()"
+        />
+        <button class="variable-add" type="button" (click)="addFavouriteCollection()">Add</button>
       </div>
     </div>
   </div>
