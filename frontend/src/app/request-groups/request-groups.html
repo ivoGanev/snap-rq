@@ -246,7 +246,7 @@
     <button class="context-menu-item" type="button" (click)="startRename(item)">Rename Tag</button>
   }
   <button class="context-menu-item" type="button" (click)="openAppearancePopup(item)">
-    Change Color/Icon
+    Change style
   </button>
   @if (item.type === 'favourite') {
     <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteItem(item)">
@@ -268,7 +268,7 @@
   <div class="overlay-backdrop" (click)="closeAppearancePopup()">
     <div class="overlay-panel appearance-popup" (click)="$event.stopPropagation()">
       <div class="overlay-header">
-        <h3 class="overlay-title">Appearance — {{ appearanceTarget()?.name }}</h3>
+        <h3 class="overlay-title">Style — {{ appearanceTarget()?.name }}</h3>
         <button class="overlay-close" type="button" (click)="closeAppearancePopup()">Close</button>
       </div>
 
@@ -326,7 +326,7 @@
               class="appearance-color-input"
               type="color"
               [value]="appearanceTarget()!.appearance.appearance_type === 'color' ? appearanceTarget()!.appearance.appearance_value : '#6366f1'"
-              (input)="onAppearanceColorInput($event)"
+              (change)="onAppearanceColorInput($event)"
             />
           </label>
         }
