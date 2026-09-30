@@ -89,7 +89,7 @@ export class FavouriteApiService {
 
   /**
    * Loads the favourite collection IDs for every request in the given list in a
-   * single backend call. This avoids thousands of Wails round-trips when the V2
+   * single backend call. This avoids thousands of Wails round-trips when the
    * spreadsheet view loads a large request list.
    */
   async loadMembershipForRequests(requests: HttpRequestSummary[]): Promise<void> {

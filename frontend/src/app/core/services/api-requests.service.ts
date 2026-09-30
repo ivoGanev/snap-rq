@@ -7,7 +7,7 @@ import { FavouriteApiService } from './favourite.service';
 /**
  * In-memory store for all request summaries across every project.
  *
- * This is the single source of truth for the V2 list (and any future views).
+ * This is the single source of truth for the request list.
  * The store is populated once at app startup from SQLite; after that every
  * mutation is written to the DB first, and only on success is the in-memory
  * map updated. Views never wait for a DB round-trip to refresh.
