@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, TemplateRef, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, TemplateRef, ViewChild, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
@@ -282,7 +282,14 @@ export class RequestsMainList {
       this.state.selectedBinnedRequest.set(null);
       this.state.multiSelectionActive.set(false);
 
-      void this.loadActiveGroup(version, collection?.id ?? null, favourite?.id ?? null, tag, showAll, showBin, project?.id ?? null);
+      // Run the actual load outside the reactive context so that signal reads
+      // inside it (selectedRequest, selectedCollection, etc.) do not become
+      // dependencies of this effect. Otherwise changing selectedRequest later
+      // (e.g. when loading the full request for send) would re-run the effect,
+      // clear the selection, and scroll back to the remembered row.
+      untracked(() => {
+        void this.loadActiveGroup(version, collection?.id ?? null, favourite?.id ?? null, tag, showAll, showBin, project?.id ?? null);
+      });
     });
 
     effect(() => {
@@ -356,7 +363,13 @@ export class RequestsMainList {
     if (index === -1) return;
 
     const remembered = requests[index];
-    this.selectCell(remembered, 'name');
+    // Restore selection without letting the outer reactive effect track the
+    // workspace request signal. Otherwise any later change to selectedRequest
+    // (e.g. loading the full request for send) would re-run the group-load
+    // effect, reset the selection, and scroll the list back to the remembered row.
+    untracked(() => {
+      this.selectCell(remembered, 'name');
+    });
 
     // Ensure the remembered row is visible in the virtual viewport.
     if (this.viewport) {
@@ -510,7 +523,7 @@ export class RequestsMainList {
       return;
     }
 
-    const current = this.state.selectedRequest();
+    const current = untracked(() => this.state.selectedRequest());
     if (current?.id === id) {
       return;
     }
@@ -1133,6 +1146,7 @@ export class RequestsMainList {
         console.error(err);
         return;
       }
+      this.state.selectedRequest.set(req);
     }
     await this.state.sendRequest(req, event);
   }
