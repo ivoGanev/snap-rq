@@ -65,9 +65,8 @@
 }
 
 <div class="folder-tree">
-  @if (folderFilter() === 'all') {
-    <!-- Collections -->
-    @if (isFolderVisible('collections')) {
+  <!-- Collections -->
+  @if (isFolderVisible('collections')) {
       <div class="folder" [class.is-expanded]="isFolderExpanded('collections')">
         <div
           class="folder-header"
@@ -269,66 +268,10 @@
         }
       </div>
     }
-  } @else {
-    <!-- Flat list for a single selected folder -->
-    <ul class="folder-children folder-children--flat">
-      @if (filteredItems().length === 0) {
-        <li class="state-message">{{ activeFilterEmptyMessage() }}</li>
-      }
-      @for (item of filteredItems(); track item.id + '-' + item.type) {
-        <li
-          class="tree-item"
-          [class.is-selected]="isSelected(item)"
-          (click)="selectSidebarItem(item)"
-          (contextmenu)="openItemContextMenu(item, $event)"
-        >
-          @if (renamingItem()?.id === item.id && renamingItem()?.type === item.type) {
-            <form class="rename-form" (submit)="saveRename($event)">
-              <input
-                class="rename-input"
-                type="text"
-                [ngModel]="renameValue()"
-                (ngModelChange)="renameValue.set($event)"
-                (keydown.escape)="cancelRename()"
-                (blur)="saveRename()"
-                autofocus
-              />
-            </form>
-          } @else {
-            <button
-              class="item-indicator"
-              type="button"
-              [style.background-color]="colorValue(item.appearance) ?? null"
-              (click)="openAppearancePopup(item, $event)"
-              [attr.aria-label]="'Edit appearance for ' + item.name"
-            >
-              @let cp = iconPath(item.appearance);
-              @if (cp) {
-                <img [src]="cp" alt="" />
-              } @else if (isDefaultAppearance(item.appearance)) {
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-                </svg>
-              }
-            </button>
-            <span class="tree-item-label">{{ item.name }}</span>
-          }
-        </li>
-      }
-    </ul>
-  }
 </div>
 
 <!-- Sticky folder filter buttons -->
 <div class="folder-filter-bar">
-  <button
-    class="folder-filter-button"
-    [class.is-active]="folderFilter() === 'all'"
-    type="button"
-    (click)="setFolderFilter('all')"
-  >
-    All
-  </button>
   <button
     class="folder-filter-button folder-filter-button--icon"
     [class.is-active]="folderFilter() === 'collections'"
