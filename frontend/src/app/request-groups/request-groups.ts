@@ -71,9 +71,6 @@ export class RequestGroups {
   protected readonly allTags = this.tagApi.allTags;
   protected readonly loading = this.state.loading;
 
-  protected readonly searchQuery = signal('');
-  protected readonly addMenuOpen = signal(false);
-
   // Filter for which folder is visible.
   protected readonly folderFilter = signal<SidebarFolder>('collections');
 
@@ -96,16 +93,13 @@ export class RequestGroups {
   protected readonly collectionColorPalette = COLLECTION_COLOR_PALETTE;
 
   readonly filteredItems = computed<SidebarItem[]>(() => {
-    const query = this.searchQuery().trim().toLowerCase();
     const filter = this.folderFilter();
     const items: SidebarItem[] = [
       ...this.collections().map((c) => this.toSidebarItem(c, 'collection')),
       ...this.favouriteCollections().map((f) => this.toSidebarItem(f, 'favourite')),
       ...this.allTags().map((t) => this.toSidebarItem(t, 'tag')),
     ];
-    const visible = items.filter((item) => item.folder === filter);
-    if (!query) return visible;
-    return visible.filter((item) => item.name.toLowerCase().includes(query));
+    return items.filter((item) => item.folder === filter);
   });
 
   private toSidebarItem(
@@ -129,10 +123,6 @@ export class RequestGroups {
     }
     if (this.appearancePopupOpen()) {
       this.closeAppearancePopup();
-      return;
-    }
-    if (this.addMenuOpen()) {
-      this.closeAddMenu();
       return;
     }
     if (this.newCollectionPopupOpen()) {
@@ -212,32 +202,37 @@ export class RequestGroups {
   }
 
   activeFolderEmptyMessage(): string {
-    const query = this.searchQuery().trim();
     switch (this.folderFilter()) {
       case 'collections':
-        return query ? 'No matching collections.' : 'No collections.';
+        return 'No collections.';
       case 'favourites':
-        return query ? 'No matching favourites.' : 'No favourite collections.';
+        return 'No favourite collections.';
       case 'tags':
-        return query ? 'No matching tags.' : 'No tags yet.';
+        return 'No tags yet.';
       default:
         return '';
     }
   }
 
-  // ---------- Add menu ----------
+  // ---------- Add ----------
 
-  openAddMenu(): void {
-    this.addMenuOpen.set(true);
-  }
-
-  closeAddMenu(): void {
-    this.addMenuOpen.set(false);
+  onAddButtonClick(): void {
+    this.contextMenu.close();
+    switch (this.folderFilter()) {
+      case 'collections':
+        this.openNewCollectionPopup();
+        break;
+      case 'favourites':
+        this.openNewFavouritePopup();
+        break;
+      case 'tags':
+        this.openNewTagPopup();
+        break;
+    }
   }
 
   openNewCollectionPopup(): void {
     this.contextMenu.close();
-    this.closeAddMenu();
     this.newCollectionName.set('');
     this.newCollectionPopupOpen.set(true);
   }
@@ -248,7 +243,6 @@ export class RequestGroups {
 
   openNewFavouritePopup(): void {
     this.contextMenu.close();
-    this.closeAddMenu();
     this.newFavouriteName.set('');
     this.newFavouritePopupOpen.set(true);
   }
@@ -259,7 +253,6 @@ export class RequestGroups {
 
   openNewTagPopup(): void {
     this.contextMenu.close();
-    this.closeAddMenu();
     this.newTagName.set('');
     this.newTagPopupOpen.set(true);
   }
