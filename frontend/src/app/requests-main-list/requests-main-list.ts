@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, TemplateRef, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
@@ -9,6 +9,7 @@ import { CollectionApiService, type Collection } from '../core/services/collecti
 import { SelectionStateService } from '../core/services/selection-state.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
 import { BinApiService, type HttpBinnedRequestSummary, type RestoreBinnedRequestInput } from '../core/services/bin.service';
+import { ContextMenuService } from '../core/services/context-menu.service';
 
 type ColumnKey = 'name' | 'url' | 'method' | 'tags';
 type SortDirection = 'asc' | 'desc';
@@ -59,6 +60,7 @@ export class RequestsMainList {
   private readonly selectionState = inject(SelectionStateService);
   private readonly tagApi = inject(TagApiService);
   private readonly binApi = inject(BinApiService);
+  private readonly contextMenu = inject(ContextMenuService);
 
   @ViewChild(CdkVirtualScrollViewport, { static: false })
   private readonly viewport!: CdkVirtualScrollViewport;
@@ -108,12 +110,6 @@ export class RequestsMainList {
   readonly favouritesModalOpen = signal(false);
   readonly favouritesModalRequest = signal<HttpRequestSummary | null>(null);
   readonly newFavouriteName = signal('');
-
-  // Bulk / context menu
-  readonly contextMenuOpen = signal(false);
-  readonly contextMenuX = signal(0);
-  readonly contextMenuY = signal(0);
-  readonly contextMenuTarget = signal<HttpRequestSummary | null>(null);
 
   readonly newRequestPopupMode = signal<'manual' | 'curl'>('manual');
   readonly newRequestCurl = signal('');
@@ -382,8 +378,8 @@ export class RequestsMainList {
   }
 
   onEscapePressed(): void {
-    if (this.contextMenuOpen()) {
-      this.closeContextMenu();
+    if (this.contextMenu.isOpen()) {
+      this.contextMenu.close();
       return;
     }
     if (this.editModalOpen()) {
@@ -673,7 +669,11 @@ export class RequestsMainList {
 
   // ---------- Context menu ----------
 
-  onRowContextMenu(req: HttpRequestSummary | HttpBinnedRequestSummary, event: MouseEvent): void {
+  onRowContextMenu(
+    req: HttpRequestSummary | HttpBinnedRequestSummary,
+    event: MouseEvent,
+    template: TemplateRef<{ $implicit: HttpRequestSummary | HttpBinnedRequestSummary }>,
+  ): void {
     event.preventDefault();
     event.stopPropagation();
 
@@ -682,19 +682,10 @@ export class RequestsMainList {
       this.lastClickedRowId.set(req.id);
     }
 
-    this.contextMenuTarget.set(req as HttpRequestSummary);
-    this.contextMenuX.set(event.clientX);
-    this.contextMenuY.set(event.clientY);
-    this.contextMenuOpen.set(true);
+    this.contextMenu.open(template, req, event.clientX, event.clientY);
   }
 
-  closeContextMenu(): void {
-    this.contextMenuOpen.set(false);
-    this.contextMenuTarget.set(null);
-  }
-
-  async copyRequestCurl(): Promise<void> {
-    const req = this.contextMenuTarget();
+  async copyRequestCurl(req?: HttpRequestSummary | HttpBinnedRequestSummary): Promise<void> {
     if (!req) return;
 
     try {
@@ -704,7 +695,7 @@ export class RequestsMainList {
     } catch (err) {
       console.error(err);
     } finally {
-      this.closeContextMenu();
+      this.contextMenu.close();
     }
   }
 
@@ -712,7 +703,7 @@ export class RequestsMainList {
     const requests = this.selectedRequests();
     if (requests.length === 0) return;
 
-    this.closeContextMenu();
+    this.contextMenu.close();
     this.state.loading.set(true);
 
     try {
@@ -755,7 +746,7 @@ export class RequestsMainList {
     const ids = [...this.selectedRowIds()];
     if (ids.length === 0) return;
 
-    this.closeContextMenu();
+    this.contextMenu.close();
     this.state.loading.set(true);
 
     try {
@@ -803,7 +794,7 @@ export class RequestsMainList {
   // ---------- Restore from bin ----------
 
   openRestoreCollectionPicker(): void {
-    this.closeContextMenu();
+    this.contextMenu.close();
     const selectedIds = [...this.selectedRowIds()];
     const binned = this.binApi.binnedRequests().filter(r => selectedIds.includes(r.id));
     const collections = this.collectionApi.collections();
@@ -862,7 +853,7 @@ export class RequestsMainList {
   // ---------- Move to Collection ----------
 
   openMoveCollectionModal(): void {
-    this.closeContextMenu();
+    this.contextMenu.close();
     this.moveCollectionModalOpen.set(true);
   }
 
@@ -893,7 +884,7 @@ export class RequestsMainList {
   // ---------- Bulk Tag ----------
 
   openBulkTagModal(): void {
-    this.closeContextMenu();
+    this.contextMenu.close();
     this.bulkTagName.set('');
     this.bulkTagModalOpen.set(true);
   }
@@ -928,7 +919,7 @@ export class RequestsMainList {
   // ---------- Bulk Favourites ----------
 
   openBulkFavouritesModal(): void {
-    this.closeContextMenu();
+    this.contextMenu.close();
     const requests = this.selectedRequests();
     if (requests.length > 0) {
       void this.favouriteApi.loadMembershipForRequests(requests);
@@ -1051,6 +1042,7 @@ export class RequestsMainList {
   // ---------- New request ----------
 
   openNewRequestPopup(): void {
+    this.contextMenu.close();
     this.newRequestName.set('My new snappy API');
     this.newRequestUrl.set('');
     this.newRequestMethod.set('GET');
@@ -1158,6 +1150,7 @@ export class RequestsMainList {
 
   openZenMode(req: HttpRequestSummary | HttpBinnedRequestSummary, event: MouseEvent): void {
     event.stopPropagation();
+    this.contextMenu.close();
     if (this.state.showingBin()) return;
     this.selectCell(req as HttpRequestSummary, 'name');
     this.state.zenModeOpen.set(true);
@@ -1180,6 +1173,7 @@ export class RequestsMainList {
   // ---------- Text edit modal ----------
 
   openEditModal(req: HttpRequestSummary, column: ColumnKey): void {
+    this.contextMenu.close();
     this.editModalRequest.set(req);
     this.editModalColumn.set(column);
     this.editModalValue.set(this.getCellValue(req, column));
@@ -1208,6 +1202,7 @@ export class RequestsMainList {
   // ---------- Method modal ----------
 
   openMethodModal(req: HttpRequestSummary): void {
+    this.contextMenu.close();
     this.methodModalRequest.set(req);
     this.methodModalValue.set(req.method);
     this.methodModalOpen.set(true);
@@ -1230,6 +1225,7 @@ export class RequestsMainList {
   // ---------- Tags modal (single request) ----------
 
   openTagsModal(req: HttpRequestSummary): void {
+    this.contextMenu.close();
     this.tagsModalRequest.set(req);
     this.tagsModalNewTagName.set('');
     this.tagsModalOpen.set(true);
@@ -1266,6 +1262,7 @@ export class RequestsMainList {
   // ---------- Favourites modal (single request) ----------
 
   openFavouritesModal(req: HttpRequestSummary): void {
+    this.contextMenu.close();
     this.favouritesModalRequest.set(req);
     this.newFavouriteName.set('');
     this.favouritesModalOpen.set(true);
