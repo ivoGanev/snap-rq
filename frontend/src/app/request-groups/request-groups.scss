@@ -49,7 +49,7 @@
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  margin: var(--s-1) var(--s-3) 0;
+  margin: 0 var(--s-3) var(--s-2);
   padding: var(--s-2) var(--s-3);
   font-size: 0.8125rem;
   font-weight: 600;
@@ -90,14 +90,6 @@
   color: #fca5a5;
 }
 
-.sidebar-toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  padding: var(--s-2) var(--s-3);
-  flex: 0 0 auto;
-}
-
 .add-button {
   flex: 0 0 auto;
   display: inline-flex;
@@ -127,62 +119,17 @@
   cursor: not-allowed;
 }
 
-.sidebar-search {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 5px var(--s-2);
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  color: var(--text);
-  font-size: 0.875rem;
-  outline: none;
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
+.add-button--full {
+  width: calc(100% - 2 * var(--s-3));
+  height: 32px;
+  margin: 0 var(--s-3);
 }
 
-.sidebar-search:focus {
-  border-color: rgba(255, 77, 77, 0.55);
-  box-shadow: 0 0 0 2px rgba(255, 77, 77, 0.15);
-}
-
-.add-menu-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 110;
-}
-
-.add-menu {
-  position: absolute;
-  top: 44px;
-  left: var(--s-3);
-  min-width: 160px;
-  background: rgba(6, 7, 15, 0.98);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
-  overflow: hidden;
-  z-index: 111;
-}
-
-.add-menu-item {
-  display: block;
-  width: 100%;
-  padding: var(--s-2) var(--s-3);
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-align: left;
-  color: var(--text);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: background 0.15s ease;
-  --wails-draggable: no-drag;
-}
-
-.add-menu-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+.sidebar-divider {
+  flex: 0 0 auto;
+  height: 1px;
+  margin: var(--s-2) var(--s-3);
+  background: var(--glass-border);
 }
 
 .folder-tree {
@@ -191,7 +138,7 @@
   flex-direction: column;
   min-height: 0;
   overflow-y: auto;
-  padding: 0 var(--s-3) var(--s-3);
+  padding: 0 0 var(--s-3);
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
 }
@@ -218,7 +165,6 @@
   display: flex;
   gap: var(--s-1);
   padding: var(--s-2) var(--s-3) var(--s-3);
-  border-top: 1px solid var(--glass-border);
   background: rgba(6, 7, 15, 0.55);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
@@ -276,14 +222,15 @@
 }
 
 .folder-children--flat {
-  padding-left: var(--s-2);
+  padding-left: 0;
 }
 
 .tree-item {
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  padding: var(--s-1) var(--s-2);
+  padding: var(--s-1) var(--s-3);
+  margin: 0 var(--s-3);
   margin-bottom: 0;
   border-radius: var(--radius);
   cursor: pointer;
