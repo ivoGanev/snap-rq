@@ -75,10 +75,6 @@ export class RequestGroups {
   // Filter for which folder is visible.
   protected readonly folderFilter = signal<SidebarFolder>('collections');
 
-  // Expansion state manually controlled by the user; restored when search is cleared.
-  protected readonly userExpanded = signal<Set<SidebarFolder>>(new Set(['collections', 'tags']));
-  private expandedBeforeSearch: Set<SidebarFolder> | null = null;
-
   // Creation popups
   protected readonly newCollectionPopupOpen = signal(false);
   protected readonly newCollectionName = signal('');
@@ -92,7 +88,6 @@ export class RequestGroups {
   protected readonly contextMenuX = signal(0);
   protected readonly contextMenuY = signal(0);
   protected readonly contextMenuItem = signal<SidebarItem | null>(null);
-  protected readonly contextMenuFolder = signal<SidebarFolder | null>(null);
 
   // Rename inline
   protected readonly renamingItem = signal<SidebarItem | null>(null);
@@ -116,44 +111,6 @@ export class RequestGroups {
     if (!query) return visible;
     return visible.filter((item) => item.name.toLowerCase().includes(query));
   });
-
-  readonly filteredCollections = computed(() =>
-    this.filteredItems().filter((i) => i.folder === 'collections'),
-  );
-  readonly filteredFavourites = computed(() =>
-    this.filteredItems().filter((i) => i.folder === 'favourites'),
-  );
-  readonly filteredTags = computed(() => this.filteredItems().filter((i) => i.folder === 'tags'));
-
-  readonly expandedFolders = computed<Set<SidebarFolder>>(() => {
-    const query = this.searchQuery().trim();
-    if (!query) {
-      const filter = this.folderFilter();
-      return this.userExpanded().has(filter) ? new Set([filter]) : new Set<SidebarFolder>();
-    }
-    // While searching, expand any visible folder that has matches.
-    const expanded = new Set<SidebarFolder>();
-    for (const item of this.filteredItems()) {
-      expanded.add(item.folder);
-    }
-    return expanded;
-  });
-
-  constructor() {
-    effect(() => {
-      const query = this.searchQuery().trim();
-      if (query) {
-        if (this.expandedBeforeSearch === null) {
-          this.expandedBeforeSearch = new Set(this.userExpanded());
-        }
-      } else {
-        if (this.expandedBeforeSearch !== null) {
-          this.userExpanded.set(this.expandedBeforeSearch);
-          this.expandedBeforeSearch = null;
-        }
-      }
-    });
-  }
 
   private toSidebarItem(
     data: Collection | FavouriteCollection | Tag,
@@ -200,29 +157,8 @@ export class RequestGroups {
     }
   }
 
-  // ---------- Folder expansion ----------
-
-  isFolderExpanded(folder: SidebarFolder): boolean {
-    return this.expandedFolders().has(folder);
-  }
-
-  isFolderVisible(folder: SidebarFolder): boolean {
-    return this.folderFilter() === folder;
-  }
-
   setFolderFilter(filter: SidebarFolder): void {
     this.folderFilter.set(filter);
-  }
-
-  toggleFolder(folder: SidebarFolder, event?: MouseEvent): void {
-    event?.stopPropagation();
-    const current = new Set(this.userExpanded());
-    if (current.has(folder)) {
-      current.delete(folder);
-    } else {
-      current.add(folder);
-    }
-    this.userExpanded.set(current);
   }
 
   // ---------- Selection ----------
@@ -249,7 +185,6 @@ export class RequestGroups {
     this.state.selectedFavouriteCollection.set(null);
     this.state.selectedTag.set(null);
     this.state.showingAllRequests.set(false);
-    this.expandFolder('collections');
   }
 
   selectFavouriteCollection(data: Collection | FavouriteCollection | Tag): void {
@@ -259,7 +194,6 @@ export class RequestGroups {
     this.state.selectedCollection.set(null);
     this.state.selectedTag.set(null);
     this.state.showingAllRequests.set(false);
-    this.expandFolder('favourites');
   }
 
   selectTag(data: Collection | FavouriteCollection | Tag): void {
@@ -269,12 +203,30 @@ export class RequestGroups {
     this.state.selectedCollection.set(null);
     this.state.selectedFavouriteCollection.set(null);
     this.state.showingAllRequests.set(false);
-    this.expandFolder('tags');
   }
 
-  private expandFolder(folder: SidebarFolder): void {
-    if (this.searchQuery().trim()) return;
-    this.userExpanded.update((set) => new Set([...set, folder]));
+  selectSidebarItem(item: SidebarItem): void {
+    if (item.type === 'collection') {
+      this.selectCollection(item.data);
+    } else if (item.type === 'favourite') {
+      this.selectFavouriteCollection(item.data);
+    } else {
+      this.selectTag(item.data);
+    }
+  }
+
+  activeFolderEmptyMessage(): string {
+    const query = this.searchQuery().trim();
+    switch (this.folderFilter()) {
+      case 'collections':
+        return query ? 'No matching collections.' : 'No collections.';
+      case 'favourites':
+        return query ? 'No matching favourites.' : 'No favourite collections.';
+      case 'tags':
+        return query ? 'No matching tags.' : 'No tags yet.';
+      default:
+        return '';
+    }
   }
 
   // ---------- Add menu ----------
@@ -334,7 +286,6 @@ export class RequestGroups {
       });
       await this.collectionApi.loadForProject(project.id);
       this.closeNewCollectionPopup();
-      this.expandFolder('collections');
     } catch (err) {
       console.error(err);
     } finally {
@@ -352,7 +303,6 @@ export class RequestGroups {
     try {
       await this.favouriteApi.createCollection({ project_id: project.id, name });
       this.closeNewFavouritePopup();
-      this.expandFolder('favourites');
     } catch (err) {
       console.error(err);
     }
@@ -366,7 +316,6 @@ export class RequestGroups {
     try {
       await this.tagApi.addTagToRequest(0, project.id, name);
       this.closeNewTagPopup();
-      this.expandFolder('tags');
     } catch (err) {
       console.error(err);
     }
@@ -377,18 +326,7 @@ export class RequestGroups {
   openItemContextMenu(item: SidebarItem, event: MouseEvent): void {
     event.preventDefault();
     event.stopPropagation();
-    this.contextMenuFolder.set(null);
     this.contextMenuItem.set(item);
-    this.contextMenuX.set(event.clientX);
-    this.contextMenuY.set(event.clientY);
-    this.contextMenuOpen.set(true);
-  }
-
-  openFolderContextMenu(folder: SidebarFolder, event: MouseEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.contextMenuItem.set(null);
-    this.contextMenuFolder.set(folder);
     this.contextMenuX.set(event.clientX);
     this.contextMenuY.set(event.clientY);
     this.contextMenuOpen.set(true);
@@ -397,7 +335,6 @@ export class RequestGroups {
   closeContextMenu(): void {
     this.contextMenuOpen.set(false);
     this.contextMenuItem.set(null);
-    this.contextMenuFolder.set(null);
   }
 
   // ---------- Rename ----------
@@ -569,29 +506,6 @@ export class RequestGroups {
     } catch (err) {
       console.error(err);
     }
-  }
-
-  // ---------- Folder-level actions ----------
-
-  folderActionCreate(folder: SidebarFolder): void {
-    this.closeContextMenu();
-    if (folder === 'collections') this.openNewCollectionPopup();
-    else if (folder === 'favourites') this.openNewFavouritePopup();
-    else this.openNewTagPopup();
-  }
-
-  folderActionCollapse(folder: SidebarFolder): void {
-    this.closeContextMenu();
-    this.userExpanded.update((set) => {
-      const next = new Set(set);
-      next.delete(folder);
-      return next;
-    });
-  }
-
-  folderActionExpand(folder: SidebarFolder): void {
-    this.closeContextMenu();
-    this.userExpanded.update((set) => new Set([...set, folder]));
   }
 
   // ---------- Helpers ----------
