@@ -5,10 +5,12 @@ import { RequestApiService, type HttpRequest, type HttpRequestSummary } from '..
 import { ApiRequestsService } from '../core/services/api-requests.service';
 import { FavouriteApiService } from '../core/services/favourite.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
+import { EnvironmentVariableApiService } from '../core/services/environment-variable.service';
+import { BodyEditor } from '../body-editor/body-editor';
 
 @Component({
   selector: 'app-request-editor',
-  imports: [FormsModule],
+  imports: [FormsModule, BodyEditor],
   templateUrl: './request-editor.html',
   styleUrl: './request-editor.scss',
 })
@@ -18,8 +20,12 @@ export class RequestEditor {
   private readonly apiRequests = inject(ApiRequestsService);
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly tagApi = inject(TagApiService);
+  private readonly envVarApi = inject(EnvironmentVariableApiService);
 
   protected readonly requestTags = this.tagApi.requestTags;
+  protected readonly environmentVariables = computed(() =>
+    this.envVarApi.variables().map((v) => ({ key: v.key, value: v.value })),
+  );
 
   readonly draftRequest = signal<HttpRequest | null>(null);
   readonly tagInputOpen = signal(false);
@@ -42,6 +48,15 @@ export class RequestEditor {
     effect(() => {
       const req = this.state.selectedRequest();
       this.draftRequest.set(req ? { ...req } : null);
+    });
+
+    effect(() => {
+      const env = this.state.selectedEnvironment();
+      if (env) {
+        this.envVarApi.loadForEnvironment(env.id);
+      } else {
+        this.envVarApi.variables.set([]);
+      }
     });
   }
 

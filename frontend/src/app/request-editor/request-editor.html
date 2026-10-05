@@ -52,15 +52,15 @@
         ></textarea>
       </label>
 
-      <label class="edit-field">
+      <label class="edit-field edit-field--body">
         <span class="edit-label">Body</span>
-        <textarea
-          class="edit-textarea edit-body"
-          rows="12"
-          [ngModel]="draftRequest()!.body"
-          (ngModelChange)="updateRequestField('body', $event)"
-          name="reqBody"
-        ></textarea>
+        <app-body-editor
+          class="edit-body-editor"
+          [text]="draftRequest()!.body"
+          type="json"
+          [variables]="environmentVariables()"
+          (textChange)="updateRequestField('body', $event)"
+        ></app-body-editor>
       </label>
 
       <label class="edit-field">
