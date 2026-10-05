@@ -35,7 +35,7 @@
   font-size: 0.8125rem;
   font-weight: 700;
   color: var(--text);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-strong);
   border: 1px solid var(--glass-border);
   border-radius: 999px;
   cursor: pointer;
@@ -46,7 +46,7 @@
 }
 
 .environment-chip:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--hover-highlight);
 }
 
 .environment-chip.is-active {
@@ -85,7 +85,7 @@
 
 .environment-chip--add:hover {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-strong);
 }
 
 .new-environment-form {
@@ -98,14 +98,14 @@
   font-size: 0.8125rem;
   font-weight: 700;
   color: var(--text);
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--input-bg);
   border: 1px solid var(--glass-border);
   border-radius: 999px;
   outline: none;
 }
 
 .new-environment-input:focus {
-  border-color: rgba(255, 77, 77, 0.55);
+  border-color: var(--selected-border);
 }
 
 .variables-toolbar {
@@ -155,7 +155,7 @@
   text-align: left;
   font-weight: 700;
   color: var(--text);
-  background: rgba(6, 7, 15, 0.98);
+  background: var(--surface-solid);
   border-bottom: 1px solid var(--glass-border);
   cursor: pointer;
   user-select: none;
@@ -164,7 +164,7 @@
 }
 
 .variables-header:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-strong);
 }
 
 .variables-header--key {
@@ -197,11 +197,11 @@
 }
 
 .variables-row:nth-child(even) {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--row-even-bg);
 }
 
 .variables-row:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--hover-bg);
 }
 
 .variables-cell {
@@ -226,7 +226,7 @@
 }
 
 .variables-input:focus {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--hover-bg);
 }
 
 .variables-input::placeholder {
@@ -261,8 +261,8 @@
 }
 
 .row-delete:hover {
-  color: #fca5a5;
-  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger-text);
+  background: var(--danger-bg);
 }
 
 .variables-empty {
@@ -287,5 +287,5 @@
 }
 
 .delete-confirm-message strong {
-  color: #fca5a5;
+  color: var(--danger-text);
 }
