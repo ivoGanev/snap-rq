@@ -1,0 +1,40 @@
+/* Neon-night theme tokens. */
+[data-theme='neon-night'],
+:root[data-theme='neon-night'],
+:root:has([data-theme='neon-night']) {
+  --ink: #06070f;
+  --text: #f4f6fb;
+  --muted: #9aa6c0;
+  --accent: #ff4d4d;
+  --accent-2: #ff2d72;
+  --glass: rgba(255, 255, 255, 0.05);
+  --glass-strong: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --radius: 11px;
+  --grad: linear-gradient(135deg, #ff5a4d 0%, #ff2d72 100%);
+
+  --background: var(--ink);
+  --surface: rgba(6, 7, 15, 0.55);
+  --surface-solid: rgba(6, 7, 15, 0.98);
+  --input-bg: rgba(0, 0, 0, 0.25);
+  --row-even-bg: rgba(255, 255, 255, 0.02);
+  --hover-bg: rgba(255, 255, 255, 0.06);
+  --hover-highlight: rgba(255, 255, 255, 0.1);
+  --active-border: rgba(255, 77, 77, 0.35);
+  --selected-bg: rgba(255, 77, 77, 0.2);
+  --selected-border: rgba(255, 77, 77, 0.55);
+  --focus-ring: rgba(255, 77, 77, 0.15);
+  --focus-border: rgba(255, 77, 77, 0.55);
+  --danger-text: #fca5a5;
+  --danger-bg: rgba(239, 68, 68, 0.2);
+  --danger-solid: rgba(239, 68, 68, 0.8);
+  --error-text: #ff7a8f;
+  --shadow: rgba(0, 0, 0, 0.5);
+  --backdrop: rgba(0, 0, 0, 0.65);
+
+  --scrollbar-track: rgba(255, 255, 255, 0.04);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.18);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.28);
+
+  color-scheme: dark;
+}

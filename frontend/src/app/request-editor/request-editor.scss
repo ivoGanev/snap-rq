@@ -7,7 +7,7 @@
 
 .edit-fields {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 .edit-fields::-webkit-scrollbar {
@@ -19,12 +19,12 @@
 }
 
 .edit-fields::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
 .edit-fields::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.4);
+  background: var(--scrollbar-thumb-hover);
 }
 
 .edit-form {
@@ -46,7 +46,7 @@
 
 .edit-textarea {
   padding: var(--s-2) var(--s-3);
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--input-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   color: var(--text);
@@ -60,8 +60,8 @@
 }
 
 .edit-textarea:focus {
-  border-color: rgba(255, 77, 77, 0.55);
-  box-shadow: 0 0 0 2px rgba(255, 77, 77, 0.15);
+  border-color: var(--selected-border);
+  box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 .edit-body {

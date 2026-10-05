@@ -46,7 +46,7 @@
   flex-direction: column;
   gap: var(--s-3);
   padding: var(--s-3);
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--input-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
 }
@@ -106,7 +106,7 @@
   font-size: 0.875rem;
   font-weight: 700;
   color: #fff;
-  background: rgba(239, 68, 68, 0.8);
+  background: var(--danger-solid);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
@@ -126,7 +126,7 @@
   text-transform: uppercase;
   padding: 2px 7px;
   border-radius: 5px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--hover-highlight);
   color: var(--text);
 }
 
@@ -146,8 +146,8 @@
 }
 
 .request-method[data-method='DELETE'] {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
+  background: var(--danger-bg);
+  color: var(--danger-text);
 }
 
 .request-method[data-method='PATCH'] {
@@ -166,7 +166,7 @@
 
 .collection-row {
   padding: var(--s-2) var(--s-3);
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--input-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   color: var(--text);
@@ -176,6 +176,6 @@
 }
 
 .collection-row:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 77, 77, 0.35);
+  background: var(--glass-strong);
+  border-color: var(--active-border);
 }

@@ -40,7 +40,7 @@
   display: flex;
   gap: 2px;
   padding: 3px;
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--input-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
 }
@@ -60,7 +60,7 @@
 }
 
 .request-mode-button:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-strong);
 }
 
 .request-mode-button.is-active {
@@ -77,7 +77,7 @@
 .request-search-input {
   width: 180px;
   padding: 5px var(--s-2);
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--input-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   color: var(--text);
@@ -91,8 +91,8 @@
 
 .request-search-input:focus {
   width: 240px;
-  border-color: rgba(255, 77, 77, 0.55);
-  box-shadow: 0 0 0 2px rgba(255, 77, 77, 0.15);
+  border-color: var(--selected-border);
+  box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 .request-count {
@@ -145,8 +145,8 @@
   width: 40px;
   height: 36px;
   padding: 0;
-  color: #fca5a5;
-  background: rgba(255, 255, 255, 0.1);
+  color: var(--danger-text);
+  background: var(--hover-highlight);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
@@ -162,8 +162,8 @@
 }
 
 .favourite-button--top-bar:hover {
-  color: #ff6b6b;
-  background: rgba(255, 255, 255, 0.18);
+  color: var(--danger-text);
+  background: var(--hover-highlight);
 }
 
 .restore-button {
@@ -188,7 +188,7 @@
   font-size: 0.8125rem;
   font-weight: 700;
   color: #fff;
-  background: rgba(239, 68, 68, 0.8);
+  background: var(--danger-solid);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
@@ -240,7 +240,7 @@
   text-align: left;
   font-weight: 700;
   color: var(--text);
-  background: rgba(6, 7, 15, 0.95);
+  background: var(--surface-solid);
   border-bottom: 1px solid var(--glass-border);
   cursor: pointer;
   user-select: none;
@@ -249,7 +249,7 @@
 }
 
 .spreadsheet-header:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-strong);
 }
 
 .header-label {
@@ -278,16 +278,16 @@
 }
 
 .spreadsheet-row:nth-child(even) {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--row-even-bg);
 }
 
 .spreadsheet-row:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--hover-bg);
 }
 
 .spreadsheet-row.is-selected {
-  --selection-color: rgba(255, 77, 77, 0.65);
-  --selection-bg: rgba(255, 77, 77, 0.08);
+  --selection-color: var(--selected-border);
+  --selection-bg: var(--selected-bg);
 
   background: var(--selection-bg);
   box-shadow: inset 0 0 0 2px var(--selection-color);
@@ -316,7 +316,7 @@
 }
 
 .spreadsheet-row.is-active-drag-row {
-  background: rgba(255, 77, 77, 0.12);
+  background: var(--selected-bg);
 }
 
 .spreadsheet-cell {
@@ -342,7 +342,7 @@
 }
 
 .spreadsheet-cell.is-cell-selected {
-  outline: 2px dashed rgba(255, 77, 77, 0.9);
+  outline: 2px dashed var(--selected-border);
   outline-offset: -3px;
 }
 
@@ -369,7 +369,7 @@
   height: 22px;
   padding: 0;
   color: #bfdbfe;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--hover-highlight);
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -397,7 +397,7 @@
 }
 
 .zen-mode-button:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--hover-highlight);
 }
 
 .spreadsheet-cell--url {
@@ -412,7 +412,7 @@
   text-transform: uppercase;
   padding: 2px 7px;
   border-radius: 5px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--hover-highlight);
   color: var(--text);
 }
 
@@ -432,8 +432,8 @@
 }
 
 .request-method[data-method='DELETE'] {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
+  background: var(--danger-bg);
+  color: var(--danger-text);
 }
 
 .request-method[data-method='PATCH'] {
@@ -450,7 +450,7 @@
 .context-menu {
   position: fixed;
   min-width: 180px;
-  background: rgba(6, 7, 15, 0.98);
+  background: var(--surface-solid);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
@@ -473,15 +473,15 @@
 }
 
 .context-menu-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--hover-highlight);
 }
 
 .context-menu-item--danger {
-  color: #fca5a5;
+  color: var(--danger-text);
 }
 
 .context-menu-item--danger:hover {
-  background: rgba(239, 68, 68, 0.2);
+  background: var(--danger-bg);
 }
 
 .context-menu-divider {
@@ -515,7 +515,7 @@
 
 .collection-row {
   padding: var(--s-2) var(--s-3);
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--input-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   color: var(--text);
@@ -527,8 +527,8 @@
 }
 
 .collection-row:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 77, 77, 0.35);
+  background: var(--glass-strong);
+  border-color: var(--active-border);
 }
 
 .favourite-popup-footer {
@@ -548,7 +548,7 @@
   justify-content: space-between;
   gap: var(--s-2);
   padding: var(--s-2) var(--s-3);
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--input-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
 }
@@ -575,7 +575,7 @@
   height: 18px;
   border: 1px solid var(--glass-border);
   border-radius: 4px;
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--input-bg);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -619,7 +619,7 @@
   font-size: 0.75rem;
   font-weight: 700;
   color: #fff;
-  background: rgba(239, 68, 68, 0.8);
+  background: var(--danger-solid);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
