@@ -25,8 +25,10 @@ import {
   WidgetType,
 } from '@codemirror/view';
 import { json } from '@codemirror/lang-json';
-import { linter, lintGutter, type Diagnostic } from '@codemirror/lint';
+import { linter, type Diagnostic } from '@codemirror/lint';
 import { defaultKeymap, history, historyKeymap, redo } from '@codemirror/commands';
+import { syntaxHighlighting } from '@codemirror/language';
+import { oneDarkHighlightStyle } from '@codemirror/theme-one-dark';
 
 type BodyType = 'json' | 'text';
 
@@ -98,14 +100,17 @@ function variableDecorations(variables: BodyEditorVariable[]): Extension {
             Decoration.replace({
               widget: new VariableWidget(key, variable?.value ?? ''),
               inclusive: false,
-              atomic: true,
             }).range(from, to),
           );
         }
         return decorations.length > 0 ? Decoration.set(decorations) : Decoration.none;
       }
     },
-    { decorations: (value) => value.decorations },
+    {
+      decorations: (value) => value.decorations,
+      provide: (plugin) =>
+        EditorView.atomicRanges.of((view) => view.plugin(plugin)?.decorations ?? Decoration.none),
+    },
   );
 }
 
@@ -233,6 +238,7 @@ export class BodyEditor implements AfterViewInit, OnDestroy {
       drawSelection(),
       dropCursor(),
       history(),
+      syntaxHighlighting(oneDarkHighlightStyle, { fallback: true }),
       keymap.of([...defaultKeymap, ...historyKeymap]),
       Prec.highest(
         keymap.of([
@@ -266,6 +272,22 @@ export class BodyEditor implements AfterViewInit, OnDestroy {
             run: (view) => this.deleteAtomicRange(view, 'delete'),
           },
           {
+            key: 'Ctrl-Backspace',
+            run: (view) => this.deleteAtomicRange(view, 'backspace'),
+          },
+          {
+            key: 'Ctrl-Delete',
+            run: (view) => this.deleteAtomicRange(view, 'delete'),
+          },
+          {
+            key: 'Alt-Backspace',
+            run: (view) => this.deleteAtomicRange(view, 'backspace'),
+          },
+          {
+            key: 'Alt-Delete',
+            run: (view) => this.deleteAtomicRange(view, 'delete'),
+          },
+          {
             key: 'Ctrl-ArrowLeft',
             run: (view) => this.moveOverVariable(view, false),
           },
@@ -296,7 +318,7 @@ export class BodyEditor implements AfterViewInit, OnDestroy {
 
   private languageExtension(isJson: boolean): Extension {
     if (!isJson) return [];
-    return [json(), linter((view) => this.jsonLinter(view)), lintGutter()];
+    return [json(), linter((view) => this.jsonLinter(view))];
   }
 
   private customTheme(): Extension {
