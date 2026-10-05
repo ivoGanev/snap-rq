@@ -11,6 +11,22 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { EditorState, type Extension, Compartment, Prec } from '@codemirror/state';
+import {
+  EditorView,
+  keymap,
+  lineNumbers,
+  drawSelection,
+  dropCursor,
+  ViewPlugin,
+  ViewUpdate,
+  Decoration,
+  DecorationSet,
+  WidgetType,
+} from '@codemirror/view';
+import { json } from '@codemirror/lang-json';
+import { linter, lintGutter, type Diagnostic } from '@codemirror/lint';
+import { defaultKeymap, history, historyKeymap, redo } from '@codemirror/commands';
 
 type BodyType = 'json' | 'text';
 
@@ -24,14 +40,74 @@ interface ValidationResult {
   error: string;
 }
 
-interface EditorState {
-  value: string;
-}
-
-const MAX_HISTORY_SIZE = 100;
-const INDENT = '  ';
 const VARIABLE_QUOTED_REGEX = /"\{\{\s*(\w+)\s*\}\}"/g;
 const VARIABLE_UNQUOTED_REGEX = /\{\{\s*(\w+)\s*\}\}/g;
+const INDENT = '  ';
+
+class VariableWidget extends WidgetType {
+  constructor(
+    private readonly key: string,
+    private readonly value: string,
+  ) {
+    super();
+  }
+
+  toDOM(): HTMLElement {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'variable-chip';
+    chip.textContent = this.key;
+    chip.title = this.value;
+    chip.tabIndex = -1;
+    chip.addEventListener('mousedown', (event) => event.preventDefault());
+    chip.addEventListener('focus', (event) => (event.target as HTMLElement).blur());
+    return chip;
+  }
+
+  override eq(other: VariableWidget): boolean {
+    return other.key === this.key && other.value === this.value;
+  }
+}
+
+function variableDecorations(variables: BodyEditorVariable[]): Extension {
+  return ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet = Decoration.none;
+
+      constructor(view: EditorView) {
+        this.decorations = this.buildDecorations(view);
+      }
+
+      update(update: ViewUpdate): void {
+        if (update.docChanged || update.viewportChanged) {
+          this.decorations = this.buildDecorations(update.view);
+        }
+      }
+
+      private buildDecorations(view: EditorView): DecorationSet {
+        const decorations: Array<{ from: number; to: number; value: Decoration }> = [];
+        const text = view.state.doc.toString();
+        const regex = /\{\{\s*(\w+)\s*\}\}/g;
+        let match: RegExpExecArray | null;
+        while ((match = regex.exec(text)) !== null) {
+          const key = match[1];
+          const variable = variables.find((v) => v.key === key);
+          const from = match.index;
+          const to = from + match[0].length;
+          decorations.push(
+            Decoration.replace({
+              widget: new VariableWidget(key, variable?.value ?? ''),
+              inclusive: false,
+              atomic: true,
+            }).range(from, to),
+          );
+        }
+        return decorations.length > 0 ? Decoration.set(decorations) : Decoration.none;
+      }
+    },
+    { decorations: (value) => value.decorations },
+  );
+}
 
 @Component({
   selector: 'app-body-editor',
@@ -48,6 +124,11 @@ export class BodyEditor implements AfterViewInit, OnDestroy {
 
   private readonly editorRef = viewChild<ElementRef<HTMLDivElement>>('editor');
 
+  private view: EditorView | null = null;
+  private readonly languageCompartment = new Compartment();
+  private readonly variablesCompartment = new Compartment();
+  private charWidth = 7.8;
+
   readonly isJson = computed(() => this.type() === 'json');
   readonly isValid = signal(true);
   readonly validationError = signal('');
@@ -56,183 +137,80 @@ export class BodyEditor implements AfterViewInit, OnDestroy {
   readonly dropdownLeft = signal(0);
   readonly dropdownIndex = signal(0);
 
+  private readonly boundDropdownKeydown = this.onDropdownKeydown.bind(this);
   private readonly boundDocumentClick = this.onDocumentClick.bind(this);
   private readonly boundWindowResize = this.closeDropdown.bind(this);
-
-  private lastState: EditorState | null = null;
-  private readonly undoStack: EditorState[] = [];
-  private readonly redoStack: EditorState[] = [];
-  private isRestoringState = false;
-  private charWidth = 7.8;
 
   constructor() {
     effect(() => {
       const value = this.text();
-      const editor = this.editorRef()?.nativeElement;
-      if (editor) {
-        const currentRaw = this.readRawFromEditor();
-        if (currentRaw !== value) {
-          this.renderRaw(value, editor);
-          this.resetHistory();
-        }
+      if (this.view && this.view.state.doc.toString() !== value) {
+        this.view.dispatch({
+          changes: { from: 0, to: this.view.state.doc.length, insert: value },
+        });
       }
-      this.lastState = { value };
-      this.validate(value);
+    });
+
+    effect(() => {
+      if (!this.view) return;
+      this.view.dispatch({
+        effects: this.variablesCompartment.reconfigure(variableDecorations(this.variables())),
+      });
+    });
+
+    effect(() => {
+      if (!this.view) return;
+      this.view.dispatch({
+        effects: this.languageCompartment.reconfigure(this.languageExtension(this.isJson())),
+      });
     });
   }
 
   ngAfterViewInit(): void {
-    const editor = this.editorRef()?.nativeElement;
-    if (editor) {
-      this.charWidth = this.measureCharWidth(editor);
-      this.renderRaw(this.text(), editor);
-      this.lastState = { value: this.text() };
-    }
+    const el = this.editorRef()?.nativeElement;
+    if (!el) return;
+
+    this.charWidth = this.measureCharWidth(el);
+
+    this.view = new EditorView({
+      parent: el,
+      state: EditorState.create({
+        doc: this.text(),
+        extensions: [
+          this.baseExtensions(),
+          this.languageCompartment.of(this.languageExtension(this.isJson())),
+          this.variablesCompartment.of(variableDecorations(this.variables())),
+        ],
+      }),
+    });
   }
 
   ngOnDestroy(): void {
+    this.view?.destroy();
     this.removeGlobalListeners();
   }
 
-  onInput(): void {
-    const editor = this.editorRef()?.nativeElement;
-    if (!editor) return;
-    const raw = this.readRawFromEditor();
-
-    if (!this.isRestoringState) {
-      this.pushUndo(this.lastState);
-      this.redoStack.length = 0;
-    }
-    this.lastState = { value: raw };
-    this.textChange.emit(raw);
-    this.validate(raw);
-  }
-
-  onKeydown(event: KeyboardEvent): void {
-    const editor = this.editorRef()?.nativeElement;
-    if (!editor) return;
-
-    if (event.ctrlKey && event.code === 'Space') {
-      event.preventDefault();
-      this.openDropdown();
-      return;
-    }
-
-    if (this.dropdownOpen() && this.handleDropdownKey(event)) {
-      return;
-    }
-
-    if (event.key === 'Tab') {
-      event.preventDefault();
-      this.insertTextAtCursor(INDENT);
-      this.syncAfterEdit();
-      return;
-    }
-
-    if (event.code === 'Enter') {
-      event.preventDefault();
-      this.insertTextAtCursor('\n');
-      this.syncAfterEdit();
-      return;
-    }
-
-    if (event.ctrlKey && event.code === 'KeyZ') {
-      event.preventDefault();
-      if (event.shiftKey) {
-        this.redo();
-      } else {
-        this.undo();
-      }
-      return;
-    }
-
-    if (event.ctrlKey && event.code === 'KeyY') {
-      event.preventDefault();
-      this.redo();
-    }
-  }
-
-  private handleDropdownKey(event: KeyboardEvent): boolean {
-    const variables = this.variables();
-
-    if (event.code === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      this.closeDropdown();
-      return true;
-    }
-
-    if (variables.length === 0) {
-      if (event.code === 'Enter') {
-        event.preventDefault();
-        event.stopPropagation();
-        this.closeDropdown();
-        return true;
-      }
-      return false;
-    }
-
-    switch (event.code) {
-      case 'ArrowDown':
-        event.preventDefault();
-        event.stopPropagation();
-        this.dropdownIndex.update((i) => Math.min(i + 1, variables.length - 1));
-        return true;
-      case 'ArrowUp':
-        event.preventDefault();
-        event.stopPropagation();
-        this.dropdownIndex.update((i) => Math.max(i - 1, 0));
-        return true;
-      case 'Enter':
-        event.preventDefault();
-        event.stopPropagation();
-        this.selectVariableByIndex(this.dropdownIndex());
-        return true;
-    }
-
-    return false;
-  }
-
-  onPaste(event: ClipboardEvent): void {
-    event.preventDefault();
-    const pasted = event.clipboardData?.getData('text/plain') ?? '';
-    this.insertTextAtCursor(pasted);
-    this.syncAfterEdit();
-  }
-
   formatCurrent(): void {
-    if (!this.isJson()) return;
-    const editor = this.editorRef()?.nativeElement;
-    if (!editor) return;
-    const raw = this.readRawFromEditor();
+    if (!this.view || !this.isJson()) return;
+    const raw = this.view.state.doc.toString();
     const formatted = this.formatJson(raw);
     if (formatted !== raw) {
-      this.pushUndo(this.lastState);
-      this.redoStack.length = 0;
-      this.renderRaw(formatted, editor);
-      this.lastState = { value: formatted };
-      this.textChange.emit(formatted);
+      this.view.dispatch({
+        changes: { from: 0, to: this.view.state.doc.length, insert: formatted },
+      });
     }
-    this.validate(formatted);
-    editor.focus();
+    this.view.focus();
   }
 
   insertVariable(variable: BodyEditorVariable): void {
-    const editor = this.editorRef()?.nativeElement;
-    if (!editor) return;
-
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-    const range = selection.getRangeAt(0);
-    range.deleteContents();
-    const chip = this.createChip(variable);
-    range.insertNode(chip);
-    range.setStartAfter(chip);
-    range.setEndAfter(chip);
-    selection.removeAllRanges();
-    selection.addRange(range);
-
-    this.syncAfterEdit();
+    if (!this.view) return;
+    const pos = this.view.state.selection.main.head;
+    const insertion = `{{ ${variable.key} }}`;
+    this.view.dispatch({
+      changes: { from: pos, insert: insertion },
+      selection: { anchor: pos + insertion.length },
+    });
+    this.view.focus();
     this.closeDropdown();
   }
 
@@ -243,163 +221,225 @@ export class BodyEditor implements AfterViewInit, OnDestroy {
     }
   }
 
-  private undo(): void {
-    const editor = this.editorRef()?.nativeElement;
-    if (!editor || this.undoStack.length === 0) return;
-    this.redoStack.push(this.captureState(editor));
-    const state = this.undoStack.pop()!;
-    this.restoreState(editor, state);
+  closeDropdown(): void {
+    if (!this.dropdownOpen()) return;
+    this.dropdownOpen.set(false);
+    this.removeGlobalListeners();
   }
 
-  private redo(): void {
-    const editor = this.editorRef()?.nativeElement;
-    if (!editor || this.redoStack.length === 0) return;
-    this.undoStack.push(this.captureState(editor));
-    const state = this.redoStack.pop()!;
-    this.restoreState(editor, state);
+  private baseExtensions(): Extension {
+    return [
+      lineNumbers(),
+      drawSelection(),
+      dropCursor(),
+      history(),
+      keymap.of([...defaultKeymap, ...historyKeymap]),
+      Prec.highest(
+        keymap.of([
+          {
+            key: 'Ctrl-Space',
+            run: () => {
+              this.openDropdown();
+              return true;
+            },
+          },
+          {
+            key: 'Tab',
+            run: (view) => {
+              view.dispatch({
+                changes: { from: view.state.selection.main.from, insert: INDENT },
+                selection: { anchor: view.state.selection.main.from + INDENT.length },
+              });
+              return true;
+            },
+          },
+          {
+            key: 'Shift-Tab',
+            run: (view) => this.outdentCurrentLine(view),
+          },
+          {
+            key: 'Backspace',
+            run: (view) => this.deleteAtomicRange(view, 'backspace'),
+          },
+          {
+            key: 'Delete',
+            run: (view) => this.deleteAtomicRange(view, 'delete'),
+          },
+          {
+            key: 'Ctrl-ArrowLeft',
+            run: (view) => this.moveOverVariable(view, false),
+          },
+          {
+            key: 'Ctrl-ArrowRight',
+            run: (view) => this.moveOverVariable(view, true),
+          },
+          {
+            key: 'Alt-ArrowLeft',
+            run: (view) => this.moveOverVariable(view, false),
+          },
+          {
+            key: 'Alt-ArrowRight',
+            run: (view) => this.moveOverVariable(view, true),
+          },
+        ]),
+      ),
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) {
+          const value = update.state.doc.toString();
+          this.textChange.emit(value);
+          this.validate(value);
+        }
+      }),
+      this.customTheme(),
+    ];
   }
 
-  private restoreState(editor: HTMLDivElement, state: EditorState): void {
-    this.isRestoringState = true;
-    this.renderRaw(state.value, editor);
-    this.lastState = state;
-    this.textChange.emit(state.value);
-    this.validate(state.value);
-    this.isRestoringState = false;
-    editor.focus();
+  private languageExtension(isJson: boolean): Extension {
+    if (!isJson) return [];
+    return [json(), linter((view) => this.jsonLinter(view)), lintGutter()];
   }
 
-  private syncAfterEdit(): void {
-    const editor = this.editorRef()?.nativeElement;
-    if (!editor) return;
-    const raw = this.readRawFromEditor();
-    this.pushUndo(this.lastState);
-    this.redoStack.length = 0;
-    this.lastState = { value: raw };
-    this.textChange.emit(raw);
-    this.validate(raw);
+  private customTheme(): Extension {
+    return EditorView.theme(
+      {
+        '&': {
+          color: 'var(--text)',
+          backgroundColor: 'transparent',
+          fontFamily:
+            "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+          fontSize: '0.8125rem',
+          lineHeight: '1.5',
+        },
+        '.cm-content': {
+          caretColor: 'var(--text)',
+          padding: '0',
+        },
+        '.cm-gutters': {
+          backgroundColor: 'transparent',
+          color: 'var(--muted)',
+          borderRight: '1px solid var(--glass-border)',
+        },
+        '.cm-lineNumbers .cm-gutterElement': {
+          paddingLeft: '6px',
+          paddingRight: '10px',
+        },
+        '.cm-activeLine': { backgroundColor: 'transparent' },
+        '.cm-selectionBackground': { background: 'var(--selected-bg)' },
+        '.cm-focused .cm-selectionBackground': { background: 'var(--selected-bg)' },
+        '.cm-cursor': { borderLeftColor: 'var(--text)' },
+        '.cm-tooltip': {
+          background: 'var(--surface-solid)',
+          border: '1px solid var(--glass-border)',
+          borderRadius: 'var(--radius)',
+        },
+        '.cm-tooltip-lint': {
+          background: 'var(--surface-solid)',
+        },
+        '.cm-lint-marker': {
+          color: 'var(--error-text)',
+        },
+      },
+      { dark: true },
+    );
   }
 
-  private captureState(editor: HTMLDivElement): EditorState {
-    return { value: this.readRawFromEditor() };
+  private outdentCurrentLine(view: EditorView): boolean {
+    const pos = view.state.selection.main.head;
+    const line = view.state.doc.lineAt(pos);
+    const text = line.text;
+    const match = text.match(/^(  |\t)/);
+    if (!match) return false;
+    view.dispatch({
+      changes: { from: line.from, to: line.from + match[0].length, insert: '' },
+      selection: { anchor: Math.max(line.from, pos - match[0].length) },
+    });
+    return true;
   }
 
-  private pushUndo(state: EditorState | null): void {
-    if (!state) return;
-    const last = this.undoStack[this.undoStack.length - 1];
-    if (last && last.value === state.value) return;
-    this.undoStack.push(state);
-    if (this.undoStack.length > MAX_HISTORY_SIZE) {
-      this.undoStack.shift();
-    }
+  private moveOverVariable(view: EditorView, forward: boolean): boolean {
+    const ranges = this.getVariableRanges(view.state.doc);
+    if (ranges.length === 0) return false;
+
+    const pos = view.state.selection.main.head;
+    const range = ranges.find((r) => (forward ? r.from === pos : r.to === pos));
+    if (!range) return false;
+
+    const target = forward ? range.to : range.from;
+    view.dispatch({ selection: { anchor: target }, scrollIntoView: true });
+    return true;
   }
 
-  private resetHistory(): void {
-    this.undoStack.length = 0;
-    this.redoStack.length = 0;
+  private deleteAtomicRange(view: EditorView, direction: 'backspace' | 'delete'): boolean {
+    const selection = view.state.selection.main;
+    if (!selection.empty) return false;
+
+    const ranges = this.getVariableRanges(view.state.doc);
+    if (ranges.length === 0) return false;
+
+    const pos = selection.head;
+    const range = ranges.find((r) =>
+      direction === 'backspace' ? r.to === pos : r.from === pos,
+    );
+    if (!range) return false;
+
+    view.dispatch({
+      changes: { from: range.from, to: range.to, insert: '' },
+      selection: { anchor: range.from },
+    });
+    return true;
   }
 
-  private createChip(variable: BodyEditorVariable): HTMLButtonElement {
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'variable-chip';
-    chip.contentEditable = 'false';
-    chip.textContent = variable.key;
-    chip.dataset['value'] = variable.value;
-    chip.title = variable.value;
-    chip.tabIndex = -1;
-    return chip;
-  }
-
-  private renderRaw(raw: string, editor: HTMLDivElement): void {
-    editor.innerHTML = '';
-    const fragment = document.createDocumentFragment();
-    let lastIndex = 0;
+  private getVariableRanges(doc: { toString(): string }): { from: number; to: number }[] {
+    const ranges: { from: number; to: number }[] = [];
+    const text = doc.toString();
+    const regex = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
     let match: RegExpExecArray | null;
-
-    VARIABLE_UNQUOTED_REGEX.lastIndex = 0;
-    while ((match = VARIABLE_UNQUOTED_REGEX.exec(raw)) !== null) {
-      if (match.index > lastIndex) {
-        fragment.appendChild(document.createTextNode(raw.slice(lastIndex, match.index)));
-      }
-      const key = match[1];
-      const variable = this.variables().find((v) => v.key === key);
-      fragment.appendChild(this.createChip(variable ?? { key, value: '' }));
-      lastIndex = VARIABLE_UNQUOTED_REGEX.lastIndex;
+    while ((match = regex.exec(text)) !== null) {
+      ranges.push({ from: match.index, to: match.index + match[0].length });
     }
-
-    if (lastIndex < raw.length) {
-      fragment.appendChild(document.createTextNode(raw.slice(lastIndex)));
-    }
-
-    if (raw.length === 0) {
-      fragment.appendChild(document.createTextNode(''));
-    }
-
-    editor.appendChild(fragment);
+    return ranges;
   }
 
-  private readRawFromEditor(): string {
-    const editor = this.editorRef()?.nativeElement;
-    if (!editor) return '';
-    let raw = '';
-    for (const node of Array.from(editor.childNodes)) {
-      raw += this.readRawFromNode(node);
-    }
-    return raw;
-  }
+  private onDropdownKeydown(event: KeyboardEvent): void {
+    if (!this.dropdownOpen()) return;
 
-  private readRawFromNode(node: Node): string {
-    if (node.nodeType === Node.TEXT_NODE) {
-      return node.textContent ?? '';
-    }
-    if (node instanceof HTMLElement && node.classList.contains('variable-chip')) {
-      return `{{ ${node.textContent ?? ''} }}`;
-    }
-    if (node instanceof HTMLElement) {
-      let text = '';
-      for (const child of Array.from(node.childNodes)) {
-        text += this.readRawFromNode(child);
-      }
-      if (node.tagName === 'BR') {
-        text = '\n';
-      }
-      if (node.tagName === 'DIV' && !text.endsWith('\n')) {
-        text += '\n';
-      }
-      return text;
-    }
-    return node.textContent ?? '';
-  }
+    const variables = this.variables();
 
-  private insertTextAtCursor(text: string): void {
-    const editor = this.editorRef()?.nativeElement;
-    if (!editor) return;
-    editor.focus();
-
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      editor.appendChild(document.createTextNode(text));
+    if (event.code === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      this.closeDropdown();
       return;
     }
 
-    try {
-      if (document.queryCommandSupported('insertText')) {
-        const inserted = document.execCommand('insertText', false, text);
-        if (inserted) return;
+    if (event.code === 'ArrowDown') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (variables.length > 0) {
+        this.dropdownIndex.update((i) => Math.min(i + 1, variables.length - 1));
       }
-    } catch {
-      // fall through to manual insertion
+      return;
     }
 
-    const range = selection.getRangeAt(0);
-    range.deleteContents();
-    const node = document.createTextNode(text);
-    range.insertNode(node);
-    range.setStartAfter(node);
-    range.setEndAfter(node);
-    selection.removeAllRanges();
-    selection.addRange(range);
+    if (event.code === 'ArrowUp') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (variables.length > 0) {
+        this.dropdownIndex.update((i) => Math.max(i - 1, 0));
+      }
+      return;
+    }
+
+    if (event.code === 'Enter') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (variables.length > 0) {
+        this.selectVariableByIndex(this.dropdownIndex());
+      } else {
+        this.closeDropdown();
+      }
+      return;
+    }
   }
 
   private openDropdown(): void {
@@ -410,62 +450,23 @@ export class BodyEditor implements AfterViewInit, OnDestroy {
     this.addGlobalListeners();
   }
 
-  closeDropdown(): void {
-    if (!this.dropdownOpen()) return;
-    this.dropdownOpen.set(false);
-    this.removeGlobalListeners();
-  }
-
   private computeDropdownPosition(): void {
-    const editor = this.editorRef()?.nativeElement;
-    if (!editor) return;
-    const coords = this.getCaretCoordinates(editor);
-    this.dropdownTop.set(Math.max(8, coords.top));
-    this.dropdownLeft.set(Math.max(8, coords.left));
-  }
-
-  private getCaretCoordinates(editor: HTMLDivElement): { top: number; left: number } {
-    const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0);
-      const rect = range.getBoundingClientRect();
-      if (rect.width > 0 || rect.height > 0) {
-        return { top: rect.bottom + 4, left: rect.left };
-      }
+    if (!this.view) return;
+    const pos = this.view.state.selection.main.head;
+    const coords = this.view.coordsAtPos(pos);
+    if (coords) {
+      this.dropdownTop.set(Math.max(8, coords.bottom + 4));
+      this.dropdownLeft.set(Math.max(8, coords.left));
+      return;
     }
 
-    // Fallback for collapsed ranges or when the browser returns a zero rect.
-    const rawBefore = this.getTextBeforeCaret();
-    const lines = rawBefore.split('\n');
-    const lineIndex = lines.length - 1;
-    const columnIndex = lines[lineIndex]?.length ?? 0;
-    const editorRect = editor.getBoundingClientRect();
-    const lineHeight = this.parseLineHeight(editor);
-
-    return {
-      top: editorRect.top + (lineIndex + 1) * lineHeight - editor.scrollTop + 4,
-      left: editorRect.left + columnIndex * this.charWidth - editor.scrollLeft,
-    };
-  }
-
-  private getTextBeforeCaret(): string {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return '';
-    const range = selection.getRangeAt(0);
-    const preCaretRange = range.cloneRange();
-    const editor = this.editorRef()?.nativeElement;
-    if (!editor) return '';
-    preCaretRange.selectNodeContents(editor);
-    preCaretRange.setEnd(range.startContainer, range.startOffset);
-    return this.domToRawText(preCaretRange.cloneContents());
-  }
-
-  private domToRawText(fragment: DocumentFragment): string {
-    let raw = '';
-    for (const node of Array.from(fragment.childNodes)) {
-      raw += this.readRawFromNode(node);
-    }
-    return raw;
+    // Fallback when coordsAtPos cannot determine the caret rectangle.
+    const editorRect = this.view.dom.getBoundingClientRect();
+    const line = this.view.state.doc.lineAt(pos);
+    const lineHeight = this.parseLineHeight(this.view.dom);
+    const column = pos - line.from;
+    this.dropdownTop.set(Math.max(8, editorRect.top + (line.number * lineHeight) - this.view.scrollDOM.scrollTop + 4));
+    this.dropdownLeft.set(Math.max(8, editorRect.left + column * this.charWidth - this.view.scrollDOM.scrollLeft));
   }
 
   private parseLineHeight(element: HTMLElement): number {
@@ -481,6 +482,25 @@ export class BodyEditor implements AfterViewInit, OnDestroy {
     const style = getComputedStyle(element);
     ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
     return ctx.measureText('M').width;
+  }
+
+  private jsonLinter(view: EditorView): Diagnostic[] {
+    const raw = view.state.doc.toString().trim();
+    if (!raw) return [];
+    const { text } = this.replaceVariablesWithPlaceholders(raw);
+    try {
+      JSON.parse(text);
+      return [];
+    } catch (err) {
+      return [
+        {
+          from: 0,
+          to: view.state.doc.length,
+          severity: 'error',
+          message: (err as Error).message,
+        },
+      ];
+    }
   }
 
   private validate(value: string): void {
@@ -527,14 +547,12 @@ export class BodyEditor implements AfterViewInit, OnDestroy {
     const placeholders = new Map<string, string>();
     let counter = 0;
 
-    // First replace already-quoted variables: "{{ key }}" -> "__VAR_Q_N__"
     let text = value.replace(VARIABLE_QUOTED_REGEX, (match: string) => {
       const token = `"__VAR_Q_${counter++}__"`;
       placeholders.set(token, match);
       return token;
     });
 
-    // Then replace bare variables: {{ key }} -> "__VAR_U_N__"
     text = text.replace(VARIABLE_UNQUOTED_REGEX, (match: string) => {
       const token = `"__VAR_U_${counter++}__"`;
       placeholders.set(token, match);
@@ -560,11 +578,13 @@ export class BodyEditor implements AfterViewInit, OnDestroy {
   }
 
   private addGlobalListeners(): void {
+    window.addEventListener('keydown', this.boundDropdownKeydown, true);
     document.addEventListener('click', this.boundDocumentClick);
     window.addEventListener('resize', this.boundWindowResize);
   }
 
   private removeGlobalListeners(): void {
+    window.removeEventListener('keydown', this.boundDropdownKeydown, true);
     document.removeEventListener('click', this.boundDocumentClick);
     window.removeEventListener('resize', this.boundWindowResize);
   }

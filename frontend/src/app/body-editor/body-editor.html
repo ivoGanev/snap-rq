@@ -26,19 +26,7 @@
   </div>
 
   <div class="body-editor-editor-wrap">
-    <div
-      #editor
-      class="body-editor-editor"
-      contenteditable="true"
-      role="textbox"
-      (input)="onInput()"
-      (keydown)="onKeydown($event)"
-      (paste)="onPaste($event)"
-      spellcheck="false"
-      autocapitalize="off"
-      autocomplete="off"
-      autocorrect="off"
-    ></div>
+    <div #editor class="body-editor-editor"></div>
 
     @if (dropdownOpen()) {
       <div class="variable-dropdown" [style.top.px]="dropdownTop()" [style.left.px]="dropdownLeft()">
