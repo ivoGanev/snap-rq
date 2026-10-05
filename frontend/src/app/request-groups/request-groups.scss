@@ -8,7 +8,7 @@
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--text);
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   cursor: pointer;
@@ -17,7 +17,7 @@
 }
 
 .all-requests-button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--hover-highlight);
   border-color: rgba(255, 255, 255, 0.2);
 }
 
@@ -54,7 +54,7 @@
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--text);
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   cursor: pointer;
@@ -63,13 +63,13 @@
 }
 
 .trash-bin-button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--hover-highlight);
   border-color: rgba(255, 255, 255, 0.2);
 }
 
 .trash-bin-button.is-active {
-  background: rgba(255, 77, 77, 0.2);
-  border-color: rgba(255, 77, 77, 0.55);
+  background: var(--selected-bg);
+  border-color: var(--selected-border);
 }
 
 .trash-bin-button:disabled {
@@ -87,7 +87,7 @@
 }
 
 .trash-bin-button.is-active .trash-bin-button__icon {
-  color: #fca5a5;
+  color: var(--danger-text);
 }
 
 .add-button {
@@ -140,7 +140,7 @@
   overflow-y: auto;
   padding: 0 0 var(--s-3);
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 .folder-tree::-webkit-scrollbar {
@@ -152,12 +152,12 @@
 }
 
 .folder-tree::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
 .folder-tree::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.4);
+  background: var(--scrollbar-thumb-hover);
 }
 
 .folder-filter-bar {
@@ -165,7 +165,7 @@
   display: flex;
   gap: var(--s-1);
   padding: var(--s-2) var(--s-3) var(--s-3);
-  background: rgba(6, 7, 15, 0.55);
+  background: var(--surface);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
 }
@@ -176,7 +176,7 @@
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   cursor: pointer;
@@ -189,14 +189,14 @@
 }
 
 .folder-filter-button:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--hover-highlight);
   color: var(--text);
 }
 
 .folder-filter-button.is-active {
   color: #fff;
-  background: rgba(255, 77, 77, 0.2);
-  border-color: rgba(255, 77, 77, 0.55);
+  background: var(--selected-bg);
+  border-color: var(--selected-border);
 }
 
 .folder-filter-button--icon {
@@ -239,11 +239,11 @@
 }
 
 .tree-item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--hover-bg);
 }
 
 .tree-item.is-selected {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--hover-highlight);
   font-weight: 600;
 }
 
@@ -297,7 +297,7 @@
   flex: 1 1 auto;
   min-width: 0;
   padding: 2px var(--s-2);
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--input-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   color: var(--text);
@@ -320,7 +320,7 @@
 .context-menu {
   position: fixed;
   min-width: 180px;
-  background: rgba(6, 7, 15, 0.98);
+  background: var(--surface-solid);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
@@ -343,15 +343,15 @@
 }
 
 .context-menu-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--hover-highlight);
 }
 
 .context-menu-item--danger {
-  color: #fca5a5;
+  color: var(--danger-text);
 }
 
 .context-menu-item--danger:hover {
-  background: rgba(239, 68, 68, 0.2);
+  background: var(--danger-bg);
 }
 
 .appearance-popup {

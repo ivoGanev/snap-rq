@@ -1,5 +1,3 @@
-<div class="bg" [style.background]="backgroundStyle()" aria-hidden="true"></div>
-
 <div class="top-bar">
   <div class="environment-selector">
     <span class="environment-label">Environment</span>
@@ -133,9 +131,9 @@
     <button
       class="footer-theme-button"
       type="button"
-      (click)="openBackgroundSelector()"
-      aria-label="Choose background"
-      title="Choose background"
+      (click)="openThemeSelector()"
+      aria-label="Choose theme"
+      title="Choose theme"
     >
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="12" cy="12" r="10"/>
@@ -145,22 +143,21 @@
       <span>Theme</span>
     </button>
 
-    @if (backgroundSelectorOpen()) {
-      <div class="theme-selector-backdrop" (click)="closeBackgroundSelector()">
+    @if (themeSelectorOpen()) {
+      <div class="theme-selector-backdrop" (click)="closeThemeSelector()">
         <div class="theme-selector-popup" (click)="$event.stopPropagation()">
-          @for (option of backgroundOptions; track option.id) {
+          @for (theme of theme.registry(); track theme.id) {
             <button
               class="theme-option"
-              [class.is-active]="(selectedBackground() === null && option.id === 'none') || selectedBackground() === option.url"
+              [class.is-active]="isActiveTheme(theme)"
               type="button"
-              (click)="selectBackground(option.id)"
+              (click)="selectTheme(theme)"
             >
-              @if (option.url) {
-                <span class="theme-option-thumb" [style.background-image]="'url(' + option.url + ')'"></span>
-              } @else {
-                <span class="theme-option-thumb theme-option-thumb--default"></span>
-              }
-              <span class="theme-option-label">{{ option.label }}</span>
+              <span
+                class="theme-option-thumb"
+                [style.background]="theme.preview"
+              ></span>
+              <span class="theme-option-label">{{ theme.name }}</span>
             </button>
           }
         </div>

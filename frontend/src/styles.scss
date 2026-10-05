@@ -6,7 +6,16 @@
 }
 
 :root {
-  /* Neon-night design tokens. */
+  /* Golden-ratio spacing scale. */
+  --s-1: 0.618rem;
+  --s-2: 1rem;
+  --s-3: 1.618rem;
+  --s-4: 2.618rem;
+  --s-5: 4.236rem;
+
+  /* Default theme tokens until a theme CSS file loads. */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
   --ink: #06070f;
   --text: #f4f6fb;
   --muted: #9aa6c0;
@@ -18,15 +27,30 @@
   --radius: 11px;
   --grad: linear-gradient(135deg, #ff5a4d 0%, #ff2d72 100%);
 
-  /* Golden-ratio spacing scale. */
-  --s-1: 0.618rem;
-  --s-2: 1rem;
-  --s-3: 1.618rem;
-  --s-4: 2.618rem;
-  --s-5: 4.236rem;
+  --background: var(--ink);
+  --surface: rgba(6, 7, 15, 0.55);
+  --surface-solid: rgba(6, 7, 15, 0.98);
+  --input-bg: rgba(0, 0, 0, 0.25);
+  --row-even-bg: rgba(255, 255, 255, 0.02);
+  --hover-bg: rgba(255, 255, 255, 0.06);
+  --hover-highlight: rgba(255, 255, 255, 0.1);
+  --active-border: rgba(255, 77, 77, 0.35);
+  --selected-bg: rgba(255, 77, 77, 0.2);
+  --selected-border: rgba(255, 77, 77, 0.55);
+  --focus-ring: rgba(255, 77, 77, 0.15);
+  --focus-border: rgba(255, 77, 77, 0.55);
+  --danger-text: #fca5a5;
+  --danger-bg: rgba(239, 68, 68, 0.2);
+  --danger-solid: rgba(239, 68, 68, 0.8);
+  --error-text: #ff7a8f;
+  --shadow: rgba(0, 0, 0, 0.5);
+  --backdrop: rgba(0, 0, 0, 0.65);
 
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  --scrollbar-track: rgba(255, 255, 255, 0.04);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.18);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.28);
+
+  font-family: var(--font-family);
   color-scheme: dark;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -35,10 +59,30 @@
 
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
 }
 
 html {
-  background: var(--ink);
+  background: var(--background);
 }
 
 html,
@@ -86,11 +130,11 @@ app-root {
 }
 
 .tag-item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--hover-bg);
 }
 
 .tag-item.is-selected {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--hover-bg);
 }
 
 .tag-chip {
@@ -99,7 +143,7 @@ app-root {
   gap: 4px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--glass-strong);
   color: var(--text);
   font-size: 0.75rem;
   font-weight: 600;
@@ -110,14 +154,14 @@ app-root {
 }
 
 .tag-chip--inline {
-  background: rgba(255, 77, 77, 0.2);
-  color: #fca5a5;
+  background: var(--selected-bg);
+  color: var(--danger-text);
 }
 
 .tag-chip--editable {
   padding-right: 4px;
-  background: rgba(255, 77, 77, 0.2);
-  color: #fca5a5;
+  background: var(--selected-bg);
+  color: var(--danger-text);
 }
 
 .tag-chip-remove,
@@ -143,14 +187,14 @@ app-root {
 .tag-chip-remove:hover,
 .tag-delete:hover {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--hover-highlight);
 }
 
 .tag-search-input {
   width: 100%;
   margin-bottom: var(--s-1);
   padding: 5px var(--s-2);
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--input-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   color: var(--text);
@@ -159,8 +203,44 @@ app-root {
 }
 
 .tag-search-input:focus {
-  border-color: rgba(255, 77, 77, 0.55);
-  box-shadow: 0 0 0 2px rgba(255, 77, 77, 0.15);
+  border-color: var(--focus-border);
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.tag-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 160px;
+  overflow-y: auto;
+  margin-top: 4px;
+  padding: var(--s-1);
+  background: var(--surface-solid);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+}
+
+.tag-suggestion {
+  padding: var(--s-1) var(--s-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: left;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.tag-suggestion:hover {
+  background: var(--hover-highlight);
 }
 
 .request-tags {
@@ -181,7 +261,7 @@ app-root {
 .tag-input {
   width: 100%;
   padding: 5px var(--s-2);
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--input-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   color: var(--text);
@@ -190,44 +270,8 @@ app-root {
 }
 
 .tag-input:focus {
-  border-color: rgba(255, 77, 77, 0.55);
-  box-shadow: 0 0 0 2px rgba(255, 77, 77, 0.15);
-}
-
-.tag-suggestions {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 50;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-height: 160px;
-  overflow-y: auto;
-  margin-top: 4px;
-  padding: var(--s-1);
-  background: rgba(6, 7, 15, 0.98);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-}
-
-.tag-suggestion {
-  padding: var(--s-1) var(--s-2);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  text-align: left;
-  color: var(--text);
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.15s ease;
-  --wails-draggable: no-drag;
-}
-
-.tag-suggestion:hover {
-  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--focus-border);
+  box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 .state-message {
@@ -238,7 +282,7 @@ app-root {
 }
 
 .state-error {
-  color: #ff7a8f;
+  color: var(--error-text);
 }
 
 .column-header {
@@ -248,7 +292,7 @@ app-root {
   gap: var(--s-2);
   padding: var(--s-3) var(--s-4);
   border-bottom: 1px solid var(--glass-border);
-  background: rgba(6, 7, 15, 0.45);
+  background: var(--surface);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
@@ -278,7 +322,7 @@ app-root {
 .edit-input,
 .edit-select {
   padding: var(--s-2) var(--s-3);
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--input-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   color: var(--text);
@@ -290,8 +334,8 @@ app-root {
 
 .edit-input:focus,
 .edit-select:focus {
-  border-color: rgba(255, 77, 77, 0.55);
-  box-shadow: 0 0 0 2px rgba(255, 77, 77, 0.15);
+  border-color: var(--focus-border);
+  box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 .overlay-backdrop {
@@ -301,7 +345,7 @@ app-root {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.65);
+  background: var(--backdrop);
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
@@ -311,10 +355,10 @@ app-root {
   flex-direction: column;
   width: min(720px, calc(100vw - 2 * var(--s-4)));
   max-height: min(680px, calc(100dvh - 2 * var(--s-4)));
-  background: rgba(6, 7, 15, 0.95);
+  background: var(--surface-solid);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 24px 60px var(--shadow);
   overflow: hidden;
 }
 
@@ -340,7 +384,7 @@ app-root {
   font-size: 0.875rem;
   font-weight: 700;
   color: var(--text);
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--glass-strong);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
@@ -362,7 +406,7 @@ app-root {
   font-size: 0.875rem;
   font-weight: 700;
   color: #fff;
-  background: rgba(239, 68, 68, 0.8);
+  background: var(--danger-solid);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
@@ -390,12 +434,12 @@ app-root {
   justify-content: flex-start;
   padding: var(--s-3) var(--s-4);
   border-top: 1px solid var(--glass-border);
-  background: rgba(6, 7, 15, 0.55);
+  background: var(--surface);
 }
 
 .variable-input {
   padding: var(--s-2) var(--s-3);
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--input-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   color: var(--text);
@@ -404,8 +448,8 @@ app-root {
 }
 
 .variable-input:focus {
-  border-color: rgba(255, 77, 77, 0.55);
-  box-shadow: 0 0 0 2px rgba(255, 77, 77, 0.15);
+  border-color: var(--focus-border);
+  box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 .variable-add {
@@ -418,7 +462,7 @@ app-root {
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
   color: #fff;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: var(--grad);
 }
 
 .variable-add:hover {
@@ -434,10 +478,10 @@ app-root {
 .context-menu {
   position: fixed;
   min-width: 160px;
-  background: rgba(6, 7, 15, 0.98);
+  background: var(--surface-solid);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 16px 40px var(--shadow);
   overflow: hidden;
 }
 
@@ -457,13 +501,39 @@ app-root {
 }
 
 .context-menu-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--hover-bg);
 }
 
 .context-menu-item--danger {
-  color: #fca5a5;
+  color: var(--danger-text);
 }
 
 .context-menu-item--danger:hover {
-  background: rgba(239, 68, 68, 0.2);
+  background: var(--danger-bg);
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
+  }
+
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--glass-border);
+    padding: var(--s-2);
+  }
+
+  .sidebar-right {
+    border-left: none;
+    border-top: 1px solid var(--glass-border);
+  }
+
+  .panel-placeholder {
+    display: none;
+  }
+
+  .brand {
+    margin-bottom: 0;
+  }
 }
