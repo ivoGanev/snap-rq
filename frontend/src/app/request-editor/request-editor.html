@@ -52,16 +52,27 @@
         ></textarea>
       </label>
 
-      <label class="edit-field">
-        <span class="edit-label">Body</span>
-        <textarea
-          class="edit-textarea edit-body"
-          rows="12"
-          [ngModel]="draftRequest()!.body"
-          (ngModelChange)="updateRequestField('body', $event)"
-          name="reqBody"
-        ></textarea>
-      </label>
+      <div class="edit-field edit-field--body">
+        <div class="body-mode-row">
+          <label for="bodyType" class="edit-label">Body</label>
+          <select
+            id="bodyType"
+            class="edit-select body-type-select"
+            [ngModel]="bodyType()"
+            (ngModelChange)="setBodyType($any($event))"
+          >
+            <option value="json">JSON</option>
+            <option value="text">Text</option>
+          </select>
+        </div>
+        <app-body-editor
+          class="edit-body-editor"
+          [text]="draftRequest()!.body"
+          [type]="bodyType()"
+          [variables]="environmentVariables()"
+          (textChange)="updateRequestField('body', $event)"
+        ></app-body-editor>
+      </div>
 
       <label class="edit-field">
         <span class="edit-label">Tags</span>
