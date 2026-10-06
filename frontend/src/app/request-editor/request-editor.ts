@@ -78,14 +78,16 @@ export class RequestEditor {
     value: HttpRequest[K],
   ): Promise<void> {
     const draft = this.draftRequest();
-    const collection = this.state.selectedCollection();
-    if (!draft || !collection) return;
+    if (!draft) return;
 
     const updated = { ...draft, [field]: value };
     this.draftRequest.set(updated);
 
     try {
-      const saved = await this.apiRequests.update({ ...updated, collection_id: collection.id });
+      const saved = await this.apiRequests.update({
+        ...updated,
+        collection_id: draft.collection_id,
+      });
       this.state.selectedRequest.set(saved);
 
       const favList = this.favouriteApi.requests();
