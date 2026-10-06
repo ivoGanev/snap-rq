@@ -1,0 +1,51 @@
+<div class="body-editor">
+  <div class="body-editor-toolbar">
+    <span class="body-editor-type">{{ type() }}</span>
+    @if (isJson()) {
+      <button
+        class="body-editor-format"
+        type="button"
+        (click)="formatCurrent()"
+        aria-label="Format body"
+        title="Format"
+      >
+        Format
+      </button>
+    }
+    <span class="body-editor-validation" [class.is-invalid]="!isValid()">
+      @if (isJson()) {
+        @if (isValid()) {
+          Valid
+        } @else {
+          {{ validationError() }}
+        }
+      } @else {
+        Plain text
+      }
+    </span>
+  </div>
+
+  <div class="body-editor-editor-wrap">
+    <div #editor class="body-editor-editor"></div>
+
+    @if (dropdownOpen()) {
+      <div class="variable-dropdown" [style.top.px]="dropdownTop()" [style.left.px]="dropdownLeft()">
+        @if (variables().length > 0) {
+          @for (variable of variables(); track variable.key; let i = $index) {
+            <button
+              class="variable-option"
+              type="button"
+              [class.is-active]="i === dropdownIndex()"
+              (click)="insertVariable(variable)"
+            >
+              {{ variable.key }}
+            </button>
+          }
+        } @else {
+          <div class="variable-empty">No environment variables</div>
+        }
+        <div class="variable-hint">Ctrl+Space to open</div>
+      </div>
+    }
+  </div>
+</div>

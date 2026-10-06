@@ -53,9 +53,13 @@
   font-size: 0.875rem;
   line-height: 1.5;
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
   resize: vertical;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
   min-height: 80px;
 }
 
@@ -67,4 +71,30 @@
 .edit-body {
   flex: 1 1 auto;
   min-height: 140px;
+}
+
+.edit-field--body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.edit-body-editor {
+  flex: 1 1 auto;
+  display: block;
+  min-height: 260px;
+}
+
+.body-mode-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.body-type-select {
+  width: auto;
+  min-width: 100px;
+  --wails-draggable: no-drag;
 }

@@ -1,14 +1,20 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
-import { RequestApiService, type HttpRequest, type HttpRequestSummary } from '../core/services/request.service';
+import {
+  RequestApiService,
+  type HttpRequest,
+  type HttpRequestSummary,
+} from '../core/services/request.service';
 import { ApiRequestsService } from '../core/services/api-requests.service';
 import { FavouriteApiService } from '../core/services/favourite.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
+import { EnvironmentVariableApiService } from '../core/services/environment-variable.service';
+import { BodyEditor, type BodyType } from '../body-editor/body-editor';
 
 @Component({
   selector: 'app-request-editor',
-  imports: [FormsModule],
+  imports: [FormsModule, BodyEditor],
   templateUrl: './request-editor.html',
   styleUrl: './request-editor.scss',
 })
@@ -18,12 +24,19 @@ export class RequestEditor {
   private readonly apiRequests = inject(ApiRequestsService);
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly tagApi = inject(TagApiService);
+  private readonly envVarApi = inject(EnvironmentVariableApiService);
 
   protected readonly requestTags = this.tagApi.requestTags;
+  protected readonly environmentVariables = computed(() =>
+    this.envVarApi.variables().map((v) => ({ key: v.key, value: v.value })),
+  );
 
   readonly draftRequest = signal<HttpRequest | null>(null);
   readonly tagInputOpen = signal(false);
   readonly newTagName = signal('');
+  readonly bodyType = signal<BodyType>('json');
+
+  private previousRequestId: number | null = null;
 
   readonly tagSuggestions = computed<Tag[]>(() => {
     const query = this.newTagName().trim().toLowerCase();
@@ -31,10 +44,10 @@ export class RequestEditor {
     const selected = this.state.selectedRequest();
     const existing = selected ? new Set(this.requestTags()[selected.id] ?? []) : new Set<string>();
     if (!query) {
-      return tags.filter(tag => !existing.has(tag.name)).slice(0, 6);
+      return tags.filter((tag) => !existing.has(tag.name)).slice(0, 6);
     }
     return tags
-      .filter(tag => tag.name.toLowerCase().includes(query) && !existing.has(tag.name))
+      .filter((tag) => tag.name.toLowerCase().includes(query) && !existing.has(tag.name))
       .slice(0, 6);
   });
 
@@ -42,10 +55,28 @@ export class RequestEditor {
     effect(() => {
       const req = this.state.selectedRequest();
       this.draftRequest.set(req ? { ...req } : null);
+
+      const id = req?.id ?? null;
+      if (id !== this.previousRequestId) {
+        this.previousRequestId = id;
+        this.bodyType.set('json');
+      }
+    });
+
+    effect(() => {
+      const env = this.state.selectedEnvironment();
+      if (env) {
+        this.envVarApi.loadForEnvironment(env.id);
+      } else {
+        this.envVarApi.variables.set([]);
+      }
     });
   }
 
-  async updateRequestField<K extends keyof HttpRequest>(field: K, value: HttpRequest[K]): Promise<void> {
+  async updateRequestField<K extends keyof HttpRequest>(
+    field: K,
+    value: HttpRequest[K],
+  ): Promise<void> {
     const draft = this.draftRequest();
     const collection = this.state.selectedCollection();
     if (!draft || !collection) return;
@@ -58,7 +89,7 @@ export class RequestEditor {
       this.state.selectedRequest.set(saved);
 
       const favList = this.favouriteApi.requests();
-      const favIndex = favList.findIndex(r => r.id === saved.id);
+      const favIndex = favList.findIndex((r) => r.id === saved.id);
       if (favIndex !== -1) {
         const newFavList = [...favList];
         newFavList[favIndex] = saved;
@@ -67,6 +98,10 @@ export class RequestEditor {
     } catch (err) {
       console.error(err);
     }
+  }
+
+  setBodyType(type: BodyType): void {
+    this.bodyType.set(type);
   }
 
   openTagInput(): void {
@@ -92,7 +127,11 @@ export class RequestEditor {
     }
   }
 
-  async removeTagFromRequest(req: HttpRequest | HttpRequestSummary, tagName: string, event: MouseEvent): Promise<void> {
+  async removeTagFromRequest(
+    req: HttpRequest | HttpRequestSummary,
+    tagName: string,
+    event: MouseEvent,
+  ): Promise<void> {
     event.stopPropagation();
     try {
       await this.tagApi.removeTagFromRequest(req.id, tagName);
