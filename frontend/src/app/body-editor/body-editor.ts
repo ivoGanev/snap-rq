@@ -30,7 +30,7 @@ import { defaultKeymap, history, historyKeymap, redo } from '@codemirror/command
 import { syntaxHighlighting } from '@codemirror/language';
 import { oneDarkHighlightStyle } from '@codemirror/theme-one-dark';
 
-type BodyType = 'json' | 'text';
+export type BodyType = 'json' | 'text';
 
 export interface BodyEditorVariable {
   key: string;
@@ -399,9 +399,7 @@ export class BodyEditor implements AfterViewInit, OnDestroy {
     if (ranges.length === 0) return false;
 
     const pos = selection.head;
-    const range = ranges.find((r) =>
-      direction === 'backspace' ? r.to === pos : r.from === pos,
-    );
+    const range = ranges.find((r) => (direction === 'backspace' ? r.to === pos : r.from === pos));
     if (!range) return false;
 
     view.dispatch({
@@ -487,8 +485,12 @@ export class BodyEditor implements AfterViewInit, OnDestroy {
     const line = this.view.state.doc.lineAt(pos);
     const lineHeight = this.parseLineHeight(this.view.dom);
     const column = pos - line.from;
-    this.dropdownTop.set(Math.max(8, editorRect.top + (line.number * lineHeight) - this.view.scrollDOM.scrollTop + 4));
-    this.dropdownLeft.set(Math.max(8, editorRect.left + column * this.charWidth - this.view.scrollDOM.scrollLeft));
+    this.dropdownTop.set(
+      Math.max(8, editorRect.top + line.number * lineHeight - this.view.scrollDOM.scrollTop + 4),
+    );
+    this.dropdownLeft.set(
+      Math.max(8, editorRect.left + column * this.charWidth - this.view.scrollDOM.scrollLeft),
+    );
   }
 
   private parseLineHeight(element: HTMLElement): number {
@@ -584,7 +586,10 @@ export class BodyEditor implements AfterViewInit, OnDestroy {
     return { text, placeholders };
   }
 
-  private restoreVariablesFromPlaceholders(value: string, placeholders: Map<string, string>): string {
+  private restoreVariablesFromPlaceholders(
+    value: string,
+    placeholders: Map<string, string>,
+  ): string {
     let result = value;
     for (const [token, original] of placeholders) {
       result = result.replaceAll(token, original);
