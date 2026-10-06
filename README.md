@@ -58,7 +58,25 @@ The collection is given an orange color appearance so it stands out from real AP
 
 ## Scale test
 
-TODO: restore large-scale random data generation if still needed. The seed script now targets the mock collection only.
+`tools/seed_scale_test.py` now creates three kinds of data by default:
+
+- the fixed `Mock Server` collection for endpoint coverage
+- 30 randomized load-test collections, each with hundreds of generated requests containing realistic URLs, methods, bodies, request headers, response headers, and status codes
+- a dedicated `Edge Cases` collection with malformed JSON, bad headers, missing auth, oversized payloads, and other intentionally broken request patterns
+
+The defaults are already set for a large load, so you can simply run:
+
+```
+python tools/seed_scale_test.py
+```
+
+The random seed is reproducible, and you can override the size with:
+
+```
+python tools/seed_scale_test.py --random-collections 30 --requests-per-collection 500 --seed 1337
+```
+
+Use `--force` to rebuild the mock collection, the random test data, and the edge-case collection from scratch.
 
 ## Mock server
 
