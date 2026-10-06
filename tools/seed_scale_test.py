@@ -187,29 +187,35 @@ def random_token(rng: random.Random, length: int = 12) -> str:
 def generate_random_headers(rng: random.Random) -> str:
     """Create a JSON object of random request headers."""
     headers = {
-        "Accept": rng.choice([
-            "application/json",
-            "application/json, text/plain, */*",
-            "application/xml",
-            "text/plain",
-            "*/*",
-        ]),
+        "Accept": rng.choice(
+            [
+                "application/json",
+                "application/json, text/plain, */*",
+                "application/xml",
+                "text/plain",
+                "*/*",
+            ]
+        ),
         "Authorization": f"Bearer {random_token(rng, 24)}",
-        "Content-Type": rng.choice([
-            "application/json",
-            "application/xml",
-            "application/x-www-form-urlencoded",
-            "text/plain",
-        ]),
+        "Content-Type": rng.choice(
+            [
+                "application/json",
+                "application/xml",
+                "application/x-www-form-urlencoded",
+                "text/plain",
+            ]
+        ),
         "X-Trace-Id": f"trace-{random_token(rng, 12)}",
         "X-Request-Id": f"req-{rng.randint(1000, 99999999)}",
         "X-Tenant": f"tenant-{rng.randint(1, 42)}",
-        "User-Agent": rng.choice([
-            "SnapRQ/1.0",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-            "curl/8.0.0",
-            "PostmanRuntime/7.0",
-        ]),
+        "User-Agent": rng.choice(
+            [
+                "SnapRQ/1.0",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                "curl/8.0.0",
+                "PostmanRuntime/7.0",
+            ]
+        ),
     }
     for _ in range(rng.randint(0, 3)):
         key = f"X-{rng.choice(['Env', 'Region', 'Region-Code', 'Tenant', 'Partition', 'Debug'])}-{rng.randint(1, 8)}"
@@ -243,13 +249,7 @@ def generate_random_body(method: str, rng: random.Random) -> str:
         }
         return json.dumps(payload, separators=(",", ":"))
 
-    return (
-        "payload="
-        + "&".join(
-            f"{rng.choice(['filter', 'q', 'mode', 'page', 'sort', 'status'])}={random_token(rng, 8)}"
-            for _ in range(rng.randint(2, 6))
-        )
-    )
+    return "payload=" + "&".join(f"{rng.choice(['filter', 'q', 'mode', 'page', 'sort', 'status'])}={random_token(rng, 8)}" for _ in range(rng.randint(2, 6)))
 
 
 def generate_random_response_headers(rng: random.Random) -> str:
@@ -268,16 +268,24 @@ def generate_random_response_headers(rng: random.Random) -> str:
 def generate_random_response_body(status_code: int, rng: random.Random) -> str:
     """Return a varied response body for a fake HTTP call."""
     if status_code >= 400:
-        return json.dumps({
-            "error": {"code": status_code, "message": rng.choice([
-                "request rejected",
-                "resource not found",
-                "validation failed",
-                "service unavailable",
-                "permission denied",
-            ])},
-            "requestId": random_token(rng, 12),
-        }, separators=(",", ":"))
+        return json.dumps(
+            {
+                "error": {
+                    "code": status_code,
+                    "message": rng.choice(
+                        [
+                            "request rejected",
+                            "resource not found",
+                            "validation failed",
+                            "service unavailable",
+                            "permission denied",
+                        ]
+                    ),
+                },
+                "requestId": random_token(rng, 12),
+            },
+            separators=(",", ":"),
+        )
 
     data = {
         "ok": True,
@@ -335,11 +343,13 @@ def generate_random_collections(count: int, requests_per_collection: int, rng: r
         requests = []
         for request_index in range(requests_per_collection):
             requests.append(generate_random_request(collection_index, request_index, rng))
-        collection_payload.append({
-            "name": f"{RANDOM_COLLECTION_PREFIX} {collection_index:02d}",
-            "appearance": RANDOM_COLLECTION_COLORS[(collection_index - 1) % len(RANDOM_COLLECTION_COLORS)],
-            "requests": requests,
-        })
+        collection_payload.append(
+            {
+                "name": f"{RANDOM_COLLECTION_PREFIX} {collection_index:02d}",
+                "appearance": RANDOM_COLLECTION_COLORS[(collection_index - 1) % len(RANDOM_COLLECTION_COLORS)],
+                "requests": requests,
+            }
+        )
     return collection_payload
 
 
@@ -370,7 +380,7 @@ def generate_edge_case_requests() -> list[dict]:
             "name": "Missing auth header",
             "method": "DELETE",
             "url": "https://api.example.com/admin/users/99",
-            "body": '',
+            "body": "",
             "headers": '{"Content-Type":"application/json"}',
             "status_code": 401,
             "response_headers": '{"Content-Type":"application/json"}',
@@ -390,7 +400,7 @@ def generate_edge_case_requests() -> list[dict]:
             "name": "Large invalid body",
             "method": "POST",
             "url": "https://api.example.com/uploads",
-            "body": 'A' * 20000,
+            "body": "A" * 20000,
             "headers": '{"Content-Type":"text/plain","Authorization":"Bearer chunked-token"}',
             "status_code": 413,
             "response_headers": '{"Content-Type":"application/json"}',
@@ -400,7 +410,7 @@ def generate_edge_case_requests() -> list[dict]:
             "name": "Wrong status code",
             "method": "GET",
             "url": "https://api.example.com/health",
-            "body": '',
+            "body": "",
             "headers": '{"Accept":"application/json","X-Trace-Id":"trace-xyz"}',
             "status_code": 500,
             "response_headers": '{"Content-Type":"application/json"}',
@@ -430,7 +440,7 @@ def generate_edge_case_requests() -> list[dict]:
             "name": "Overlong URL",
             "method": "GET",
             "url": "https://api.example.com/" + ("segment/" * 200) + "?q=" + ("value-" * 200),
-            "body": '',
+            "body": "",
             "headers": '{"Accept":"application/json"}',
             "status_code": 414,
             "response_headers": '{"Content-Type":"application/json"}',
@@ -457,9 +467,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     cursor.execute("PRAGMA table_info(responses)")
     columns = {row[1] for row in cursor.fetchall()}
     if "created_at" not in columns:
-        cursor.execute(
-            "ALTER TABLE responses ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
-        )
+        cursor.execute("ALTER TABLE responses ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_responses_created_at ON responses(created_at)")
     conn.commit()
 
@@ -744,9 +752,7 @@ def create_edge_case_collection(conn: sqlite3.Connection, project_id: int, rng: 
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Seed the Snap RQ database with a Mock Server collection and a large randomized load-test dataset."
-    )
+    parser = argparse.ArgumentParser(description="Seed the Snap RQ database with a Mock Server collection and a large randomized load-test dataset.")
     parser.add_argument(
         "--force",
         action="store_true",
@@ -792,10 +798,7 @@ def main() -> int:
             if args.force:
                 delete_mock_collection(conn, project_id)
             else:
-                print(
-                    f"'{MOCK_COLLECTION_NAME}' collection already exists (id={existing_id}). "
-                    "Use --force to recreate it."
-                )
+                print(f"'{MOCK_COLLECTION_NAME}' collection already exists (id={existing_id}). Use --force to recreate it.")
         if existing_id is None or args.force:
             collection_id = create_mock_collection(conn, project_id)
             requests = create_mock_requests(conn, collection_id)
@@ -814,14 +817,9 @@ def main() -> int:
             rng,
         )
         if created_collections:
-            print(
-                f"Created {created_collections} random load collection(s) with {created_requests} request(s)."
-            )
+            print(f"Created {created_collections} random load collection(s) with {created_requests} request(s).")
         else:
-            print(
-                f"Random load collections already exist. "
-                f"Target count: {args.random_collections}, requests per collection: {args.requests_per_collection}."
-            )
+            print(f"Random load collections already exist. Target count: {args.random_collections}, requests per collection: {args.requests_per_collection}.")
 
         edge_collection_id = create_edge_case_collection(conn, project_id, rng)
         if edge_collection_id:
