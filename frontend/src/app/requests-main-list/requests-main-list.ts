@@ -1069,6 +1069,7 @@ export class RequestsMainList {
   }
 
   setNewRequestPopupMode(mode: 'manual' | 'curl'): void {
+    this.newRequestName.set(mode === 'curl' ? '' : 'My new snappy API');
     this.newRequestPopupMode.set(mode);
   }
 
@@ -1114,10 +1115,11 @@ export class RequestsMainList {
     try {
       const projectId = this.state.selectedProject()?.id ?? 0;
       const req = await this.requestApi.curlToRequest(collectionId, curl);
+      const name = this.newRequestName().trim() || req.name;
       await this.apiRequests.create({
         collection_id: collectionId,
         project_id: projectId,
-        name: req.name,
+        name,
         url: req.url,
         method: req.method,
         body: req.body,
