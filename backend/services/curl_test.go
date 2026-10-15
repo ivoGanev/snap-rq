@@ -114,6 +114,34 @@ func TestCurlToRequestMissingURL(t *testing.T) {
 	}
 }
 
+func TestCurlToRequestIgnoresUnknownFlags(t *testing.T) {
+	curl := "curl -s -X DELETE localhost:8099/steer/tenant-1"
+	req, err := CurlToRequest(1, curl)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if req.Method != "DELETE" {
+		t.Errorf("expected DELETE, got %s", req.Method)
+	}
+	if req.URL != "localhost:8099/steer/tenant-1" {
+		t.Errorf("expected URL, got %s", req.URL)
+	}
+}
+
+func TestCurlToRequestIgnoresBundledAndValueFlags(t *testing.T) {
+	curl := "curl -sSL -X POST https://example.com/api"
+	req, err := CurlToRequest(1, curl)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if req.Method != "POST" {
+		t.Errorf("expected POST, got %s", req.Method)
+	}
+	if req.URL != "https://example.com/api" {
+		t.Errorf("expected URL, got %s", req.URL)
+	}
+}
+
 func TestCurlToRequestMultilineWithUrlAndCookieFlags(t *testing.T) {
 	curl := "curl --request POST \\\n" +
 		"  --url http://localhost:9090/v1/jobs \\\n" +
