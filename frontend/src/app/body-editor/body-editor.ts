@@ -11,7 +11,14 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { EditorState, type Extension, Compartment, Prec } from '@codemirror/state';
+import {
+  EditorState,
+  type Extension,
+  Compartment,
+  Prec,
+  StateEffect,
+  StateField,
+} from '@codemirror/state';
 import {
   EditorView,
   keymap,
@@ -37,6 +44,20 @@ export interface BodyEditorVariable {
   value: string;
 }
 
+const setVariablesEffect = StateEffect.define<BodyEditorVariable[]>({});
+
+const variablesField = StateField.define<BodyEditorVariable[]>({
+  create: () => [],
+  update: (value, tr) => {
+    for (const effect of tr.effects) {
+      if (effect.is(setVariablesEffect)) {
+        value = effect.value;
+      }
+    }
+    return value;
+  },
+});
+
 interface ValidationResult {
   valid: boolean;
   error: string;
@@ -50,6 +71,7 @@ class VariableWidget extends WidgetType {
   constructor(
     private readonly key: string,
     private readonly value: string,
+    private readonly isMissing: boolean,
   ) {
     super();
   }
@@ -57,21 +79,30 @@ class VariableWidget extends WidgetType {
   toDOM(): HTMLElement {
     const chip = document.createElement('button');
     chip.type = 'button';
-    chip.className = 'variable-chip';
+    chip.className = this.isMissing ? 'variable-chip is-missing' : 'variable-chip';
     chip.textContent = this.key;
-    chip.title = this.value;
+    chip.title = this.isMissing ? 'not defined' : this.formatHint(this.value);
     chip.tabIndex = -1;
+    if (this.isMissing) {
+      chip.style.background = 'rgba(239, 68, 68, 0.8)';
+    }
     chip.addEventListener('mousedown', (event) => event.preventDefault());
     chip.addEventListener('focus', (event) => (event.target as HTMLElement).blur());
     return chip;
   }
 
   override eq(other: VariableWidget): boolean {
-    return other.key === this.key && other.value === this.value;
+    return (
+      other.key === this.key && other.value === this.value && other.isMissing === this.isMissing
+    );
+  }
+
+  private formatHint(value: string): string {
+    return value === '' ? '""' : value;
   }
 }
 
-function variableDecorations(variables: BodyEditorVariable[]): Extension {
+function variableDecorations(): Extension {
   return ViewPlugin.fromClass(
     class {
       decorations: DecorationSet = Decoration.none;
@@ -81,12 +112,16 @@ function variableDecorations(variables: BodyEditorVariable[]): Extension {
       }
 
       update(update: ViewUpdate): void {
-        if (update.docChanged || update.viewportChanged) {
+        const variablesChanged = update.transactions.some((tr) =>
+          tr.effects.some((effect) => effect.is(setVariablesEffect)),
+        );
+        if (update.docChanged || update.viewportChanged || variablesChanged) {
           this.decorations = this.buildDecorations(update.view);
         }
       }
 
       private buildDecorations(view: EditorView): DecorationSet {
+        const variables = view.state.field(variablesField);
         const decorations: Array<{ from: number; to: number; value: Decoration }> = [];
         const text = view.state.doc.toString();
         const regex = /\{\{\s*(\w+)\s*\}\}/g;
@@ -98,7 +133,7 @@ function variableDecorations(variables: BodyEditorVariable[]): Extension {
           const to = from + match[0].length;
           decorations.push(
             Decoration.replace({
-              widget: new VariableWidget(key, variable?.value ?? ''),
+              widget: new VariableWidget(key, variable?.value ?? '', !variable),
               inclusive: false,
             }).range(from, to),
           );
@@ -131,7 +166,6 @@ export class BodyEditor implements AfterViewInit, OnDestroy {
 
   private view: EditorView | null = null;
   private readonly languageCompartment = new Compartment();
-  private readonly variablesCompartment = new Compartment();
   private charWidth = 7.8;
 
   readonly isJson = computed(() => this.type() === 'json');
@@ -158,9 +192,8 @@ export class BodyEditor implements AfterViewInit, OnDestroy {
 
     effect(() => {
       if (!this.view) return;
-      this.view.dispatch({
-        effects: this.variablesCompartment.reconfigure(variableDecorations(this.variables())),
-      });
+      const vars = this.variables();
+      this.view.dispatch({ effects: setVariablesEffect.of(vars) });
     });
 
     effect(() => {
@@ -184,7 +217,8 @@ export class BodyEditor implements AfterViewInit, OnDestroy {
         extensions: [
           this.baseExtensions(),
           this.languageCompartment.of(this.languageExtension(this.isJson())),
-          this.variablesCompartment.of(variableDecorations(this.variables())),
+          variablesField.init(() => this.variables()),
+          variableDecorations(),
         ],
       }),
     });
