@@ -1,2 +1,3 @@
 - Avoid writing frontend tests
 - Frontend should follow the correct folder structure in angular.json
+- Always give inline `<svg>` icons explicit `width`/`height` in CSS (not just the wrapping element). WebKit (macOS WKWebView) does not auto-shrink unsized SVGs to fit their flex/inline-flex parent the way Chromium does, so icons can fail to render on Mac if only the wrapper span is sized.
