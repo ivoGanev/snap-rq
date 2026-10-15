@@ -107,15 +107,14 @@ func CurlToRequest(collectionID int64, curl string) (models.HttpRequest, error) 
 			headers = append(headers, "Cookie: "+tokens[i+1])
 			i += 2
 		default:
-			if strings.HasPrefix(tok, "-") {
-				// Unknown flag; skip its value if it looks like a joined flag-value
-				// (e.g. -XPOST) or a standalone flag.
-				if !strings.Contains(tok, "=") && len(tok) > 2 && !strings.HasPrefix(tok, "--") {
-					// Joined short flag like -XPOST
-					req.Method = strings.ToUpper(tok[2:])
-				} else {
-					return models.HttpRequest{}, fmt.Errorf("unsupported curl flag: %s", tok)
-				}
+			if strings.HasPrefix(tok, "-X") && len(tok) > 2 && !strings.HasPrefix(tok, "--") {
+				// Joined short flag like -XPOST.
+				req.Method = strings.ToUpper(tok[2:])
+				i++
+			} else if strings.HasPrefix(tok, "-") {
+				// Any other flag (e.g. -s, -v, -k, --compressed, -o file) has no
+				// effect on the imported request, so it's ignored rather than
+				// requiring every curl flag to be explicitly whitelisted.
 				i++
 			} else if req.URL == "" {
 				req.URL = tok
