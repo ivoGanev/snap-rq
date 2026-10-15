@@ -94,6 +94,18 @@ func CurlToRequest(collectionID int64, curl string) (models.HttpRequest, error) 
 			}
 			req.Body = tokens[i+1]
 			i += 2
+		case "--url":
+			if i+1 >= len(tokens) {
+				return models.HttpRequest{}, fmt.Errorf("missing value for %s", tok)
+			}
+			req.URL = tokens[i+1]
+			i += 2
+		case "-b", "--cookie":
+			if i+1 >= len(tokens) {
+				return models.HttpRequest{}, fmt.Errorf("missing value for %s", tok)
+			}
+			headers = append(headers, "Cookie: "+tokens[i+1])
+			i += 2
 		default:
 			if strings.HasPrefix(tok, "-") {
 				// Unknown flag; skip its value if it looks like a joined flag-value
@@ -157,6 +169,15 @@ func tokenize(input string) ([]string, error) {
 
 	for _, r := range input {
 		if escaped {
+			if r == '\r' {
+				// Wait for the following '\n' to complete a CRLF line continuation.
+				continue
+			}
+			if r == '\n' {
+				// Backslash-newline is a line continuation; drop both.
+				escaped = false
+				continue
+			}
 			current.WriteRune(r)
 			escaped = false
 			continue
