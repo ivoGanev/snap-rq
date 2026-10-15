@@ -3,6 +3,7 @@ package services
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"snap-rq/backend/models"
 )
@@ -45,6 +46,14 @@ func (s *ProjectService) CreateProject(project models.Project) (models.Project, 
 	)
 	if err != nil {
 		return models.Project{}, fmt.Errorf("creating default favourite collection: %w", err)
+	}
+
+	_, err = tx.Exec(
+		"INSERT INTO environments (project_id, name, created_at) VALUES (?, ?, ?)",
+		project.ID, "Default", time.Now(),
+	)
+	if err != nil {
+		return models.Project{}, fmt.Errorf("creating default environment: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
