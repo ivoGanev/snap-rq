@@ -114,6 +114,33 @@ func TestCurlToRequestMissingURL(t *testing.T) {
 	}
 }
 
+func TestCurlToRequestMultilineWithUrlAndCookieFlags(t *testing.T) {
+	curl := "curl --request POST \\\n" +
+		"  --url http://localhost:9090/v1/jobs \\\n" +
+		"  --header 'Content-Type: application/json' \\\n" +
+		"  --cookie JSESSIONID.ab14fcc9=node01sk8ejmoddvx0y97974iu7rrc3.node0 \\\n" +
+		"  --data '{\n\t\"priority\": 5\n}'"
+	req, err := CurlToRequest(1, curl)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if req.Method != "POST" {
+		t.Errorf("expected POST, got %s", req.Method)
+	}
+	if req.URL != "http://localhost:9090/v1/jobs" {
+		t.Errorf("expected URL, got %s", req.URL)
+	}
+	if !strings.Contains(req.RequestHeaders, "Content-Type: application/json") {
+		t.Errorf("missing Content-Type header, got %s", req.RequestHeaders)
+	}
+	if !strings.Contains(req.RequestHeaders, "Cookie: JSESSIONID.ab14fcc9=node01sk8ejmoddvx0y97974iu7rrc3.node0") {
+		t.Errorf("missing Cookie header, got %s", req.RequestHeaders)
+	}
+	if !strings.Contains(req.Body, `"priority": 5`) {
+		t.Errorf("unexpected body, got %s", req.Body)
+	}
+}
+
 func TestRoundTripCurl(t *testing.T) {
 	original := models.HttpRequest{
 		URL:            "https://example.com/api/users",

@@ -169,6 +169,15 @@ func tokenize(input string) ([]string, error) {
 
 	for _, r := range input {
 		if escaped {
+			if r == '\r' {
+				// Wait for the following '\n' to complete a CRLF line continuation.
+				continue
+			}
+			if r == '\n' {
+				// Backslash-newline is a line continuation; drop both.
+				escaped = false
+				continue
+			}
 			current.WriteRune(r)
 			escaped = false
 			continue
