@@ -40,6 +40,11 @@
   color: var(--muted);
 }
 
+.all-requests-button__icon svg {
+  width: 16px;
+  height: 16px;
+}
+
 .all-requests-button.is-active .all-requests-button__icon {
   color: var(--accent);
 }
@@ -84,6 +89,11 @@
   width: 16px;
   height: 16px;
   color: var(--muted);
+}
+
+.trash-bin-button__icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 .trash-bin-button.is-active .trash-bin-button__icon {
