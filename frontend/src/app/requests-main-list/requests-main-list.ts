@@ -474,7 +474,7 @@ export class RequestsMainList {
       return;
     }
 
-    if (event.ctrlKey) {
+    if (event.ctrlKey || event.metaKey) {
       this.toggleRowSelection(req, column);
       return;
     }
@@ -578,7 +578,7 @@ export class RequestsMainList {
     // click never landed on a row. Without this, the first deliberate click
     // after a drag would be swallowed (requiring two clicks to select).
     this.ignoreNextClick.set(false);
-    if (event.ctrlKey || event.shiftKey) return;
+    if (event.ctrlKey || event.metaKey || event.shiftKey) return;
 
     this.dragStartRowId.set(req.id);
     this.dragStartClientY.set(event.clientY);

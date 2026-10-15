@@ -5,6 +5,15 @@
   font-style: normal;
 }
 
+
+.titlebar-spacer {
+  flex: 0 0 auto;
+  height: 50px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--glass-border);
+  --wails-draggable: drag;
+}
+
 :root {
   /* Golden-ratio spacing scale. */
   --s-1: 0.618rem;
