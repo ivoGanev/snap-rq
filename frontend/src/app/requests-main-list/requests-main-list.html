@@ -282,6 +282,17 @@
 
         @if (newRequestPopupMode() === 'curl') {
           <label class="edit-field">
+            <span class="edit-label">Name</span>
+            <input
+              class="edit-input"
+              type="text"
+              placeholder="Imported curl"
+              [ngModel]="newRequestName()"
+              (ngModelChange)="newRequestName.set($event)"
+            />
+          </label>
+
+          <label class="edit-field">
             <span class="edit-label">cURL command</span>
             <textarea
               class="edit-input edit-input--textarea"
