@@ -94,6 +94,18 @@ func CurlToRequest(collectionID int64, curl string) (models.HttpRequest, error) 
 			}
 			req.Body = tokens[i+1]
 			i += 2
+		case "--url":
+			if i+1 >= len(tokens) {
+				return models.HttpRequest{}, fmt.Errorf("missing value for %s", tok)
+			}
+			req.URL = tokens[i+1]
+			i += 2
+		case "-b", "--cookie":
+			if i+1 >= len(tokens) {
+				return models.HttpRequest{}, fmt.Errorf("missing value for %s", tok)
+			}
+			headers = append(headers, "Cookie: "+tokens[i+1])
+			i += 2
 		default:
 			if strings.HasPrefix(tok, "-") {
 				// Unknown flag; skip its value if it looks like a joined flag-value
