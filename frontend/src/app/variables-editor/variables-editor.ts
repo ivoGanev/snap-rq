@@ -1,4 +1,13 @@
-import { Component, computed, effect, ElementRef, inject, output, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { EnvironmentApiService, type Environment } from '../core/services/environment.service';
@@ -64,11 +73,15 @@ export class VariablesEditor {
     return this.state.selectedEnvironment()?.name ?? 'None';
   }
 
+  isDefaultEnvironment(env: Environment): boolean {
+    return env.name.toLowerCase() === 'default';
+  }
+
   // ---------- Sorting ----------
 
   toggleSort(column: SortColumn): void {
     if (this.sortColumn() === column) {
-      this.sortDirection.update(d => (d === 'asc' ? 'desc' : 'asc'));
+      this.sortDirection.update((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
       this.sortColumn.set(column);
       this.sortDirection.set('asc');
@@ -146,6 +159,12 @@ export class VariablesEditor {
     const env = this.environmentPendingDelete();
     if (!env) return;
 
+    if (env && this.isDefaultEnvironment(env)) {
+      this.environmentPendingDelete.set(null);
+      this.deleteConfirmOpen.set(false);
+      return;
+    }
+
     this.state.loading.set(true);
     try {
       await this.environmentApi.delete(env.id);
@@ -176,7 +195,7 @@ export class VariablesEditor {
         key: '',
         value: '',
       });
-      this.variableApi.variables.update(list => [...list, created]);
+      this.variableApi.variables.update((list) => [...list, created]);
     } catch (err) {
       console.error(err);
     }
@@ -190,7 +209,7 @@ export class VariablesEditor {
     const updated = { ...variable, [field]: value };
 
     const list = this.variables();
-    const index = list.findIndex(v => v.id === updated.id);
+    const index = list.findIndex((v) => v.id === updated.id);
     if (index !== -1) {
       const next = [...list];
       next[index] = updated;
@@ -208,7 +227,7 @@ export class VariablesEditor {
     event.stopPropagation();
     try {
       await this.variableApi.delete(variable.id);
-      this.variableApi.variables.update(list => list.filter(v => v.id !== variable.id));
+      this.variableApi.variables.update((list) => list.filter((v) => v.id !== variable.id));
     } catch (err) {
       console.error(err);
     }

@@ -135,10 +135,18 @@
       aria-label="Choose theme"
       title="Choose theme"
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="10"/>
-        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
-        <path d="M2 12h20"/>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+        <path d="M2 12h20" />
       </svg>
       <span>Theme</span>
     </button>
@@ -153,10 +161,7 @@
               type="button"
               (click)="selectTheme(theme)"
             >
-              <span
-                class="theme-option-thumb"
-                [style.background]="theme.preview"
-              ></span>
+              <span class="theme-option-thumb" [style.background]="theme.preview"></span>
               <span class="theme-option-label">{{ theme.name }}</span>
             </button>
           }
@@ -166,7 +171,11 @@
   </div>
 
   <span class="footer-copyright">SnapRQ © Ivo Ganev</span>
-  <a class="footer-docs" data-wml-openURL="https://www.snap-rq.com/docs" aria-label="SnapRQ documentation">
+  <a
+    class="footer-docs"
+    data-wml-openURL="https://www.snap-rq.com/docs"
+    aria-label="SnapRQ documentation"
+  >
     Docs
     <svg
       viewBox="0 0 24 24"
