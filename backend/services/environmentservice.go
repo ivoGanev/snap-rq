@@ -3,6 +3,7 @@ package services
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"snap-rq/backend/models"
@@ -106,10 +107,31 @@ func (s *EnvironmentService) UpdateEnvironment(env models.Environment) (models.E
 }
 
 // DeleteEnvironment removes an environment and all of its variables by ID.
+// It refuses to delete the default environment for a project.
 func (s *EnvironmentService) DeleteEnvironment(id int64) error {
-	_, err := s.db.Exec(`DELETE FROM environments WHERE id = ?`, id)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("beginning transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var name string
+	err = tx.QueryRow(`SELECT name FROM environments WHERE id = ?`, id).Scan(&name)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("environment not found")
+		}
+		return fmt.Errorf("loading environment: %w", err)
+	}
+
+	if strings.EqualFold(name, "Default") {
+		return fmt.Errorf("cannot delete the default environment")
+	}
+
+	_, err = tx.Exec(`DELETE FROM environments WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("deleting environment: %w", err)
 	}
-	return nil
+
+	return tx.Commit()
 }

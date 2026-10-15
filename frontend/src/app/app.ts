@@ -21,7 +21,15 @@ import { ContextMenuOutlet } from './context-menu-outlet/context-menu-outlet';
 
 @Component({
   selector: 'app-root',
-  imports: [FormsModule, RequestGroups, RequestsMainList, RequestPanel, VariablesEditor, ZenMode, ContextMenuOutlet],
+  imports: [
+    FormsModule,
+    RequestGroups,
+    RequestsMainList,
+    RequestPanel,
+    VariablesEditor,
+    ZenMode,
+    ContextMenuOutlet,
+  ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -119,7 +127,10 @@ export class App implements OnInit, AfterViewInit {
 
     const delta = event.clientX - this.resizeStartX;
     const deltaPercent = (delta / window.innerWidth) * 100;
-    const width = Math.max(12, this.resizeStartWidth + (side === 'left' ? deltaPercent : -deltaPercent));
+    const width = Math.max(
+      12,
+      this.resizeStartWidth + (side === 'left' ? deltaPercent : -deltaPercent),
+    );
 
     if (side === 'left') {
       this.leftColumnWidth.set(width);
@@ -185,8 +196,18 @@ export class App implements OnInit, AfterViewInit {
   async loadEnvironments(projectId: number): Promise<void> {
     try {
       await this.environmentApi.loadForProject(projectId);
-      const all = this.environments();
-      this.state.selectedEnvironment.set(all.length > 0 ? all[0] : null);
+      let all = this.environments();
+      if (all.length === 0) {
+        const created = await this.environmentApi.create({
+          project_id: projectId,
+          name: 'Default',
+          created_at: new Date().toISOString(),
+        });
+        all = this.environments();
+        this.state.selectedEnvironment.set(created);
+        return;
+      }
+      this.state.selectedEnvironment.set(all[0]);
     } catch (err) {
       console.error(err);
     }

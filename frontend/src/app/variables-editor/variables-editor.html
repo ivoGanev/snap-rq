@@ -16,13 +16,15 @@
             (click)="selectEnvironment(env)"
           >
             <span class="environment-chip-name">{{ env.name }}</span>
-            <span
-              class="environment-chip-delete"
-              (click)="promptDeleteEnvironment(env, $event)"
-              aria-label="Delete environment"
-            >
-              ×
-            </span>
+            @if (!isDefaultEnvironment(env)) {
+              <span
+                class="environment-chip-delete"
+                (click)="promptDeleteEnvironment(env, $event)"
+                aria-label="Delete environment"
+              >
+                ×
+              </span>
+            }
           </button>
         }
 
@@ -43,7 +45,11 @@
             />
           </form>
         } @else {
-          <button class="environment-chip environment-chip--add" type="button" (click)="openNewEnvironmentInput()">
+          <button
+            class="environment-chip environment-chip--add"
+            type="button"
+            (click)="openNewEnvironmentInput()"
+          >
             + New environment
           </button>
         }
@@ -51,7 +57,9 @@
 
       <!-- Toolbar with sticky Add variable -->
       <div class="variables-toolbar">
-        <button class="variable-add-button" type="button" (click)="addVariable()">Add variable</button>
+        <button class="variable-add-button" type="button" (click)="addVariable()">
+          Add variable
+        </button>
       </div>
 
       <!-- Variables table -->
@@ -65,7 +73,11 @@
                 (click)="toggleSort('key')"
               >
                 <span class="header-label">Key</span>
-                <span class="sort-arrow" [class.asc]="sortIndicator('key') === 'asc'" aria-hidden="true">
+                <span
+                  class="sort-arrow"
+                  [class.asc]="sortIndicator('key') === 'asc'"
+                  aria-hidden="true"
+                >
                   @if (sortIndicator('key') === 'asc') {
                     ▲
                   } @else if (sortIndicator('key') === 'desc') {
@@ -81,7 +93,11 @@
                 (click)="toggleSort('value')"
               >
                 <span class="header-label">Value</span>
-                <span class="sort-arrow" [class.asc]="sortIndicator('value') === 'asc'" aria-hidden="true">
+                <span
+                  class="sort-arrow"
+                  [class.asc]="sortIndicator('value') === 'asc'"
+                  aria-hidden="true"
+                >
                   @if (sortIndicator('value') === 'asc') {
                     ▲
                   } @else if (sortIndicator('value') === 'desc') {
@@ -145,12 +161,14 @@
     <div class="overlay-panel confirmation-panel" (click)="$event.stopPropagation()">
       <div class="overlay-header">
         <h3 class="overlay-title">Delete environment?</h3>
-        <button class="overlay-close" type="button" (click)="cancelDeleteEnvironment()">Cancel</button>
+        <button class="overlay-close" type="button" (click)="cancelDeleteEnvironment()">
+          Cancel
+        </button>
       </div>
       <div class="overlay-body">
         <p class="delete-confirm-message">
-          This will permanently delete <strong>{{ environmentPendingDelete()?.name }}</strong> and all
-          of its variables.
+          This will permanently delete <strong>{{ environmentPendingDelete()?.name }}</strong> and
+          all of its variables.
         </p>
       </div>
       <div class="overlay-footer">
