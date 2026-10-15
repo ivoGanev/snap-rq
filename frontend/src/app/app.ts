@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, HostBinding, inject, OnInit, signal } from '@angular/core';
+import { AfterViewInit, Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WML } from '@wailsio/runtime';
 import { WorkspaceStateService } from './core/services/workspace-state.service';
@@ -59,11 +59,6 @@ export class App implements OnInit, AfterViewInit {
   readonly projectPendingDelete = signal<Project | null>(null);
 
   readonly themeSelectorOpen = signal(false);
-
-  // Reserves space for the native traffic-light buttons, which overlay the
-  // top-left of the window when using a hidden-inset title bar on macOS.
-  @HostBinding('class.is-mac')
-  protected readonly isMac = typeof navigator !== 'undefined' && /Macintosh/.test(navigator.userAgent);
 
   private resizeStartX = 0;
   private resizeStartWidth = 0;

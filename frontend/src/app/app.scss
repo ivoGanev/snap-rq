@@ -23,13 +23,6 @@
   backdrop-filter: blur(8px);
 }
 
-.titlebar-spacer {
-  flex: 0 0 auto;
-  height: 25px;
-  background: var(--surface);
-  --wails-draggable: drag;
-}
-
 .environment-selector {
   display: flex;
   align-items: center;

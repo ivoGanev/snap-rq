@@ -9,38 +9,6 @@
   backdrop-filter: blur(12px);
 }
 
-.zen-close {
-  position: absolute;
-  top: var(--s-3);
-  right: var(--s-3);
-  z-index: 10;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: var(--s-2) var(--s-3);
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: var(--text);
-  background: var(--hover-highlight);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition:
-    filter 0.15s ease,
-    background 0.15s ease;
-  --wails-draggable: no-drag;
-}
-
-.zen-close:hover {
-  filter: brightness(1.15);
-  background: var(--hover-highlight);
-}
-
-.zen-close svg {
-  width: 16px;
-  height: 16px;
-}
-
 .zen-panes {
   flex: 1 1 auto;
   display: flex;
@@ -62,17 +30,55 @@
   border-right: 1px solid var(--glass-border);
 }
 
-.zen-pane-header {
+.zen-header {
   flex: 0 0 auto;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-2);
-  padding: var(--s-3) var(--s-4);
+  flex-direction: row;
   border-bottom: 1px solid var(--glass-border);
   background: var(--surface);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
+}
+
+.zen-header-col {
+  flex: 1 1 50%;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  padding: var(--s-3) var(--s-4);
+}
+
+.zen-header-col--request {
+  border-right: 1px solid var(--glass-border);
+}
+
+.zen-back {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition:
+    filter 0.15s ease,
+    background 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.zen-back:hover {
+  background: var(--hover-highlight);
+}
+
+.zen-back svg {
+  width: 18px;
+  height: 18px;
 }
 
 .zen-pane-title {
@@ -82,6 +88,10 @@
   color: var(--text);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.zen-header-col--request .zen-pane-title {
+  flex: 1 1 auto;
 }
 
 .zen-pane-content {
