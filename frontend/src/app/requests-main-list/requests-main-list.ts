@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, TemplateRef, ViewChild, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
+import { Clipboard } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { RequestApiService, type HttpRequest, type HttpRequestSummary } from '../core/services/request.service';
 import { ApiRequestsService } from '../core/services/api-requests.service';
@@ -704,7 +705,7 @@ export class RequestsMainList {
     try {
       const full = await this.requestApi.get(req.id);
       const curl = await this.requestApi.requestToCurl(full);
-      await navigator.clipboard.writeText(curl);
+      await Clipboard.SetText(curl);
     } catch (err) {
       console.error(err);
     } finally {
