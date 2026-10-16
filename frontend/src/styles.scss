@@ -8,10 +8,14 @@
 
 .titlebar-spacer {
   flex: 0 0 auto;
-  height: 50px;
+  height: 0;
   background: var(--surface);
-  border-bottom: 1px solid var(--glass-border);
   --wails-draggable: drag;
+}
+
+html.platform-mac .titlebar-spacer {
+  height: 50px;
+  border-bottom: 1px solid var(--glass-border);
 }
 
 :root {
