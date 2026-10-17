@@ -74,7 +74,7 @@ export class WorkspaceStateService {
     }
   }
 
-  async sendRequest(req: HttpRequest, event: MouseEvent): Promise<void> {
+  async sendRequest(req: HttpRequest, event: Event): Promise<void> {
     event.stopPropagation();
     try {
       const environmentId = this.selectedEnvironment()?.id ?? 0;
@@ -109,6 +109,45 @@ export class WorkspaceStateService {
 
       if (this.selectedRequest()?.id === req.id) {
         this.selectedResponse.set(resp);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  /**
+   * Sends multiple requests in one batch. HTTP calls run concurrently and all
+   * database writes are committed together by the backend.
+   */
+  async sendRequests(reqs: HttpRequest[], event: Event): Promise<void> {
+    event.stopPropagation();
+    if (reqs.length === 0) return;
+
+    try {
+      const environmentId = this.selectedEnvironment()?.id ?? 0;
+      const responses = await this.responseApi.sendRequests(reqs, environmentId);
+
+      for (const resp of responses) {
+        this.requestApi.patchRequest({
+          id: resp.request_id,
+          status_code: resp.status_code,
+          response_id: resp.id,
+        });
+        this.apiRequests.patch(resp.request_id, {
+          status_code: resp.status_code,
+          response_id: resp.id,
+        });
+        this.favouriteApi.requests.update(list =>
+          list.map(r =>
+            r.id === resp.request_id
+              ? { ...r, status_code: resp.status_code, response_id: resp.id }
+              : r,
+          ),
+        );
+
+        if (this.selectedRequest()?.id === resp.request_id) {
+          this.selectedResponse.set(resp);
+        }
       }
     } catch (err) {
       console.error(err);

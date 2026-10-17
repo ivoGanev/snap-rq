@@ -122,4 +122,24 @@ export class ResponseApiService {
       window.clearInterval(intervalId);
     }
   }
+
+  /**
+   * Sends a batch of requests concurrently (HTTP only, no database writes) and
+   * persists every response plus request status update in a single transaction.
+   */
+  async sendRequests(reqs: HttpRequest[], environmentId: number): Promise<HttpResponse[]> {
+    if (reqs.length === 0) return [];
+
+    const createdAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    const raw = await Promise.all(reqs.map((req) => this.requestApi.execute(req.id, environmentId)));
+    const responses = raw.map((resp) =>
+      resp.created_at ? resp : { ...resp, created_at: createdAt },
+    );
+
+    const saved = await this.requestApi.bulkSaveResponses(responses);
+    if (saved.length > 0) {
+      this.requestApi.responses.update((current) => [...saved, ...current]);
+    }
+    return saved;
+  }
 }
