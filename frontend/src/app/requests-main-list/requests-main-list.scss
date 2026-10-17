@@ -630,3 +630,196 @@
 .favourite-collection-delete:hover {
   filter: brightness(1.15);
 }
+
+.list-bottom-dock {
+  flex: 0 0 auto;
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.body-drawer {
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  background: var(--surface-solid);
+  border-top: 1px solid var(--glass-border);
+  transition:
+    height 0.18s ease,
+    visibility 0s linear 0.18s;
+}
+
+.body-drawer.is-open {
+  height: 320px;
+  visibility: visible;
+  transition: height 0.18s ease;
+}
+
+.body-drawer-inner {
+  display: flex;
+  flex-direction: column;
+  height: 320px;
+  min-height: 0;
+}
+
+.body-drawer-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 6px var(--s-3);
+}
+
+.body-drawer-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+
+.body-drawer-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.body-drawer-spacer {
+  flex: 1 1 auto;
+}
+
+.body-apply-button {
+  padding: 5px 16px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: filter 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.body-apply-button:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+
+.body-apply-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.body-drawer-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.body-drawer-close svg {
+  width: 14px;
+  height: 14px;
+}
+
+.body-drawer-close:hover {
+  color: var(--text);
+  background: var(--hover-highlight);
+}
+
+.body-drawer-editor {
+  flex: 1 1 auto;
+  display: block;
+  min-height: 0;
+  padding: var(--s-2) var(--s-3);
+  box-sizing: border-box;
+}
+
+.body-drawer-message {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-4);
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.body-drawer-message--warning {
+  color: var(--warning-text, var(--accent));
+}
+
+.body-drawer-message--error {
+  color: var(--error-text);
+}
+
+.bottom-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  gap: var(--s-4);
+  height: 36px;
+  padding: 0 var(--s-3);
+  box-sizing: border-box;
+  background: var(--surface);
+  border-top: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.bottom-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 2px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.bottom-tab:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.bottom-tab.is-active {
+  color: var(--text);
+}
+
+.bottom-tab.is-active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border-radius: 2px 2px 0 0;
+}
+
+.bottom-tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

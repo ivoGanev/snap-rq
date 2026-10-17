@@ -221,6 +221,88 @@
   </div>
 }
 
+<div class="list-bottom-dock">
+  <div class="body-drawer" [class.is-open]="bodyDrawerOpen()">
+    <div class="body-drawer-inner">
+      <div class="body-drawer-head">
+        <span class="body-drawer-title">Body</span>
+        @if (bodyDrawerState() === 'ready' && bodyEditCount() > 1) {
+          <span class="body-drawer-count">{{ bodyEditCount() }} requests</span>
+        }
+        <span class="body-drawer-spacer"></span>
+        @if (bodyDrawerState() === 'ready' && bodyEditCount() > 1) {
+          <button
+            class="body-apply-button"
+            type="button"
+            [disabled]="bodySaving() || !bodyDirty()"
+            (click)="applyBodyEdits()"
+          >
+            {{ bodySaving() ? 'Applying…' : 'Apply' }}
+          </button>
+        }
+        <button
+          class="body-drawer-close"
+          type="button"
+          (click)="minimiseBodyDrawer()"
+          aria-label="Close body editor"
+          title="Close"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <line x1="6" y1="6" x2="18" y2="18" />
+            <line x1="18" y1="6" x2="6" y2="18" />
+          </svg>
+        </button>
+      </div>
+      @if (state.showingBin()) {
+        <div class="body-drawer-message body-drawer-message--warning">
+          Body editing is not available in the bin.
+        </div>
+      } @else if (bodyDrawerState() === 'ready') {
+        <app-body-editor
+          class="body-drawer-editor"
+          [text]="bodyDraft()"
+          [type]="bodyEditorType()"
+          [variables]="environmentVariables()"
+          (textChange)="onBodyTextChange($event)"
+        ></app-body-editor>
+      } @else if (bodyDrawerState() === 'loading') {
+        <div class="body-drawer-message">Loading bodies…</div>
+      } @else if (bodyDrawerState() === 'mismatch') {
+        <div class="body-drawer-message body-drawer-message--warning">
+          Selected requests have different bodies.
+        </div>
+      } @else if (bodyDrawerState() === 'unavailable') {
+        <div class="body-drawer-message body-drawer-message--error">
+          Could not load request bodies.
+        </div>
+      } @else {
+        <div class="body-drawer-message">Select a request to edit its body.</div>
+      }
+    </div>
+  </div>
+
+  <div class="bottom-tabs">
+    <button
+      class="bottom-tab"
+      type="button"
+      [class.is-active]="bodyDrawerOpen()"
+      [disabled]="!canOpenBodyTab()"
+      [title]="bodyTabHint()"
+      (click)="toggleBodyTab()"
+    >
+      Body
+    </button>
+  </div>
+</div>
+
 <ng-template #rowContextMenu let-req>
   @if (state.showingBin()) {
     <button class="context-menu-item" type="button" (click)="openRestoreCollectionPicker()">
