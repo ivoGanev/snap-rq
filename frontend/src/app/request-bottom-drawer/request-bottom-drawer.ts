@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, signal, type Type } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, signal, type Type } from '@angular/core';
 import { NgComponentOutlet } from '@angular/common';
 
 export interface BottomTab {
@@ -25,14 +25,9 @@ export interface BottomTab {
 })
 export class RequestBottomDrawer {
   readonly tabs = input<BottomTab[]>([]);
-  readonly selectedIds = input<Set<number>>(new Set());
   readonly showingBin = input<boolean>(false);
 
   readonly activeTab = signal<BottomTab | null>(null);
-
-  protected readonly tabInputs = computed(() => ({
-    selectedIds: this.selectedIds(),
-  }));
 
   selectTab(tab: BottomTab): void {
     this.activeTab.update((current) => (current?.id === tab.id ? null : tab));

@@ -1,11 +1,11 @@
 <div class="body-editor-shell">
   <div class="body-mode-row">
     @if (showLabel()) {
-      <label for="bodyType" class="body-editor-label">Body</label>
+      <span class="body-editor-label">Body</span>
     }
     <select
-      id="bodyType"
       class="body-type-select"
+      aria-label="Body type"
       [ngModel]="type()"
       (ngModelChange)="setType($any($event))"
     >
