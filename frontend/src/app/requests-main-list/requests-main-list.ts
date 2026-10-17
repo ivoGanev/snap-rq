@@ -148,6 +148,8 @@ export class RequestsMainList {
   readonly bodyIsJson = signal(true);
   readonly bodySaving = signal(false);
   readonly bodyEditCount = signal(0);
+  readonly bodyWipeConfirmOpen = signal(false);
+  readonly bodyWipeCount = signal(0);
 
   protected readonly environmentVariables = computed(() =>
     this.envVarApi.variables().map((v) => ({ key: v.key, value: v.value })),
@@ -156,8 +158,6 @@ export class RequestsMainList {
   protected readonly bodyEditorType = computed<BodyType>(() =>
     this.bodyIsJson() ? 'json' : 'text',
   );
-
-  readonly canOpenBodyTab = computed(() => !this.state.showingBin());
 
   readonly bodyDirty = computed(() => this.bodyDraft() !== this.bodyBaseline());
 
@@ -570,7 +570,6 @@ export class RequestsMainList {
   }
 
   toggleBodyTab(): void {
-    if (!this.canOpenBodyTab()) return;
     const opening = !this.bodyDrawerOpen();
     this.bodyDrawerOpen.set(opening);
     if (opening) {
@@ -640,6 +639,43 @@ export class RequestsMainList {
     }
   }
 
+  openBodyWipeConfirm(): void {
+    const ids = [...this.selectedRowIds()];
+    if (ids.length === 0) return;
+    this.bodyWipeCount.set(ids.length);
+    this.bodyWipeConfirmOpen.set(true);
+  }
+
+  closeBodyWipeConfirm(): void {
+    this.bodyWipeConfirmOpen.set(false);
+  }
+
+  async confirmClearAllSelectedBodies(): Promise<void> {
+    const ids = [...this.selectedRowIds()];
+    if (ids.length === 0) {
+      this.closeBodyWipeConfirm();
+      return;
+    }
+
+    this.bodySaving.set(true);
+    try {
+      const saved = await this.apiRequests.bulkUpdateBody(ids, '');
+      this.syncRequestsInWorkspace(saved);
+
+      this.bodyRequests = saved;
+      this.bodyBaseline.set('');
+      this.bodyDraft.set('');
+      this.bodyIsJson.set(true);
+      this.bodyEditCount.set(saved.length);
+      this.bodyDrawerState.set('ready');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      this.bodySaving.set(false);
+      this.closeBodyWipeConfirm();
+    }
+  }
+
   /**
    * Persists one body value onto every given request and refreshes the shared
    * selection/favourite copies. Does not touch the drawer's own request list,
@@ -648,7 +684,11 @@ export class RequestsMainList {
   private async saveBodyFor(requests: HttpRequest[], body: string): Promise<HttpRequest[]> {
     const ids = requests.map((req) => req.id);
     const saved = await this.apiRequests.bulkUpdateBody(ids, body);
+    this.syncRequestsInWorkspace(saved);
+    return saved;
+  }
 
+  private syncRequestsInWorkspace(saved: HttpRequest[]): void {
     for (const updated of saved) {
       if (this.state.selectedRequest()?.id === updated.id) {
         this.state.selectedRequest.set(updated);
@@ -661,8 +701,6 @@ export class RequestsMainList {
         this.favouriteApi.requests.set(newFavList);
       }
     }
-
-    return saved;
   }
 
   trackById(_index: number, req: HttpRequestSummary): number {

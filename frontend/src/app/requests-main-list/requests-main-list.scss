@@ -752,8 +752,10 @@
 .body-drawer-message {
   flex: 1 1 auto;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: var(--s-3);
   padding: var(--s-4);
   text-align: center;
   font-size: 0.875rem;
@@ -766,6 +768,39 @@
 
 .body-drawer-message--error {
   color: var(--error-text);
+}
+
+.body-wipe-button {
+  padding: 6px 16px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--danger-solid);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: filter 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.body-wipe-button:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+
+.body-wipe-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.body-wipe-confirm-popup .delete-confirm-message {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.body-wipe-confirm-popup .delete-confirm-message strong {
+  color: var(--danger-text);
 }
 
 .bottom-tabs {
@@ -783,43 +818,31 @@
 }
 
 .bottom-tab {
-  position: relative;
   display: inline-flex;
   align-items: center;
-  padding: 0 2px;
+  padding: 5px 14px;
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--muted);
-  background: transparent;
-  border: none;
-  border-radius: 0;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
   cursor: pointer;
-  transition: color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
   --wails-draggable: no-drag;
 }
 
-.bottom-tab:hover:not(:disabled) {
-  color: var(--text);
+.bottom-tab:hover {
+  background: var(--hover-highlight);
 }
 
 .bottom-tab.is-active {
-  color: var(--text);
-}
-
-.bottom-tab.is-active::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 2px;
+  color: #fff;
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  border-radius: 2px 2px 0 0;
-}
-
-.bottom-tab:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+  border-color: transparent;
 }
