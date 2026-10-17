@@ -74,7 +74,7 @@ export class WorkspaceStateService {
     }
   }
 
-  async sendRequest(req: HttpRequest, event: MouseEvent): Promise<void> {
+  async sendRequest(req: HttpRequest, event: Event): Promise<void> {
     event.stopPropagation();
     try {
       const environmentId = this.selectedEnvironment()?.id ?? 0;

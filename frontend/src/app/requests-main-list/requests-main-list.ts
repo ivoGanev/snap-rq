@@ -413,6 +413,13 @@ export class RequestsMainList {
       event.preventDefault();
       if (this.state.showingBin()) return;
       void this.duplicateSelectedRequest();
+      return;
+    }
+
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+      event.preventDefault();
+      if (this.state.showingBin()) return;
+      void this.sendSelectedRequest(event);
     }
   }
 
@@ -1193,7 +1200,7 @@ export class RequestsMainList {
     }
   }
 
-  async sendSelectedRequest(event: MouseEvent): Promise<void> {
+  async sendSelectedRequest(event: Event): Promise<void> {
     if (this.state.showingBin()) return;
 
     let req = this.state.selectedRequest();
@@ -1213,11 +1220,12 @@ export class RequestsMainList {
 
   async sendRowRequest(
     req: HttpRequestSummary | HttpBinnedRequestSummary,
-    event: MouseEvent,
+    event: Event,
   ): Promise<void> {
     event.stopPropagation();
     if (this.state.showingBin()) return;
 
+    this.contextMenu.close();
     this.selectCell(req as HttpRequestSummary, 'name');
     this.lastClickedRowId.set(req.id);
     await this.sendSelectedRequest(event);

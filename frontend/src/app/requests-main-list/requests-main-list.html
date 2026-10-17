@@ -250,20 +250,6 @@
             </div>
           }
         </div>
-
-        <div class="spreadsheet-cell spreadsheet-cell--send">
-          @if (!state.showingBin()) {
-            <button
-              class="row-send-button"
-              type="button"
-              (mousedown)="$event.stopPropagation()"
-              (click)="sendRowRequest(req, $event)"
-              aria-label="Send request"
-            >
-              Send
-            </button>
-          }
-        </div>
       </div>
     </cdk-virtual-scroll-viewport>
   </div>
@@ -283,6 +269,14 @@
       Delete permanently
     </button>
   } @else {
+    <button
+      class="context-menu-item context-menu-item--with-hint"
+      type="button"
+      (click)="sendRowRequest(req, $event)"
+    >
+      <span>Send</span>
+      <span class="context-menu-hint">Ctrl+S</span>
+    </button>
     <button class="context-menu-item" type="button" (click)="copyRequestCurl(req)">
       Copy cURL
     </button>
