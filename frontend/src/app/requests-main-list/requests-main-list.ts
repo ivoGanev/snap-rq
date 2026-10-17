@@ -11,7 +11,8 @@ import { SelectionStateService } from '../core/services/selection-state.service'
 import { TagApiService, type Tag } from '../core/services/tag.service';
 import { BinApiService, type HttpBinnedRequestSummary, type RestoreBinnedRequestInput } from '../core/services/bin.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
-import { RequestBodyDrawer } from '../request-body-drawer/request-body-drawer';
+import { RequestBottomDrawer, type BottomTab } from '../request-bottom-drawer/request-bottom-drawer';
+import { RequestBodyTab } from '../request-body-tab/request-body-tab';
 
 type ColumnKey = 'name' | 'url' | 'method' | 'tags';
 type SortDirection = 'asc' | 'desc';
@@ -33,6 +34,10 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: 'tags', label: 'Tags' },
 ];
 
+const BOTTOM_TABS: BottomTab[] = [
+  { id: 'body', label: 'Body', component: RequestBodyTab },
+];
+
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
 const DRAG_THRESHOLD_PX = 5;
 
@@ -41,7 +46,7 @@ const DRAG_THRESHOLD_PX = 5;
  */
 @Component({
   selector: 'app-requests-main-list',
-  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBodyDrawer],
+  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer],
   templateUrl: './requests-main-list.html',
   styleUrl: './requests-main-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -68,6 +73,7 @@ export class RequestsMainList {
   private readonly viewport!: CdkVirtualScrollViewport;
 
   protected readonly columns = COLUMNS;
+  protected readonly bottomTabs = BOTTOM_TABS;
   protected readonly httpMethods = HTTP_METHODS;
   protected readonly requestTags = this.tagApi.requestTags;
   protected readonly favouriteCollections = this.favouriteApi.collections;

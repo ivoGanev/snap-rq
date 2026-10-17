@@ -15,7 +15,7 @@ import { FavouriteApiService } from '../core/services/favourite.service';
 import { EnvironmentVariableApiService } from '../core/services/environment-variable.service';
 import { BodyEditor, type BodyType } from '../body-editor/body-editor';
 
-type BodyDrawerState = 'idle' | 'loading' | 'ready' | 'mismatch' | 'unavailable';
+type BodyTabState = 'idle' | 'loading' | 'ready' | 'mismatch' | 'unavailable';
 
 /** Treats empty or parseable JSON as JSON so the editor offers formatting. */
 function looksLikeJson(text: string): boolean {
@@ -30,22 +30,19 @@ function looksLikeJson(text: string): boolean {
 }
 
 /**
- * Bottom Body tab + sliding editor for the request list.
+ * Body tab content for the request bottom drawer.
  *
- * Owns everything related to viewing/editing request bodies for the current
- * selection, including the mismatch + bulk-clear flow.
+ * Loads bodies for the current selection, allows editing when they match, and
+ * offers a bulk clear when they don't.
  */
 @Component({
-  selector: 'app-request-body-drawer',
+  selector: 'app-request-body-tab',
   imports: [BodyEditor],
-  templateUrl: './request-body-drawer.html',
-  styleUrl: './request-body-drawer.scss',
+  templateUrl: './request-body-tab.html',
+  styleUrl: './request-body-tab.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: {
-    '(window:keydown.escape)': 'onEscapePressed()',
-  },
 })
-export class RequestBodyDrawer {
+export class RequestBodyTab {
   private readonly state = inject(WorkspaceStateService);
   private readonly requestApi = inject(RequestApiService);
   private readonly apiRequests = inject(ApiRequestsService);
@@ -53,10 +50,8 @@ export class RequestBodyDrawer {
   private readonly envVarApi = inject(EnvironmentVariableApiService);
 
   readonly selectedIds = input<Set<number>>(new Set());
-  readonly showingBin = input<boolean>(false);
 
-  readonly bodyDrawerOpen = signal(false);
-  readonly bodyDrawerState = signal<BodyDrawerState>('idle');
+  readonly bodyTabState = signal<BodyTabState>('idle');
   readonly bodyDraft = signal('');
   readonly bodyBaseline = signal('');
   readonly bodyIsJson = signal(true);
@@ -75,16 +70,6 @@ export class RequestBodyDrawer {
 
   readonly bodyDirty = computed(() => this.bodyDraft() !== this.bodyBaseline());
 
-  readonly bodyTabHint = computed<string>(() => {
-    if (this.showingBin()) return 'Body editing is not available in the bin';
-    const size = this.selectedIds().size;
-    if (size === 0) return 'Select a request to edit its body';
-    if (this.bodyDrawerState() === 'loading') return 'Loading selected bodies…';
-    if (this.bodyDrawerState() === 'mismatch') return 'Selected requests have different bodies';
-    if (this.bodyDrawerState() === 'unavailable') return 'Could not load request bodies';
-    return 'Edit request body';
-  });
-
   private bodyRequests: HttpRequest[] = [];
   private bodyLoadVersion = 0;
   private bodySaveTimer: number | null = null;
@@ -92,8 +77,7 @@ export class RequestBodyDrawer {
   constructor() {
     effect(() => {
       const ids = this.selectedIds();
-      const showBin = this.showingBin();
-      untracked(() => void this.refreshBodyForSelection(ids, showBin));
+      untracked(() => void this.refreshBodyForSelection(ids));
     });
 
     effect(() => {
@@ -106,38 +90,26 @@ export class RequestBodyDrawer {
     });
   }
 
-  onEscapePressed(): void {
-    if (this.bodyWipeConfirmOpen()) {
-      this.closeBodyWipeConfirm();
-      return;
-    }
-    if (this.bodyDrawerOpen()) {
-      this.minimiseBodyDrawer();
-    }
-  }
-
-  private async refreshBodyForSelection(ids: Set<number>, showBin: boolean): Promise<void> {
+  private async refreshBodyForSelection(ids: Set<number>): Promise<void> {
     const version = ++this.bodyLoadVersion;
 
-    // Flush a pending single-selection autosave before dropping the old
-    // requests, so keystrokes are not lost when the selection changes.
     this.flushPendingBodyAutosave();
     this.bodyRequests = [];
     this.bodyEditCount.set(0);
 
-    if (showBin || ids.size === 0) {
-      this.bodyDrawerState.set('idle');
+    if (ids.size === 0) {
+      this.bodyTabState.set('idle');
       return;
     }
 
-    this.bodyDrawerState.set('loading');
+    this.bodyTabState.set('loading');
     try {
       const requests = await Promise.all([...ids].map((id) => this.requestApi.get(id)));
       if (version !== this.bodyLoadVersion) return;
 
       const first = requests[0]?.body ?? '';
       if (!requests.every((r) => r.body === first)) {
-        this.bodyDrawerState.set('mismatch');
+        this.bodyTabState.set('mismatch');
         return;
       }
 
@@ -146,44 +118,13 @@ export class RequestBodyDrawer {
       this.bodyDraft.set(first);
       this.bodyIsJson.set(looksLikeJson(first));
       this.bodyEditCount.set(requests.length);
-      this.bodyDrawerState.set('ready');
+      this.bodyTabState.set('ready');
     } catch (err) {
       console.error(err);
       if (version === this.bodyLoadVersion) {
-        this.bodyDrawerState.set('unavailable');
+        this.bodyTabState.set('unavailable');
       }
     }
-  }
-
-  toggleBodyTab(): void {
-    const opening = !this.bodyDrawerOpen();
-    this.bodyDrawerOpen.set(opening);
-    if (opening) {
-      this.bodyDraft.set(this.bodyBaseline());
-    }
-  }
-
-  minimiseBodyDrawer(): void {
-    if (!this.bodyDrawerOpen()) return;
-    this.closeBodyDrawer();
-  }
-
-  private flushPendingBodyAutosave(): void {
-    if (this.bodySaveTimer !== null) {
-      window.clearTimeout(this.bodySaveTimer);
-      this.bodySaveTimer = null;
-    }
-    // Flush a pending single-selection autosave. Capture the request now so a
-    // caller that resets `bodyRequests` immediately after does not race it.
-    const single = this.bodyRequests.length === 1 ? this.bodyRequests[0] : null;
-    if (single && this.bodyDirty()) {
-      void this.saveBodyFor([single], this.bodyDraft());
-    }
-  }
-
-  private closeBodyDrawer(): void {
-    this.flushPendingBodyAutosave();
-    this.bodyDrawerOpen.set(false);
   }
 
   onBodyTextChange(text: string): void {
@@ -253,7 +194,7 @@ export class RequestBodyDrawer {
       this.bodyDraft.set('');
       this.bodyIsJson.set(true);
       this.bodyEditCount.set(saved.length);
-      this.bodyDrawerState.set('ready');
+      this.bodyTabState.set('ready');
     } catch (err) {
       console.error(err);
     } finally {
@@ -264,7 +205,7 @@ export class RequestBodyDrawer {
 
   /**
    * Persists one body value onto every given request and refreshes the shared
-   * selection/favourite copies. Does not touch the drawer's own request list,
+   * selection/favourite copies. Does not touch the tab's own request list,
    * so callers can flush without racing a selection change.
    */
   private async saveBodyFor(requests: HttpRequest[], body: string): Promise<HttpRequest[]> {
@@ -272,6 +213,17 @@ export class RequestBodyDrawer {
     const saved = await this.apiRequests.bulkUpdateBody(ids, body);
     this.syncRequestsInWorkspace(saved);
     return saved;
+  }
+
+  private flushPendingBodyAutosave(): void {
+    if (this.bodySaveTimer !== null) {
+      window.clearTimeout(this.bodySaveTimer);
+      this.bodySaveTimer = null;
+    }
+    const single = this.bodyRequests.length === 1 ? this.bodyRequests[0] : null;
+    if (single && this.bodyDirty()) {
+      void this.saveBodyFor([single], this.bodyDraft());
+    }
   }
 
   private syncRequestsInWorkspace(saved: HttpRequest[]): void {
