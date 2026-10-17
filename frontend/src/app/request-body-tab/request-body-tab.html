@@ -1,0 +1,80 @@
+<div class="body-tab-head">
+  <span class="body-tab-title">Body</span>
+  @if (bodyTabState() === 'ready' && bodyEditCount() > 1) {
+    <span class="body-tab-count">{{ bodyEditCount() }} requests</span>
+  }
+  <span class="body-tab-spacer"></span>
+  @if (bodyTabState() === 'ready' && bodyEditCount() > 1) {
+    <button
+      class="body-apply-button"
+      type="button"
+      [disabled]="bodySaving() || !bodyDirty()"
+      (click)="applyBodyEdits()"
+    >
+      {{ bodySaving() ? 'Applying…' : 'Apply' }}
+    </button>
+  }
+</div>
+
+@if (bodyTabState() === 'ready') {
+  <app-request-body-editor
+    class="body-editor"
+    [body]="bodyDraft()"
+    [type]="bodyType()"
+    [variables]="environmentVariables()"
+    [showLabel]="false"
+    (bodyChange)="onBodyTextChange($event)"
+    (typeChange)="setBodyType($event)"
+  ></app-request-body-editor>
+} @else if (bodyTabState() === 'loading') {
+  <div class="body-message">Loading bodies…</div>
+} @else if (bodyTabState() === 'mismatch') {
+  <div class="body-message body-message--warning">
+    <span>Selected requests have different bodies.</span>
+    <button
+      class="body-wipe-button"
+      type="button"
+      [disabled]="bodySaving()"
+      (click)="openBodyWipeConfirm()"
+    >
+      {{ bodySaving() ? 'Clearing…' : 'Clear all bodies' }}
+    </button>
+  </div>
+} @else if (bodyTabState() === 'unavailable') {
+  <div class="body-message body-message--error">
+    Could not load request bodies.
+  </div>
+} @else {
+  <div class="body-message">Select a request to edit its body.</div>
+}
+
+@if (bodyWipeConfirmOpen()) {
+  <div class="overlay-backdrop" (click)="closeBodyWipeConfirm()">
+    <div class="overlay-panel body-wipe-confirm-popup" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Clear all bodies?</h3>
+        <button class="overlay-close" type="button" (click)="closeBodyWipeConfirm()">
+          Cancel
+        </button>
+      </div>
+
+      <div class="overlay-body">
+        <p class="delete-confirm-message">
+          This will permanently clear the body of
+          <strong>{{ bodyWipeCount() }} requests</strong>.
+        </p>
+      </div>
+
+      <div class="overlay-footer">
+        <button
+          class="overlay-delete"
+          type="button"
+          [disabled]="bodySaving()"
+          (click)="confirmClearAllSelectedBodies()"
+        >
+          {{ bodySaving() ? 'Clearing…' : 'Clear all bodies' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
