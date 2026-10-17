@@ -13,6 +13,7 @@ import { BinApiService, type HttpBinnedRequestSummary, type RestoreBinnedRequest
 import { ContextMenuService } from '../core/services/context-menu.service';
 import { RequestBottomDrawer, type BottomTab } from '../request-bottom-drawer/request-bottom-drawer';
 import { RequestBodyTab } from '../request-body-tab/request-body-tab';
+import { RequestHeadersTab } from '../request-headers-tab/request-headers-tab';
 
 type ColumnKey = 'name' | 'url' | 'method' | 'tags';
 type SortDirection = 'asc' | 'desc';
@@ -36,6 +37,7 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
 
 const BOTTOM_TABS: BottomTab[] = [
   { id: 'body', label: 'Body', component: RequestBodyTab },
+  { id: 'headers', label: 'Headers', component: RequestHeadersTab },
 ];
 
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];

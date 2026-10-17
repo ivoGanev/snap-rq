@@ -116,6 +116,11 @@ export class RequestApiService {
     return result ?? [];
   }
 
+  async bulkUpdateHeaders(ids: number[], headers: string): Promise<HttpRequest[]> {
+    const result = await RequestService.RequestService.BulkUpdateRequestHeaders(ids, headers);
+    return result ?? [];
+  }
+
   async delete(id: number): Promise<void> {
     await RequestService.RequestService.DeleteRequest(id);
     this.removeFromRequests(id);

@@ -13,11 +13,11 @@
       <option value="text">Text</option>
     </select>
   </div>
-  <app-body-editor
+  <app-code-editor
     class="body-editor"
     [text]="body()"
-    [type]="type()"
+    [language]="type()"
     [variables]="variables()"
     (textChange)="onTextChange($event)"
-  ></app-body-editor>
+  ></app-code-editor>
 </div>

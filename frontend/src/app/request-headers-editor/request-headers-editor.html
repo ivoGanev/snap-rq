@@ -1,0 +1,13 @@
+<div class="headers-editor-shell">
+  @if (showLabel()) {
+    <span class="headers-editor-label">Headers</span>
+  }
+  <app-code-editor
+    class="headers-editor"
+    [text]="headers()"
+    language="text"
+    [variables]="variables()"
+    [showToolbar]="false"
+    (textChange)="headersChange.emit($event)"
+  ></app-code-editor>
+</div>

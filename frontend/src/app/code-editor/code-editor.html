@@ -1,32 +1,34 @@
-<div class="body-editor">
-  <div class="body-editor-toolbar">
-    <span class="body-editor-type">{{ type() }}</span>
-    @if (isJson()) {
-      <button
-        class="body-editor-format"
-        type="button"
-        (click)="formatCurrent()"
-        aria-label="Format body"
-        title="Format"
-      >
-        Format
-      </button>
-    }
-    <span class="body-editor-validation" [class.is-invalid]="!isValid()">
+<div class="code-editor">
+  @if (showToolbar()) {
+    <div class="code-editor-toolbar">
+      <span class="code-editor-language">{{ language() }}</span>
       @if (isJson()) {
-        @if (isValid()) {
-          Valid
-        } @else {
-          {{ validationError() }}
-        }
-      } @else {
-        Plain text
+        <button
+          class="code-editor-format"
+          type="button"
+          (click)="formatCurrent()"
+          aria-label="Format body"
+          title="Format"
+        >
+          Format
+        </button>
       }
-    </span>
-  </div>
+      <span class="code-editor-validation" [class.is-invalid]="!isValid()">
+        @if (isJson()) {
+          @if (isValid()) {
+            Valid
+          } @else {
+            {{ validationError() }}
+          }
+        } @else {
+          Plain text
+        }
+      </span>
+    </div>
+  }
 
-  <div class="body-editor-editor-wrap">
-    <div #editor class="body-editor-editor"></div>
+  <div class="code-editor-editor-wrap">
+    <div #editor class="code-editor-editor"></div>
 
     @if (dropdownOpen()) {
       <div class="variable-dropdown" [style.top.px]="dropdownTop()" [style.left.px]="dropdownLeft()">

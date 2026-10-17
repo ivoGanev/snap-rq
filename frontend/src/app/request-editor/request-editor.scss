@@ -44,28 +44,17 @@
   min-height: 0;
 }
 
-.edit-textarea {
-  padding: var(--s-2) var(--s-3);
-  background: var(--input-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  color: var(--text);
-  font-size: 0.875rem;
-  line-height: 1.5;
-  outline: none;
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
-  resize: vertical;
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
-    monospace;
-  min-height: 80px;
+.edit-field--headers {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
-.edit-textarea:focus {
-  border-color: var(--selected-border);
-  box-shadow: 0 0 0 2px var(--focus-ring);
+.edit-headers-editor {
+  flex: 1 1 auto;
+  display: block;
+  min-height: 180px;
 }
 
 .edit-body {
