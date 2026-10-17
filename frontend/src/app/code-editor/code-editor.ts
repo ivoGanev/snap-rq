@@ -37,16 +37,16 @@ import { defaultKeymap, history, historyKeymap, redo } from '@codemirror/command
 import { syntaxHighlighting } from '@codemirror/language';
 import { oneDarkHighlightStyle } from '@codemirror/theme-one-dark';
 
-export type BodyType = 'json' | 'text';
+export type EditorLanguage = 'json' | 'text';
 
-export interface BodyEditorVariable {
+export interface EditorVariable {
   key: string;
   value: string;
 }
 
-const setVariablesEffect = StateEffect.define<BodyEditorVariable[]>({});
+const setVariablesEffect = StateEffect.define<EditorVariable[]>({});
 
-const variablesField = StateField.define<BodyEditorVariable[]>({
+const variablesField = StateField.define<EditorVariable[]>({
   create: () => [],
   update: (value, tr) => {
     for (const effect of tr.effects) {
@@ -150,15 +150,16 @@ function variableDecorations(): Extension {
 }
 
 @Component({
-  selector: 'app-body-editor',
+  selector: 'app-code-editor',
   imports: [FormsModule],
-  templateUrl: './body-editor.html',
-  styleUrl: './body-editor.scss',
+  templateUrl: './code-editor.html',
+  styleUrl: './code-editor.scss',
 })
-export class BodyEditor implements AfterViewInit, OnDestroy {
+export class CodeEditor implements AfterViewInit, OnDestroy {
   readonly text = input<string>('');
-  readonly type = input<BodyType>('json');
-  readonly variables = input<BodyEditorVariable[]>([]);
+  readonly language = input<EditorLanguage>('json');
+  readonly variables = input<EditorVariable[]>([]);
+  readonly showToolbar = input<boolean>(true);
 
   readonly textChange = output<string>();
 
@@ -168,7 +169,7 @@ export class BodyEditor implements AfterViewInit, OnDestroy {
   private readonly languageCompartment = new Compartment();
   private charWidth = 7.8;
 
-  readonly isJson = computed(() => this.type() === 'json');
+  readonly isJson = computed(() => this.language() === 'json');
   readonly isValid = signal(true);
   readonly validationError = signal('');
   readonly dropdownOpen = signal(false);
@@ -241,7 +242,7 @@ export class BodyEditor implements AfterViewInit, OnDestroy {
     this.view.focus();
   }
 
-  insertVariable(variable: BodyEditorVariable): void {
+  insertVariable(variable: EditorVariable): void {
     if (!this.view) return;
     const pos = this.view.state.selection.main.head;
     const insertion = `{{ ${variable.key} }}`;
@@ -562,13 +563,13 @@ export class BodyEditor implements AfterViewInit, OnDestroy {
   }
 
   private validate(value: string): void {
-    const result = this.validateForType(value, this.type());
+    const result = this.validateForLanguage(value, this.language());
     this.isValid.set(result.valid);
     this.validationError.set(result.error);
   }
 
-  private validateForType(value: string, type: BodyType): ValidationResult {
-    if (type === 'json') {
+  private validateForLanguage(value: string, language: EditorLanguage): ValidationResult {
+    if (language === 'json') {
       return this.validateJson(value);
     }
     return { valid: true, error: '' };

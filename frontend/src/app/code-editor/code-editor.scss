@@ -4,7 +4,7 @@
   min-height: 0;
 }
 
-.body-editor {
+.code-editor {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
@@ -15,7 +15,7 @@
   overflow: hidden;
 }
 
-.body-editor-toolbar {
+.code-editor-toolbar {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -25,7 +25,7 @@
   background: var(--glass);
 }
 
-.body-editor-type {
+.code-editor-language {
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -33,7 +33,7 @@
   color: var(--muted);
 }
 
-.body-editor-format {
+.code-editor-format {
   padding: 3px 10px;
   font-size: 0.75rem;
   font-weight: 700;
@@ -48,23 +48,23 @@
   --wails-draggable: no-drag;
 }
 
-.body-editor-format:hover {
+.code-editor-format:hover {
   background: var(--hover-highlight);
   border-color: var(--glass-border);
 }
 
-.body-editor-validation {
+.code-editor-validation {
   margin-left: auto;
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--muted);
 }
 
-.body-editor-validation.is-invalid {
+.code-editor-validation.is-invalid {
   color: var(--error-text);
 }
 
-.body-editor-editor-wrap {
+.code-editor-editor-wrap {
   flex: 1 1 auto;
   position: relative;
   display: flex;
@@ -72,7 +72,7 @@
   min-height: 0;
 }
 
-.body-editor-editor {
+.code-editor-editor {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
@@ -80,16 +80,16 @@
   cursor: text;
 }
 
-.body-editor-editor .cm-editor {
+.code-editor-editor .cm-editor {
   flex: 1 1 auto;
   min-height: 0;
 }
 
-.body-editor-editor .cm-content {
+.code-editor-editor .cm-content {
   padding: var(--s-2) var(--s-3);
 }
 
-.body-editor-editor .cm-scroller {
+.code-editor-editor .cm-scroller {
   overflow: auto;
 }
 

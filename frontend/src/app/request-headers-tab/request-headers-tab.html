@@ -1,0 +1,76 @@
+<div class="headers-tab-head">
+  <span class="headers-tab-title">Headers</span>
+  @if (headersTabState() === 'ready' && headersEditCount() > 1) {
+    <span class="headers-tab-count">{{ headersEditCount() }} requests</span>
+  }
+  <span class="headers-tab-spacer"></span>
+  @if (headersTabState() === 'ready' && headersEditCount() > 1) {
+    <button
+      class="headers-apply-button"
+      type="button"
+      [disabled]="headersSaving() || !headersDirty()"
+      (click)="applyHeadersEdits()"
+    >
+      {{ headersSaving() ? 'Applying…' : 'Apply' }}
+    </button>
+  }
+</div>
+
+@if (headersTabState() === 'ready') {
+  <app-request-headers-editor
+    class="headers-editor"
+    [headers]="headersDraft()"
+    [variables]="environmentVariables()"
+    [showLabel]="false"
+    (headersChange)="onHeadersChange($event)"
+  ></app-request-headers-editor>
+} @else if (headersTabState() === 'loading') {
+  <div class="headers-message">Loading headers…</div>
+} @else if (headersTabState() === 'mismatch') {
+  <div class="headers-message headers-message--warning">
+    <span>Selected requests have different headers.</span>
+    <button
+      class="headers-wipe-button"
+      type="button"
+      [disabled]="headersSaving()"
+      (click)="openHeadersWipeConfirm()"
+    >
+      {{ headersSaving() ? 'Clearing…' : 'Clear all headers' }}
+    </button>
+  </div>
+} @else if (headersTabState() === 'unavailable') {
+  <div class="headers-message headers-message--error">Could not load request headers.</div>
+} @else {
+  <div class="headers-message">Select a request to edit its headers.</div>
+}
+
+@if (headersWipeConfirmOpen()) {
+  <div class="overlay-backdrop" (click)="closeHeadersWipeConfirm()">
+    <div class="overlay-panel headers-wipe-confirm-popup" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Clear all headers?</h3>
+        <button class="overlay-close" type="button" (click)="closeHeadersWipeConfirm()">
+          Cancel
+        </button>
+      </div>
+
+      <div class="overlay-body">
+        <p class="delete-confirm-message">
+          This will permanently clear the headers of
+          <strong>{{ headersWipeCount() }} requests</strong>.
+        </p>
+      </div>
+
+      <div class="overlay-footer">
+        <button
+          class="overlay-delete"
+          type="button"
+          [disabled]="headersSaving()"
+          (click)="confirmClearAllSelectedHeaders()"
+        >
+          {{ headersSaving() ? 'Clearing…' : 'Clear all headers' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
