@@ -417,6 +417,8 @@
   display: flex;
   align-items: center;
   min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
   cursor: pointer;
   border-radius: 4px;
   transition: outline 0.1s ease;
