@@ -533,6 +533,78 @@ func (s *RequestService) BulkUpdateRequestBody(ids []int64, body string, bodyTyp
 	return updated, nil
 }
 
+// BulkUpdateRequestName sets the same name on multiple requests in a single
+// transaction. It returns the updated requests in the same order as the ids.
+func (s *RequestService) BulkUpdateRequestName(ids []int64, name string) ([]models.HttpRequest, error) {
+	return s.bulkUpdateStringField(ids, "name", name)
+}
+
+// BulkUpdateRequestUrl sets the same URL on multiple requests in a single
+// transaction. It returns the updated requests in the same order as the ids.
+func (s *RequestService) BulkUpdateRequestUrl(ids []int64, url string) ([]models.HttpRequest, error) {
+	return s.bulkUpdateStringField(ids, "url", url)
+}
+
+// BulkUpdateRequestMethod sets the same HTTP method on multiple requests in a
+// single transaction. It returns the updated requests in the same order as the ids.
+func (s *RequestService) BulkUpdateRequestMethod(ids []int64, method string) ([]models.HttpRequest, error) {
+	return s.bulkUpdateStringField(ids, "method", method)
+}
+
+// bulkUpdateStringField applies one string value to one column across many
+// requests. The column name is never user-supplied; callers pass a constant.
+func (s *RequestService) bulkUpdateStringField(ids []int64, column string, value string) ([]models.HttpRequest, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("beginning bulk %s update transaction: %w", column, err)
+	}
+	defer tx.Rollback()
+
+	updated := make([]models.HttpRequest, 0, len(ids))
+	for _, id := range ids {
+		var req models.HttpRequest
+		err := tx.QueryRow(
+			`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id
+			 FROM http_requests hr
+			 JOIN collections c ON c.id = hr.collection_id
+			 WHERE hr.id = ?`, id,
+		).Scan(
+			&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method,
+			&req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("fetching request %d: %w", id, err)
+		}
+
+		if _, err = tx.Exec(
+			fmt.Sprintf(`UPDATE http_requests SET %s = ? WHERE id = ?`, column),
+			value, id,
+		); err != nil {
+			return nil, fmt.Errorf("updating %s for request %d: %w", column, id, err)
+		}
+
+		switch column {
+		case "name":
+			req.Name = value
+		case "url":
+			req.URL = value
+		case "method":
+			req.Method = value
+		}
+		updated = append(updated, req)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("committing bulk %s update transaction: %w", column, err)
+	}
+
+	return updated, nil
+}
+
 // DeleteRequest moves an HTTP request to the trash bin.
 func (s *RequestService) DeleteRequest(id int64) error {
 	_, err := s.BinRequest(id)

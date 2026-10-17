@@ -10,7 +10,6 @@ import { ApiRequestsService } from '../core/services/api-requests.service';
 import { FavouriteApiService } from '../core/services/favourite.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
 import { EnvironmentVariableApiService } from '../core/services/environment-variable.service';
-import { RequestChangeEventsService } from '../core/services/request-change-events.service';
 import { RequestBodyEditor } from '../request-body-editor/request-body-editor';
 import { type BodyType } from '../body-editor/body-editor';
 
@@ -27,7 +26,6 @@ export class RequestEditor {
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly tagApi = inject(TagApiService);
   private readonly envVarApi = inject(EnvironmentVariableApiService);
-  private readonly changeEvents = inject(RequestChangeEventsService);
 
   protected readonly requestTags = this.tagApi.requestTags;
   protected readonly environmentVariables = computed(() =>
@@ -87,10 +85,6 @@ export class RequestEditor {
         collection_id: draft.collection_id,
       });
       this.state.selectedRequest.set(saved);
-
-      if (field === 'body' || field === 'body_type') {
-        this.changeEvents.notifyBodyChanged(saved.id);
-      }
 
       const favList = this.favouriteApi.requests();
       const favIndex = favList.findIndex((r) => r.id === saved.id);

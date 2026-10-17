@@ -94,7 +94,23 @@ export class ApiRequestsService {
   }
 
   async bulkUpdateBody(ids: number[], body: string, bodyType: string): Promise<HttpRequest[]> {
-    const updated = await this.requestApi.bulkUpdateBody(ids, body, bodyType);
+    return this.applyBulkUpdate(this.requestApi.bulkUpdateBody(ids, body, bodyType));
+  }
+
+  async bulkUpdateName(ids: number[], name: string): Promise<HttpRequest[]> {
+    return this.applyBulkUpdate(this.requestApi.bulkUpdateName(ids, name));
+  }
+
+  async bulkUpdateUrl(ids: number[], url: string): Promise<HttpRequest[]> {
+    return this.applyBulkUpdate(this.requestApi.bulkUpdateUrl(ids, url));
+  }
+
+  async bulkUpdateMethod(ids: number[], method: string): Promise<HttpRequest[]> {
+    return this.applyBulkUpdate(this.requestApi.bulkUpdateMethod(ids, method));
+  }
+
+  private async applyBulkUpdate(pending: Promise<HttpRequest[]>): Promise<HttpRequest[]> {
+    const updated = await pending;
     for (const req of updated) {
       this.patch(req.id, {
         collection_id: req.collection_id,
