@@ -470,6 +470,55 @@ func (s *RequestService) UpdateRequest(req models.HttpRequest) (models.HttpReque
 	return s.GetRequest(req.ID)
 }
 
+// BulkUpdateRequestBody sets the same body on multiple requests in a single
+// database transaction. It returns the updated requests in the same order as
+// the input ids.
+func (s *RequestService) BulkUpdateRequestBody(ids []int64, body string) ([]models.HttpRequest, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("beginning bulk body update transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	updated := make([]models.HttpRequest, 0, len(ids))
+	for _, id := range ids {
+		var req models.HttpRequest
+		err := tx.QueryRow(
+			`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.request_headers, hr.status_code, hr.response_id
+			 FROM http_requests hr
+			 JOIN collections c ON c.id = hr.collection_id
+			 WHERE hr.id = ?`, id,
+		).Scan(
+			&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method,
+			&req.Body, &req.RequestHeaders, &req.StatusCode, &req.ResponseID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("fetching request %d: %w", id, err)
+		}
+
+		_, err = tx.Exec(
+			`UPDATE http_requests SET body = ? WHERE id = ?`,
+			body, id,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("updating body for request %d: %w", id, err)
+		}
+
+		req.Body = body
+		updated = append(updated, req)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("committing bulk body update transaction: %w", err)
+	}
+
+	return updated, nil
+}
+
 // DeleteRequest moves an HTTP request to the trash bin.
 func (s *RequestService) DeleteRequest(id int64) error {
 	_, err := s.BinRequest(id)

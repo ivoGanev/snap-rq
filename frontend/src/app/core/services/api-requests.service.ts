@@ -93,6 +93,22 @@ export class ApiRequestsService {
     return updated;
   }
 
+  async bulkUpdateBody(ids: number[], body: string): Promise<HttpRequest[]> {
+    const updated = await this.requestApi.bulkUpdateBody(ids, body);
+    for (const req of updated) {
+      this.patch(req.id, {
+        collection_id: req.collection_id,
+        project_id: req.project_id,
+        name: req.name,
+        url: req.url,
+        method: req.method,
+        status_code: req.status_code,
+        response_id: req.response_id,
+      });
+    }
+    return updated;
+  }
+
   async delete(id: number): Promise<void> {
     await this.requestApi.delete(id);
     this.remove(id);

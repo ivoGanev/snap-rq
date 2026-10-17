@@ -1,0 +1,45 @@
+@if (!showingBin()) {
+  <div class="bottom-drawer" [class.is-open]="activeTab() !== null">
+    <div class="bottom-drawer-inner">
+      <button
+        class="bottom-drawer-close"
+        type="button"
+        (click)="closeDrawer()"
+        aria-label="Close drawer"
+        title="Close"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="6" y1="6" x2="18" y2="18" />
+          <line x1="18" y1="6" x2="6" y2="18" />
+        </svg>
+      </button>
+
+      @if (activeTab()) {
+        <ng-container
+          *ngComponentOutlet="activeTab()!.component; inputs: tabInputs()"
+        ></ng-container>
+      }
+    </div>
+  </div>
+
+  <div class="bottom-tabs">
+    @for (tab of tabs(); track tab.id) {
+      <button
+        class="bottom-tab"
+        type="button"
+        [class.is-active]="isActive(tab)"
+        (click)="selectTab(tab)"
+      >
+        {{ tab.label }}
+      </button>
+    }
+  </div>
+}

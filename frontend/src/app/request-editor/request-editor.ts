@@ -10,11 +10,12 @@ import { ApiRequestsService } from '../core/services/api-requests.service';
 import { FavouriteApiService } from '../core/services/favourite.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
 import { EnvironmentVariableApiService } from '../core/services/environment-variable.service';
-import { BodyEditor, type BodyType } from '../body-editor/body-editor';
+import { RequestBodyEditor } from '../request-body-editor/request-body-editor';
+import { type BodyType } from '../body-editor/body-editor';
 
 @Component({
   selector: 'app-request-editor',
-  imports: [FormsModule, BodyEditor],
+  imports: [FormsModule, RequestBodyEditor],
   templateUrl: './request-editor.html',
   styleUrl: './request-editor.scss',
 })

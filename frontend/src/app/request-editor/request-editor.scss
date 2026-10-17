@@ -85,16 +85,3 @@
   display: block;
   min-height: 260px;
 }
-
-.body-mode-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-2);
-}
-
-.body-type-select {
-  width: auto;
-  min-width: 100px;
-  --wails-draggable: no-drag;
-}
