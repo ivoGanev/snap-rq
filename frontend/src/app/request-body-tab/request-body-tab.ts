@@ -8,12 +8,14 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { RequestApiService, type HttpRequest } from '../core/services/request.service';
 import { ApiRequestsService } from '../core/services/api-requests.service';
 import { FavouriteApiService } from '../core/services/favourite.service';
 import { EnvironmentVariableApiService } from '../core/services/environment-variable.service';
-import { BodyEditor, type BodyType } from '../body-editor/body-editor';
+import { RequestBodyEditor } from '../request-body-editor/request-body-editor';
+import { type BodyType } from '../body-editor/body-editor';
 
 type BodyTabState = 'idle' | 'loading' | 'ready' | 'mismatch' | 'unavailable';
 
@@ -37,7 +39,7 @@ function looksLikeJson(text: string): boolean {
  */
 @Component({
   selector: 'app-request-body-tab',
-  imports: [BodyEditor],
+  imports: [FormsModule, RequestBodyEditor],
   templateUrl: './request-body-tab.html',
   styleUrl: './request-body-tab.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -54,7 +56,7 @@ export class RequestBodyTab {
   readonly bodyTabState = signal<BodyTabState>('idle');
   readonly bodyDraft = signal('');
   readonly bodyBaseline = signal('');
-  readonly bodyIsJson = signal(true);
+  readonly bodyType = signal<BodyType>('json');
   readonly bodySaving = signal(false);
   readonly bodyEditCount = signal(0);
   readonly bodyWipeConfirmOpen = signal(false);
@@ -64,9 +66,7 @@ export class RequestBodyTab {
     this.envVarApi.variables().map((v) => ({ key: v.key, value: v.value })),
   );
 
-  protected readonly bodyEditorType = computed<BodyType>(() =>
-    this.bodyIsJson() ? 'json' : 'text',
-  );
+  protected readonly bodyEditorType = computed<BodyType>(() => this.bodyType());
 
   readonly bodyDirty = computed(() => this.bodyDraft() !== this.bodyBaseline());
 
@@ -116,7 +116,7 @@ export class RequestBodyTab {
       this.bodyRequests = requests;
       this.bodyBaseline.set(first);
       this.bodyDraft.set(first);
-      this.bodyIsJson.set(looksLikeJson(first));
+      this.bodyType.set(looksLikeJson(first) ? 'json' : 'text');
       this.bodyEditCount.set(requests.length);
       this.bodyTabState.set('ready');
     } catch (err) {
@@ -125,6 +125,10 @@ export class RequestBodyTab {
         this.bodyTabState.set('unavailable');
       }
     }
+  }
+
+  setBodyType(type: BodyType): void {
+    this.bodyType.set(type);
   }
 
   onBodyTextChange(text: string): void {
@@ -192,7 +196,7 @@ export class RequestBodyTab {
       this.bodyRequests = saved;
       this.bodyBaseline.set('');
       this.bodyDraft.set('');
-      this.bodyIsJson.set(true);
+      this.bodyType.set('json');
       this.bodyEditCount.set(saved.length);
       this.bodyTabState.set('ready');
     } catch (err) {

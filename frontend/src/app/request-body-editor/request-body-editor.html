@@ -1,0 +1,23 @@
+<div class="body-editor-shell">
+  <div class="body-mode-row">
+    @if (showLabel()) {
+      <label for="bodyType" class="body-editor-label">Body</label>
+    }
+    <select
+      id="bodyType"
+      class="body-type-select"
+      [ngModel]="type()"
+      (ngModelChange)="setType($any($event))"
+    >
+      <option value="json">JSON</option>
+      <option value="text">Text</option>
+    </select>
+  </div>
+  <app-body-editor
+    class="body-editor"
+    [text]="body()"
+    [type]="type()"
+    [variables]="variables()"
+    (textChange)="onTextChange($event)"
+  ></app-body-editor>
+</div>

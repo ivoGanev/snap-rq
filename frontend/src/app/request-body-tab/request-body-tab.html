@@ -17,13 +17,15 @@
 </div>
 
 @if (bodyTabState() === 'ready') {
-  <app-body-editor
+  <app-request-body-editor
     class="body-editor"
-    [text]="bodyDraft()"
-    [type]="bodyEditorType()"
+    [body]="bodyDraft()"
+    [type]="bodyType()"
     [variables]="environmentVariables()"
-    (textChange)="onBodyTextChange($event)"
-  ></app-body-editor>
+    [showLabel]="false"
+    (bodyChange)="onBodyTextChange($event)"
+    (typeChange)="setBodyType($event)"
+  ></app-request-body-editor>
 } @else if (bodyTabState() === 'loading') {
   <div class="body-message">Loading bodies…</div>
 } @else if (bodyTabState() === 'mismatch') {
