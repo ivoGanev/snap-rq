@@ -58,6 +58,7 @@ const DRAG_THRESHOLD_PX = 5;
     '(window:keydown)': 'onWindowKeydown($event)',
     '(window:mousemove)': 'onWindowMouseMove($event)',
     '(window:mouseup)': 'onWindowMouseUp()',
+    '(document:click)': 'onDocumentClick($event)',
   },
 })
 export class RequestsMainList {
@@ -102,6 +103,16 @@ export class RequestsMainList {
 
   readonly sortColumn = signal<ColumnKey | null>(null);
   readonly sortDirection = signal<SortDirection>('asc');
+  readonly sortMenuOpen = signal(false);
+
+  protected readonly rowHeight = 76;
+
+  readonly sortLabel = computed(() => {
+    const column = this.sortColumn();
+    if (!column) return 'Sort';
+    const label = COLUMNS.find((col) => col.key === column)?.label ?? column;
+    return `${label} ${this.sortDirection() === 'asc' ? '▲' : '▼'}`;
+  });
 
   // Single-cell edit modals
   readonly editModalOpen = signal(false);
@@ -286,6 +297,7 @@ export class RequestsMainList {
 
       const version = ++this.loadVersion;
       this.requestSearchQuery.set('');
+      this.sortMenuOpen.set(false);
       this.clearSelection();
       this.state.selectedRequest.set(null);
       this.state.selectedResponse.set(null);
@@ -401,6 +413,10 @@ export class RequestsMainList {
   }
 
   onEscapePressed(): void {
+    if (this.sortMenuOpen()) {
+      this.closeSortMenu();
+      return;
+    }
     if (this.contextMenu.isOpen()) {
       this.contextMenu.close();
       return;
@@ -627,7 +643,7 @@ export class RequestsMainList {
    *   scrollOffset  = how far the list is currently scrolled down (px)
    *   relativeY + scrollOffset = mouse Y within the *entire* virtual content
    *
-   * Dividing that by the fixed row height (40px, must match the viewport's
+   * Dividing that by the fixed row height (must match the viewport's
    * `itemSize`) yields the index of the row under the cursor, which is then
    * clamped to the list bounds. Finally we select every row between the drag
    * start row and the row under the cursor.
@@ -639,7 +655,7 @@ export class RequestsMainList {
     const rect = viewport.getBoundingClientRect();
     const relativeY = event.clientY - rect.top;
     const scrollOffset = this.viewport.measureScrollOffset('top');
-    const rowHeight = 40;
+    const rowHeight = this.rowHeight;
     // Clamp so dragging above the first row or below the last row (or past the
     // bottom edge of the content) keeps the selection within the list.
     const index = Math.max(
@@ -1022,9 +1038,24 @@ export class RequestsMainList {
     }
   }
 
-  sortIndicator(column: ColumnKey): '' | 'asc' | 'desc' {
-    if (this.sortColumn() !== column) return '';
-    return this.sortDirection();
+  toggleSortMenu(): void {
+    this.sortMenuOpen.update((open) => !open);
+  }
+
+  closeSortMenu(): void {
+    this.sortMenuOpen.set(false);
+  }
+
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.sortMenuOpen()) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest('.sort-control')) return;
+    this.closeSortMenu();
+  }
+
+  selectSortColumn(column: ColumnKey): void {
+    this.toggleSort(column);
+    this.closeSortMenu();
   }
 
   private compareRequests(a: HttpRequestSummary, b: HttpRequestSummary, column: ColumnKey): number {
