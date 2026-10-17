@@ -190,12 +190,12 @@
         <div
           class="spreadsheet-cell spreadsheet-cell--method"
           (click)="onRowClick(req, $event, 'method')"
-          (dblclick)="onCellDoubleClick(req, 'method')"
         >
           <span
             class="request-method"
             [attr.data-method]="req.method"
             [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['method']"
+            (dblclick)="onCellDoubleClick(req, 'method')"
           >{{ req.method }}</span>
         </div>
 
@@ -204,7 +204,6 @@
             class="request-line request-line--name"
             [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['name']"
             (click)="onRowClick(req, $event, 'name')"
-            (dblclick)="onCellDoubleClick(req, 'name')"
             [title]="req.name"
           >
             @if (editingNameId() === req.id) {
@@ -222,7 +221,10 @@
                 (blur)="commitInlineNameEdit(req)"
               />
             } @else {
-              <span class="cell-text">{{ req.name }}</span>
+              <span
+                class="cell-text"
+                (dblclick)="onCellDoubleClick(req, 'name')"
+              >{{ req.name }}</span>
             }
           </div>
 
@@ -230,10 +232,12 @@
             class="request-line request-line--url"
             [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['url']"
             (click)="onRowClick(req, $event, 'url')"
-            (dblclick)="onCellDoubleClick(req, 'url')"
             [title]="req.url"
           >
-            <span class="cell-text">{{ req.url }}</span>
+            <span
+              class="cell-text"
+              (dblclick)="onCellDoubleClick(req, 'url')"
+            >{{ req.url }}</span>
           </div>
         </div>
       </div>
