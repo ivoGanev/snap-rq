@@ -41,16 +41,14 @@
         </select>
       </label>
 
-      <label class="edit-field">
-        <span class="edit-label">Headers</span>
-        <textarea
-          class="edit-textarea"
-          rows="6"
-          [ngModel]="draftRequest()!.request_headers"
-          (ngModelChange)="updateRequestField('request_headers', $event)"
-          name="reqHeaders"
-        ></textarea>
-      </label>
+      <div class="edit-field edit-field--headers">
+        <app-request-headers-editor
+          class="edit-headers-editor"
+          [headers]="draftRequest()!.request_headers"
+          [variables]="environmentVariables()"
+          (headersChange)="updateRequestField('request_headers', $event)"
+        ></app-request-headers-editor>
+      </div>
 
       <div class="edit-field edit-field--body">
         <app-request-body-editor

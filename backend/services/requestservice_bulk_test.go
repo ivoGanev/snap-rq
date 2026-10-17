@@ -71,16 +71,31 @@ func TestBulkUpdateStringFields(t *testing.T) {
 		}
 	}
 
+	const headersValue = "Authorization: Bearer token\nX-Test: 1"
+	updated, err = svc.BulkUpdateRequestHeaders(ids, headersValue)
+	if err != nil {
+		t.Fatalf("BulkUpdateRequestHeaders failed: %v", err)
+	}
+	for i, req := range updated {
+		if req.RequestHeaders != headersValue {
+			t.Fatalf("updated[%d] request_headers = %q", i, req.RequestHeaders)
+		}
+	}
+
 	// Values should be persisted.
 	for _, id := range ids {
-		var name, url, method string
+		var name, url, method, headers string
 		if err := db.QueryRow(
-			"SELECT name, url, method FROM http_requests WHERE id = ?", id,
-		).Scan(&name, &url, &method); err != nil {
+			"SELECT name, url, method, request_headers FROM http_requests WHERE id = ?", id,
+		).Scan(&name, &url, &method, &headers); err != nil {
 			t.Fatalf("reading request %d: %v", id, err)
 		}
-		if name != "renamed" || url != "https://new.example.com" || method != "POST" {
-			t.Fatalf("request %d not updated: name=%q url=%q method=%q", id, name, url, method)
+		if name != "renamed" || url != "https://new.example.com" || method != "POST" ||
+			headers != headersValue {
+			t.Fatalf(
+				"request %d not updated: name=%q url=%q method=%q headers=%q",
+				id, name, url, method, headers,
+			)
 		}
 	}
 
