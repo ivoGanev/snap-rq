@@ -141,6 +141,11 @@ export class RequestApiService {
     return RequestService.RequestService.CreateResponse(resp as HttpResponse);
   }
 
+  async bulkSaveResponses(responses: HttpResponse[]): Promise<HttpResponse[]> {
+    const saved = await RequestService.RequestService.BulkSaveResponses(responses);
+    return saved ?? [];
+  }
+
   async execute(requestId: number, environmentId: number): Promise<HttpResponse> {
     return RequestService.RequestService.ExecuteRequest(requestId, environmentId);
   }

@@ -1,6 +1,10 @@
 package services
 
-import "testing"
+import (
+	"testing"
+
+	"snap-rq/backend/models"
+)
 
 func TestBulkUpdateStringFields(t *testing.T) {
 	db := newTestDB(t)
@@ -106,5 +110,95 @@ func TestBulkUpdateStringFields(t *testing.T) {
 	}
 	if empty != nil {
 		t.Fatalf("expected nil result for empty ids, got %v", empty)
+	}
+}
+
+func TestBulkSaveResponses(t *testing.T) {
+	db := newTestDB(t)
+	defer db.Close()
+	runMigrations(t, db)
+
+	svc := NewRequestService(db)
+
+	res, err := db.Exec("INSERT INTO profiles (name) VALUES (?)", "p")
+	if err != nil {
+		t.Fatalf("insert profile: %v", err)
+	}
+	profileID, _ := res.LastInsertId()
+	res, err = db.Exec("INSERT INTO projects (profile_id) VALUES (?)", profileID)
+	if err != nil {
+		t.Fatalf("insert project: %v", err)
+	}
+	projectID, _ := res.LastInsertId()
+	res, err = db.Exec("INSERT INTO collections (project_id, name) VALUES (?, ?)", projectID, "c1")
+	if err != nil {
+		t.Fatalf("insert collection: %v", err)
+	}
+	collectionID, _ := res.LastInsertId()
+
+	var ids []int64
+	for i := 0; i < 2; i++ {
+		res, err := db.Exec(`
+			INSERT INTO http_requests (collection_id, name, url, method, body, request_headers, status_code, response_id)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			collectionID, "req", "https://example.com", "GET", "", "", 0, 0)
+		if err != nil {
+			t.Fatalf("insert request: %v", err)
+		}
+		id, _ := res.LastInsertId()
+		ids = append(ids, id)
+	}
+
+	saved, err := svc.BulkSaveResponses([]models.HttpResponse{
+		{RequestID: ids[0], StatusCode: 200, Headers: "H: 1", Body: "one", DurationMs: 11},
+		{RequestID: ids[1], StatusCode: 201, Headers: "H: 2", Body: "two", DurationMs: 22},
+	})
+	if err != nil {
+		t.Fatalf("BulkSaveResponses failed: %v", err)
+	}
+	if len(saved) != 2 {
+		t.Fatalf("expected 2 saved responses, got %d", len(saved))
+	}
+
+	for i, resp := range saved {
+		if resp.ID == 0 {
+			t.Fatalf("saved[%d] has no id", i)
+		}
+		if resp.CreatedAt == "" {
+			t.Fatalf("saved[%d] has no created_at", i)
+		}
+
+		var statusCode int
+		var body string
+		if err := db.QueryRow(
+			"SELECT status_code, body FROM responses WHERE id = ?", resp.ID,
+		).Scan(&statusCode, &body); err != nil {
+			t.Fatalf("reading response %d: %v", resp.ID, err)
+		}
+		if statusCode != resp.StatusCode || body != resp.Body {
+			t.Fatalf("response %d not persisted: status=%d body=%q", resp.ID, statusCode, body)
+		}
+
+		var requestStatus int
+		var responseID int64
+		if err := db.QueryRow(
+			"SELECT status_code, response_id FROM http_requests WHERE id = ?", resp.RequestID,
+		).Scan(&requestStatus, &responseID); err != nil {
+			t.Fatalf("reading request %d: %v", resp.RequestID, err)
+		}
+		if requestStatus != resp.StatusCode || responseID != resp.ID {
+			t.Fatalf(
+				"request %d not updated: status=%d response_id=%d",
+				resp.RequestID, requestStatus, responseID,
+			)
+		}
+	}
+
+	empty, err := svc.BulkSaveResponses(nil)
+	if err != nil {
+		t.Fatalf("BulkSaveResponses(nil) failed: %v", err)
+	}
+	if empty != nil {
+		t.Fatalf("expected nil result for empty responses, got %v", empty)
 	}
 }
