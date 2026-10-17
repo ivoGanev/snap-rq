@@ -1222,9 +1222,15 @@ export class RequestsMainList {
   async sendSelectedRequest(event: Event): Promise<void> {
     if (this.state.showingBin()) return;
 
+    const selectedIds = [...this.selectedRowIds()];
+    if (selectedIds.length > 1) {
+      await this.sendMultipleRequests(selectedIds, event);
+      return;
+    }
+
     let req = this.state.selectedRequest();
     if (!req) {
-      const selectedId = this.selectedCell()?.requestId ?? [...this.selectedRowIds()][0];
+      const selectedId = this.selectedCell()?.requestId ?? selectedIds[0];
       if (!selectedId) return;
       try {
         req = await this.requestApi.get(selectedId);
@@ -1237,6 +1243,15 @@ export class RequestsMainList {
     await this.state.sendRequest(req, event);
   }
 
+  private async sendMultipleRequests(ids: number[], event: Event): Promise<void> {
+    try {
+      const requests = await Promise.all(ids.map((id) => this.requestApi.get(id)));
+      await Promise.all(requests.map((req) => this.state.sendRequest(req, event)));
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   async sendRowRequest(
     req: HttpRequestSummary | HttpBinnedRequestSummary,
     event: Event,
@@ -1245,8 +1260,11 @@ export class RequestsMainList {
     if (this.state.showingBin()) return;
 
     this.contextMenu.close();
-    this.selectCell(req as HttpRequestSummary, 'name');
-    this.lastClickedRowId.set(req.id);
+    const selected = this.selectedRowIds();
+    if (selected.size <= 1 || !selected.has(req.id)) {
+      this.selectCell(req as HttpRequestSummary, 'name');
+      this.lastClickedRowId.set(req.id);
+    }
     await this.sendSelectedRequest(event);
   }
 
