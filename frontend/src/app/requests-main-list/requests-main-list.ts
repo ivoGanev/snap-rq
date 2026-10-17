@@ -94,6 +94,7 @@ export class RequestsMainList {
   // Selection state
   readonly selectedRowIds = computed(() => this.state.selectedIds());
   readonly selectedCell = signal<SelectedCell | null>(null);
+  readonly highlightedCell = signal<SelectedCell | null>(null);
   readonly lastClickedRowId = signal<number | null>(null);
   readonly isDragging = signal(false);
   readonly dragStartRowId = signal<number | null>(null);
@@ -227,7 +228,7 @@ export class RequestsMainList {
    */
   readonly rowState = computed<Record<number, RowState>>(() => {
     const selectedIds = this.selectedRowIds();
-    const cell = this.selectedCell();
+    const cell = this.highlightedCell();
     const result: Record<number, RowState> = {};
 
     for (const req of this.filteredActiveRequests()) {
@@ -472,9 +473,15 @@ export class RequestsMainList {
 
   // ---------- Selection ----------
 
-  selectCell(req: HttpRequestSummary | HttpBinnedRequestSummary, column: ColumnKey): void {
+  selectCell(
+    req: HttpRequestSummary | HttpBinnedRequestSummary,
+    column: ColumnKey,
+    highlight = true,
+  ): void {
     this.state.selectedIds.set(new Set([req.id]));
-    this.selectedCell.set({ requestId: req.id, column });
+    const cell = { requestId: req.id, column };
+    this.selectedCell.set(cell);
+    this.highlightedCell.set(highlight ? cell : null);
     this.syncWorkspaceSelection(req);
 
     if (this.state.showingBin()) {
@@ -496,6 +503,7 @@ export class RequestsMainList {
   private clearSelection(): void {
     this.state.selectedIds.set(new Set());
     this.selectedCell.set(null);
+    this.highlightedCell.set(null);
     this.cancelInlineNameEdit();
   }
 
@@ -528,7 +536,11 @@ export class RequestsMainList {
     }
 
     // Plain click: clear existing multi-selection and select this row only.
-    this.selectCell(req, column);
+    // The dashed cell outline only appears when the click hits the cell content.
+    const onContent =
+      event.target instanceof Element &&
+      !!event.target.closest('.cell-text, .request-method');
+    this.selectCell(req, column, onContent);
     this.lastClickedRowId.set(req.id);
   }
 
