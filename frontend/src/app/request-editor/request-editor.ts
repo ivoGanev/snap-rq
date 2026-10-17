@@ -35,9 +35,10 @@ export class RequestEditor {
   readonly draftRequest = signal<HttpRequest | null>(null);
   readonly tagInputOpen = signal(false);
   readonly newTagName = signal('');
-  readonly bodyType = signal<BodyType>('json');
 
-  private previousRequestId: number | null = null;
+  readonly bodyEditorType = computed<BodyType>(() =>
+    this.draftRequest()?.body_type === 'text' ? 'text' : 'json',
+  );
 
   readonly tagSuggestions = computed<Tag[]>(() => {
     const query = this.newTagName().trim().toLowerCase();
@@ -56,12 +57,6 @@ export class RequestEditor {
     effect(() => {
       const req = this.state.selectedRequest();
       this.draftRequest.set(req ? { ...req } : null);
-
-      const id = req?.id ?? null;
-      if (id !== this.previousRequestId) {
-        this.previousRequestId = id;
-        this.bodyType.set('json');
-      }
     });
 
     effect(() => {
@@ -101,10 +96,6 @@ export class RequestEditor {
     } catch (err) {
       console.error(err);
     }
-  }
-
-  setBodyType(type: BodyType): void {
-    this.bodyType.set(type);
   }
 
   openTagInput(): void {

@@ -25,6 +25,15 @@ func NewRequestService(db *sql.DB) *RequestService {
 	return &RequestService{db: db}
 }
 
+// normalizeBodyType guards against empty/invalid values so the body_type
+// column always stores one of the allowed values.
+func normalizeBodyType(bodyType string) string {
+	if bodyType == "text" {
+		return "text"
+	}
+	return "json"
+}
+
 // DuplicateRequest creates a copy of an existing request, including its tags and
 // favourite memberships. The copy receives a new ID, a "(copy)" name suffix and
 // a fresh status/response.
@@ -41,10 +50,10 @@ func (s *RequestService) DuplicateRequest(id int64) (models.HttpRequest, error) 
 	defer tx.Rollback()
 
 	result, err := tx.Exec(
-		`INSERT INTO http_requests (collection_id, name, url, method, body, request_headers, status_code, response_id)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO http_requests (collection_id, name, url, method, body, body_type, request_headers, status_code, response_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		original.CollectionID, original.Name+" (copy)", original.URL, original.Method, original.Body,
-		original.RequestHeaders, 0, 0,
+		normalizeBodyType(original.BodyType), original.RequestHeaders, 0, 0,
 	)
 	if err != nil {
 		return models.HttpRequest{}, fmt.Errorf("duplicating request: %w", err)
@@ -87,9 +96,10 @@ func (s *RequestService) CreateRequest(req models.HttpRequest) (models.HttpReque
 	}
 
 	result, err := s.db.Exec(
-		`INSERT INTO http_requests (collection_id, name, url, method, body, request_headers, status_code, response_id)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		req.CollectionID, req.Name, req.URL, req.Method, req.Body, req.RequestHeaders, req.StatusCode, req.ResponseID,
+		`INSERT INTO http_requests (collection_id, name, url, method, body, body_type, request_headers, status_code, response_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		req.CollectionID, req.Name, req.URL, req.Method, req.Body, normalizeBodyType(req.BodyType),
+		req.RequestHeaders, req.StatusCode, req.ResponseID,
 	)
 	if err != nil {
 		return models.HttpRequest{}, fmt.Errorf("creating request: %w", err)
@@ -107,13 +117,13 @@ func (s *RequestService) CreateRequest(req models.HttpRequest) (models.HttpReque
 func (s *RequestService) GetRequest(id int64) (models.HttpRequest, error) {
 	var req models.HttpRequest
 	row := s.db.QueryRow(
-		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.request_headers, hr.status_code, hr.response_id
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id
 		 FROM http_requests hr
 		 JOIN collections c ON c.id = hr.collection_id
 		 WHERE hr.id = ?`,
 		id,
 	)
-	err := row.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.RequestHeaders, &req.StatusCode, &req.ResponseID)
+	err := row.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return models.HttpRequest{}, fmt.Errorf("request not found")
@@ -266,7 +276,7 @@ func interpolate(input string, variables map[string]string) string {
 // GetAllRequests returns all saved HTTP requests ordered by name.
 func (s *RequestService) GetAllRequests() ([]models.HttpRequest, error) {
 	rows, err := s.db.Query(
-		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.request_headers, hr.status_code, hr.response_id
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id
 		 FROM http_requests hr
 		 JOIN collections c ON c.id = hr.collection_id
 		 ORDER BY hr.name`,
@@ -279,7 +289,7 @@ func (s *RequestService) GetAllRequests() ([]models.HttpRequest, error) {
 	var requests []models.HttpRequest
 	for rows.Next() {
 		var req models.HttpRequest
-		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.RequestHeaders, &req.StatusCode, &req.ResponseID); err != nil {
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID); err != nil {
 			return nil, fmt.Errorf("scanning request: %w", err)
 		}
 		requests = append(requests, req)
@@ -295,7 +305,7 @@ func (s *RequestService) GetAllRequests() ([]models.HttpRequest, error) {
 // GetRequestsForCollection returns all requests belonging to a collection.
 func (s *RequestService) GetRequestsForCollection(collectionID int64) ([]models.HttpRequest, error) {
 	rows, err := s.db.Query(
-		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.request_headers, hr.status_code, hr.response_id
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id
 		 FROM http_requests hr
 		 JOIN collections c ON c.id = hr.collection_id
 		 WHERE hr.collection_id = ?
@@ -310,7 +320,7 @@ func (s *RequestService) GetRequestsForCollection(collectionID int64) ([]models.
 	var requests []models.HttpRequest
 	for rows.Next() {
 		var req models.HttpRequest
-		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.RequestHeaders, &req.StatusCode, &req.ResponseID); err != nil {
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID); err != nil {
 			return nil, fmt.Errorf("scanning request: %w", err)
 		}
 		requests = append(requests, req)
@@ -326,7 +336,7 @@ func (s *RequestService) GetRequestsForCollection(collectionID int64) ([]models.
 // GetRequestsForProject returns every HTTP request across all collections in a project.
 func (s *RequestService) GetRequestsForProject(projectID int64) ([]models.HttpRequest, error) {
 	rows, err := s.db.Query(
-		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.request_headers, hr.status_code, hr.response_id
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id
 		 FROM http_requests hr
 		 JOIN collections c ON c.id = hr.collection_id
 		 WHERE c.project_id = ?
@@ -341,7 +351,7 @@ func (s *RequestService) GetRequestsForProject(projectID int64) ([]models.HttpRe
 	var requests []models.HttpRequest
 	for rows.Next() {
 		var req models.HttpRequest
-		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.RequestHeaders, &req.StatusCode, &req.ResponseID); err != nil {
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID); err != nil {
 			return nil, fmt.Errorf("scanning request: %w", err)
 		}
 		requests = append(requests, req)
@@ -459,9 +469,10 @@ func (s *RequestService) UpdateRequest(req models.HttpRequest) (models.HttpReque
 
 	_, err := s.db.Exec(
 		`UPDATE http_requests
-		 SET collection_id = ?, name = ?, url = ?, method = ?, body = ?, request_headers = ?, status_code = ?, response_id = ?
+		 SET collection_id = ?, name = ?, url = ?, method = ?, body = ?, body_type = ?, request_headers = ?, status_code = ?, response_id = ?
 		 WHERE id = ?`,
-		req.CollectionID, req.Name, req.URL, req.Method, req.Body, req.RequestHeaders, req.StatusCode, req.ResponseID, req.ID,
+		req.CollectionID, req.Name, req.URL, req.Method, req.Body, normalizeBodyType(req.BodyType),
+		req.RequestHeaders, req.StatusCode, req.ResponseID, req.ID,
 	)
 	if err != nil {
 		return models.HttpRequest{}, fmt.Errorf("updating request: %w", err)
@@ -470,13 +481,15 @@ func (s *RequestService) UpdateRequest(req models.HttpRequest) (models.HttpReque
 	return s.GetRequest(req.ID)
 }
 
-// BulkUpdateRequestBody sets the same body on multiple requests in a single
-// database transaction. It returns the updated requests in the same order as
-// the input ids.
-func (s *RequestService) BulkUpdateRequestBody(ids []int64, body string) ([]models.HttpRequest, error) {
+// BulkUpdateRequestBody sets the same body and body type on multiple requests
+// in a single database transaction. It returns the updated requests in the same
+// order as the input ids.
+func (s *RequestService) BulkUpdateRequestBody(ids []int64, body string, bodyType string) ([]models.HttpRequest, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
+
+	normalizedType := normalizeBodyType(bodyType)
 
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -488,32 +501,105 @@ func (s *RequestService) BulkUpdateRequestBody(ids []int64, body string) ([]mode
 	for _, id := range ids {
 		var req models.HttpRequest
 		err := tx.QueryRow(
-			`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.request_headers, hr.status_code, hr.response_id
+			`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id
 			 FROM http_requests hr
 			 JOIN collections c ON c.id = hr.collection_id
 			 WHERE hr.id = ?`, id,
 		).Scan(
 			&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method,
-			&req.Body, &req.RequestHeaders, &req.StatusCode, &req.ResponseID,
+			&req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("fetching request %d: %w", id, err)
 		}
 
 		_, err = tx.Exec(
-			`UPDATE http_requests SET body = ? WHERE id = ?`,
-			body, id,
+			`UPDATE http_requests SET body = ?, body_type = ? WHERE id = ?`,
+			body, normalizedType, id,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("updating body for request %d: %w", id, err)
 		}
 
 		req.Body = body
+		req.BodyType = normalizedType
 		updated = append(updated, req)
 	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("committing bulk body update transaction: %w", err)
+	}
+
+	return updated, nil
+}
+
+// BulkUpdateRequestName sets the same name on multiple requests in a single
+// transaction. It returns the updated requests in the same order as the ids.
+func (s *RequestService) BulkUpdateRequestName(ids []int64, name string) ([]models.HttpRequest, error) {
+	return s.bulkUpdateStringField(ids, "name", name)
+}
+
+// BulkUpdateRequestUrl sets the same URL on multiple requests in a single
+// transaction. It returns the updated requests in the same order as the ids.
+func (s *RequestService) BulkUpdateRequestUrl(ids []int64, url string) ([]models.HttpRequest, error) {
+	return s.bulkUpdateStringField(ids, "url", url)
+}
+
+// BulkUpdateRequestMethod sets the same HTTP method on multiple requests in a
+// single transaction. It returns the updated requests in the same order as the ids.
+func (s *RequestService) BulkUpdateRequestMethod(ids []int64, method string) ([]models.HttpRequest, error) {
+	return s.bulkUpdateStringField(ids, "method", method)
+}
+
+// bulkUpdateStringField applies one string value to one column across many
+// requests. The column name is never user-supplied; callers pass a constant.
+func (s *RequestService) bulkUpdateStringField(ids []int64, column string, value string) ([]models.HttpRequest, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("beginning bulk %s update transaction: %w", column, err)
+	}
+	defer tx.Rollback()
+
+	updated := make([]models.HttpRequest, 0, len(ids))
+	for _, id := range ids {
+		var req models.HttpRequest
+		err := tx.QueryRow(
+			`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id
+			 FROM http_requests hr
+			 JOIN collections c ON c.id = hr.collection_id
+			 WHERE hr.id = ?`, id,
+		).Scan(
+			&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method,
+			&req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("fetching request %d: %w", id, err)
+		}
+
+		if _, err = tx.Exec(
+			fmt.Sprintf(`UPDATE http_requests SET %s = ? WHERE id = ?`, column),
+			value, id,
+		); err != nil {
+			return nil, fmt.Errorf("updating %s for request %d: %w", column, id, err)
+		}
+
+		switch column {
+		case "name":
+			req.Name = value
+		case "url":
+			req.URL = value
+		case "method":
+			req.Method = value
+		}
+		updated = append(updated, req)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("committing bulk %s update transaction: %w", column, err)
 	}
 
 	return updated, nil
@@ -658,11 +744,11 @@ func (s *RequestService) SaveResponseToFile(responseID int64, filePath string) e
 func (s *RequestService) getRequestWithProjectTx(tx *sql.Tx, id int64) (models.HttpRequest, error) {
 	var req models.HttpRequest
 	row := tx.QueryRow(`
-		SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.request_headers, hr.status_code, hr.response_id
+		SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id
 		FROM http_requests hr
 		JOIN collections c ON c.id = hr.collection_id
 		WHERE hr.id = ?`, id)
-	err := row.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.RequestHeaders, &req.StatusCode, &req.ResponseID)
+	err := row.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return models.HttpRequest{}, fmt.Errorf("request not found")
@@ -790,10 +876,10 @@ func (s *RequestService) binRequestTx(tx *sql.Tx, id int64) (int64, error) {
 	result, err := tx.Exec(`
 		INSERT INTO binned_requests (
 			original_request_id, project_id, collection_id, original_collection_id, original_collection_name,
-			name, url, method, body, request_headers, status_code, response_id, snapshot_json
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			name, url, method, body, body_type, request_headers, status_code, response_id, snapshot_json
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		req.ID, req.ProjectID, req.CollectionID, req.CollectionID, collectionName,
-		req.Name, req.URL, req.Method, req.Body, req.RequestHeaders, req.StatusCode, req.ResponseID, snapshotJSON)
+		req.Name, req.URL, req.Method, req.Body, normalizeBodyType(req.BodyType), req.RequestHeaders, req.StatusCode, req.ResponseID, snapshotJSON)
 	if err != nil {
 		return 0, fmt.Errorf("inserting binned request: %w", err)
 	}
@@ -915,17 +1001,18 @@ func (s *RequestService) RestoreBinnedRequest(binID int64, targetCollectionID in
 		URL             string
 		Method          string
 		Body            string
+		BodyType        string
 		RequestHeaders  string
 		StatusCode      int
 		ResponseID      int64
 		SnapshotJSON    string
 	}
 	if err := tx.QueryRow(`
-		SELECT project_id, name, url, method, body, request_headers, status_code, response_id, snapshot_json
+		SELECT project_id, name, url, method, body, body_type, request_headers, status_code, response_id, snapshot_json
 		FROM binned_requests
 		WHERE id = ?`, binID).Scan(
 		&binned.ProjectID, &binned.Name, &binned.URL, &binned.Method,
-		&binned.Body, &binned.RequestHeaders, &binned.StatusCode,
+		&binned.Body, &binned.BodyType, &binned.RequestHeaders, &binned.StatusCode,
 		&binned.ResponseID, &binned.SnapshotJSON,
 	); err != nil {
 		if err == sql.ErrNoRows {
@@ -944,10 +1031,10 @@ func (s *RequestService) RestoreBinnedRequest(binID int64, targetCollectionID in
 	}
 
 	result, err := tx.Exec(`
-		INSERT INTO http_requests (collection_id, name, url, method, body, request_headers, status_code, response_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		INSERT INTO http_requests (collection_id, name, url, method, body, body_type, request_headers, status_code, response_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		targetCollectionID, binned.Name, binned.URL, binned.Method,
-		binned.Body, binned.RequestHeaders, binned.StatusCode, 0)
+		binned.Body, normalizeBodyType(binned.BodyType), binned.RequestHeaders, binned.StatusCode, 0)
 	if err != nil {
 		return models.HttpRequest{}, fmt.Errorf("restoring request: %w", err)
 	}

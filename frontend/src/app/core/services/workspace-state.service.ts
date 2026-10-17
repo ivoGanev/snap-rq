@@ -32,6 +32,7 @@ export class WorkspaceStateService {
   readonly selectedFavouriteCollection = signal<FavouriteCollection | null>(null);
   readonly selectedTag = signal<string | null>(null);
   readonly showingAllRequests = signal(false);
+  readonly selectedIds = signal<Set<number>>(new Set());
   readonly selectedRequest = signal<HttpRequest | null>(null);
   readonly selectedResponse = signal<HttpResponse | null>(null);
   readonly selectedBinnedRequest = signal<HttpBinnedRequestSummary | null>(null);
