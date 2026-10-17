@@ -23,6 +23,7 @@ type HttpRequest struct {
 	URL            string `json:"url"`
 	Method         string `json:"method"`
 	Body           string `json:"body"`
+	BodyType       string `json:"body_type"`
 	RequestHeaders string `json:"request_headers"`
 	StatusCode     int    `json:"status_code"`
 	ResponseID     int64  `json:"response_id"`

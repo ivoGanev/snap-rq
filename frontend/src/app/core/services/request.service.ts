@@ -96,8 +96,23 @@ export class RequestApiService {
     return updated;
   }
 
-  async bulkUpdateBody(ids: number[], body: string): Promise<HttpRequest[]> {
-    const result = await RequestService.RequestService.BulkUpdateRequestBody(ids, body);
+  async bulkUpdateBody(ids: number[], body: string, bodyType: string): Promise<HttpRequest[]> {
+    const result = await RequestService.RequestService.BulkUpdateRequestBody(ids, body, bodyType);
+    return result ?? [];
+  }
+
+  async bulkUpdateName(ids: number[], name: string): Promise<HttpRequest[]> {
+    const result = await RequestService.RequestService.BulkUpdateRequestName(ids, name);
+    return result ?? [];
+  }
+
+  async bulkUpdateUrl(ids: number[], url: string): Promise<HttpRequest[]> {
+    const result = await RequestService.RequestService.BulkUpdateRequestUrl(ids, url);
+    return result ?? [];
+  }
+
+  async bulkUpdateMethod(ids: number[], method: string): Promise<HttpRequest[]> {
+    const result = await RequestService.RequestService.BulkUpdateRequestMethod(ids, method);
     return result ?? [];
   }
 

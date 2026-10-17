@@ -24,7 +24,7 @@
 
       @if (activeTab()) {
         <ng-container
-          *ngComponentOutlet="activeTab()!.component; inputs: tabInputs()"
+          *ngComponentOutlet="activeTab()!.component"
         ></ng-container>
       }
     </div>

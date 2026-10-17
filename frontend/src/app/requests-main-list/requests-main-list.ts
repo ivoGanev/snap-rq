@@ -89,7 +89,7 @@ export class RequestsMainList {
   readonly newRequestMethod = signal('GET');
 
   // Selection state
-  readonly selectedRowIds = signal<Set<number>>(new Set());
+  readonly selectedRowIds = computed(() => this.state.selectedIds());
   readonly selectedCell = signal<SelectedCell | null>(null);
   readonly lastClickedRowId = signal<number | null>(null);
   readonly isDragging = signal(false);
@@ -440,7 +440,7 @@ export class RequestsMainList {
   // ---------- Selection ----------
 
   selectCell(req: HttpRequestSummary | HttpBinnedRequestSummary, column: ColumnKey): void {
-    this.selectedRowIds.set(new Set([req.id]));
+    this.state.selectedIds.set(new Set([req.id]));
     this.selectedCell.set({ requestId: req.id, column });
     this.syncWorkspaceSelection(req);
 
@@ -461,7 +461,7 @@ export class RequestsMainList {
   }
 
   private clearSelection(): void {
-    this.selectedRowIds.set(new Set());
+    this.state.selectedIds.set(new Set());
     this.selectedCell.set(null);
   }
 
@@ -499,7 +499,7 @@ export class RequestsMainList {
     } else {
       set.add(req.id);
     }
-    this.selectedRowIds.set(set);
+    this.state.selectedIds.set(set);
     this.selectedCell.set({ requestId: req.id, column });
     this.lastClickedRowId.set(req.id);
     this.syncWorkspaceSelection(req);
@@ -572,7 +572,7 @@ export class RequestsMainList {
     for (let i = start; i <= end; i++) {
       next.add(visible[i].id);
     }
-    this.selectedRowIds.set(next);
+    this.state.selectedIds.set(next);
     this.selectedCell.set({ requestId: req.id, column });
     this.syncWorkspaceSelection(req);
   }
@@ -604,7 +604,7 @@ export class RequestsMainList {
         this.dragHasMoved.set(true);
         const startReq = this.activeRequests().find((r) => r.id === this.dragStartRowId());
         if (startReq) {
-          this.selectedRowIds.set(new Set([startReq.id]));
+          this.state.selectedIds.set(new Set([startReq.id]));
           this.selectedCell.set({ requestId: startReq.id, column: 'name' });
           this.lastClickedRowId.set(startReq.id);
           this.syncWorkspaceSelection(startReq);
@@ -663,7 +663,7 @@ export class RequestsMainList {
       next.add(requests[i].id);
     }
 
-    this.selectedRowIds.set(next);
+    this.state.selectedIds.set(next);
     this.selectedCell.set({ requestId: currentReq.id, column: 'name' });
   }
 
@@ -1103,6 +1103,7 @@ export class RequestsMainList {
         url: this.newRequestUrl().trim(),
         method: this.newRequestMethod(),
         body: '',
+        body_type: 'json',
         request_headers: '',
         status_code: 0,
         response_id: 0,
@@ -1131,6 +1132,7 @@ export class RequestsMainList {
         url: req.url,
         method: req.method,
         body: req.body,
+        body_type: req.body_type || 'json',
         request_headers: req.request_headers,
         status_code: 0,
         response_id: 0,
