@@ -386,9 +386,9 @@
   text-overflow: ellipsis;
 }
 
-.spreadsheet-cell.is-cell-selected {
+.request-method.is-cell-selected {
   outline: 2px dashed var(--selected-border);
-  outline-offset: -3px;
+  outline-offset: 2px;
 }
 
 .spreadsheet-cell--action {
@@ -463,9 +463,11 @@
   transition: outline 0.1s ease;
 }
 
-.request-line.is-cell-selected {
+.request-line.is-cell-selected .cell-text,
+.request-line.is-cell-selected .request-tags {
   outline: 2px dashed var(--selected-border);
-  outline-offset: -2px;
+  outline-offset: 2px;
+  border-radius: 3px;
 }
 
 .request-line--name {

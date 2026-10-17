@@ -188,11 +188,14 @@
 
         <div
           class="spreadsheet-cell spreadsheet-cell--method"
-          [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['method']"
           (click)="onRowClick(req, $event, 'method')"
           (dblclick)="onCellDoubleClick(req, 'method')"
         >
-          <span class="request-method" [attr.data-method]="req.method">{{ req.method }}</span>
+          <span
+            class="request-method"
+            [attr.data-method]="req.method"
+            [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['method']"
+          >{{ req.method }}</span>
         </div>
 
         <div class="request-details">
