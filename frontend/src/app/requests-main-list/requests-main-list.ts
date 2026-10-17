@@ -505,6 +505,12 @@ export class RequestsMainList {
       return;
     }
 
+    // A click on the already-selected cell (dashed outline) opens its editor.
+    if (this.rowState()[req.id]?.isCellSelected?.[column]) {
+      this.onCellDoubleClick(req, column);
+      return;
+    }
+
     // Plain click: clear existing multi-selection and select this row only.
     this.selectCell(req, column);
     this.lastClickedRowId.set(req.id);
