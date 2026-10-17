@@ -1,0 +1,108 @@
+:host {
+  flex: 0 0 auto;
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.bottom-drawer {
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  background: var(--surface-solid);
+  border-top: 1px solid var(--glass-border);
+  transition:
+    height 0.18s ease,
+    visibility 0s linear 0.18s;
+}
+
+.bottom-drawer.is-open {
+  height: 320px;
+  visibility: visible;
+  transition: height 0.18s ease;
+}
+
+.bottom-drawer-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 320px;
+  min-height: 0;
+}
+
+.bottom-drawer-close {
+  position: absolute;
+  top: 6px;
+  right: var(--s-3);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.bottom-drawer-close svg {
+  width: 14px;
+  height: 14px;
+}
+
+.bottom-drawer-close:hover {
+  color: var(--text);
+  background: var(--hover-highlight);
+}
+
+.bottom-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  gap: var(--s-4);
+  height: 36px;
+  padding: 0 var(--s-3);
+  box-sizing: border-box;
+  background: var(--surface);
+  border-top: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.bottom-tab {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 14px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.bottom-tab:hover {
+  background: var(--hover-highlight);
+}
+
+.bottom-tab.is-active {
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border-color: transparent;
+}

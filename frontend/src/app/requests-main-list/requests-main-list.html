@@ -221,6 +221,12 @@
   </div>
 }
 
+<app-request-bottom-drawer
+  [tabs]="bottomTabs"
+  [selectedIds]="selectedRowIds()"
+  [showingBin]="state.showingBin()"
+></app-request-bottom-drawer>
+
 <ng-template #rowContextMenu let-req>
   @if (state.showingBin()) {
     <button class="context-menu-item" type="button" (click)="openRestoreCollectionPicker()">

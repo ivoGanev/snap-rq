@@ -1,0 +1,47 @@
+.body-editor-shell {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.body-mode-row {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding: 0 var(--s-3) var(--s-2);
+}
+
+.body-editor-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+
+.body-type-select {
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  outline: none;
+  cursor: pointer;
+  --wails-draggable: no-drag;
+}
+
+.body-type-select:focus {
+  border-color: var(--selected-border);
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.body-editor {
+  flex: 1 1 auto;
+  display: block;
+  min-height: 0;
+}
