@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, TemplateRef, ViewChild, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, TemplateRef, ViewChild, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { Clipboard } from '@wailsio/runtime';
@@ -58,6 +58,7 @@ const DRAG_THRESHOLD_PX = 5;
     '(window:keydown)': 'onWindowKeydown($event)',
     '(window:mousemove)': 'onWindowMouseMove($event)',
     '(window:mouseup)': 'onWindowMouseUp()',
+    '(document:click)': 'onDocumentClick($event)',
   },
 })
 export class RequestsMainList {
@@ -93,6 +94,7 @@ export class RequestsMainList {
   // Selection state
   readonly selectedRowIds = computed(() => this.state.selectedIds());
   readonly selectedCell = signal<SelectedCell | null>(null);
+  readonly highlightedCell = signal<SelectedCell | null>(null);
   readonly lastClickedRowId = signal<number | null>(null);
   readonly isDragging = signal(false);
   readonly dragStartRowId = signal<number | null>(null);
@@ -102,12 +104,26 @@ export class RequestsMainList {
 
   readonly sortColumn = signal<ColumnKey | null>(null);
   readonly sortDirection = signal<SortDirection>('asc');
+  readonly sortMenuOpen = signal(false);
+
+  protected readonly rowHeight = 44;
+
+  readonly sortLabel = computed(() => {
+    const column = this.sortColumn();
+    if (!column) return 'Sort';
+    const label = COLUMNS.find((col) => col.key === column)?.label ?? column;
+    return `${label} ${this.sortDirection() === 'asc' ? '▲' : '▼'}`;
+  });
 
   // Single-cell edit modals
   readonly editModalOpen = signal(false);
   readonly editModalColumn = signal<ColumnKey | null>(null);
   readonly editModalRequest = signal<HttpRequestSummary | null>(null);
   readonly editModalValue = signal('');
+
+  readonly editingNameId = signal<number | null>(null);
+  readonly editingNameValue = signal('');
+  private readonly inlineNameInput = viewChild<ElementRef<HTMLInputElement>>('inlineNameInput');
 
   readonly methodModalOpen = signal(false);
   readonly methodModalRequest = signal<HttpRequestSummary | null>(null);
@@ -212,7 +228,7 @@ export class RequestsMainList {
    */
   readonly rowState = computed<Record<number, RowState>>(() => {
     const selectedIds = this.selectedRowIds();
-    const cell = this.selectedCell();
+    const cell = this.highlightedCell();
     const result: Record<number, RowState> = {};
 
     for (const req of this.filteredActiveRequests()) {
@@ -286,6 +302,7 @@ export class RequestsMainList {
 
       const version = ++this.loadVersion;
       this.requestSearchQuery.set('');
+      this.sortMenuOpen.set(false);
       this.clearSelection();
       this.state.selectedRequest.set(null);
       this.state.selectedResponse.set(null);
@@ -397,10 +414,25 @@ export class RequestsMainList {
       event.preventDefault();
       if (this.state.showingBin()) return;
       void this.duplicateSelectedRequest();
+      return;
+    }
+
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+      event.preventDefault();
+      if (this.state.showingBin()) return;
+      void this.sendSelectedRequest(event);
     }
   }
 
   onEscapePressed(): void {
+    if (this.editingNameId() !== null) {
+      this.cancelInlineNameEdit();
+      return;
+    }
+    if (this.sortMenuOpen()) {
+      this.closeSortMenu();
+      return;
+    }
     if (this.contextMenu.isOpen()) {
       this.contextMenu.close();
       return;
@@ -441,9 +473,15 @@ export class RequestsMainList {
 
   // ---------- Selection ----------
 
-  selectCell(req: HttpRequestSummary | HttpBinnedRequestSummary, column: ColumnKey): void {
+  selectCell(
+    req: HttpRequestSummary | HttpBinnedRequestSummary,
+    column: ColumnKey,
+    highlight = true,
+  ): void {
     this.state.selectedIds.set(new Set([req.id]));
-    this.selectedCell.set({ requestId: req.id, column });
+    const cell = { requestId: req.id, column };
+    this.selectedCell.set(cell);
+    this.highlightedCell.set(highlight ? cell : null);
     this.syncWorkspaceSelection(req);
 
     if (this.state.showingBin()) {
@@ -465,14 +503,22 @@ export class RequestsMainList {
   private clearSelection(): void {
     this.state.selectedIds.set(new Set());
     this.selectedCell.set(null);
+    this.highlightedCell.set(null);
+    this.cancelInlineNameEdit();
   }
 
   trackById(_index: number, req: HttpRequestSummary): number {
     return req.id;
   }
 
-  onRowClick(req: HttpRequestSummary | HttpBinnedRequestSummary, event: MouseEvent, column: ColumnKey): void {
+  onRowClick(
+    req: HttpRequestSummary | HttpBinnedRequestSummary,
+    event: MouseEvent,
+    column: ColumnKey,
+  ): void {
     if (event.button !== 0) return;
+    event.stopPropagation();
+    this.contextMenu.close();
 
     if (this.ignoreNextClick()) {
       this.ignoreNextClick.set(false);
@@ -490,7 +536,11 @@ export class RequestsMainList {
     }
 
     // Plain click: clear existing multi-selection and select this row only.
-    this.selectCell(req, column);
+    // The dashed cell outline only appears when the click hits the cell content.
+    const onContent =
+      event.target instanceof Element &&
+      !!event.target.closest('.cell-text, .request-method');
+    this.selectCell(req, column, onContent);
     this.lastClickedRowId.set(req.id);
   }
 
@@ -627,7 +677,7 @@ export class RequestsMainList {
    *   scrollOffset  = how far the list is currently scrolled down (px)
    *   relativeY + scrollOffset = mouse Y within the *entire* virtual content
    *
-   * Dividing that by the fixed row height (40px, must match the viewport's
+   * Dividing that by the fixed row height (must match the viewport's
    * `itemSize`) yields the index of the row under the cursor, which is then
    * clamped to the list bounds. Finally we select every row between the drag
    * start row and the row under the cursor.
@@ -639,7 +689,7 @@ export class RequestsMainList {
     const rect = viewport.getBoundingClientRect();
     const relativeY = event.clientY - rect.top;
     const scrollOffset = this.viewport.measureScrollOffset('top');
-    const rowHeight = 40;
+    const rowHeight = this.rowHeight;
     // Clamp so dragging above the first row or below the last row (or past the
     // bottom edge of the content) keeps the selection within the list.
     const index = Math.max(
@@ -1022,9 +1072,24 @@ export class RequestsMainList {
     }
   }
 
-  sortIndicator(column: ColumnKey): '' | 'asc' | 'desc' {
-    if (this.sortColumn() !== column) return '';
-    return this.sortDirection();
+  toggleSortMenu(): void {
+    this.sortMenuOpen.update((open) => !open);
+  }
+
+  closeSortMenu(): void {
+    this.sortMenuOpen.set(false);
+  }
+
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.sortMenuOpen()) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest('.sort-control')) return;
+    this.closeSortMenu();
+  }
+
+  selectSortColumn(column: ColumnKey): void {
+    this.toggleSort(column);
+    this.closeSortMenu();
   }
 
   private compareRequests(a: HttpRequestSummary, b: HttpRequestSummary, column: ColumnKey): number {
@@ -1147,12 +1212,18 @@ export class RequestsMainList {
     }
   }
 
-  async sendSelectedRequest(event: MouseEvent): Promise<void> {
+  async sendSelectedRequest(event: Event): Promise<void> {
     if (this.state.showingBin()) return;
+
+    const selectedIds = [...this.selectedRowIds()];
+    if (selectedIds.length > 1) {
+      await this.sendMultipleRequests(selectedIds, event);
+      return;
+    }
 
     let req = this.state.selectedRequest();
     if (!req) {
-      const selectedId = this.selectedCell()?.requestId ?? [...this.selectedRowIds()][0];
+      const selectedId = this.selectedCell()?.requestId ?? selectedIds[0];
       if (!selectedId) return;
       try {
         req = await this.requestApi.get(selectedId);
@@ -1163,6 +1234,31 @@ export class RequestsMainList {
       this.state.selectedRequest.set(req);
     }
     await this.state.sendRequest(req, event);
+  }
+
+  private async sendMultipleRequests(ids: number[], event: Event): Promise<void> {
+    try {
+      const requests = await Promise.all(ids.map((id) => this.requestApi.get(id)));
+      await this.state.sendRequests(requests, event);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async sendRowRequest(
+    req: HttpRequestSummary | HttpBinnedRequestSummary,
+    event: Event,
+  ): Promise<void> {
+    event.stopPropagation();
+    if (this.state.showingBin()) return;
+
+    this.contextMenu.close();
+    const selected = this.selectedRowIds();
+    if (selected.size <= 1 || !selected.has(req.id)) {
+      this.selectCell(req as HttpRequestSummary, 'name');
+      this.lastClickedRowId.set(req.id);
+    }
+    await this.sendSelectedRequest(event);
   }
 
   onFavouriteButtonClick(): void {
@@ -1187,6 +1283,10 @@ export class RequestsMainList {
   onCellDoubleClick(req: HttpRequestSummary | HttpBinnedRequestSummary, column: ColumnKey): void {
     if (this.state.showingBin()) return;
     const request = req as HttpRequestSummary;
+    if (column === 'name') {
+      this.startInlineNameEdit(request);
+      return;
+    }
     if (column === 'method') {
       this.openMethodModal(request);
       return;
@@ -1196,6 +1296,35 @@ export class RequestsMainList {
       return;
     }
     this.openEditModal(request, column);
+  }
+
+  // ---------- Inline name edit ----------
+
+  startInlineNameEdit(req: HttpRequestSummary): void {
+    this.contextMenu.close();
+    this.editingNameId.set(req.id);
+    this.editingNameValue.set(req.name);
+
+    setTimeout(() => {
+      const input = this.inlineNameInput()?.nativeElement;
+      input?.focus();
+      input?.select();
+    });
+  }
+
+  cancelInlineNameEdit(): void {
+    this.editingNameId.set(null);
+    this.editingNameValue.set('');
+  }
+
+  async commitInlineNameEdit(req: HttpRequestSummary): Promise<void> {
+    if (this.editingNameId() !== req.id) return;
+
+    const value = this.editingNameValue();
+    this.cancelInlineNameEdit();
+    if (value === req.name) return;
+
+    await this.updateRequestField(req, 'name', value);
   }
 
   // ---------- Text edit modal ----------
