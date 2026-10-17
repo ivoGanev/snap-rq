@@ -300,7 +300,7 @@
 
 .spreadsheet-row {
   display: grid;
-  grid-template-columns: 44px 100px minmax(0, 1fr);
+  grid-template-columns: 44px 100px minmax(0, 1fr) 64px;
   align-items: center;
   width: 100%;
 }
@@ -400,6 +400,47 @@
 .spreadsheet-cell--method {
   justify-content: flex-start;
   padding: 0 var(--s-2);
+}
+
+.spreadsheet-cell--send {
+  justify-content: flex-end;
+  padding: 0 var(--s-2) 0 0;
+}
+
+.row-send-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #fff;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(4px);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    visibility 0.15s ease,
+    filter 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.spreadsheet-row:hover .row-send-button,
+.spreadsheet-row.is-selected .row-send-button {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+}
+
+.row-send-button:hover {
+  filter: brightness(1.15);
 }
 
 .request-details {

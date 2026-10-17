@@ -1211,6 +1211,18 @@ export class RequestsMainList {
     await this.state.sendRequest(req, event);
   }
 
+  async sendRowRequest(
+    req: HttpRequestSummary | HttpBinnedRequestSummary,
+    event: MouseEvent,
+  ): Promise<void> {
+    event.stopPropagation();
+    if (this.state.showingBin()) return;
+
+    this.selectCell(req as HttpRequestSummary, 'name');
+    this.lastClickedRowId.set(req.id);
+    await this.sendSelectedRequest(event);
+  }
+
   onFavouriteButtonClick(): void {
     if (this.selectedRowIds().size <= 1) {
       const req = this.selectedRequest() ?? this.selectedRequests()[0];

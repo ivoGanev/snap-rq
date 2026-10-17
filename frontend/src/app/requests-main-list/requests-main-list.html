@@ -247,6 +247,20 @@
             </div>
           }
         </div>
+
+        <div class="spreadsheet-cell spreadsheet-cell--send">
+          @if (!state.showingBin()) {
+            <button
+              class="row-send-button"
+              type="button"
+              (mousedown)="$event.stopPropagation()"
+              (click)="sendRowRequest(req, $event)"
+              aria-label="Send request"
+            >
+              Send
+            </button>
+          }
+        </div>
       </div>
     </cdk-virtual-scroll-viewport>
   </div>
