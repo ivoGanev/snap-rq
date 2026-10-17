@@ -12,24 +12,13 @@ import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { RequestApiService, type HttpRequest } from '../core/services/request.service';
 import { ApiRequestsService } from '../core/services/api-requests.service';
+import { RequestChangeEventsService } from '../core/services/request-change-events.service';
 import { FavouriteApiService } from '../core/services/favourite.service';
 import { EnvironmentVariableApiService } from '../core/services/environment-variable.service';
 import { RequestBodyEditor } from '../request-body-editor/request-body-editor';
 import { type BodyType } from '../body-editor/body-editor';
 
 type BodyTabState = 'idle' | 'loading' | 'ready' | 'mismatch' | 'unavailable';
-
-/** Treats empty or parseable JSON as JSON so the editor offers formatting. */
-function looksLikeJson(text: string): boolean {
-  const trimmed = text.trim();
-  if (!trimmed) return true;
-  try {
-    JSON.parse(trimmed);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 /**
  * Body tab content for the request bottom drawer.
@@ -50,6 +39,7 @@ export class RequestBodyTab {
   private readonly apiRequests = inject(ApiRequestsService);
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly envVarApi = inject(EnvironmentVariableApiService);
+  private readonly changeEvents = inject(RequestChangeEventsService);
 
   readonly selectedIds = input<Set<number>>(new Set());
 
@@ -57,6 +47,7 @@ export class RequestBodyTab {
   readonly bodyDraft = signal('');
   readonly bodyBaseline = signal('');
   readonly bodyType = signal<BodyType>('json');
+  readonly bodyTypeBaseline = signal<BodyType>('json');
   readonly bodySaving = signal(false);
   readonly bodyEditCount = signal(0);
   readonly bodyWipeConfirmOpen = signal(false);
@@ -66,9 +57,9 @@ export class RequestBodyTab {
     this.envVarApi.variables().map((v) => ({ key: v.key, value: v.value })),
   );
 
-  protected readonly bodyEditorType = computed<BodyType>(() => this.bodyType());
-
-  readonly bodyDirty = computed(() => this.bodyDraft() !== this.bodyBaseline());
+  readonly bodyDirty = computed(
+    () => this.bodyDraft() !== this.bodyBaseline() || this.bodyType() !== this.bodyTypeBaseline(),
+  );
 
   private bodyRequests: HttpRequest[] = [];
   private bodyLoadVersion = 0;
@@ -78,6 +69,17 @@ export class RequestBodyTab {
     effect(() => {
       const ids = this.selectedIds();
       untracked(() => void this.refreshBodyForSelection(ids));
+    });
+
+    // Refresh the drawer if the request body was edited elsewhere (e.g. Zen mode).
+    effect(() => {
+      const event = this.changeEvents.bodyChanged();
+      if (!event) return;
+
+      const ids = untracked(() => this.selectedIds());
+      if (!ids.has(event.id)) return;
+
+      void this.refreshBodyForSelection(ids);
     });
 
     effect(() => {
@@ -108,7 +110,11 @@ export class RequestBodyTab {
       if (version !== this.bodyLoadVersion) return;
 
       const first = requests[0]?.body ?? '';
-      if (!requests.every((r) => r.body === first)) {
+      const firstType: BodyType = requests[0]?.body_type === 'text' ? 'text' : 'json';
+      const allMatch = requests.every(
+        (r) => r.body === first && (r.body_type === 'text' ? 'text' : 'json') === firstType,
+      );
+      if (!allMatch) {
         this.bodyTabState.set('mismatch');
         return;
       }
@@ -116,7 +122,8 @@ export class RequestBodyTab {
       this.bodyRequests = requests;
       this.bodyBaseline.set(first);
       this.bodyDraft.set(first);
-      this.bodyType.set(looksLikeJson(first) ? 'json' : 'text');
+      this.bodyType.set(firstType);
+      this.bodyTypeBaseline.set(firstType);
       this.bodyEditCount.set(requests.length);
       this.bodyTabState.set('ready');
     } catch (err) {
@@ -129,6 +136,9 @@ export class RequestBodyTab {
 
   setBodyType(type: BodyType): void {
     this.bodyType.set(type);
+    if (this.bodyEditCount() === 1) {
+      this.scheduleBodyAutosave();
+    }
   }
 
   onBodyTextChange(text: string): void {
@@ -142,7 +152,7 @@ export class RequestBodyTab {
     if (this.bodySaveTimer !== null) window.clearTimeout(this.bodySaveTimer);
     this.bodySaveTimer = window.setTimeout(() => {
       this.bodySaveTimer = null;
-      void this.commitBody(this.bodyDraft());
+      void this.commitBody();
     }, 400);
   }
 
@@ -151,18 +161,22 @@ export class RequestBodyTab {
       window.clearTimeout(this.bodySaveTimer);
       this.bodySaveTimer = null;
     }
-    await this.commitBody(this.bodyDraft());
+    await this.commitBody();
   }
 
-  private async commitBody(body: string): Promise<void> {
+  private async commitBody(): Promise<void> {
     const requests = this.bodyRequests;
     if (requests.length === 0) return;
 
+    const body = this.bodyDraft();
+    const bodyType = this.bodyType();
+
     this.bodySaving.set(true);
     try {
-      const saved = await this.saveBodyFor(requests, body);
+      const saved = await this.saveBodyFor(requests, body, bodyType);
       this.bodyRequests = saved;
       this.bodyBaseline.set(body);
+      this.bodyTypeBaseline.set(bodyType);
     } catch (err) {
       console.error(err);
     } finally {
@@ -190,13 +204,14 @@ export class RequestBodyTab {
 
     this.bodySaving.set(true);
     try {
-      const saved = await this.apiRequests.bulkUpdateBody(ids, '');
+      const saved = await this.apiRequests.bulkUpdateBody(ids, '', 'json');
       this.syncRequestsInWorkspace(saved);
 
       this.bodyRequests = saved;
       this.bodyBaseline.set('');
       this.bodyDraft.set('');
       this.bodyType.set('json');
+      this.bodyTypeBaseline.set('json');
       this.bodyEditCount.set(saved.length);
       this.bodyTabState.set('ready');
     } catch (err) {
@@ -212,9 +227,13 @@ export class RequestBodyTab {
    * selection/favourite copies. Does not touch the tab's own request list,
    * so callers can flush without racing a selection change.
    */
-  private async saveBodyFor(requests: HttpRequest[], body: string): Promise<HttpRequest[]> {
+  private async saveBodyFor(
+    requests: HttpRequest[],
+    body: string,
+    bodyType: BodyType,
+  ): Promise<HttpRequest[]> {
     const ids = requests.map((req) => req.id);
-    const saved = await this.apiRequests.bulkUpdateBody(ids, body);
+    const saved = await this.apiRequests.bulkUpdateBody(ids, body, bodyType);
     this.syncRequestsInWorkspace(saved);
     return saved;
   }
@@ -226,7 +245,7 @@ export class RequestBodyTab {
     }
     const single = this.bodyRequests.length === 1 ? this.bodyRequests[0] : null;
     if (single && this.bodyDirty()) {
-      void this.saveBodyFor([single], this.bodyDraft());
+      void this.saveBodyFor([single], this.bodyDraft(), this.bodyType());
     }
   }
 

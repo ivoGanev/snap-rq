@@ -276,7 +276,7 @@ func (s *TagService) DeleteTag(projectID int64, tagName string) error {
 func (s *TagService) GetRequestsForTag(projectID int64, tagName string) ([]models.HttpRequest, error) {
 	name := normaliseTagName(tagName)
 	rows, err := s.db.Query(`
-		SELECT r.id, r.collection_id, c.project_id, r.name, r.url, r.method, r.body, r.request_headers, r.status_code, r.response_id
+		SELECT r.id, r.collection_id, c.project_id, r.name, r.url, r.method, r.body, r.body_type, r.request_headers, r.status_code, r.response_id
 		FROM http_requests r
 		JOIN collections c ON c.id = r.collection_id
 		JOIN request_tags rt ON rt.request_id = r.id
@@ -293,7 +293,7 @@ func (s *TagService) GetRequestsForTag(projectID int64, tagName string) ([]model
 	var requests []models.HttpRequest
 	for rows.Next() {
 		var req models.HttpRequest
-		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.RequestHeaders, &req.StatusCode, &req.ResponseID); err != nil {
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID); err != nil {
 			return nil, fmt.Errorf("scanning request for tag: %w", err)
 		}
 		requests = append(requests, req)

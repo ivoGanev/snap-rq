@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -49,6 +50,10 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
+	if err := addBodyTypeColumns(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
 	if err := ensureDefaultCollection(db); err != nil {
 		return nil, fmt.Errorf("ensuring default collection: %w", err)
 	}
@@ -86,6 +91,7 @@ func migrate(db *sql.DB) error {
 			url TEXT NOT NULL,
 			method TEXT NOT NULL,
 			body TEXT,
+			body_type TEXT NOT NULL DEFAULT 'json' CHECK(body_type IN ('json', 'text')),
 			request_headers TEXT,
 			status_code INTEGER NOT NULL DEFAULT 0,
 			response_id INTEGER NOT NULL DEFAULT 0,
@@ -177,6 +183,7 @@ func migrate(db *sql.DB) error {
 			url TEXT NOT NULL,
 			method TEXT NOT NULL,
 			body TEXT,
+			body_type TEXT NOT NULL DEFAULT 'json' CHECK(body_type IN ('json', 'text')),
 			request_headers TEXT,
 			status_code INTEGER NOT NULL DEFAULT 0,
 			response_id INTEGER NOT NULL DEFAULT 0,
@@ -470,6 +477,66 @@ func addResponseDurationMsColumn(db *sql.DB) error {
 		}
 	}
 
+	return nil
+}
+
+func addBodyTypeColumns(db *sql.DB) error {
+	added := false
+	if !columnExists(db, "http_requests", "body_type") {
+		_, err := db.Exec("ALTER TABLE http_requests ADD COLUMN body_type TEXT NOT NULL DEFAULT 'json'")
+		if err != nil {
+			return fmt.Errorf("adding body_type column to http_requests: %w", err)
+		}
+		added = true
+	}
+	if !columnExists(db, "binned_requests", "body_type") {
+		_, err := db.Exec("ALTER TABLE binned_requests ADD COLUMN body_type TEXT NOT NULL DEFAULT 'json'")
+		if err != nil {
+			return fmt.Errorf("adding body_type column to binned_requests: %w", err)
+		}
+		added = true
+	}
+
+	if added {
+		if err := backfillRequestBodyTypes(db, "http_requests"); err != nil {
+			return err
+		}
+		if err := backfillRequestBodyTypes(db, "binned_requests"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// backfillRequestBodyTypes marks existing rows as plain text when their body is
+// not valid JSON, so the stored type matches what the editor would infer.
+func backfillRequestBodyTypes(db *sql.DB, table string) error {
+	rows, err := db.Query(fmt.Sprintf("SELECT id, body FROM %s WHERE body IS NOT NULL AND body <> ''", table))
+	if err != nil {
+		return fmt.Errorf("listing %s for body_type backfill: %w", table, err)
+	}
+	defer rows.Close()
+
+	var textIDs []int64
+	for rows.Next() {
+		var id int64
+		var body string
+		if err := rows.Scan(&id, &body); err != nil {
+			return fmt.Errorf("scanning %s for body_type backfill: %w", table, err)
+		}
+		if !json.Valid([]byte(body)) {
+			textIDs = append(textIDs, id)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterating %s for body_type backfill: %w", table, err)
+	}
+
+	for _, id := range textIDs {
+		if _, err := db.Exec(fmt.Sprintf("UPDATE %s SET body_type = 'text' WHERE id = ?", table), id); err != nil {
+			return fmt.Errorf("backfilling body_type for %s %d: %w", table, id, err)
+		}
+	}
 	return nil
 }
 

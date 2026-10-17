@@ -56,10 +56,10 @@
         <app-request-body-editor
           class="edit-body-editor"
           [body]="draftRequest()!.body"
-          [type]="bodyType()"
+          [type]="bodyEditorType()"
           [variables]="environmentVariables()"
           (bodyChange)="updateRequestField('body', $event)"
-          (typeChange)="setBodyType($event)"
+          (typeChange)="updateRequestField('body_type', $event)"
         ></app-request-body-editor>
       </div>
 

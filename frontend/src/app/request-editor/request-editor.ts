@@ -10,6 +10,7 @@ import { ApiRequestsService } from '../core/services/api-requests.service';
 import { FavouriteApiService } from '../core/services/favourite.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
 import { EnvironmentVariableApiService } from '../core/services/environment-variable.service';
+import { RequestChangeEventsService } from '../core/services/request-change-events.service';
 import { RequestBodyEditor } from '../request-body-editor/request-body-editor';
 import { type BodyType } from '../body-editor/body-editor';
 
@@ -26,6 +27,7 @@ export class RequestEditor {
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly tagApi = inject(TagApiService);
   private readonly envVarApi = inject(EnvironmentVariableApiService);
+  private readonly changeEvents = inject(RequestChangeEventsService);
 
   protected readonly requestTags = this.tagApi.requestTags;
   protected readonly environmentVariables = computed(() =>
@@ -35,9 +37,10 @@ export class RequestEditor {
   readonly draftRequest = signal<HttpRequest | null>(null);
   readonly tagInputOpen = signal(false);
   readonly newTagName = signal('');
-  readonly bodyType = signal<BodyType>('json');
 
-  private previousRequestId: number | null = null;
+  readonly bodyEditorType = computed<BodyType>(() =>
+    this.draftRequest()?.body_type === 'text' ? 'text' : 'json',
+  );
 
   readonly tagSuggestions = computed<Tag[]>(() => {
     const query = this.newTagName().trim().toLowerCase();
@@ -56,12 +59,6 @@ export class RequestEditor {
     effect(() => {
       const req = this.state.selectedRequest();
       this.draftRequest.set(req ? { ...req } : null);
-
-      const id = req?.id ?? null;
-      if (id !== this.previousRequestId) {
-        this.previousRequestId = id;
-        this.bodyType.set('json');
-      }
     });
 
     effect(() => {
@@ -91,6 +88,10 @@ export class RequestEditor {
       });
       this.state.selectedRequest.set(saved);
 
+      if (field === 'body' || field === 'body_type') {
+        this.changeEvents.notifyBodyChanged(saved.id);
+      }
+
       const favList = this.favouriteApi.requests();
       const favIndex = favList.findIndex((r) => r.id === saved.id);
       if (favIndex !== -1) {
@@ -101,10 +102,6 @@ export class RequestEditor {
     } catch (err) {
       console.error(err);
     }
-  }
-
-  setBodyType(type: BodyType): void {
-    this.bodyType.set(type);
   }
 
   openTagInput(): void {

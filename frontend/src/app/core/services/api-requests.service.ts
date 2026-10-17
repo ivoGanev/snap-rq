@@ -93,8 +93,8 @@ export class ApiRequestsService {
     return updated;
   }
 
-  async bulkUpdateBody(ids: number[], body: string): Promise<HttpRequest[]> {
-    const updated = await this.requestApi.bulkUpdateBody(ids, body);
+  async bulkUpdateBody(ids: number[], body: string, bodyType: string): Promise<HttpRequest[]> {
+    const updated = await this.requestApi.bulkUpdateBody(ids, body, bodyType);
     for (const req of updated) {
       this.patch(req.id, {
         collection_id: req.collection_id,

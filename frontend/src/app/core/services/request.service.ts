@@ -96,8 +96,8 @@ export class RequestApiService {
     return updated;
   }
 
-  async bulkUpdateBody(ids: number[], body: string): Promise<HttpRequest[]> {
-    const result = await RequestService.RequestService.BulkUpdateRequestBody(ids, body);
+  async bulkUpdateBody(ids: number[], body: string, bodyType: string): Promise<HttpRequest[]> {
+    const result = await RequestService.RequestService.BulkUpdateRequestBody(ids, body, bodyType);
     return result ?? [];
   }
 
