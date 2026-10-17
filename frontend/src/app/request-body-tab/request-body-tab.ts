@@ -4,12 +4,12 @@ import { type HttpRequest } from '../core/services/request.service';
 import { ApiRequestsService } from '../core/services/api-requests.service';
 import { EnvironmentVariableApiService } from '../core/services/environment-variable.service';
 import { RequestBodyEditor } from '../request-body-editor/request-body-editor';
-import { type BodyType } from '../body-editor/body-editor';
+import { type EditorLanguage } from '../code-editor/code-editor';
 import { RequestDrawerTabBase } from '../request-bottom-drawer/request-drawer-tab.base';
 
 interface BodyValue {
   body: string;
-  bodyType: BodyType;
+  bodyType: EditorLanguage;
 }
 
 /**
@@ -35,8 +35,8 @@ export class RequestBodyTab extends RequestDrawerTabBase<BodyValue> {
 
   readonly bodyDraft = signal('');
   readonly bodyBaseline = signal('');
-  readonly bodyType = signal<BodyType>('json');
-  readonly bodyTypeBaseline = signal<BodyType>('json');
+  readonly bodyType = signal<EditorLanguage>('json');
+  readonly bodyTypeBaseline = signal<EditorLanguage>('json');
   readonly bodyWipeConfirmOpen = signal(false);
   readonly bodyWipeCount = signal(0);
 
@@ -95,7 +95,7 @@ export class RequestBodyTab extends RequestDrawerTabBase<BodyValue> {
     this.bodyType.set(value.bodyType);
   }
 
-  setBodyType(type: BodyType): void {
+  setBodyType(type: EditorLanguage): void {
     this.bodyType.set(type);
     if (this.editCount() === 1) {
       this.scheduleBodyAutosave();

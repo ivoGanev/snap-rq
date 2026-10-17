@@ -11,11 +11,12 @@ import { FavouriteApiService } from '../core/services/favourite.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
 import { EnvironmentVariableApiService } from '../core/services/environment-variable.service';
 import { RequestBodyEditor } from '../request-body-editor/request-body-editor';
-import { type BodyType } from '../body-editor/body-editor';
+import { RequestHeadersEditor } from '../request-headers-editor/request-headers-editor';
+import { type EditorLanguage } from '../code-editor/code-editor';
 
 @Component({
   selector: 'app-request-editor',
-  imports: [FormsModule, RequestBodyEditor],
+  imports: [FormsModule, RequestBodyEditor, RequestHeadersEditor],
   templateUrl: './request-editor.html',
   styleUrl: './request-editor.scss',
 })
@@ -36,7 +37,7 @@ export class RequestEditor {
   readonly tagInputOpen = signal(false);
   readonly newTagName = signal('');
 
-  readonly bodyEditorType = computed<BodyType>(() =>
+  readonly bodyEditorType = computed<EditorLanguage>(() =>
     this.draftRequest()?.body_type === 'text' ? 'text' : 'json',
   );
 
