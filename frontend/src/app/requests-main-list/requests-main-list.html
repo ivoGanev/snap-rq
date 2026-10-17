@@ -159,7 +159,7 @@
         [class.is-selected]="rowState()[req.id]?.isSelected"
         [class.is-active-drag-row]="dragStartRowId() === req.id"
         (mousedown)="onRowMouseDown(req, $event)"
-        (click)="onRowClick(req, $event, 'name')"
+        (click)="onRowClick(req, $event, 'name', false)"
         (contextmenu)="onRowContextMenu(req, $event, rowContextMenu)"
       >
         <div class="spreadsheet-cell spreadsheet-cell--action">
@@ -203,8 +203,6 @@
           <div
             class="request-line request-line--name"
             [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['name']"
-            (click)="onRowClick(req, $event, 'name')"
-            (dblclick)="onCellDoubleClick(req, 'name')"
             [title]="req.name"
           >
             @if (editingNameId() === req.id) {
@@ -222,28 +220,36 @@
                 (blur)="commitInlineNameEdit(req)"
               />
             } @else {
-              <span class="cell-text">{{ req.name }}</span>
+              <span
+                class="cell-text"
+                (click)="onRowClick(req, $event, 'name')"
+                (dblclick)="onCellDoubleClick(req, 'name')"
+              >{{ req.name }}</span>
             }
           </div>
 
           <div
             class="request-line request-line--url"
             [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['url']"
-            (click)="onRowClick(req, $event, 'url')"
-            (dblclick)="onCellDoubleClick(req, 'url')"
             [title]="req.url"
           >
-            <span class="cell-text">{{ req.url }}</span>
+            <span
+              class="cell-text"
+              (click)="onRowClick(req, $event, 'url')"
+              (dblclick)="onCellDoubleClick(req, 'url')"
+            >{{ req.url }}</span>
           </div>
 
           @if (requestTags()[req.id]?.length) {
             <div
               class="request-line request-line--tags"
               [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['tags']"
-              (click)="onRowClick(req, $event, 'tags')"
-              (dblclick)="onCellDoubleClick(req, 'tags')"
             >
-              <div class="request-tags">
+              <div
+                class="request-tags"
+                (click)="onRowClick(req, $event, 'tags')"
+                (dblclick)="onCellDoubleClick(req, 'tags')"
+              >
                 @for (tag of requestTags()[req.id]; track tag) {
                   <span class="tag-chip tag-chip--inline">{{ tag }}</span>
                 }

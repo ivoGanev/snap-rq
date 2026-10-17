@@ -503,7 +503,12 @@ export class RequestsMainList {
     return req.id;
   }
 
-  onRowClick(req: HttpRequestSummary | HttpBinnedRequestSummary, event: MouseEvent, column: ColumnKey): void {
+  onRowClick(
+    req: HttpRequestSummary | HttpBinnedRequestSummary,
+    event: MouseEvent,
+    column: ColumnKey,
+    editIfSelected = true,
+  ): void {
     if (event.button !== 0) return;
     event.stopPropagation();
     this.contextMenu.close();
@@ -523,8 +528,12 @@ export class RequestsMainList {
       return;
     }
 
-    // A click on the already-selected cell (dashed outline) opens its editor.
-    if (this.rowState()[req.id]?.isCellSelected?.[column]) {
+    // A click on the already-selected cell content opens its editor.
+    if (
+      editIfSelected &&
+      this.rowState()[req.id]?.isCellSelected?.[column] &&
+      this.isEditTarget(event)
+    ) {
       this.onCellDoubleClick(req, column);
       return;
     }
@@ -532,6 +541,14 @@ export class RequestsMainList {
     // Plain click: clear existing multi-selection and select this row only.
     this.selectCell(req, column);
     this.lastClickedRowId.set(req.id);
+  }
+
+  private isEditTarget(event: MouseEvent): boolean {
+    const target = event.target;
+    return (
+      target instanceof Element &&
+      !!target.closest('.cell-text, .request-tags, .request-method, .inline-name-input')
+    );
   }
 
   private toggleRowSelection(req: HttpRequestSummary | HttpBinnedRequestSummary, column: ColumnKey): void {
