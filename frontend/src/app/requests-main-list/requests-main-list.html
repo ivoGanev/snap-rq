@@ -203,7 +203,23 @@
             (dblclick)="onCellDoubleClick(req, 'name')"
             [title]="req.name"
           >
-            <span class="cell-text">{{ req.name }}</span>
+            @if (editingNameId() === req.id) {
+              <input
+                #inlineNameInput
+                class="inline-name-input"
+                type="text"
+                [ngModel]="editingNameValue()"
+                (ngModelChange)="editingNameValue.set($event)"
+                (mousedown)="$event.stopPropagation()"
+                (click)="$event.stopPropagation()"
+                (dblclick)="$event.stopPropagation()"
+                (keydown.enter)="commitInlineNameEdit(req)"
+                (keydown.escape)="cancelInlineNameEdit(); $event.stopPropagation()"
+                (blur)="commitInlineNameEdit(req)"
+              />
+            } @else {
+              <span class="cell-text">{{ req.name }}</span>
+            }
           </div>
 
           <div

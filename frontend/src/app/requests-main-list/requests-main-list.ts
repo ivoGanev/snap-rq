@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, TemplateRef, ViewChild, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, TemplateRef, ViewChild, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { Clipboard } from '@wailsio/runtime';
@@ -119,6 +119,10 @@ export class RequestsMainList {
   readonly editModalColumn = signal<ColumnKey | null>(null);
   readonly editModalRequest = signal<HttpRequestSummary | null>(null);
   readonly editModalValue = signal('');
+
+  readonly editingNameId = signal<number | null>(null);
+  readonly editingNameValue = signal('');
+  private readonly inlineNameInput = viewChild<ElementRef<HTMLInputElement>>('inlineNameInput');
 
   readonly methodModalOpen = signal(false);
   readonly methodModalRequest = signal<HttpRequestSummary | null>(null);
@@ -413,6 +417,10 @@ export class RequestsMainList {
   }
 
   onEscapePressed(): void {
+    if (this.editingNameId() !== null) {
+      this.cancelInlineNameEdit();
+      return;
+    }
     if (this.sortMenuOpen()) {
       this.closeSortMenu();
       return;
@@ -481,6 +489,7 @@ export class RequestsMainList {
   private clearSelection(): void {
     this.state.selectedIds.set(new Set());
     this.selectedCell.set(null);
+    this.cancelInlineNameEdit();
   }
 
   trackById(_index: number, req: HttpRequestSummary): number {
@@ -1224,6 +1233,10 @@ export class RequestsMainList {
   onCellDoubleClick(req: HttpRequestSummary | HttpBinnedRequestSummary, column: ColumnKey): void {
     if (this.state.showingBin()) return;
     const request = req as HttpRequestSummary;
+    if (column === 'name') {
+      this.startInlineNameEdit(request);
+      return;
+    }
     if (column === 'method') {
       this.openMethodModal(request);
       return;
@@ -1233,6 +1246,35 @@ export class RequestsMainList {
       return;
     }
     this.openEditModal(request, column);
+  }
+
+  // ---------- Inline name edit ----------
+
+  startInlineNameEdit(req: HttpRequestSummary): void {
+    this.contextMenu.close();
+    this.editingNameId.set(req.id);
+    this.editingNameValue.set(req.name);
+
+    setTimeout(() => {
+      const input = this.inlineNameInput()?.nativeElement;
+      input?.focus();
+      input?.select();
+    });
+  }
+
+  cancelInlineNameEdit(): void {
+    this.editingNameId.set(null);
+    this.editingNameValue.set('');
+  }
+
+  async commitInlineNameEdit(req: HttpRequestSummary): Promise<void> {
+    if (this.editingNameId() !== req.id) return;
+
+    const value = this.editingNameValue();
+    this.cancelInlineNameEdit();
+    if (value === req.name) return;
+
+    await this.updateRequestField(req, 'name', value);
   }
 
   // ---------- Text edit modal ----------

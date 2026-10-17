@@ -432,6 +432,23 @@
   font-weight: 600;
 }
 
+.inline-name-input {
+  width: 100%;
+  min-width: 0;
+  height: 18px;
+  margin: 0;
+  padding: 0 4px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--selected-border);
+  border-radius: 4px;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus-ring);
+  --wails-draggable: no-drag;
+}
+
 .request-line--url {
   font-size: 0.75rem;
   color: var(--muted);
