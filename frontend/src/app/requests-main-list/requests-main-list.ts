@@ -505,6 +505,7 @@ export class RequestsMainList {
 
   onRowClick(req: HttpRequestSummary | HttpBinnedRequestSummary, event: MouseEvent, column: ColumnKey): void {
     if (event.button !== 0) return;
+    event.stopPropagation();
 
     if (this.ignoreNextClick()) {
       this.ignoreNextClick.set(false);
