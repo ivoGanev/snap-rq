@@ -1246,7 +1246,7 @@ export class RequestsMainList {
   private async sendMultipleRequests(ids: number[], event: Event): Promise<void> {
     try {
       const requests = await Promise.all(ids.map((id) => this.requestApi.get(id)));
-      await Promise.all(requests.map((req) => this.state.sendRequest(req, event)));
+      await this.state.sendRequests(requests, event);
     } catch (err) {
       console.error(err);
     }

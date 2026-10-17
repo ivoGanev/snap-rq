@@ -660,6 +660,68 @@ func (s *RequestService) CreateResponse(resp models.HttpResponse) (models.HttpRe
 	return s.GetResponse(id)
 }
 
+// saveResponseTx inserts a response and points its originating request at the
+// new row, all inside the caller's transaction.
+func saveResponseTx(tx *sql.Tx, resp models.HttpResponse) (models.HttpResponse, error) {
+	if resp.CreatedAt == "" {
+		resp.CreatedAt = time.Now().UTC().Format("2006-01-02 15:04:05")
+	}
+
+	result, err := tx.Exec(
+		`INSERT INTO responses (request_id, headers, status_code, body, created_at, duration_ms)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		resp.RequestID, resp.Headers, resp.StatusCode, resp.Body, resp.CreatedAt, resp.DurationMs,
+	)
+	if err != nil {
+		return models.HttpResponse{}, fmt.Errorf("creating response: %w", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return models.HttpResponse{}, fmt.Errorf("getting last insert id: %w", err)
+	}
+	resp.ID = id
+
+	if _, err := tx.Exec(
+		`UPDATE http_requests SET status_code = ?, response_id = ? WHERE id = ?`,
+		resp.StatusCode, id, resp.RequestID,
+	); err != nil {
+		return models.HttpResponse{}, fmt.Errorf("updating request status: %w", err)
+	}
+
+	return resp, nil
+}
+
+// BulkSaveResponses persists a batch of responses and updates their originating
+// requests in one transaction, so a multi-request send performs a single commit
+// instead of racing many concurrent writes.
+func (s *RequestService) BulkSaveResponses(responses []models.HttpResponse) ([]models.HttpResponse, error) {
+	if len(responses) == 0 {
+		return nil, nil
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("beginning bulk response transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	saved := make([]models.HttpResponse, 0, len(responses))
+	for _, resp := range responses {
+		stored, err := saveResponseTx(tx, resp)
+		if err != nil {
+			return nil, fmt.Errorf("saving response for request %d: %w", resp.RequestID, err)
+		}
+		saved = append(saved, stored)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("committing bulk response transaction: %w", err)
+	}
+
+	return saved, nil
+}
+
 // UpdateResponse updates an existing response record.
 func (s *RequestService) UpdateResponse(resp models.HttpResponse) (models.HttpResponse, error) {
 	if resp.ID == 0 {
