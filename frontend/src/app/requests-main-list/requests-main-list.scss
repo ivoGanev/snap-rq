@@ -422,8 +422,7 @@
   transition: outline 0.1s ease;
 }
 
-.request-line.is-cell-selected .cell-text,
-.request-line.is-cell-selected .request-tags {
+.request-line.is-cell-selected .cell-text {
   outline: 2px dashed var(--selected-border);
   outline-offset: 2px;
   border-radius: 3px;
@@ -454,15 +453,6 @@
 .request-line--url {
   font-size: 0.75rem;
   color: var(--muted);
-}
-
-.request-line--tags {
-  padding-top: 1px;
-}
-
-.request-line--tags .request-tags {
-  flex-wrap: nowrap;
-  overflow: hidden;
 }
 
 .zen-mode-button {

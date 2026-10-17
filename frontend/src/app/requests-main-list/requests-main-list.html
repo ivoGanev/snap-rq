@@ -239,23 +239,6 @@
               (dblclick)="onCellDoubleClick(req, 'url')"
             >{{ req.url }}</span>
           </div>
-
-          @if (requestTags()[req.id]?.length) {
-            <div
-              class="request-line request-line--tags"
-              [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['tags']"
-            >
-              <div
-                class="request-tags"
-                (click)="onRowClick(req, $event, 'tags')"
-                (dblclick)="onCellDoubleClick(req, 'tags')"
-              >
-                @for (tag of requestTags()[req.id]; track tag) {
-                  <span class="tag-chip tag-chip--inline">{{ tag }}</span>
-                }
-              </div>
-            </div>
-          }
         </div>
       </div>
     </cdk-virtual-scroll-viewport>

@@ -547,7 +547,7 @@ export class RequestsMainList {
     const target = event.target;
     return (
       target instanceof Element &&
-      !!target.closest('.cell-text, .request-tags, .request-method, .inline-name-input')
+      !!target.closest('.cell-text, .request-method, .inline-name-input')
     );
   }
 
