@@ -105,7 +105,7 @@ export class RequestsMainList {
   readonly sortDirection = signal<SortDirection>('asc');
   readonly sortMenuOpen = signal(false);
 
-  protected readonly rowHeight = 76;
+  protected readonly rowHeight = 44;
 
   readonly sortLabel = computed(() => {
     const column = this.sortColumn();
