@@ -109,6 +109,10 @@ export class ApiRequestsService {
     return this.applyBulkUpdate(this.requestApi.bulkUpdateMethod(ids, method));
   }
 
+  async bulkUpdateHeaders(ids: number[], headers: string): Promise<HttpRequest[]> {
+    return this.applyBulkUpdate(this.requestApi.bulkUpdateHeaders(ids, headers));
+  }
+
   private async applyBulkUpdate(pending: Promise<HttpRequest[]>): Promise<HttpRequest[]> {
     const updated = await pending;
     for (const req of updated) {

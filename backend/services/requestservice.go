@@ -551,6 +551,12 @@ func (s *RequestService) BulkUpdateRequestMethod(ids []int64, method string) ([]
 	return s.bulkUpdateStringField(ids, "method", method)
 }
 
+// BulkUpdateRequestHeaders sets the same headers on multiple requests in a
+// single transaction. It returns the updated requests in the same order as the ids.
+func (s *RequestService) BulkUpdateRequestHeaders(ids []int64, headers string) ([]models.HttpRequest, error) {
+	return s.bulkUpdateStringField(ids, "request_headers", headers)
+}
+
 // bulkUpdateStringField applies one string value to one column across many
 // requests. The column name is never user-supplied; callers pass a constant.
 func (s *RequestService) bulkUpdateStringField(ids []int64, column string, value string) ([]models.HttpRequest, error) {
@@ -594,6 +600,8 @@ func (s *RequestService) bulkUpdateStringField(ids []int64, column string, value
 			req.URL = value
 		case "method":
 			req.Method = value
+		case "request_headers":
+			req.RequestHeaders = value
 		}
 		updated = append(updated, req)
 	}
@@ -996,16 +1004,16 @@ func (s *RequestService) RestoreBinnedRequest(binID int64, targetCollectionID in
 	}
 
 	var binned struct {
-		ProjectID       int64
-		Name            string
-		URL             string
-		Method          string
-		Body            string
-		BodyType        string
-		RequestHeaders  string
-		StatusCode      int
-		ResponseID      int64
-		SnapshotJSON    string
+		ProjectID      int64
+		Name           string
+		URL            string
+		Method         string
+		Body           string
+		BodyType       string
+		RequestHeaders string
+		StatusCode     int
+		ResponseID     int64
+		SnapshotJSON   string
 	}
 	if err := tx.QueryRow(`
 		SELECT project_id, name, url, method, body, body_type, request_headers, status_code, response_id, snapshot_json
@@ -1169,4 +1177,3 @@ func (s *RequestService) PermanentlyDeleteBinnedRequests(binIDs []int64) error {
 	}
 	return nil
 }
-

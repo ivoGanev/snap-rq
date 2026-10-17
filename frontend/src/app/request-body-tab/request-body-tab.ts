@@ -1,11 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { type HttpRequest } from '../core/services/request.service';
 import { ApiRequestsService } from '../core/services/api-requests.service';
-import { EnvironmentVariableApiService } from '../core/services/environment-variable.service';
 import { RequestBodyEditor } from '../request-body-editor/request-body-editor';
 import { type EditorLanguage } from '../code-editor/code-editor';
-import { RequestDrawerTabBase } from '../request-bottom-drawer/request-drawer-tab.base';
+import { RequestCodeTabBase } from '../request-bottom-drawer/request-code-tab.base';
 
 interface BodyValue {
   body: string;
@@ -25,43 +24,18 @@ interface BodyValue {
   styleUrl: './request-body-tab.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class RequestBodyTab extends RequestDrawerTabBase<BodyValue> {
+export class RequestBodyTab extends RequestCodeTabBase<BodyValue> {
   private readonly apiRequests = inject(ApiRequestsService);
-  private readonly envVarApi = inject(EnvironmentVariableApiService);
 
   readonly bodyTabState = this.tabState;
   readonly bodyEditCount = this.editCount;
   readonly bodySaving = this.saving;
 
-  readonly bodyDraft = signal('');
-  readonly bodyBaseline = signal('');
-  readonly bodyType = signal<EditorLanguage>('json');
-  readonly bodyTypeBaseline = signal<EditorLanguage>('json');
-  readonly bodyWipeConfirmOpen = signal(false);
-  readonly bodyWipeCount = signal(0);
-
-  protected readonly environmentVariables = computed(() =>
-    this.envVarApi.variables().map((v) => ({ key: v.key, value: v.value })),
-  );
-
-  readonly bodyDirty = computed(
-    () => this.bodyDraft() !== this.bodyBaseline() || this.bodyType() !== this.bodyTypeBaseline(),
-  );
-
-  private bodySaveTimer: number | null = null;
-
-  constructor() {
-    super();
-
-    effect(() => {
-      const env = this.state.selectedEnvironment();
-      if (env) {
-        void this.envVarApi.loadForEnvironment(env.id);
-      } else {
-        this.envVarApi.variables.set([]);
-      }
-    });
-  }
+  readonly bodyDraft = computed(() => this.draftValue()?.body ?? '');
+  readonly bodyType = computed<EditorLanguage>(() => this.draftValue()?.bodyType ?? 'json');
+  readonly bodyDirty = this.dirty;
+  readonly bodyWipeConfirmOpen = this.wipeConfirmOpen;
+  readonly bodyWipeCount = this.wipeCount;
 
   protected override extractValue(req: HttpRequest): BodyValue {
     return { body: req.body, bodyType: req.body_type === 'text' ? 'text' : 'json' };
@@ -71,93 +45,40 @@ export class RequestBodyTab extends RequestDrawerTabBase<BodyValue> {
     return a.body === b.body && a.bodyType === b.bodyType;
   }
 
-  protected override async saveFor(requests: HttpRequest[], value: BodyValue): Promise<HttpRequest[]> {
+  protected override saveFor(requests: HttpRequest[], value: BodyValue): Promise<HttpRequest[]> {
     const ids = requests.map((req) => req.id);
     return this.apiRequests.bulkUpdateBody(ids, value.body, value.bodyType);
   }
 
-  protected override beforeReload(): void {
-    if (this.bodySaveTimer !== null) {
-      window.clearTimeout(this.bodySaveTimer);
-      this.bodySaveTimer = null;
-    }
-    const single = this.requests().length === 1 ? this.requests()[0] : null;
-    if (single && this.bodyDirty()) {
-      void this.flush({ body: this.bodyDraft(), bodyType: this.bodyType() });
-    }
-  }
-
-  protected override onLoaded(_requests: HttpRequest[], value: BodyValue | null): void {
-    if (!value) return;
-    this.bodyBaseline.set(value.body);
-    this.bodyDraft.set(value.body);
-    this.bodyTypeBaseline.set(value.bodyType);
-    this.bodyType.set(value.bodyType);
+  protected override emptyValue(): BodyValue {
+    return { body: '', bodyType: 'json' };
   }
 
   setBodyType(type: EditorLanguage): void {
-    this.bodyType.set(type);
-    if (this.editCount() === 1) {
-      this.scheduleBodyAutosave();
-    }
+    const draft = this.draftValue();
+    if (!draft) return;
+    this.updateDraft({ ...draft, bodyType: type });
   }
 
   onBodyTextChange(text: string): void {
-    this.bodyDraft.set(text);
-    if (this.editCount() === 1) {
-      this.scheduleBodyAutosave();
-    }
+    const draft = this.draftValue();
+    if (!draft) return;
+    this.updateDraft({ ...draft, body: text });
   }
 
-  private scheduleBodyAutosave(): void {
-    if (this.bodySaveTimer !== null) window.clearTimeout(this.bodySaveTimer);
-    this.bodySaveTimer = window.setTimeout(() => {
-      this.bodySaveTimer = null;
-      void this.commitBody();
-    }, 400);
-  }
-
-  async applyBodyEdits(): Promise<void> {
-    if (this.bodySaveTimer !== null) {
-      window.clearTimeout(this.bodySaveTimer);
-      this.bodySaveTimer = null;
-    }
-    await this.commitBody();
-  }
-
-  private async commitBody(): Promise<void> {
-    const body = this.bodyDraft();
-    const bodyType = this.bodyType();
-    const saved = await this.save({ body, bodyType });
-    if (saved.length > 0) {
-      this.bodyBaseline.set(body);
-      this.bodyTypeBaseline.set(bodyType);
-    }
+  applyBodyEdits(): Promise<void> {
+    return this.applyDraft();
   }
 
   openBodyWipeConfirm(): void {
-    const ids = this.state.selectedIds();
-    if (ids.size === 0) return;
-    this.bodyWipeCount.set(ids.size);
-    this.bodyWipeConfirmOpen.set(true);
+    this.openWipeConfirm();
   }
 
   closeBodyWipeConfirm(): void {
-    this.bodyWipeConfirmOpen.set(false);
+    this.closeWipeConfirm();
   }
 
-  async confirmClearAllSelectedBodies(): Promise<void> {
-    if (this.requests().length === 0) {
-      this.closeBodyWipeConfirm();
-      return;
-    }
-
-    const value: BodyValue = { body: '', bodyType: 'json' };
-    await this.save(value);
-    this.bodyBaseline.set(value.body);
-    this.bodyDraft.set(value.body);
-    this.bodyTypeBaseline.set(value.bodyType);
-    this.bodyType.set(value.bodyType);
-    this.closeBodyWipeConfirm();
+  confirmClearAllSelectedBodies(): Promise<void> {
+    return this.confirmClearAll();
   }
 }
