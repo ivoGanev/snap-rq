@@ -49,6 +49,11 @@ func runMigrations(t *testing.T, db *sql.DB) {
 			duration_ms INTEGER NOT NULL DEFAULT 0,
 			FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE
 		);
+		CREATE TABLE request_frequency (
+			request_id INTEGER PRIMARY KEY,
+			send_count INTEGER NOT NULL DEFAULT 0,
+			FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE
+		);
 		CREATE TABLE favourite_collections (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, name TEXT NOT NULL);
 		CREATE TABLE favourite_items (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,

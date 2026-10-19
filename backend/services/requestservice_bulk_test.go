@@ -202,3 +202,82 @@ func TestBulkSaveResponses(t *testing.T) {
 		t.Fatalf("expected nil result for empty responses, got %v", empty)
 	}
 }
+
+func TestBulkRecordRequestUsageAndGetFrequent(t *testing.T) {
+	db := newTestDB(t)
+	defer db.Close()
+	runMigrations(t, db)
+
+	svc := NewRequestService(db)
+
+	res, err := db.Exec("INSERT INTO profiles (name) VALUES (?)", "p")
+	if err != nil {
+		t.Fatalf("insert profile: %v", err)
+	}
+	profileID, _ := res.LastInsertId()
+
+	createProject := func() int64 {
+		res, err := db.Exec("INSERT INTO projects (profile_id) VALUES (?)", profileID)
+		if err != nil {
+			t.Fatalf("insert project: %v", err)
+		}
+		id, _ := res.LastInsertId()
+		return id
+	}
+	createRequest := func(collectionID int64, name string) int64 {
+		res, err := db.Exec(`
+			INSERT INTO http_requests (collection_id, name, url, method, body, request_headers, status_code, response_id)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			collectionID, name, "https://example.com", "GET", "", "", 0, 0)
+		if err != nil {
+			t.Fatalf("insert request: %v", err)
+		}
+		id, _ := res.LastInsertId()
+		return id
+	}
+
+	projectID := createProject()
+	res, err = db.Exec("INSERT INTO collections (project_id, name) VALUES (?, ?)", projectID, "c1")
+	if err != nil {
+		t.Fatalf("insert collection: %v", err)
+	}
+	collectionID, _ := res.LastInsertId()
+
+	frequentID := createRequest(collectionID, "frequent")
+	secondID := createRequest(collectionID, "second")
+
+	otherProjectID := createProject()
+	res, err = db.Exec("INSERT INTO collections (project_id, name) VALUES (?, ?)", otherProjectID, "c2")
+	if err != nil {
+		t.Fatalf("insert other collection: %v", err)
+	}
+	otherCollectionID, _ := res.LastInsertId()
+	otherID := createRequest(otherCollectionID, "other")
+
+	if err := svc.BulkRecordRequestUsage([]int64{frequentID, frequentID, frequentID, secondID, secondID, otherID}); err != nil {
+		t.Fatalf("BulkRecordRequestUsage failed: %v", err)
+	}
+
+	frequent, err := svc.GetFrequentRequests(projectID, 50)
+	if err != nil {
+		t.Fatalf("GetFrequentRequests failed: %v", err)
+	}
+	if len(frequent) != 2 {
+		t.Fatalf("expected 2 requests for project, got %d", len(frequent))
+	}
+	if frequent[0].ID != frequentID || frequent[1].ID != secondID {
+		t.Fatalf("unexpected frequency order: %v, %v", frequent[0].ID, frequent[1].ID)
+	}
+
+	limited, err := svc.GetFrequentRequests(projectID, 1)
+	if err != nil {
+		t.Fatalf("GetFrequentRequests(limit 1) failed: %v", err)
+	}
+	if len(limited) != 1 || limited[0].ID != frequentID {
+		t.Fatalf("unexpected limited result: %v", limited)
+	}
+
+	if err := svc.BulkRecordRequestUsage(nil); err != nil {
+		t.Fatalf("BulkRecordRequestUsage(nil) failed: %v", err)
+	}
+}

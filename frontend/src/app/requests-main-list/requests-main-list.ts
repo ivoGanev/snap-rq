@@ -86,6 +86,7 @@ export class RequestsMainList {
 
   readonly requestSearchQuery = signal('');
   readonly tagRequests = signal<HttpRequestSummary[]>([]);
+  readonly frequentRequests = signal<HttpRequestSummary[]>([]);
   readonly newRequestPopupOpen = signal(false);
   readonly newRequestName = signal('My new snappy API');
   readonly newRequestUrl = signal('');
@@ -170,6 +171,10 @@ export class RequestsMainList {
       return this.apiRequests.forCollection(collection.id);
     }
 
+    if (this.state.showingFamousRequests()) {
+      return this.frequentRequests();
+    }
+
     if (this.state.showingAllRequests()) {
       const projectId = this.state.selectedProject()?.id;
       return projectId ? this.apiRequests.forProject(projectId) : [];
@@ -180,6 +185,7 @@ export class RequestsMainList {
 
   readonly activeGroupName = computed<string | null>(() => {
     if (this.state.showingBin()) return 'Trash bin';
+    if (this.state.showingFamousRequests()) return 'Famous';
     if (this.state.showingAllRequests()) return 'All requests';
     const tag = this.state.selectedTag();
     if (tag) return tag;
@@ -297,12 +303,17 @@ export class RequestsMainList {
       const favourite = this.state.selectedFavouriteCollection();
       const tag = this.state.selectedTag();
       const showAll = this.state.showingAllRequests();
+      const showFamous = this.state.showingFamousRequests();
       const showBin = this.state.showingBin();
       const project = this.state.selectedProject();
 
       const version = ++this.loadVersion;
       this.requestSearchQuery.set('');
       this.sortMenuOpen.set(false);
+      if (showFamous) {
+        this.sortColumn.set(null);
+        this.sortDirection.set('asc');
+      }
       this.clearSelection();
       this.state.selectedRequest.set(null);
       this.state.selectedResponse.set(null);
@@ -315,7 +326,16 @@ export class RequestsMainList {
       // (e.g. when loading the full request for send) would re-run the effect,
       // clear the selection, and scroll back to the remembered row.
       untracked(() => {
-        void this.loadActiveGroup(version, collection?.id ?? null, favourite?.id ?? null, tag, showAll, showBin, project?.id ?? null);
+        void this.loadActiveGroup(
+          version,
+          collection?.id ?? null,
+          favourite?.id ?? null,
+          tag,
+          showAll,
+          showFamous,
+          showBin,
+          project?.id ?? null,
+        );
       });
     });
 
@@ -330,6 +350,7 @@ export class RequestsMainList {
     favouriteId: number | null,
     tag: string | null,
     showAll: boolean,
+    showFamous: boolean,
     showBin: boolean,
     projectId: number | null,
   ): Promise<void> {
@@ -337,6 +358,13 @@ export class RequestsMainList {
       if (showBin && projectId !== null) {
         await this.binApi.loadForProject(projectId);
         if (version !== this.loadVersion) return;
+        return;
+      }
+
+      if (showFamous && projectId !== null) {
+        const requests = await this.requestApi.loadFrequentRequests(projectId, 50);
+        if (version !== this.loadVersion) return;
+        this.frequentRequests.set(requests);
         return;
       }
 
@@ -1233,13 +1261,13 @@ export class RequestsMainList {
       }
       this.state.selectedRequest.set(req);
     }
-    await this.state.sendRequest(req, event);
+    await this.state.sendRequest(req, event, !this.state.showingFamousRequests());
   }
 
   private async sendMultipleRequests(ids: number[], event: Event): Promise<void> {
     try {
       const requests = await Promise.all(ids.map((id) => this.requestApi.get(id)));
-      await this.state.sendRequests(requests, event);
+      await this.state.sendRequests(requests, event, !this.state.showingFamousRequests());
     } catch (err) {
       console.error(err);
     }

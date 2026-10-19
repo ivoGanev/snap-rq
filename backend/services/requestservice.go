@@ -394,6 +394,47 @@ func (s *RequestService) GetAllRequestSummaries() ([]models.HttpRequestSummary, 
 	return requests, nil
 }
 
+// GetFrequentRequests returns the most frequently sent requests for a project.
+// Ordering is by send count only; response timestamps are not involved.
+func (s *RequestService) GetFrequentRequests(projectID int64, limit int) ([]models.HttpRequestSummary, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	rows, err := s.db.Query(
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.status_code, hr.response_id
+		 FROM http_requests hr
+		 JOIN collections c ON c.id = hr.collection_id
+		 JOIN request_frequency rf ON rf.request_id = hr.id
+		 WHERE c.project_id = ?
+		 ORDER BY rf.send_count DESC, hr.name ASC
+		 LIMIT ?`,
+		projectID, limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("listing frequent request summaries: %w", err)
+	}
+	defer rows.Close()
+
+	var requests []models.HttpRequestSummary
+	for rows.Next() {
+		var req models.HttpRequestSummary
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID); err != nil {
+			return nil, fmt.Errorf("scanning frequent request summary: %w", err)
+		}
+		requests = append(requests, req)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating frequent request summaries: %w", err)
+	}
+
+	return requests, nil
+}
+
 // GetRequestSummariesForCollection returns a lightweight projection of all
 // requests belonging to a collection.
 func (s *RequestService) GetRequestSummariesForCollection(collectionID int64) ([]models.HttpRequestSummary, error) {
@@ -720,6 +761,37 @@ func (s *RequestService) BulkSaveResponses(responses []models.HttpResponse) ([]m
 	}
 
 	return saved, nil
+}
+
+// BulkRecordRequestUsage increments the send frequency for multiple requests in
+// one transaction. Used after sends initiated outside the Famous list.
+func (s *RequestService) BulkRecordRequestUsage(ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("beginning bulk usage transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	for _, id := range ids {
+		if _, err := tx.Exec(`
+			INSERT INTO request_frequency (request_id, send_count)
+			VALUES (?, 1)
+			ON CONFLICT(request_id) DO UPDATE SET send_count = send_count + 1`,
+			id,
+		); err != nil {
+			return fmt.Errorf("recording usage for request %d: %w", id, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("committing bulk usage transaction: %w", err)
+	}
+
+	return nil
 }
 
 // UpdateResponse updates an existing response record.

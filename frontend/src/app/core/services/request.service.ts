@@ -82,6 +82,15 @@ export class RequestApiService {
     this.requests.set(all ?? []);
   }
 
+  async loadFrequentRequests(projectId: number, limit = 50): Promise<HttpRequestSummary[]> {
+    const result = await RequestService.RequestService.GetFrequentRequests(projectId, limit);
+    return result ?? [];
+  }
+
+  async recordRequestUsage(ids: number[]): Promise<void> {
+    await RequestService.RequestService.BulkRecordRequestUsage(ids);
+  }
+
   async update(req: HttpRequest): Promise<HttpRequest> {
     const updated = await RequestService.RequestService.UpdateRequest(req);
     this.patchRequest({
