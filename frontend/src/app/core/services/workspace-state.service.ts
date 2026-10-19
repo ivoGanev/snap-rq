@@ -1,9 +1,10 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { computed, effect, Injectable, inject, signal } from '@angular/core';
 import { RequestApiService, type HttpRequest, type HttpResponse } from './request.service';
 import { ApiRequestsService } from './api-requests.service';
 import { ResponseApiService } from './response.service';
 import { FavouriteApiService, type FavouriteCollection } from './favourite.service';
 import { BinApiService, type HttpBinnedRequestSummary } from './bin.service';
+import { EnvironmentVariableApiService } from './environment-variable.service';
 import type { Collection } from './collection.service';
 import type { Project } from './project.service';
 import type { Environment } from './environment.service';
@@ -24,6 +25,7 @@ export class WorkspaceStateService {
   private readonly responseApi = inject(ResponseApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly binApi = inject(BinApiService);
+  private readonly envVarApi = inject(EnvironmentVariableApiService);
 
   readonly loading = signal(false);
   readonly selectedProject = signal<Project | null>(null);
@@ -39,6 +41,21 @@ export class WorkspaceStateService {
   readonly showingBin = signal(false);
   readonly multiSelectionActive = signal(false);
   readonly zenModeOpen = signal(false);
+
+  readonly environmentVariables = computed(() =>
+    this.envVarApi.variables().map((v) => ({ key: v.key, value: v.value })),
+  );
+
+  constructor() {
+    effect(() => {
+      const env = this.selectedEnvironment();
+      if (env) {
+        void this.envVarApi.loadForEnvironment(env.id);
+      } else {
+        this.envVarApi.variables.set([]);
+      }
+    });
+  }
 
   async loadResponses(requestId: number): Promise<void> {
     try {
