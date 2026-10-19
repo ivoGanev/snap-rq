@@ -394,9 +394,9 @@ func (s *RequestService) GetAllRequestSummaries() ([]models.HttpRequestSummary, 
 	return requests, nil
 }
 
-// GetFrequentRequests returns the most frequently sent requests for a project.
-// Ordering is by send count only; response timestamps are not involved.
-func (s *RequestService) GetFrequentRequests(projectID int64, limit int) ([]models.HttpRequestSummary, error) {
+// GetRecentRequests returns the most recently used requests for a project.
+// Ordering is by the dedicated usage timestamp, not response timestamps.
+func (s *RequestService) GetRecentRequests(projectID int64, limit int) ([]models.HttpRequestSummary, error) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -408,14 +408,14 @@ func (s *RequestService) GetFrequentRequests(projectID int64, limit int) ([]mode
 		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.status_code, hr.response_id
 		 FROM http_requests hr
 		 JOIN collections c ON c.id = hr.collection_id
-		 JOIN request_frequency rf ON rf.request_id = hr.id
+		 JOIN request_usage ru ON ru.request_id = hr.id
 		 WHERE c.project_id = ?
-		 ORDER BY rf.send_count DESC, hr.name ASC
+		 ORDER BY ru.last_used_at DESC, hr.name ASC
 		 LIMIT ?`,
 		projectID, limit,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("listing frequent request summaries: %w", err)
+		return nil, fmt.Errorf("listing recent request summaries: %w", err)
 	}
 	defer rows.Close()
 
@@ -423,13 +423,13 @@ func (s *RequestService) GetFrequentRequests(projectID int64, limit int) ([]mode
 	for rows.Next() {
 		var req models.HttpRequestSummary
 		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID); err != nil {
-			return nil, fmt.Errorf("scanning frequent request summary: %w", err)
+			return nil, fmt.Errorf("scanning recent request summary: %w", err)
 		}
 		requests = append(requests, req)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterating frequent request summaries: %w", err)
+		return nil, fmt.Errorf("iterating recent request summaries: %w", err)
 	}
 
 	return requests, nil
@@ -763,8 +763,8 @@ func (s *RequestService) BulkSaveResponses(responses []models.HttpResponse) ([]m
 	return saved, nil
 }
 
-// BulkRecordRequestUsage increments the send frequency for multiple requests in
-// one transaction. Used after sends initiated outside the Famous list.
+// BulkRecordRequestUsage marks multiple requests as most-recently used in one
+// transaction. Used after sends initiated outside the Famous list.
 func (s *RequestService) BulkRecordRequestUsage(ids []int64) error {
 	if len(ids) == 0 {
 		return nil
@@ -776,12 +776,13 @@ func (s *RequestService) BulkRecordRequestUsage(ids []int64) error {
 	}
 	defer tx.Rollback()
 
+	usedAt := time.Now().UTC().UnixNano()
 	for _, id := range ids {
 		if _, err := tx.Exec(`
-			INSERT INTO request_frequency (request_id, send_count)
-			VALUES (?, 1)
-			ON CONFLICT(request_id) DO UPDATE SET send_count = send_count + 1`,
-			id,
+			INSERT INTO request_usage (request_id, last_used_at)
+			VALUES (?, ?)
+			ON CONFLICT(request_id) DO UPDATE SET last_used_at = excluded.last_used_at`,
+			id, usedAt,
 		); err != nil {
 			return fmt.Errorf("recording usage for request %d: %w", id, err)
 		}

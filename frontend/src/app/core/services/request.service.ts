@@ -82,8 +82,8 @@ export class RequestApiService {
     this.requests.set(all ?? []);
   }
 
-  async loadFrequentRequests(projectId: number, limit = 50): Promise<HttpRequestSummary[]> {
-    const result = await RequestService.RequestService.GetFrequentRequests(projectId, limit);
+  async loadRecentRequests(projectId: number, limit = 50): Promise<HttpRequestSummary[]> {
+    const result = await RequestService.RequestService.GetRecentRequests(projectId, limit);
     return result ?? [];
   }
 

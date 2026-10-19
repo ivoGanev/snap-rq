@@ -86,7 +86,7 @@ export class RequestsMainList {
 
   readonly requestSearchQuery = signal('');
   readonly tagRequests = signal<HttpRequestSummary[]>([]);
-  readonly frequentRequests = signal<HttpRequestSummary[]>([]);
+  readonly recentRequests = signal<HttpRequestSummary[]>([]);
   readonly newRequestPopupOpen = signal(false);
   readonly newRequestName = signal('My new snappy API');
   readonly newRequestUrl = signal('');
@@ -172,7 +172,7 @@ export class RequestsMainList {
     }
 
     if (this.state.showingFamousRequests()) {
-      return this.frequentRequests();
+      return this.recentRequests();
     }
 
     if (this.state.showingAllRequests()) {
@@ -362,9 +362,9 @@ export class RequestsMainList {
       }
 
       if (showFamous && projectId !== null) {
-        const requests = await this.requestApi.loadFrequentRequests(projectId, 50);
+        const requests = await this.requestApi.loadRecentRequests(projectId, 50);
         if (version !== this.loadVersion) return;
-        this.frequentRequests.set(requests);
+        this.recentRequests.set(requests);
         return;
       }
 
