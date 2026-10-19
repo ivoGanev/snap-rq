@@ -1,4 +1,5 @@
 :host {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -21,8 +22,7 @@
   color: var(--text);
 }
 
-.headers-editor {
+.code-editor-host {
   flex: 1 1 auto;
-  display: block;
   min-height: 0;
 }
