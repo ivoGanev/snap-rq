@@ -367,10 +367,18 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
             "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
           fontSize: '0.8125rem',
           lineHeight: '1.5',
+          height: '100%',
+          minHeight: '0',
         },
         '.cm-content': {
           caretColor: 'var(--text)',
-          padding: '0',
+          padding: 'var(--s-2) var(--s-3)',
+        },
+        '.cm-scroller': {
+          flex: '1 1 auto',
+          minHeight: '0',
+          overflowX: 'auto',
+          overflowY: 'auto',
         },
         '.cm-gutters': {
           backgroundColor: 'transparent',
