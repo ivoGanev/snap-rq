@@ -40,6 +40,7 @@ export class ResponseApiService {
     req: HttpRequest,
     environmentId: number,
     callbacks?: SendRequestCallbacks,
+    trackUsage = true,
   ): Promise<HttpResponse> {
     const start = Date.now();
     const createdAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
@@ -101,6 +102,15 @@ export class ResponseApiService {
         current.map(r => (r.id === currentResponse.id ? currentResponse : r)),
       );
       callbacks?.onUpdate?.(currentResponse);
+
+      if (trackUsage) {
+        try {
+          await this.requestApi.recordRequestUsage([req.id]);
+        } catch (err) {
+          console.error('Failed to record request usage:', err);
+        }
+      }
+
       return currentResponse;
     } catch (err) {
       completed = true;
@@ -127,7 +137,11 @@ export class ResponseApiService {
    * Sends a batch of requests concurrently (HTTP only, no database writes) and
    * persists every response plus request status update in a single transaction.
    */
-  async sendRequests(reqs: HttpRequest[], environmentId: number): Promise<HttpResponse[]> {
+  async sendRequests(
+    reqs: HttpRequest[],
+    environmentId: number,
+    trackUsage = true,
+  ): Promise<HttpResponse[]> {
     if (reqs.length === 0) return [];
 
     const createdAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
@@ -140,6 +154,15 @@ export class ResponseApiService {
     if (saved.length > 0) {
       this.requestApi.responses.update((current) => [...saved, ...current]);
     }
+
+    if (trackUsage && saved.length > 0) {
+      try {
+        await this.requestApi.recordRequestUsage(saved.map((resp) => resp.request_id));
+      } catch (err) {
+        console.error('Failed to record request usage:', err);
+      }
+    }
+
     return saved;
   }
 }
