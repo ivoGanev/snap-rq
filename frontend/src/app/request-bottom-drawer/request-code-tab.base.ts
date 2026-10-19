@@ -1,5 +1,4 @@
-import { computed, effect, inject, signal } from '@angular/core';
-import { EnvironmentVariableApiService } from '../core/services/environment-variable.service';
+import { computed, signal } from '@angular/core';
 import { type HttpRequest } from '../core/services/request.service';
 import { RequestDrawerTabBase } from './request-drawer-tab.base';
 
@@ -11,8 +10,6 @@ import { RequestDrawerTabBase } from './request-drawer-tab.base';
  * top of {@link RequestDrawerTabBase}.
  */
 export abstract class RequestCodeTabBase<T> extends RequestDrawerTabBase<T> {
-  private readonly envVarApi = inject(EnvironmentVariableApiService);
-
   readonly draftValue = signal<T | null>(null);
   readonly baselineValue = signal<T | null>(null);
   readonly dirty = computed(() => {
@@ -25,24 +22,9 @@ export abstract class RequestCodeTabBase<T> extends RequestDrawerTabBase<T> {
   readonly wipeConfirmOpen = signal(false);
   readonly wipeCount = signal(0);
 
-  readonly environmentVariables = computed(() =>
-    this.envVarApi.variables().map((v) => ({ key: v.key, value: v.value })),
-  );
+  readonly environmentVariables = this.state.environmentVariables;
 
   private saveTimer: number | null = null;
-
-  constructor() {
-    super();
-
-    effect(() => {
-      const env = this.state.selectedEnvironment();
-      if (env) {
-        void this.envVarApi.loadForEnvironment(env.id);
-      } else {
-        this.envVarApi.variables.set([]);
-      }
-    });
-  }
 
   /** The value used when clearing all selected requests. */
   protected abstract emptyValue(): T;

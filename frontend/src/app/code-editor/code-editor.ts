@@ -192,15 +192,16 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
     });
 
     effect(() => {
-      if (!this.view) return;
       const vars = this.variables();
+      if (!this.view) return;
       this.view.dispatch({ effects: setVariablesEffect.of(vars) });
     });
 
     effect(() => {
+      const isJson = this.isJson();
       if (!this.view) return;
       this.view.dispatch({
-        effects: this.languageCompartment.reconfigure(this.languageExtension(this.isJson())),
+        effects: this.languageCompartment.reconfigure(this.languageExtension(isJson)),
       });
     });
   }
