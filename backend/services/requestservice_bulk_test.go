@@ -2,6 +2,7 @@ package services
 
 import (
 	"testing"
+	"time"
 
 	"snap-rq/backend/models"
 )
@@ -200,5 +201,101 @@ func TestBulkSaveResponses(t *testing.T) {
 	}
 	if empty != nil {
 		t.Fatalf("expected nil result for empty responses, got %v", empty)
+	}
+}
+
+func TestBulkRecordRequestUsageAndGetRecent(t *testing.T) {
+	db := newTestDB(t)
+	defer db.Close()
+	runMigrations(t, db)
+
+	svc := NewRequestService(db)
+
+	res, err := db.Exec("INSERT INTO profiles (name) VALUES (?)", "p")
+	if err != nil {
+		t.Fatalf("insert profile: %v", err)
+	}
+	profileID, _ := res.LastInsertId()
+
+	createProject := func() int64 {
+		res, err := db.Exec("INSERT INTO projects (profile_id) VALUES (?)", profileID)
+		if err != nil {
+			t.Fatalf("insert project: %v", err)
+		}
+		id, _ := res.LastInsertId()
+		return id
+	}
+	createRequest := func(collectionID int64, name string) int64 {
+		res, err := db.Exec(`
+			INSERT INTO http_requests (collection_id, name, url, method, body, request_headers, status_code, response_id)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			collectionID, name, "https://example.com", "GET", "", "", 0, 0)
+		if err != nil {
+			t.Fatalf("insert request: %v", err)
+		}
+		id, _ := res.LastInsertId()
+		return id
+	}
+
+	projectID := createProject()
+	res, err = db.Exec("INSERT INTO collections (project_id, name) VALUES (?, ?)", projectID, "c1")
+	if err != nil {
+		t.Fatalf("insert collection: %v", err)
+	}
+	collectionID, _ := res.LastInsertId()
+
+	firstID := createRequest(collectionID, "first")
+	secondID := createRequest(collectionID, "second")
+
+	otherProjectID := createProject()
+	res, err = db.Exec("INSERT INTO collections (project_id, name) VALUES (?, ?)", otherProjectID, "c2")
+	if err != nil {
+		t.Fatalf("insert other collection: %v", err)
+	}
+	otherCollectionID, _ := res.LastInsertId()
+	otherID := createRequest(otherCollectionID, "other")
+
+	if err := svc.BulkRecordRequestUsage([]int64{firstID, otherID}); err != nil {
+		t.Fatalf("BulkRecordRequestUsage failed: %v", err)
+	}
+	time.Sleep(2 * time.Millisecond)
+	if err := svc.BulkRecordRequestUsage([]int64{secondID}); err != nil {
+		t.Fatalf("BulkRecordRequestUsage failed: %v", err)
+	}
+
+	recent, err := svc.GetRecentRequests(projectID, 50)
+	if err != nil {
+		t.Fatalf("GetRecentRequests failed: %v", err)
+	}
+	if len(recent) != 2 {
+		t.Fatalf("expected 2 requests for project, got %d", len(recent))
+	}
+	if recent[0].ID != secondID || recent[1].ID != firstID {
+		t.Fatalf("unexpected recent order: %v, %v", recent[0].ID, recent[1].ID)
+	}
+
+	time.Sleep(2 * time.Millisecond)
+	if err := svc.BulkRecordRequestUsage([]int64{firstID}); err != nil {
+		t.Fatalf("BulkRecordRequestUsage failed: %v", err)
+	}
+
+	recent, err = svc.GetRecentRequests(projectID, 50)
+	if err != nil {
+		t.Fatalf("GetRecentRequests failed: %v", err)
+	}
+	if recent[0].ID != firstID || recent[1].ID != secondID {
+		t.Fatalf("expected first request to move to top: %v, %v", recent[0].ID, recent[1].ID)
+	}
+
+	limited, err := svc.GetRecentRequests(projectID, 1)
+	if err != nil {
+		t.Fatalf("GetRecentRequests(limit 1) failed: %v", err)
+	}
+	if len(limited) != 1 || limited[0].ID != firstID {
+		t.Fatalf("unexpected limited result: %v", limited)
+	}
+
+	if err := svc.BulkRecordRequestUsage(nil); err != nil {
+		t.Fatalf("BulkRecordRequestUsage(nil) failed: %v", err)
 	}
 }
