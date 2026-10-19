@@ -128,6 +128,7 @@ export class WorkspaceStateService {
 
       if (this.selectedRequest()?.id === req.id) {
         this.selectedResponse.set(resp);
+        await this.loadResponses(req.id);
       }
     } catch (err) {
       console.error(err);
