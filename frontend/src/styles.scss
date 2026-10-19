@@ -106,20 +106,6 @@ body {
   overflow: hidden;
 }
 
-// CodeMirror creates these elements dynamically, so they must remain global
-// rather than being scoped by Angular's emulated view encapsulation.
-.code-editor-editor .cm-editor {
-  height: 100%;
-  min-height: 0;
-}
-
-.code-editor-editor .cm-scroller {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-x: auto;
-  overflow-y: auto;
-}
-
 body {
   height: 100vh;
   height: 100dvh;

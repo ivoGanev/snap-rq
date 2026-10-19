@@ -85,18 +85,6 @@
   cursor: text;
 }
 
-.code-editor-editor .cm-content {
-  padding: var(--s-2) var(--s-3);
-}
-
-.code-editor-editor .cm-scroller {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-x: auto;
-  overflow-y: auto;
-}
-
-
 .variable-chip {
   display: inline-flex;
   align-items: center;
