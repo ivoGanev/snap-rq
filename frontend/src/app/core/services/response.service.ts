@@ -1,7 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import * as RequestService from '../../../../bindings/snap-rq/backend/services';
 import { RequestApiService, type HttpRequest, type HttpResponse } from './request.service';
-import { environment } from '../../../environments/environment';
 
 export type { HttpRequest, HttpResponse };
 
@@ -32,22 +31,6 @@ export class ResponseApiService {
     await RequestService.RequestService.DeleteResponse(id);
   }
 
-  private addNewResponses(responses: HttpResponse[]): void {
-    this.requestApi.responses.update(current =>
-      [...responses, ...current].slice(0, environment.maxResponseHistory),
-    );
-  }
-
-  private upsertResponse(resp: HttpResponse): void {
-    this.requestApi.responses.update(current => {
-      const exists = current.some(r => r.id === resp.id);
-      const next = exists
-        ? current.map(r => (r.id === resp.id ? resp : r))
-        : [resp, ...current];
-      return next.slice(0, environment.maxResponseHistory);
-    });
-  }
-
   /**
    * Sends a request, creates a pending response record, updates its duration
    * in the database while the request is in flight, and writes the final
@@ -71,7 +54,7 @@ export class ResponseApiService {
       duration_ms: 0,
     } as Omit<HttpResponse, 'id'>);
 
-    this.addNewResponses([pending]);
+    this.requestApi.responses.update(current => [pending, ...current]);
     callbacks?.onPending?.(pending);
 
     let currentResponse = pending;
@@ -82,7 +65,9 @@ export class ResponseApiService {
         return;
       }
       currentResponse = await this.update({ ...currentResponse, duration_ms: elapsed });
-      this.upsertResponse(currentResponse);
+      this.requestApi.responses.update(current =>
+        current.map(r => (r.id === pending.id ? currentResponse : r)),
+      );
       callbacks?.onUpdate?.(currentResponse);
     };
 
@@ -113,7 +98,9 @@ export class ResponseApiService {
         response_id: currentResponse.id,
       });
 
-      this.upsertResponse(currentResponse);
+      this.requestApi.responses.update(current =>
+        current.map(r => (r.id === currentResponse.id ? currentResponse : r)),
+      );
       callbacks?.onUpdate?.(currentResponse);
 
       if (trackUsage) {
@@ -136,7 +123,9 @@ export class ResponseApiService {
         duration_ms: Date.now() - start,
       });
 
-      this.upsertResponse(currentResponse);
+      this.requestApi.responses.update(current =>
+        current.map(r => (r.id === currentResponse.id ? currentResponse : r)),
+      );
       callbacks?.onUpdate?.(currentResponse);
       throw err;
     } finally {
@@ -163,7 +152,7 @@ export class ResponseApiService {
 
     const saved = await this.requestApi.bulkSaveResponses(responses);
     if (saved.length > 0) {
-      this.addNewResponses(saved);
+      this.requestApi.responses.update((current) => [...saved, ...current]);
     }
 
     if (trackUsage && saved.length > 0) {

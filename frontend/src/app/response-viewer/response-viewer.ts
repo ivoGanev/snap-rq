@@ -4,7 +4,6 @@ import { Dialogs } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { RequestApiService, type HttpResponse } from '../core/services/request.service';
 import { prettifyResponseBody } from '../core/prettifiers/response-prettifier';
-import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-response-viewer',
@@ -17,9 +16,6 @@ export class ResponseViewer {
   private readonly requestApi = inject(RequestApiService);
 
   protected readonly responses = this.requestApi.responses;
-  protected readonly visibleResponses = computed(() =>
-    this.responses().slice(0, environment.maxResponseHistory),
-  );
   protected readonly prettifyEnabled = signal(true);
 
   readonly bodyLines = computed<string[]>(() => {

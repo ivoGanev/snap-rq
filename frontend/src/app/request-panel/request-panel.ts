@@ -23,12 +23,10 @@ export class RequestPanel {
 
   protected readonly responses = this.requestApi.responses;
   protected readonly restoreCollectionModalOpen = signal(false);
-  private loadedResponseRequestId: number | null = null;
 
   constructor() {
     effect(() => {
       if (this.state.multiSelectionActive() || this.state.showingBin()) {
-        this.loadedResponseRequestId = null;
         this.requestApi.responses.set([]);
         this.state.selectedResponse.set(null);
         return;
@@ -36,12 +34,8 @@ export class RequestPanel {
 
       const req = this.state.selectedRequest();
       if (req) {
-        if (this.loadedResponseRequestId !== req.id) {
-          this.loadedResponseRequestId = req.id;
-          void this.state.loadResponses(req.id);
-        }
+        this.state.loadResponses(req.id);
       } else {
-        this.loadedResponseRequestId = null;
         this.requestApi.responses.set([]);
         this.state.selectedResponse.set(null);
       }

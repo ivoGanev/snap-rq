@@ -690,7 +690,7 @@ func trimResponsesTx(tx *sql.Tx, requestID int64) error {
 		  AND id NOT IN (
 			SELECT id FROM responses
 			WHERE request_id = ?
-			ORDER BY created_at DESC, id DESC
+			ORDER BY id DESC
 			LIMIT ?
 		  )`,
 		requestID, requestID, maxResponsesPerRequest,
@@ -876,7 +876,7 @@ func (s *RequestService) GetResponsesForRequest(requestID int64) ([]models.HttpR
 		`SELECT id, request_id, headers, status_code, body, created_at, duration_ms
 		 FROM responses
 		 WHERE request_id = ?
-		 ORDER BY created_at DESC, id DESC`,
+		 ORDER BY id DESC`,
 		requestID,
 	)
 	if err != nil {

@@ -2,9 +2,9 @@
   <div class="state-message">No responses for this request.</div>
 }
 
-@if (visibleResponses().length > 0) {
+@if (responses().length > 0) {
   <div class="response-picker">
-    @for (resp of visibleResponses(); track resp.id) {
+    @for (resp of responses(); track resp.id) {
       <button
         class="response-chip"
         [class.is-active]="state.selectedResponse()?.id === resp.id"
