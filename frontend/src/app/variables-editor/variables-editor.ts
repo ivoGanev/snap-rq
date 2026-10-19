@@ -1,7 +1,6 @@
 import {
   Component,
   computed,
-  effect,
   ElementRef,
   inject,
   output,
@@ -57,17 +56,6 @@ export class VariablesEditor {
     const direction = this.sortDirection() === 'asc' ? 1 : -1;
     return vars.sort((a, b) => a[column].localeCompare(b[column]) * direction);
   });
-
-  constructor() {
-    effect(() => {
-      const env = this.state.selectedEnvironment();
-      if (env) {
-        void this.variableApi.loadForEnvironment(env.id);
-      } else {
-        this.variableApi.variables.set([]);
-      }
-    });
-  }
 
   activeEnvironmentName(): string {
     return this.state.selectedEnvironment()?.name ?? 'None';
