@@ -394,6 +394,47 @@ func (s *RequestService) GetAllRequestSummaries() ([]models.HttpRequestSummary, 
 	return requests, nil
 }
 
+// GetRecentRequests returns the most recently used requests for a project.
+// Ordering is by the dedicated usage timestamp, not response timestamps.
+func (s *RequestService) GetRecentRequests(projectID int64, limit int) ([]models.HttpRequestSummary, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	rows, err := s.db.Query(
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.status_code, hr.response_id
+		 FROM http_requests hr
+		 JOIN collections c ON c.id = hr.collection_id
+		 JOIN request_usage ru ON ru.request_id = hr.id
+		 WHERE c.project_id = ?
+		 ORDER BY ru.last_used_at DESC, hr.name ASC
+		 LIMIT ?`,
+		projectID, limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("listing recent request summaries: %w", err)
+	}
+	defer rows.Close()
+
+	var requests []models.HttpRequestSummary
+	for rows.Next() {
+		var req models.HttpRequestSummary
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID); err != nil {
+			return nil, fmt.Errorf("scanning recent request summary: %w", err)
+		}
+		requests = append(requests, req)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating recent request summaries: %w", err)
+	}
+
+	return requests, nil
+}
+
 // GetRequestSummariesForCollection returns a lightweight projection of all
 // requests belonging to a collection.
 func (s *RequestService) GetRequestSummariesForCollection(collectionID int64) ([]models.HttpRequestSummary, error) {
@@ -720,6 +761,38 @@ func (s *RequestService) BulkSaveResponses(responses []models.HttpResponse) ([]m
 	}
 
 	return saved, nil
+}
+
+// BulkRecordRequestUsage marks multiple requests as most-recently used in one
+// transaction. Used after sends initiated outside the Famous list.
+func (s *RequestService) BulkRecordRequestUsage(ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("beginning bulk usage transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	usedAt := time.Now().UTC().UnixNano()
+	for _, id := range ids {
+		if _, err := tx.Exec(`
+			INSERT INTO request_usage (request_id, last_used_at)
+			VALUES (?, ?)
+			ON CONFLICT(request_id) DO UPDATE SET last_used_at = excluded.last_used_at`,
+			id, usedAt,
+		); err != nil {
+			return fmt.Errorf("recording usage for request %d: %w", id, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("committing bulk usage transaction: %w", err)
+	}
+
+	return nil
 }
 
 // UpdateResponse updates an existing response record.

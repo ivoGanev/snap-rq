@@ -34,6 +34,7 @@ export class WorkspaceStateService {
   readonly selectedFavouriteCollection = signal<FavouriteCollection | null>(null);
   readonly selectedTag = signal<string | null>(null);
   readonly showingAllRequests = signal(false);
+  readonly showingFamousRequests = signal(false);
   readonly selectedIds = signal<Set<number>>(new Set());
   readonly selectedRequest = signal<HttpRequest | null>(null);
   readonly selectedResponse = signal<HttpResponse | null>(null);
@@ -72,6 +73,7 @@ export class WorkspaceStateService {
     this.selectedFavouriteCollection.set(null);
     this.selectedTag.set(null);
     this.showingAllRequests.set(false);
+    this.showingFamousRequests.set(false);
     this.showingBin.set(true);
     this.selectedRequest.set(null);
     this.selectedResponse.set(null);
@@ -91,7 +93,7 @@ export class WorkspaceStateService {
     }
   }
 
-  async sendRequest(req: HttpRequest, event: Event): Promise<void> {
+  async sendRequest(req: HttpRequest, event: Event, trackUsage = true): Promise<void> {
     event.stopPropagation();
     try {
       const environmentId = this.selectedEnvironment()?.id ?? 0;
@@ -106,7 +108,7 @@ export class WorkspaceStateService {
             this.selectedResponse.set(updated);
           }
         },
-      });
+      }, trackUsage);
       this.requestApi.patchRequest({
         id: req.id,
         status_code: resp.status_code,
@@ -136,13 +138,13 @@ export class WorkspaceStateService {
    * Sends multiple requests in one batch. HTTP calls run concurrently and all
    * database writes are committed together by the backend.
    */
-  async sendRequests(reqs: HttpRequest[], event: Event): Promise<void> {
+  async sendRequests(reqs: HttpRequest[], event: Event, trackUsage = true): Promise<void> {
     event.stopPropagation();
     if (reqs.length === 0) return;
 
     try {
       const environmentId = this.selectedEnvironment()?.id ?? 0;
-      const responses = await this.responseApi.sendRequests(reqs, environmentId);
+      const responses = await this.responseApi.sendRequests(reqs, environmentId, trackUsage);
 
       for (const resp of responses) {
         this.requestApi.patchRequest({

@@ -112,6 +112,15 @@ func migrate(db *sql.DB) error {
 		);
 		CREATE INDEX IF NOT EXISTS idx_responses_request_id ON responses(request_id);
 
+		DROP TABLE IF EXISTS request_frequency;
+
+		CREATE TABLE IF NOT EXISTS request_usage (
+			request_id INTEGER PRIMARY KEY,
+			last_used_at INTEGER NOT NULL,
+			FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE
+		);
+		CREATE INDEX IF NOT EXISTS idx_request_usage_last_used_at ON request_usage(last_used_at DESC);
+
 		CREATE TABLE IF NOT EXISTS environments (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			project_id INTEGER NOT NULL,

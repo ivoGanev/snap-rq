@@ -153,7 +153,17 @@ export class RequestGroups {
     this.state.selectedFavouriteCollection.set(null);
     this.state.selectedTag.set(null);
     this.state.exitBinView();
+    this.state.showingFamousRequests.set(false);
     this.state.showingAllRequests.set(true);
+  }
+
+  selectFamous(): void {
+    this.state.selectedCollection.set(null);
+    this.state.selectedFavouriteCollection.set(null);
+    this.state.selectedTag.set(null);
+    this.state.exitBinView();
+    this.state.showingAllRequests.set(false);
+    this.state.showingFamousRequests.set(true);
   }
 
   selectTrashBin(): void {
@@ -170,6 +180,7 @@ export class RequestGroups {
     this.state.selectedFavouriteCollection.set(null);
     this.state.selectedTag.set(null);
     this.state.showingAllRequests.set(false);
+    this.state.showingFamousRequests.set(false);
   }
 
   selectFavouriteCollection(data: Collection | FavouriteCollection | Tag): void {
@@ -179,6 +190,7 @@ export class RequestGroups {
     this.state.selectedCollection.set(null);
     this.state.selectedTag.set(null);
     this.state.showingAllRequests.set(false);
+    this.state.showingFamousRequests.set(false);
   }
 
   selectTag(data: Collection | FavouriteCollection | Tag): void {
@@ -188,6 +200,7 @@ export class RequestGroups {
     this.state.selectedCollection.set(null);
     this.state.selectedFavouriteCollection.set(null);
     this.state.showingAllRequests.set(false);
+    this.state.showingFamousRequests.set(false);
   }
 
   selectSidebarItem(item: SidebarItem): void {

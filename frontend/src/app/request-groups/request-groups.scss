@@ -16,6 +16,10 @@
   --wails-draggable: no-drag;
 }
 
+.all-requests-button--famous {
+  margin-top: var(--s-1);
+}
+
 .all-requests-button:hover:not(:disabled) {
   background: var(--hover-highlight);
   border-color: rgba(255, 255, 255, 0.2);
