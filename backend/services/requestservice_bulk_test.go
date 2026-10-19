@@ -1,6 +1,7 @@
 package services
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -298,4 +299,78 @@ func TestBulkRecordRequestUsageAndGetRecent(t *testing.T) {
 	if err := svc.BulkRecordRequestUsage(nil); err != nil {
 		t.Fatalf("BulkRecordRequestUsage(nil) failed: %v", err)
 	}
+}
+
+func TestResponseHistoryIsTrimmedToLimit(t *testing.T) {
+	db := newTestDB(t)
+	defer db.Close()
+	runMigrations(t, db)
+
+	svc := NewRequestService(db)
+
+	res, err := db.Exec("INSERT INTO profiles (name) VALUES (?)", "p")
+	if err != nil {
+		t.Fatalf("insert profile: %v", err)
+	}
+	profileID, _ := res.LastInsertId()
+	res, err = db.Exec("INSERT INTO projects (profile_id) VALUES (?)", profileID)
+	if err != nil {
+		t.Fatalf("insert project: %v", err)
+	}
+	projectID, _ := res.LastInsertId()
+	res, err = db.Exec("INSERT INTO collections (project_id, name) VALUES (?, ?)", projectID, "c1")
+	if err != nil {
+		t.Fatalf("insert collection: %v", err)
+	}
+	collectionID, _ := res.LastInsertId()
+	res, err = db.Exec(`
+		INSERT INTO http_requests (collection_id, name, url, method, body, request_headers, status_code, response_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		collectionID, "req", "https://example.com", "GET", "", "", 0, 0)
+	if err != nil {
+		t.Fatalf("insert request: %v", err)
+	}
+	requestID, _ := res.LastInsertId()
+
+	for i := 1; i <= 12; i++ {
+		if _, err := svc.CreateResponse(models.HttpResponse{
+			RequestID:  requestID,
+			StatusCode: 200,
+			Body:       fmt.Sprintf("r%d", i),
+		}); err != nil {
+			t.Fatalf("CreateResponse %d failed: %v", i, err)
+		}
+	}
+
+	assertHistory := func(label string, wantBodies []string) {
+		t.Helper()
+		responses, err := svc.GetResponsesForRequest(requestID)
+		if err != nil {
+			t.Fatalf("%s: GetResponsesForRequest failed: %v", label, err)
+		}
+		if len(responses) != maxResponsesPerRequest {
+			t.Fatalf("%s: expected %d responses, got %d", label, maxResponsesPerRequest, len(responses))
+		}
+		for i, want := range wantBodies {
+			if responses[i].Body != want {
+				t.Fatalf("%s: responses[%d] body = %q, want %q", label, i, responses[i].Body, want)
+			}
+		}
+	}
+
+	assertHistory("single", []string{"r12", "r11", "r10", "r9", "r8", "r7", "r6", "r5", "r4", "r3"})
+
+	var batch []models.HttpResponse
+	for i := 1; i <= 12; i++ {
+		batch = append(batch, models.HttpResponse{
+			RequestID:  requestID,
+			StatusCode: 200,
+			Body:       fmt.Sprintf("b%d", i),
+		})
+	}
+	if _, err := svc.BulkSaveResponses(batch); err != nil {
+		t.Fatalf("BulkSaveResponses failed: %v", err)
+	}
+
+	assertHistory("bulk", []string{"b12", "b11", "b10", "b9", "b8", "b7", "b6", "b5", "b4", "b3"})
 }
