@@ -677,13 +677,42 @@ func (s *RequestService) CurlToRequest(collectionID int64, curl string) (models.
 	return CurlToRequest(collectionID, curl)
 }
 
+// maxResponsesPerRequest is the number of response history entries retained
+// per request. Older entries are trimmed when a new response is stored.
+const maxResponsesPerRequest = 10
+
+// trimResponsesTx deletes every response for a request beyond the newest
+// maxResponsesPerRequest entries.
+func trimResponsesTx(tx *sql.Tx, requestID int64) error {
+	if _, err := tx.Exec(`
+		DELETE FROM responses
+		WHERE request_id = ?
+		  AND id NOT IN (
+			SELECT id FROM responses
+			WHERE request_id = ?
+			ORDER BY created_at DESC, id DESC
+			LIMIT ?
+		  )`,
+		requestID, requestID, maxResponsesPerRequest,
+	); err != nil {
+		return fmt.Errorf("trimming response history: %w", err)
+	}
+	return nil
+}
+
 // CreateResponse saves a new response for a request and returns it with its generated ID.
 func (s *RequestService) CreateResponse(resp models.HttpResponse) (models.HttpResponse, error) {
 	if resp.CreatedAt == "" {
 		resp.CreatedAt = time.Now().UTC().Format("2006-01-02 15:04:05")
 	}
 
-	result, err := s.db.Exec(
+	tx, err := s.db.Begin()
+	if err != nil {
+		return models.HttpResponse{}, fmt.Errorf("beginning response transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	result, err := tx.Exec(
 		`INSERT INTO responses (request_id, headers, status_code, body, created_at, duration_ms)
 		 VALUES (?, ?, ?, ?, ?, ?)`,
 		resp.RequestID, resp.Headers, resp.StatusCode, resp.Body, resp.CreatedAt, resp.DurationMs,
@@ -696,8 +725,16 @@ func (s *RequestService) CreateResponse(resp models.HttpResponse) (models.HttpRe
 	if err != nil {
 		return models.HttpResponse{}, fmt.Errorf("getting last insert id: %w", err)
 	}
-
 	resp.ID = id
+
+	if err := trimResponsesTx(tx, resp.RequestID); err != nil {
+		return models.HttpResponse{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return models.HttpResponse{}, fmt.Errorf("committing response transaction: %w", err)
+	}
+
 	return s.GetResponse(id)
 }
 
@@ -728,6 +765,10 @@ func saveResponseTx(tx *sql.Tx, resp models.HttpResponse) (models.HttpResponse, 
 		resp.StatusCode, id, resp.RequestID,
 	); err != nil {
 		return models.HttpResponse{}, fmt.Errorf("updating request status: %w", err)
+	}
+
+	if err := trimResponsesTx(tx, resp.RequestID); err != nil {
+		return models.HttpResponse{}, err
 	}
 
 	return resp, nil
