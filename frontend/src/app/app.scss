@@ -229,12 +229,15 @@
   position: fixed;
   inset: 0;
   z-index: 110;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-4);
+  background: var(--backdrop);
 }
 
 .settings-selector-popup {
-  position: fixed;
-  bottom: 40px;
-  left: max(0.5rem, env(safe-area-inset-left));
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
