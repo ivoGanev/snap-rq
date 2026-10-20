@@ -175,6 +175,35 @@ CREATE TABLE IF NOT EXISTS environment_variables (
     FOREIGN KEY (environment_id) REFERENCES environments(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_environment_variables_environment_id ON environment_variables(environment_id);
+
+CREATE TABLE IF NOT EXISTS tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    UNIQUE (project_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_tags_project_id_name ON tags(project_id, name);
+
+CREATE TABLE IF NOT EXISTS request_tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id INTEGER NOT NULL,
+    tag_id INTEGER NOT NULL,
+    FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+    UNIQUE (request_id, tag_id)
+);
+CREATE INDEX IF NOT EXISTS idx_request_tags_request_id ON request_tags(request_id);
+CREATE INDEX IF NOT EXISTS idx_request_tags_tag_id ON request_tags(tag_id);
+
+CREATE TABLE IF NOT EXISTS tag_appearances (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tag_id INTEGER NOT NULL,
+    appearance_type TEXT NOT NULL CHECK(appearance_type IN ('icon', 'color')),
+    appearance_value TEXT NOT NULL,
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+    UNIQUE (tag_id)
+);
 """
 
 
@@ -446,6 +475,50 @@ def generate_edge_case_requests() -> list[dict]:
             "response_headers": '{"Content-Type":"application/json"}',
             "response_body": '{"error":{"code":414,"message":"request URI too long"}}',
         },
+        {
+            "name": "SSL self-signed certificate",
+            "method": "GET",
+            "url": "https://self-signed.badssl.com/",
+            "body": "",
+            "headers": '{"Accept":"text/html"}',
+            "status_code": 0,
+            "response_headers": "",
+            "response_body": "",
+            "tags": ["badssl"],
+        },
+        {
+            "name": "SSL expired certificate",
+            "method": "GET",
+            "url": "https://expired.badssl.com/",
+            "body": "",
+            "headers": '{"Accept":"text/html"}',
+            "status_code": 0,
+            "response_headers": "",
+            "response_body": "",
+            "tags": ["badssl"],
+        },
+        {
+            "name": "SSL wrong host",
+            "method": "GET",
+            "url": "https://wrong.host.badssl.com/",
+            "body": "",
+            "headers": '{"Accept":"text/html"}',
+            "status_code": 0,
+            "response_headers": "",
+            "response_body": "",
+            "tags": ["badssl"],
+        },
+        {
+            "name": "SSL untrusted root",
+            "method": "GET",
+            "url": "https://untrusted-root.badssl.com/",
+            "body": "",
+            "headers": '{"Accept":"text/html"}',
+            "status_code": 0,
+            "response_headers": "",
+            "response_body": "",
+            "tags": ["badssl"],
+        },
     ]
 
 
@@ -703,52 +776,91 @@ def create_random_collections(
     return created_collections, created_requests
 
 
-def create_edge_case_collection(conn: sqlite3.Connection, project_id: int, rng: random.Random) -> int:
-    """Insert a dedicated collection for malformed data and incorrect headers."""
-    if find_edge_case_collection(conn, project_id) is not None:
-        return 0
+def ensure_tag(cursor: sqlite3.Cursor, project_id: int, name: str) -> int:
+    """Return the project-scoped tag id, creating the tag if needed."""
+    cursor.execute(
+        "SELECT id FROM tags WHERE project_id = ? AND name = ?",
+        (project_id, name),
+    )
+    row = cursor.fetchone()
+    if row:
+        return row[0]
 
+    cursor.execute(
+        "INSERT INTO tags (project_id, name) VALUES (?, ?)",
+        (project_id, name),
+    )
+    cursor.execute(
+        "SELECT id FROM tags WHERE project_id = ? AND name = ?",
+        (project_id, name),
+    )
+    return cursor.fetchone()[0]
+
+
+def create_edge_case_collection(conn: sqlite3.Connection, project_id: int, rng: random.Random) -> int:
+    """Insert or extend the dedicated collection for malformed data and headers."""
     cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO collections (project_id, name) VALUES (?, ?)",
-        (project_id, EDGE_CASE_COLLECTION_NAME),
-    )
-    collection_id = cursor.lastrowid
-    cursor.execute(
-        "INSERT INTO collection_appearances (collection_id, appearance_type, appearance_value) VALUES (?, ?, ?)",
-        (collection_id, "color", "#ef4444"),
-    )
+    collection_id = find_edge_case_collection(conn, project_id)
+    changed = False
+
+    if collection_id is None:
+        cursor.execute(
+            "INSERT INTO collections (project_id, name) VALUES (?, ?)",
+            (project_id, EDGE_CASE_COLLECTION_NAME),
+        )
+        collection_id = cursor.lastrowid
+        cursor.execute(
+            "INSERT INTO collection_appearances (collection_id, appearance_type, appearance_value) VALUES (?, ?, ?)",
+            (collection_id, "color", "#ef4444"),
+        )
+        changed = True
 
     for req in generate_edge_case_requests():
         cursor.execute(
-            """
-            INSERT INTO http_requests (
-                collection_id, name, url, method, body, request_headers, status_code, response_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 0)
-            """,
-            (
-                collection_id,
-                req["name"],
-                req["url"],
-                req["method"],
-                req["body"],
-                req["headers"],
-                req["status_code"],
-            ),
+            "SELECT id FROM http_requests WHERE collection_id = ? AND name = ?",
+            (collection_id, req["name"]),
         )
-        request_id = cursor.lastrowid
-        cursor.execute(
-            "INSERT INTO responses (request_id, headers, status_code, body, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
-            (request_id, req["response_headers"], req["status_code"], req["response_body"]),
-        )
-        response_id = cursor.lastrowid
-        cursor.execute(
-            "UPDATE http_requests SET response_id = ? WHERE id = ?",
-            (response_id, request_id),
-        )
+        row = cursor.fetchone()
+        request_id = row[0] if row else None
+
+        if request_id is None:
+            cursor.execute(
+                """
+                INSERT INTO http_requests (
+                    collection_id, name, url, method, body, request_headers, status_code, response_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+                """,
+                (
+                    collection_id,
+                    req["name"],
+                    req["url"],
+                    req["method"],
+                    req["body"],
+                    req["headers"],
+                    req["status_code"],
+                ),
+            )
+            request_id = cursor.lastrowid
+            cursor.execute(
+                "INSERT INTO responses (request_id, headers, status_code, body, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
+                (request_id, req["response_headers"], req["status_code"], req["response_body"]),
+            )
+            response_id = cursor.lastrowid
+            cursor.execute(
+                "UPDATE http_requests SET response_id = ? WHERE id = ?",
+                (response_id, request_id),
+            )
+            changed = True
+
+        for tag_name in req.get("tags", []):
+            tag_id = ensure_tag(cursor, project_id, tag_name)
+            cursor.execute(
+                "INSERT OR IGNORE INTO request_tags (request_id, tag_id) VALUES (?, ?)",
+                (request_id, tag_id),
+            )
 
     conn.commit()
-    return collection_id
+    return collection_id if changed else 0
 
 
 def main() -> int:
