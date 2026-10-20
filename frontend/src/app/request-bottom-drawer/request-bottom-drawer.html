@@ -1,12 +1,26 @@
 @if (!showingBin()) {
-  <div class="bottom-drawer" [class.is-open]="activeTab() !== null">
+  <div
+    class="bottom-drawer"
+    [class.is-open]="activeTab() !== null"
+    [class.is-resizing]="resizing()"
+    [style.height.px]="activeTab() ? drawerHeight() : 0"
+  >
     <div class="bottom-drawer-inner">
+      <div
+        class="bottom-drawer-resize-handle"
+        role="separator"
+        aria-label="Resize drawer"
+        (pointerdown)="startResize($event)"
+        (pointermove)="resize($event)"
+        (pointerup)="stopResize($event)"
+        (pointercancel)="stopResize($event)"
+      ></div>
       <button
         class="bottom-drawer-close"
-        type="button"
-        (click)="closeDrawer()"
-        aria-label="Close drawer"
-        title="Close"
+          type="button"
+          (click)="closeDrawer()"
+          aria-label="Collapse drawer"
+          title="Collapse"
       >
         <svg
           viewBox="0 0 24 24"
@@ -17,8 +31,7 @@
           stroke-linejoin="round"
           aria-hidden="true"
         >
-          <line x1="6" y1="6" x2="18" y2="18" />
-          <line x1="18" y1="6" x2="6" y2="18" />
+          <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
 
