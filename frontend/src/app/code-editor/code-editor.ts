@@ -270,6 +270,13 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
       Prec.highest(
         keymap.of([
           {
+            mac: 'Cmd-Space',
+            run: () => {
+              this.openDropdown();
+              return true;
+            },
+          },
+          {
             key: 'Ctrl-Space',
             run: () => {
               this.openDropdown();
