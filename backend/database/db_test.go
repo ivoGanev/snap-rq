@@ -43,6 +43,28 @@ func TestMigrateAddsResponseCreatedAtColumn(t *testing.T) {
 	}
 }
 
+func TestMigrateCreatesSecureDefaultAppSettings(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("opening in-memory db: %v", err)
+	}
+	defer db.Close()
+
+	if err := migrate(db); err != nil {
+		t.Fatalf("migrate failed: %v", err)
+	}
+
+	var value string
+	if err := db.QueryRow(
+		"SELECT value FROM app_settings WHERE key = 'validate_ssl_certificates'",
+	).Scan(&value); err != nil {
+		t.Fatalf("reading default app setting: %v", err)
+	}
+	if value != "true" {
+		t.Fatalf("expected secure default app setting, got %q", value)
+	}
+}
+
 func TestMigrateCollectionAppearancesFromLegacyIconIDColumnOnly(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {

@@ -38,6 +38,7 @@ func main() {
 	defer db.Close()
 
 	requestService := services.NewRequestService(db)
+	settingsService := services.NewSettingsService(db)
 	profileService := services.NewProfileService(db)
 	projectService := services.NewProjectService(db)
 	collectionService := services.NewCollectionService(db)
@@ -56,6 +57,7 @@ func main() {
 		Description: "A REST API client",
 		Services: []application.Service{
 			application.NewService(requestService),
+			application.NewService(settingsService),
 			application.NewService(profileService),
 			application.NewService(projectService),
 			application.NewService(collectionService),

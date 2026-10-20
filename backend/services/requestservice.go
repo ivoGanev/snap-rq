@@ -1,6 +1,7 @@
 package services
 
 import (
+	"crypto/tls"
 	"database/sql"
 	"fmt"
 	"io"
@@ -17,12 +18,13 @@ var interpolationRegex = regexp.MustCompile(`{{\s*([a-zA-Z0-9_-]+)\s*}}`)
 
 // RequestService provides CRUD operations for saved HTTP requests.
 type RequestService struct {
-	db *sql.DB
+	db       *sql.DB
+	settings *SettingsService
 }
 
 // NewRequestService returns a RequestService backed by the given database.
 func NewRequestService(db *sql.DB) *RequestService {
-	return &RequestService{db: db}
+	return &RequestService{db: db, settings: NewSettingsService(db)}
 }
 
 // normalizeBodyType guards against empty/invalid values so the body_type
@@ -189,7 +191,7 @@ func (s *RequestService) ExecuteRequest(id int64, environmentID int64) (models.H
 		httpReq.Header.Set(strings.TrimSpace(key), strings.TrimSpace(value))
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := s.httpClient()
 	start := time.Now()
 	httpResp, err := client.Do(httpReq)
 	duration := time.Since(start).Milliseconds()
@@ -227,6 +229,25 @@ func (s *RequestService) ExecuteRequest(id int64, environmentID int64) (models.H
 		Body:       string(respBody),
 		DurationMs: duration,
 	}, nil
+}
+
+func (s *RequestService) httpClient() *http.Client {
+	client := &http.Client{Timeout: 30 * time.Second}
+	if s.settings.ValidateSSLCertificates() {
+		return client
+	}
+
+	transport, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		return client
+	}
+
+	cloned := transport.Clone()
+	// InsecureSkipVerify is intentional here: the user explicitly disabled
+	// certificate validation in application settings.
+	cloned.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	client.Transport = cloned
+	return client
 }
 
 func (s *RequestService) loadVariables(environmentID int64) (map[string]string, error) {
