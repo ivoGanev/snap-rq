@@ -519,6 +519,17 @@ def generate_edge_case_requests() -> list[dict]:
             "response_body": "",
             "tags": ["badssl"],
         },
+        {
+            "name": "SSL valid certificate",
+            "method": "GET",
+            "url": "https://sha256.badssl.com/",
+            "body": "",
+            "headers": '{"Accept":"text/html"}',
+            "status_code": 0,
+            "response_headers": "",
+            "response_body": "",
+            "tags": ["badssl"],
+        },
     ]
 
 
