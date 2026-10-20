@@ -188,8 +188,150 @@
   backdrop-filter: blur(8px);
 }
 
-.footer-theme {
+.footer-settings {
   justify-self: start;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.footer-settings-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.footer-settings-button:hover {
+  color: var(--text);
+  background: var(--hover-bg);
+  border-color: var(--glass-border);
+}
+
+.footer-settings-button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.settings-selector-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-4);
+  background: var(--backdrop);
+}
+
+.settings-selector-popup {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  width: min(360px, calc(100vw - 2 * var(--s-4)));
+  padding: var(--s-3);
+  background: var(--surface-solid);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 40px var(--shadow);
+  z-index: 111;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.settings-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+
+.settings-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.settings-close:hover {
+  color: var(--text);
+  background: var(--hover-bg);
+  border-color: var(--glass-border);
+}
+
+.settings-close svg {
+  width: 14px;
+  height: 14px;
+}
+
+.settings-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  cursor: pointer;
+}
+
+.settings-option-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.settings-option-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings-option-help {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.settings-toggle {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.footer-theme {
+  justify-self: end;
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -232,9 +374,9 @@
 }
 
 .theme-selector-popup {
-  position: absolute;
-  bottom: 28px;
-  left: 0;
+  position: fixed;
+  bottom: 40px;
+  right: max(0.5rem, env(safe-area-inset-right));
   display: flex;
   flex-direction: column;
   gap: var(--s-1);
@@ -292,28 +434,6 @@
   color: var(--muted);
   font-size: 12.5px;
   white-space: nowrap;
-}
-
-.footer-docs {
-  justify-self: end;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--muted);
-  text-decoration: none;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: color 0.2s ease;
-  --wails-draggable: no-drag;
-}
-
-.footer-docs:hover {
-  color: var(--text);
-}
-
-.footer-docs svg {
-  width: 17px;
-  height: 17px;
 }
 
 .project-editor-popup,

@@ -129,6 +129,35 @@
 }
 
 <footer class="footer">
+  <div class="footer-settings">
+    <button
+      class="footer-settings-button"
+      type="button"
+      (click)="openSettings()"
+      aria-label="Open settings"
+      title="Settings"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="3" />
+        <path
+          d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.1.38.38.7.75.87H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.13Z"
+        />
+      </svg>
+      <span>Settings</span>
+    </button>
+
+  </div>
+
+  <span class="footer-copyright">SnapRQ © Ivo Ganev</span>
+
   <div class="footer-theme">
     <button
       class="footer-theme-button"
@@ -171,25 +200,48 @@
       </div>
     }
   </div>
-
-  <span class="footer-copyright">SnapRQ © Ivo Ganev</span>
-  <a
-    class="footer-docs"
-    data-wml-openURL="https://www.snap-rq.com/docs"
-    aria-label="SnapRQ documentation"
-  >
-    Docs
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      aria-hidden="true"
-    >
-      <line x1="7" y1="17" x2="17" y2="7" />
-      <polyline points="7 7 17 7 17 17" />
-    </svg>
-  </a>
 </footer>
+
+@if (settingsOpen()) {
+  <div class="settings-selector-backdrop" (click)="closeSettings()">
+    <div class="settings-selector-popup" (click)="$event.stopPropagation()">
+      <div class="settings-header">
+        <span class="settings-title">Settings</span>
+        <button
+          class="settings-close"
+          type="button"
+          (click)="closeSettings()"
+          aria-label="Close settings"
+          title="Close"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <line x1="6" y1="6" x2="18" y2="18" />
+            <line x1="18" y1="6" x2="6" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <label class="settings-option">
+        <span class="settings-option-copy">
+          <span class="settings-option-label">Validate SSL certificates</span>
+          <span class="settings-option-help">
+            Disable to allow invalid, expired, or mismatched HTTPS certificates.
+          </span>
+        </span>
+        <input
+          class="settings-toggle"
+          type="checkbox"
+          [checked]="settingsApi.settings().validate_ssl_certificates"
+          (change)="onSslValidationChange($event)"
+        />
+      </label>
+    </div>
+  </div>
+}

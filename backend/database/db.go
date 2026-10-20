@@ -201,6 +201,13 @@ func migrate(db *sql.DB) error {
 		);
 		CREATE INDEX IF NOT EXISTS idx_binned_requests_project_id ON binned_requests(project_id);
 		CREATE INDEX IF NOT EXISTS idx_binned_requests_deleted_at ON binned_requests(deleted_at);
+
+		CREATE TABLE IF NOT EXISTS app_settings (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL
+		);
+
+		INSERT OR IGNORE INTO app_settings (key, value) VALUES ('validate_ssl_certificates', 'true');
 	`, "")
 	if err != nil {
 		return err

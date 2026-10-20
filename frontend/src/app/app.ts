@@ -12,6 +12,7 @@ import { FavouriteApiService } from './core/services/favourite.service';
 import { SelectionStateService } from './core/services/selection-state.service';
 import { TagApiService } from './core/services/tag.service';
 import { ThemeService, type Theme } from './core/services/theme.service';
+import { SettingsApiService } from './core/services/settings.service';
 import { RequestGroups } from './request-groups/request-groups';
 import { RequestsMainList } from './requests-main-list/requests-main-list';
 import { RequestPanel } from './request-panel/request-panel';
@@ -36,6 +37,7 @@ import { ContextMenuOutlet } from './context-menu-outlet/context-menu-outlet';
 export class App implements OnInit, AfterViewInit {
   protected readonly state = inject(WorkspaceStateService);
   protected readonly theme = inject(ThemeService);
+  protected readonly settingsApi = inject(SettingsApiService);
   private readonly projectApi = inject(ProjectApiService);
   private readonly environmentApi = inject(EnvironmentApiService);
   private readonly apiRequests = inject(ApiRequestsService);
@@ -59,12 +61,13 @@ export class App implements OnInit, AfterViewInit {
   readonly projectPendingDelete = signal<Project | null>(null);
 
   readonly themeSelectorOpen = signal(false);
+  readonly settingsOpen = signal(false);
 
   private resizeStartX = 0;
   private resizeStartWidth = 0;
 
   async ngOnInit(): Promise<void> {
-    await this.loadProjects();
+    await Promise.all([this.loadProjects(), this.settingsApi.load()]);
   }
 
   ngAfterViewInit(): void {
@@ -88,9 +91,33 @@ export class App implements OnInit, AfterViewInit {
       this.closeProjectEditor();
       return;
     }
+    if (this.settingsOpen()) {
+      this.closeSettings();
+      return;
+    }
     if (this.themeSelectorOpen()) {
       this.closeThemeSelector();
       return;
+    }
+  }
+
+  openSettings(): void {
+    this.settingsOpen.set(true);
+  }
+
+  closeSettings(): void {
+    this.settingsOpen.set(false);
+  }
+
+  async onSslValidationChange(event: Event): Promise<void> {
+    const checked = (event.target as HTMLInputElement).checked;
+    try {
+      await this.settingsApi.update({
+        validate_ssl_certificates: checked,
+      });
+    } catch (err) {
+      console.error('Failed to update settings:', err);
+      this.settingsApi.settings.update((current) => ({ ...current }));
     }
   }
 
