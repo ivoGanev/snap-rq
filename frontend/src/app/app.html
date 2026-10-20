@@ -157,7 +157,29 @@
     @if (settingsOpen()) {
       <div class="settings-selector-backdrop" (click)="closeSettings()">
         <div class="settings-selector-popup" (click)="$event.stopPropagation()">
-          <span class="settings-title">Settings</span>
+          <div class="settings-header">
+            <span class="settings-title">Settings</span>
+            <button
+              class="settings-close"
+              type="button"
+              (click)="closeSettings()"
+              aria-label="Close settings"
+              title="Close"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <line x1="6" y1="6" x2="18" y2="18" />
+                <line x1="18" y1="6" x2="6" y2="18" />
+              </svg>
+            </button>
+          </div>
           <label class="settings-option">
             <span class="settings-option-copy">
               <span class="settings-option-label">Validate SSL certificates</span>
