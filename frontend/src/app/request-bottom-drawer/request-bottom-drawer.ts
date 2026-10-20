@@ -24,10 +24,19 @@ export interface BottomTab {
   },
 })
 export class RequestBottomDrawer {
+  private static readonly DEFAULT_HEIGHT = 400;
+  private static readonly MIN_HEIGHT = 320;
+  private static readonly MAX_HEIGHT_OFFSET = 80;
+
   readonly tabs = input<BottomTab[]>([]);
   readonly showingBin = input<boolean>(false);
 
   readonly activeTab = signal<BottomTab | null>(null);
+  readonly drawerHeight = signal(RequestBottomDrawer.DEFAULT_HEIGHT);
+  readonly resizing = signal(false);
+
+  private resizeStartY = 0;
+  private resizeStartHeight = RequestBottomDrawer.DEFAULT_HEIGHT;
 
   selectTab(tab: BottomTab): void {
     this.activeTab.update((current) => (current?.id === tab.id ? null : tab));
@@ -39,5 +48,32 @@ export class RequestBottomDrawer {
 
   isActive(tab: BottomTab): boolean {
     return this.activeTab()?.id === tab.id;
+  }
+
+  startResize(event: PointerEvent): void {
+    event.preventDefault();
+    this.resizeStartY = event.clientY;
+    this.resizeStartHeight = this.drawerHeight();
+    this.resizing.set(true);
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  }
+
+  resize(event: PointerEvent): void {
+    if (!this.resizing()) return;
+
+    const maxHeight = Math.max(
+      RequestBottomDrawer.MIN_HEIGHT,
+      window.innerHeight - RequestBottomDrawer.MAX_HEIGHT_OFFSET,
+    );
+    const nextHeight = this.resizeStartHeight + this.resizeStartY - event.clientY;
+    this.drawerHeight.set(
+      Math.min(maxHeight, Math.max(RequestBottomDrawer.MIN_HEIGHT, nextHeight)),
+    );
+  }
+
+  stopResize(event: PointerEvent): void {
+    if (!this.resizing()) return;
+    this.resizing.set(false);
+    (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
   }
 }
