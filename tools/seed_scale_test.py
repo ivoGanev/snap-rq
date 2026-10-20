@@ -480,7 +480,7 @@ def generate_edge_case_requests() -> list[dict]:
             "method": "GET",
             "url": "https://self-signed.badssl.com/",
             "body": "",
-            "headers": '{"Accept":"text/html"}',
+            "headers": "Accept: text/html",
             "status_code": 0,
             "response_headers": "",
             "response_body": "",
@@ -491,7 +491,7 @@ def generate_edge_case_requests() -> list[dict]:
             "method": "GET",
             "url": "https://expired.badssl.com/",
             "body": "",
-            "headers": '{"Accept":"text/html"}',
+            "headers": "Accept: text/html",
             "status_code": 0,
             "response_headers": "",
             "response_body": "",
@@ -502,7 +502,7 @@ def generate_edge_case_requests() -> list[dict]:
             "method": "GET",
             "url": "https://wrong.host.badssl.com/",
             "body": "",
-            "headers": '{"Accept":"text/html"}',
+            "headers": "Accept: text/html",
             "status_code": 0,
             "response_headers": "",
             "response_body": "",
@@ -513,7 +513,7 @@ def generate_edge_case_requests() -> list[dict]:
             "method": "GET",
             "url": "https://untrusted-root.badssl.com/",
             "body": "",
-            "headers": '{"Accept":"text/html"}',
+            "headers": "Accept: text/html",
             "status_code": 0,
             "response_headers": "",
             "response_body": "",
@@ -524,7 +524,7 @@ def generate_edge_case_requests() -> list[dict]:
             "method": "GET",
             "url": "https://sha256.badssl.com/",
             "body": "",
-            "headers": '{"Accept":"text/html"}',
+            "headers": "Accept: text/html",
             "status_code": 0,
             "response_headers": "",
             "response_body": "",
@@ -828,13 +828,34 @@ def create_edge_case_collection(conn: sqlite3.Connection, project_id: int, rng: 
 
     for req in generate_edge_case_requests():
         cursor.execute(
-            "SELECT id FROM http_requests WHERE collection_id = ? AND name = ?",
+            """
+            SELECT id, url, method, body, request_headers, status_code
+            FROM http_requests WHERE collection_id = ? AND name = ?
+            """,
             (collection_id, req["name"]),
         )
         row = cursor.fetchone()
         request_id = row[0] if row else None
 
-        if request_id is None:
+        if request_id is not None:
+            expected = (
+                req["url"],
+                req["method"],
+                req["body"],
+                req["headers"],
+                req["status_code"],
+            )
+            if tuple(row[1:]) != expected:
+                cursor.execute(
+                    """
+                    UPDATE http_requests
+                    SET url = ?, method = ?, body = ?, request_headers = ?, status_code = ?
+                    WHERE id = ?
+                    """,
+                    (*expected, request_id),
+                )
+                changed = True
+        else:
             cursor.execute(
                 """
                 INSERT INTO http_requests (
@@ -946,7 +967,7 @@ def main() -> int:
 
         edge_collection_id = create_edge_case_collection(conn, project_id, rng)
         if edge_collection_id:
-            print(f"Created '{EDGE_CASE_COLLECTION_NAME}' collection with edge-case request payloads.")
+            print(f"Created or updated '{EDGE_CASE_COLLECTION_NAME}' collection with edge-case request payloads.")
         else:
             print(f"'{EDGE_CASE_COLLECTION_NAME}' collection already exists.")
     finally:
