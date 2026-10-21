@@ -18,7 +18,12 @@
   <div class="state-message">You are in multi selection mode.</div>
 }
 
-@if (!state.selectedRequest() && !state.selectedBinnedRequest() && !state.multiSelectionActive()) {
+@if (
+  !state.selectedRequest() &&
+  !state.selectedBinnedRequest() &&
+  !state.multiSelectionActive() &&
+  state.selectedIds().size === 0
+) {
   <div class="state-message">Select a request to view its response.</div>
 }
 
