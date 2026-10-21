@@ -44,7 +44,6 @@
     class="resizer resizer--left"
     (mousedown)="startColumnResize('left', $event)"
     [style.left.%]="leftColumnWidth()"
-    [style.transform]="'translateX(-3px)'"
     aria-hidden="true"
   ></div>
 
@@ -52,7 +51,6 @@
     class="resizer resizer--right"
     (mousedown)="startColumnResize('right', $event)"
     [style.right.%]="rightColumnWidth()"
-    [style.transform]="'translateX(-3px)'"
     aria-hidden="true"
   ></div>
 </div>
