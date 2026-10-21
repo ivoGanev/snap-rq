@@ -382,7 +382,7 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
         '.cm-gutters': {
           backgroundColor: 'transparent',
           color: 'var(--muted)',
-          borderRight: '1px solid var(--glass-border)',
+          borderRight: 'none',
         },
         '.cm-lineNumbers .cm-gutterElement': {
           paddingLeft: '6px',

@@ -10,9 +10,6 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  background: var(--input-bg);
   overflow: hidden;
 }
 
@@ -22,8 +19,6 @@
   align-items: center;
   gap: var(--s-2);
   padding: var(--s-1) var(--s-2);
-  border-bottom: 1px solid var(--glass-border);
-  background: var(--glass);
 }
 
 .code-editor-editor-wrap {
