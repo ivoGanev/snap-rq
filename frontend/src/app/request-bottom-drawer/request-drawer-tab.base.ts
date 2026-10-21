@@ -3,7 +3,7 @@ import { WorkspaceStateService } from '../core/services/workspace-state.service'
 import { RequestApiService, type HttpRequest } from '../core/services/request.service';
 import { FavouriteApiService } from '../core/services/favourite.service';
 
-export type DrawerTabState = 'idle' | 'loading' | 'ready' | 'mismatch' | 'unavailable';
+export type DrawerTabState = 'idle' | 'ready' | 'mismatch' | 'unavailable';
 
 /**
  * Shared behaviour for bottom-drawer tabs that edit one or more fields of the
@@ -43,10 +43,6 @@ export abstract class RequestDrawerTabBase<T> {
           this.setFromRequests([single]);
           return;
         }
-
-        if (ids.size > 0 && this.tabState() === 'idle') {
-          this.tabState.set('loading');
-        }
         void this.load(ids);
       });
     });
@@ -58,7 +54,7 @@ export abstract class RequestDrawerTabBase<T> {
       if (!active) return;
 
       const status = untracked(() => this.tabState());
-      if (status === 'idle' || status === 'loading') return;
+      if (status === 'idle') return;
 
       const ids = untracked(() => this.state.selectedIds());
       if (!ids.has(active.id)) return;
