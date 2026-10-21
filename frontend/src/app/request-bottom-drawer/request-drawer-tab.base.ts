@@ -3,7 +3,7 @@ import { WorkspaceStateService } from '../core/services/workspace-state.service'
 import { RequestApiService, type HttpRequest } from '../core/services/request.service';
 import { FavouriteApiService } from '../core/services/favourite.service';
 
-export type DrawerTabState = 'idle' | 'loading' | 'ready' | 'mismatch' | 'unavailable';
+export type DrawerTabState = 'idle' | 'ready' | 'mismatch' | 'unavailable';
 
 /**
  * Shared behaviour for bottom-drawer tabs that edit one or more fields of the
@@ -37,7 +37,14 @@ export abstract class RequestDrawerTabBase<T> {
   constructor() {
     effect(() => {
       const ids = this.state.selectedIds();
-      untracked(() => void this.load(ids));
+      untracked(() => {
+        const single = ids.size === 1 ? this.state.selectedRequest() : null;
+        if (single && ids.has(single.id)) {
+          this.setFromRequests([single]);
+          return;
+        }
+        void this.load(ids);
+      });
     });
 
     // Reload when the active request is changed elsewhere (e.g. Zen mode) and
@@ -47,7 +54,7 @@ export abstract class RequestDrawerTabBase<T> {
       if (!active) return;
 
       const status = untracked(() => this.tabState());
-      if (status === 'idle' || status === 'loading') return;
+      if (status === 'idle') return;
 
       const ids = untracked(() => this.state.selectedIds());
       if (!ids.has(active.id)) return;
@@ -73,32 +80,34 @@ export abstract class RequestDrawerTabBase<T> {
   /** Called after a successful load; `value` is null when the selection mismatches. */
   protected onLoaded(_requests: HttpRequest[], _value: T | null): void {}
 
+  private setFromRequests(requests: HttpRequest[]): void {
+    const first = requests[0];
+    const allMatch = requests.every((r) =>
+      this.valueEquals(this.extractValue(r), this.extractValue(first)),
+    );
+
+    this.requests.set(requests);
+    this.editCount.set(requests.length);
+    this.tabState.set(allMatch ? 'ready' : 'mismatch');
+    this.onLoaded(requests, allMatch ? this.extractValue(first) : null);
+  }
+
   protected async load(ids: Set<number>): Promise<void> {
     const version = ++this.loadVersion;
 
     this.beforeReload();
-    this.requests.set([]);
-    this.editCount.set(0);
 
     if (ids.size === 0) {
+      this.requests.set([]);
+      this.editCount.set(0);
       this.tabState.set('idle');
       return;
     }
 
-    this.tabState.set('loading');
     try {
       const requests = await Promise.all([...ids].map((id) => this.requestApi.get(id)));
       if (version !== this.loadVersion) return;
-
-      const first = requests[0];
-      const allMatch = requests.every((r) =>
-        this.valueEquals(this.extractValue(r), this.extractValue(first)),
-      );
-
-      this.requests.set(requests);
-      this.editCount.set(requests.length);
-      this.tabState.set(allMatch ? 'ready' : 'mismatch');
-      this.onLoaded(requests, allMatch ? this.extractValue(first) : null);
+      this.setFromRequests(requests);
     } catch (err) {
       console.error(err);
       if (version === this.loadVersion) {
