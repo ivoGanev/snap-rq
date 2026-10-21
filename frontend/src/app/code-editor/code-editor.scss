@@ -41,34 +41,6 @@
   cursor: text;
 }
 
-.code-editor-language {
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted);
-}
-
-.code-editor-format {
-  padding: 3px 10px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text);
-  background: var(--glass-strong);
-  border: 1px solid var(--glass-border);
-  border-radius: 6px;
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease;
-  --wails-draggable: no-drag;
-}
-
-.code-editor-format:hover {
-  background: var(--hover-highlight);
-  border-color: var(--glass-border);
-}
-
 .code-editor-validation {
   margin-left: auto;
   font-size: 0.75rem;

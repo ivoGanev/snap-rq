@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CodeEditor, type EditorVariable, type EditorLanguage } from '../code-editor/code-editor';
 
@@ -22,8 +22,14 @@ export class RequestBodyEditor {
   readonly bodyChange = output<string>();
   readonly typeChange = output<EditorLanguage>();
 
+  private readonly codeEditor = viewChild(CodeEditor);
+
   setType(type: EditorLanguage): void {
     this.typeChange.emit(type);
+  }
+
+  formatCurrent(): void {
+    this.codeEditor()?.formatCurrent();
   }
 
   onTextChange(text: string): void {

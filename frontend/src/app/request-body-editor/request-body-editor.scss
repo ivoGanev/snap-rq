@@ -29,6 +29,12 @@
   color: var(--text);
 }
 
+.body-mode-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
 .body-type-select {
   padding: 3px 8px;
   font-size: 0.75rem;
@@ -45,6 +51,26 @@
 .body-type-select:focus {
   border-color: var(--selected-border);
   box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.body-format-button {
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.body-format-button:hover {
+  background: var(--hover-highlight);
+  border-color: var(--glass-border);
 }
 
 .code-editor-host {
