@@ -1,9 +1,12 @@
 import { ChangeDetectionStrategy, Component, input, signal, type Type } from '@angular/core';
 import { NgComponentOutlet } from '@angular/common';
 
+export type BottomTabIcon = 'body' | 'headers';
+
 export interface BottomTab {
   id: string;
   label: string;
+  icon: BottomTabIcon;
   component: Type<unknown>;
 }
 
