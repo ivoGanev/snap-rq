@@ -26,8 +26,6 @@
     (bodyChange)="onBodyTextChange($event)"
     (typeChange)="setBodyType($event)"
   ></app-request-body-editor>
-} @else if (bodyTabState() === 'loading') {
-  <div class="body-message">Loading bodies…</div>
 } @else if (bodyTabState() === 'mismatch') {
   <div class="body-message body-message--warning">
     <span>Selected requests have different bodies.</span>
