@@ -42,7 +42,7 @@
   <div class="body-message body-message--error">
     Could not load request bodies.
   </div>
-} @else {
+} @else if (bodyTabState() === 'idle') {
   <div class="body-message">Select a request to edit its body.</div>
 }
 

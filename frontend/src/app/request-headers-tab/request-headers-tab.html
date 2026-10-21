@@ -38,7 +38,7 @@
   </div>
 } @else if (headersTabState() === 'unavailable') {
   <div class="headers-message headers-message--error">Could not load request headers.</div>
-} @else {
+} @else if (headersTabState() === 'idle') {
   <div class="headers-message">Select a request to edit its headers.</div>
 }
 
