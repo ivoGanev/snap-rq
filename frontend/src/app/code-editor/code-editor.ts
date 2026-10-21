@@ -183,11 +183,13 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
   constructor() {
     effect(() => {
       const value = this.text();
-      if (this.view && this.view.state.doc.toString() !== value) {
-        this.view.dispatch({
-          changes: { from: 0, to: this.view.state.doc.length, insert: value },
-        });
-      }
+      if (!this.view || this.view.state.doc.toString() === value) return;
+      // Don't overwrite the editor while the user is typing in it.
+      // Other editors subscribe to the same parent signal, so they still update.
+      if (this.view.hasFocus) return;
+      this.view.dispatch({
+        changes: { from: 0, to: this.view.state.doc.length, insert: value },
+      });
     });
 
     effect(() => {
