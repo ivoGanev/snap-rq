@@ -37,7 +37,18 @@ export abstract class RequestDrawerTabBase<T> {
   constructor() {
     effect(() => {
       const ids = this.state.selectedIds();
-      untracked(() => void this.load(ids));
+      untracked(() => {
+        const single = ids.size === 1 ? this.state.selectedRequest() : null;
+        if (single && ids.has(single.id)) {
+          this.setFromRequests([single]);
+          return;
+        }
+
+        if (ids.size > 0 && this.tabState() === 'idle') {
+          this.tabState.set('loading');
+        }
+        void this.load(ids);
+      });
     });
 
     // Reload when the active request is changed elsewhere (e.g. Zen mode) and
@@ -73,6 +84,18 @@ export abstract class RequestDrawerTabBase<T> {
   /** Called after a successful load; `value` is null when the selection mismatches. */
   protected onLoaded(_requests: HttpRequest[], _value: T | null): void {}
 
+  private setFromRequests(requests: HttpRequest[]): void {
+    const first = requests[0];
+    const allMatch = requests.every((r) =>
+      this.valueEquals(this.extractValue(r), this.extractValue(first)),
+    );
+
+    this.requests.set(requests);
+    this.editCount.set(requests.length);
+    this.tabState.set(allMatch ? 'ready' : 'mismatch');
+    this.onLoaded(requests, allMatch ? this.extractValue(first) : null);
+  }
+
   protected async load(ids: Set<number>): Promise<void> {
     const version = ++this.loadVersion;
 
@@ -88,16 +111,7 @@ export abstract class RequestDrawerTabBase<T> {
     try {
       const requests = await Promise.all([...ids].map((id) => this.requestApi.get(id)));
       if (version !== this.loadVersion) return;
-
-      const first = requests[0];
-      const allMatch = requests.every((r) =>
-        this.valueEquals(this.extractValue(r), this.extractValue(first)),
-      );
-
-      this.requests.set(requests);
-      this.editCount.set(requests.length);
-      this.tabState.set(allMatch ? 'ready' : 'mismatch');
-      this.onLoaded(requests, allMatch ? this.extractValue(first) : null);
+      this.setFromRequests(requests);
     } catch (err) {
       console.error(err);
       if (version === this.loadVersion) {
