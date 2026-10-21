@@ -23,6 +23,7 @@ import {
   EditorView,
   keymap,
   lineNumbers,
+  highlightActiveLine,
   drawSelection,
   dropCursor,
   ViewPlugin,
@@ -34,8 +35,6 @@ import {
 import { json } from '@codemirror/lang-json';
 import { linter, type Diagnostic } from '@codemirror/lint';
 import { defaultKeymap, history, historyKeymap, redo } from '@codemirror/commands';
-import { syntaxHighlighting } from '@codemirror/language';
-import { oneDarkHighlightStyle } from '@codemirror/theme-one-dark';
 
 export type EditorLanguage = 'json' | 'text';
 
@@ -271,10 +270,10 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
   private baseExtensions(): Extension {
     return [
       lineNumbers(),
+      highlightActiveLine(),
       drawSelection(),
       dropCursor(),
       history(),
-      syntaxHighlighting(oneDarkHighlightStyle, { fallback: true }),
       keymap.of([...defaultKeymap, ...historyKeymap]),
       Prec.highest(
         keymap.of([
@@ -389,7 +388,7 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
           paddingLeft: '6px',
           paddingRight: '10px',
         },
-        '.cm-activeLine': { backgroundColor: 'transparent' },
+        '.cm-activeLine': { backgroundColor: 'var(--hover-bg)' },
         '.cm-selectionBackground': { background: 'var(--selected-bg)' },
         '.cm-focused .cm-selectionBackground': { background: 'var(--selected-bg)' },
         '.cm-cursor': { borderLeftColor: 'var(--text)' },
