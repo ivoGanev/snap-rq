@@ -120,33 +120,12 @@
 }
 
 .resizer {
-  position: relative;
   flex: 0 0 auto;
   width: 6px;
   cursor: col-resize;
   background: transparent;
   transition: background 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.resizer::before,
-.resizer::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  left: 0;
-  z-index: 1;
-  height: 1px;
-  background: var(--glass-border);
-  pointer-events: none;
-}
-
-.resizer::before {
-  top: 64px;
-}
-
-.resizer::after {
-  bottom: 38px;
 }
 
 .resizer:hover,
