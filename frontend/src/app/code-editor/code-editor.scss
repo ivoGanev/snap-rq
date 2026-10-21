@@ -10,20 +10,7 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  background: var(--input-bg);
   overflow: hidden;
-}
-
-.code-editor-toolbar {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  padding: var(--s-1) var(--s-2);
-  border-bottom: 1px solid var(--glass-border);
-  background: var(--glass);
 }
 
 .code-editor-editor-wrap {
@@ -44,45 +31,6 @@
   min-height: 0;
   overflow: hidden;
   cursor: text;
-}
-
-.code-editor-language {
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted);
-}
-
-.code-editor-format {
-  padding: 3px 10px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text);
-  background: var(--glass-strong);
-  border: 1px solid var(--glass-border);
-  border-radius: 6px;
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease;
-  --wails-draggable: no-drag;
-}
-
-.code-editor-format:hover {
-  background: var(--hover-highlight);
-  border-color: var(--glass-border);
-}
-
-.code-editor-validation {
-  margin-left: auto;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--muted);
-}
-
-.code-editor-validation.is-invalid {
-  color: var(--error-text);
 }
 
 .code-editor-editor-wrap {

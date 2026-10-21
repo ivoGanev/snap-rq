@@ -1,9 +1,12 @@
 import { ChangeDetectionStrategy, Component, input, signal, type Type } from '@angular/core';
 import { NgComponentOutlet } from '@angular/common';
 
+export type BottomTabIcon = 'body' | 'headers';
+
 export interface BottomTab {
   id: string;
   label: string;
+  icon: BottomTabIcon;
   component: Type<unknown>;
 }
 
@@ -32,11 +35,15 @@ export class RequestBottomDrawer {
   readonly showingBin = input<boolean>(false);
 
   readonly activeTab = signal<BottomTab | null>(null);
-  readonly drawerHeight = signal(RequestBottomDrawer.DEFAULT_HEIGHT);
+  readonly drawerHeight = signal(RequestBottomDrawer.initialHeight());
   readonly resizing = signal(false);
 
   private resizeStartY = 0;
-  private resizeStartHeight = RequestBottomDrawer.DEFAULT_HEIGHT;
+  private resizeStartHeight = this.drawerHeight();
+
+  private static initialHeight(): number {
+    return Math.max(RequestBottomDrawer.DEFAULT_HEIGHT, Math.round(window.innerHeight / 2));
+  }
 
   selectTab(tab: BottomTab): void {
     this.activeTab.update((current) => (current?.id === tab.id ? null : tab));

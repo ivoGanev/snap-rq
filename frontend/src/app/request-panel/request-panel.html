@@ -1,15 +1,6 @@
 <div class="column-header tab-header">
   <span class="panel-title">Response</span>
   @if (state.selectedRequest()) {
-    <button
-      class="big-send-button"
-      type="button"
-      (click)="state.sendRequest(state.selectedRequest()!, $event)"
-    >
-      Send
-    </button>
-  }
-  @if (state.selectedRequest()) {
     <span class="request-count">{{ responses().length }} response(s)</span>
   }
 </div>
@@ -18,7 +9,12 @@
   <div class="state-message">You are in multi selection mode.</div>
 }
 
-@if (!state.selectedRequest() && !state.selectedBinnedRequest() && !state.multiSelectionActive()) {
+@if (
+  !state.selectedRequest() &&
+  !state.selectedBinnedRequest() &&
+  !state.multiSelectionActive() &&
+  state.selectedIds().size === 0
+) {
   <div class="state-message">Select a request to view its response.</div>
 }
 

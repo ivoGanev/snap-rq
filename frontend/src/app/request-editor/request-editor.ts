@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import {
@@ -29,6 +29,7 @@ export class RequestEditor {
   protected readonly requestTags = this.tagApi.requestTags;
   protected readonly environmentVariables = this.state.environmentVariables;
 
+  readonly showTagInput = input<boolean>(true);
   readonly draftRequest = signal<HttpRequest | null>(null);
   readonly tagInputOpen = signal(false);
   readonly newTagName = signal('');
