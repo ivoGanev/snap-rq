@@ -61,47 +61,51 @@
         ></app-request-body-editor>
       </div>
 
-      <label class="edit-field">
-        <span class="edit-label">Tags</span>
-        <div class="request-tags request-tags--editable">
-          @for (tag of requestTags()[state.selectedRequest()!.id] ?? []; track tag) {
-            <span class="tag-chip tag-chip--editable">
-              {{ tag }}
-              <button
-                class="tag-chip-remove"
-                type="button"
-                (click)="removeTagFromRequest(state.selectedRequest()!, tag, $event)"
-                aria-label="Remove tag"
-              >
-                ×
-              </button>
-            </span>
-          }
-        </div>
-        <div class="tag-input-wrap">
-          <input
-            class="tag-input"
-            type="text"
-            placeholder="Add tag…"
-            [ngModel]="newTagName()"
-            (ngModelChange)="newTagName.set($event)"
-            (keydown.enter)="addTagToRequest(state.selectedRequest()!, newTagName())"
-          />
-          @if (tagSuggestions().length && newTagName().trim()) {
-            <div class="tag-suggestions">
-              @for (tag of tagSuggestions(); track tag.id) {
+      @if (showTagInput() || (requestTags()[state.selectedRequest()!.id]?.length ?? 0) > 0) {
+        <label class="edit-field">
+          <span class="edit-label">Tags</span>
+          <div class="request-tags request-tags--editable">
+            @for (tag of requestTags()[state.selectedRequest()!.id] ?? []; track tag) {
+              <span class="tag-chip tag-chip--editable">
+                {{ tag }}
                 <button
-                  class="tag-suggestion"
+                  class="tag-chip-remove"
                   type="button"
-                  (click)="addTagToRequest(state.selectedRequest()!, tag.name)"
+                  (click)="removeTagFromRequest(state.selectedRequest()!, tag, $event)"
+                  aria-label="Remove tag"
                 >
-                  {{ tag.name }}
+                  ×
                 </button>
+              </span>
+            }
+          </div>
+          @if (showTagInput()) {
+            <div class="tag-input-wrap">
+              <input
+                class="tag-input"
+                type="text"
+                placeholder="Add tag…"
+                [ngModel]="newTagName()"
+                (ngModelChange)="newTagName.set($event)"
+                (keydown.enter)="addTagToRequest(state.selectedRequest()!, newTagName())"
+              />
+              @if (tagSuggestions().length && newTagName().trim()) {
+                <div class="tag-suggestions">
+                  @for (tag of tagSuggestions(); track tag.id) {
+                    <button
+                      class="tag-suggestion"
+                      type="button"
+                      (click)="addTagToRequest(state.selectedRequest()!, tag.name)"
+                    >
+                      {{ tag.name }}
+                    </button>
+                  }
+                </div>
               }
             </div>
           }
-        </div>
-      </label>
+        </label>
+      }
     </div>
   </div>
 }

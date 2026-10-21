@@ -36,13 +36,23 @@
 <div class="app-shell" (window:keydown.escape)="onEscapePressed()">
   <app-request-groups [style.width.%]="leftColumnWidth()"></app-request-groups>
 
-  <div class="resizer" (mousedown)="startColumnResize('left', $event)" aria-hidden="true"></div>
-
   <app-requests-main-list></app-requests-main-list>
 
-  <div class="resizer" (mousedown)="startColumnResize('right', $event)" aria-hidden="true"></div>
-
   <app-request-panel [style.width.%]="rightColumnWidth()"></app-request-panel>
+
+  <div
+    class="resizer resizer--left"
+    (mousedown)="startColumnResize('left', $event)"
+    [style.left.%]="leftColumnWidth()"
+    aria-hidden="true"
+  ></div>
+
+  <div
+    class="resizer resizer--right"
+    (mousedown)="startColumnResize('right', $event)"
+    [style.right.%]="rightColumnWidth()"
+    aria-hidden="true"
+  ></div>
 </div>
 
 <app-context-menu-outlet></app-context-menu-outlet>

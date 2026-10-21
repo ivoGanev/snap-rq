@@ -36,8 +36,8 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
 ];
 
 const BOTTOM_TABS: BottomTab[] = [
-  { id: 'body', label: 'Body', component: RequestBodyTab },
-  { id: 'headers', label: 'Headers', component: RequestHeadersTab },
+  { id: 'body', label: 'Body', icon: 'body', component: RequestBodyTab },
+  { id: 'headers', label: 'Headers', icon: 'headers', component: RequestHeadersTab },
 ];
 
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];

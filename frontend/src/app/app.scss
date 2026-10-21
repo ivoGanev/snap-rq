@@ -112,6 +112,7 @@
 }
 
 .app-shell {
+  position: relative;
   flex: 1 1 auto;
   display: flex;
   flex-direction: row;
@@ -120,8 +121,11 @@
 }
 
 .resizer {
-  flex: 0 0 auto;
+  position: absolute;
+  top: 0;
+  z-index: 100;
   width: 6px;
+  height: 100%;
   cursor: col-resize;
   background: transparent;
   transition: background 0.15s ease;
@@ -158,6 +162,7 @@
 
 .sidebar-right {
   width: 30%;
+  padding: 0;
   border-right: none;
   border-left: 1px solid var(--glass-border);
 }
@@ -539,6 +544,10 @@
   .sidebar-right {
     border-left: none;
     border-top: 1px solid var(--glass-border);
+  }
+
+  .resizer {
+    display: none;
   }
 
   .panel-placeholder {

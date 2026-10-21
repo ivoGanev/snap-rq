@@ -38,6 +38,7 @@ export class WorkspaceStateService {
   readonly selectedIds = signal<Set<number>>(new Set());
   readonly selectedRequest = signal<HttpRequest | null>(null);
   readonly selectedResponse = signal<HttpResponse | null>(null);
+  readonly responsesLoading = signal(false);
   readonly selectedBinnedRequest = signal<HttpBinnedRequestSummary | null>(null);
   readonly showingBin = signal(false);
   readonly multiSelectionActive = signal(false);
@@ -59,12 +60,15 @@ export class WorkspaceStateService {
   }
 
   async loadResponses(requestId: number): Promise<void> {
+    this.responsesLoading.set(true);
     try {
       await this.requestApi.loadResponsesForRequest(requestId);
       const all = this.requestApi.responses();
       this.selectedResponse.set(all.length > 0 ? all[0] : null);
     } catch (err) {
       console.error(err);
+    } finally {
+      this.responsesLoading.set(false);
     }
   }
 
