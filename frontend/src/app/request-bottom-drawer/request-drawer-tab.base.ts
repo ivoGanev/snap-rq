@@ -77,15 +77,14 @@ export abstract class RequestDrawerTabBase<T> {
     const version = ++this.loadVersion;
 
     this.beforeReload();
-    this.requests.set([]);
-    this.editCount.set(0);
 
     if (ids.size === 0) {
+      this.requests.set([]);
+      this.editCount.set(0);
       this.tabState.set('idle');
       return;
     }
 
-    this.tabState.set('loading');
     try {
       const requests = await Promise.all([...ids].map((id) => this.requestApi.get(id)));
       if (version !== this.loadVersion) return;
