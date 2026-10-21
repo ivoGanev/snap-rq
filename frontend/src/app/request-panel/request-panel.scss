@@ -10,29 +10,6 @@
   color: var(--text);
 }
 
-.big-send-button {
-  padding: 6px 18px;
-  font-size: 0.875rem;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: #fff;
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  border: none;
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: filter 0.15s ease, transform 0.1s ease;
-  --wails-draggable: no-drag;
-}
-
-.big-send-button:hover {
-  filter: brightness(1.15);
-}
-
-.big-send-button:active {
-  transform: scale(0.98);
-}
-
 .binned-request-panel {
   flex: 1 1 auto;
   display: flex;

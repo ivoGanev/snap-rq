@@ -1,15 +1,6 @@
 <div class="column-header tab-header">
   <span class="panel-title">Response</span>
   @if (state.selectedRequest()) {
-    <button
-      class="big-send-button"
-      type="button"
-      (click)="state.sendRequest(state.selectedRequest()!, $event)"
-    >
-      Send
-    </button>
-  }
-  @if (state.selectedRequest()) {
     <span class="request-count">{{ responses().length }} response(s)</span>
   }
 </div>
