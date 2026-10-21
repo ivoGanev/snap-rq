@@ -3,15 +3,28 @@
     @if (showLabel()) {
       <span class="body-editor-label">Body</span>
     }
-    <select
-      class="body-type-select"
-      aria-label="Body type"
-      [ngModel]="type()"
-      (ngModelChange)="setType($any($event))"
-    >
-      <option value="json">JSON</option>
-      <option value="text">Text</option>
-    </select>
+    <div class="body-mode-actions">
+      <select
+        class="body-type-select"
+        aria-label="Body type"
+        [ngModel]="type()"
+        (ngModelChange)="setType($any($event))"
+      >
+        <option value="json">JSON</option>
+        <option value="text">Text</option>
+      </select>
+      @if (type() === 'json') {
+        <button
+          class="body-format-button"
+          type="button"
+          (click)="formatCurrent()"
+          aria-label="Format body"
+          title="Format"
+        >
+          Format
+        </button>
+      }
+    </div>
   </div>
   <app-code-editor
     class="code-editor-host"

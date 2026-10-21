@@ -1,4 +1,4 @@
-@if (responses().length === 0) {
+@if (responses().length === 0 && !state.responsesLoading()) {
   <div class="state-message">No responses for this request.</div>
 }
 

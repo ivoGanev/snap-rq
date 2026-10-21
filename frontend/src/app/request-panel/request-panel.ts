@@ -29,6 +29,7 @@ export class RequestPanel {
       if (this.state.multiSelectionActive() || this.state.showingBin()) {
         this.requestApi.responses.set([]);
         this.state.selectedResponse.set(null);
+        this.state.responsesLoading.set(false);
         return;
       }
 
@@ -38,6 +39,7 @@ export class RequestPanel {
       } else {
         this.requestApi.responses.set([]);
         this.state.selectedResponse.set(null);
+        this.state.responsesLoading.set(this.state.selectedIds().size > 0);
       }
     });
   }

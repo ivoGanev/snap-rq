@@ -1,32 +1,4 @@
 <div class="code-editor">
-  @if (showToolbar()) {
-    <div class="code-editor-toolbar">
-      <span class="code-editor-language">{{ language() }}</span>
-      @if (isJson()) {
-        <button
-          class="code-editor-format"
-          type="button"
-          (click)="formatCurrent()"
-          aria-label="Format body"
-          title="Format"
-        >
-          Format
-        </button>
-      }
-      <span class="code-editor-validation" [class.is-invalid]="!isValid()">
-        @if (isJson()) {
-          @if (isValid()) {
-            Valid
-          } @else {
-            {{ validationError() }}
-          }
-        } @else {
-          Plain text
-        }
-      </span>
-    </div>
-  }
-
   <div class="code-editor-editor-wrap">
     <div #editor class="code-editor-editor"></div>
 

@@ -23,6 +23,7 @@ import {
   EditorView,
   keymap,
   lineNumbers,
+  highlightActiveLine,
   drawSelection,
   dropCursor,
   ViewPlugin,
@@ -34,8 +35,6 @@ import {
 import { json } from '@codemirror/lang-json';
 import { linter, type Diagnostic } from '@codemirror/lint';
 import { defaultKeymap, history, historyKeymap, redo } from '@codemirror/commands';
-import { syntaxHighlighting } from '@codemirror/language';
-import { oneDarkHighlightStyle } from '@codemirror/theme-one-dark';
 
 export type EditorLanguage = 'json' | 'text';
 
@@ -57,11 +56,6 @@ const variablesField = StateField.define<EditorVariable[]>({
     return value;
   },
 });
-
-interface ValidationResult {
-  valid: boolean;
-  error: string;
-}
 
 const VARIABLE_QUOTED_REGEX = /"\{\{\s*(\w+)\s*\}\}"/g;
 const VARIABLE_UNQUOTED_REGEX = /\{\{\s*(\w+)\s*\}\}/g;
@@ -159,7 +153,6 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
   readonly text = input<string>('');
   readonly language = input<EditorLanguage>('json');
   readonly variables = input<EditorVariable[]>([]);
-  readonly showToolbar = input<boolean>(true);
 
   readonly textChange = output<string>();
 
@@ -170,8 +163,6 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
   private charWidth = 7.8;
 
   readonly isJson = computed(() => this.language() === 'json');
-  readonly isValid = signal(true);
-  readonly validationError = signal('');
   readonly dropdownOpen = signal(false);
   readonly dropdownTop = signal(0);
   readonly dropdownLeft = signal(0);
@@ -271,10 +262,10 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
   private baseExtensions(): Extension {
     return [
       lineNumbers(),
+      highlightActiveLine(),
       drawSelection(),
       dropCursor(),
       history(),
-      syntaxHighlighting(oneDarkHighlightStyle, { fallback: true }),
       keymap.of([...defaultKeymap, ...historyKeymap]),
       Prec.highest(
         keymap.of([
@@ -343,9 +334,7 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
       ),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
-          const value = update.state.doc.toString();
-          this.textChange.emit(value);
-          this.validate(value);
+          this.textChange.emit(update.state.doc.toString());
         }
       }),
       this.customTheme(),
@@ -383,13 +372,14 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
         '.cm-gutters': {
           backgroundColor: 'transparent',
           color: 'var(--muted)',
-          borderRight: '1px solid var(--glass-border)',
+          borderRight: 'none',
         },
         '.cm-lineNumbers .cm-gutterElement': {
           paddingLeft: '6px',
           paddingRight: '10px',
         },
         '.cm-activeLine': { backgroundColor: 'transparent' },
+        '.cm-focused .cm-activeLine': { backgroundColor: 'var(--hover-bg)' },
         '.cm-selectionBackground': { background: 'var(--selected-bg)' },
         '.cm-focused .cm-selectionBackground': { background: 'var(--selected-bg)' },
         '.cm-cursor': { borderLeftColor: 'var(--text)' },
@@ -568,33 +558,6 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
           message: (err as Error).message,
         },
       ];
-    }
-  }
-
-  private validate(value: string): void {
-    const result = this.validateForLanguage(value, this.language());
-    this.isValid.set(result.valid);
-    this.validationError.set(result.error);
-  }
-
-  private validateForLanguage(value: string, language: EditorLanguage): ValidationResult {
-    if (language === 'json') {
-      return this.validateJson(value);
-    }
-    return { valid: true, error: '' };
-  }
-
-  private validateJson(value: string): ValidationResult {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return { valid: true, error: '' };
-    }
-    const { text } = this.replaceVariablesWithPlaceholders(trimmed);
-    try {
-      JSON.parse(text);
-      return { valid: true, error: '' };
-    } catch (err) {
-      return { valid: false, error: (err as Error).message };
     }
   }
 

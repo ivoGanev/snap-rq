@@ -1,5 +1,4 @@
 <div class="body-tab-head">
-  <span class="body-tab-title">Body</span>
   @if (bodyTabState() === 'ready' && bodyEditCount() > 1) {
     <span class="body-tab-count">{{ bodyEditCount() }} requests</span>
   }
@@ -26,8 +25,6 @@
     (bodyChange)="onBodyTextChange($event)"
     (typeChange)="setBodyType($event)"
   ></app-request-body-editor>
-} @else if (bodyTabState() === 'loading') {
-  <div class="body-message">Loading bodies…</div>
 } @else if (bodyTabState() === 'mismatch') {
   <div class="body-message body-message--warning">
     <span>Selected requests have different bodies.</span>
@@ -44,7 +41,7 @@
   <div class="body-message body-message--error">
     Could not load request bodies.
   </div>
-} @else {
+} @else if (bodyTabState() === 'idle') {
   <div class="body-message">Select a request to edit its body.</div>
 }
 

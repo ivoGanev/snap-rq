@@ -1,5 +1,4 @@
 <div class="headers-tab-head">
-  <span class="headers-tab-title">Headers</span>
   @if (headersTabState() === 'ready' && headersEditCount() > 1) {
     <span class="headers-tab-count">{{ headersEditCount() }} requests</span>
   }
@@ -24,8 +23,6 @@
     [showLabel]="false"
     (headersChange)="onHeadersChange($event)"
   ></app-request-headers-editor>
-} @else if (headersTabState() === 'loading') {
-  <div class="headers-message">Loading headers…</div>
 } @else if (headersTabState() === 'mismatch') {
   <div class="headers-message headers-message--warning">
     <span>Selected requests have different headers.</span>
@@ -40,7 +37,7 @@
   </div>
 } @else if (headersTabState() === 'unavailable') {
   <div class="headers-message headers-message--error">Could not load request headers.</div>
-} @else {
+} @else if (headersTabState() === 'idle') {
   <div class="headers-message">Select a request to edit its headers.</div>
 }
 
