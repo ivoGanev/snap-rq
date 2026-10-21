@@ -13,14 +13,6 @@
   overflow: hidden;
 }
 
-.code-editor-toolbar {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  padding: var(--s-1) var(--s-2);
-}
-
 .code-editor-editor-wrap {
   flex: 1 1 0;
   position: relative;
@@ -39,17 +31,6 @@
   min-height: 0;
   overflow: hidden;
   cursor: text;
-}
-
-.code-editor-validation {
-  margin-left: auto;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--muted);
-}
-
-.code-editor-validation.is-invalid {
-  color: var(--error-text);
 }
 
 .code-editor-editor-wrap {

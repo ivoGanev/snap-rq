@@ -1,16 +1,4 @@
 <div class="code-editor">
-  @if (showToolbar() && isJson()) {
-    <div class="code-editor-toolbar">
-      <span class="code-editor-validation" [class.is-invalid]="!isValid()">
-        @if (isValid()) {
-          Valid
-        } @else {
-          {{ validationError() }}
-        }
-      </span>
-    </div>
-  }
-
   <div class="code-editor-editor-wrap">
     <div #editor class="code-editor-editor"></div>
 

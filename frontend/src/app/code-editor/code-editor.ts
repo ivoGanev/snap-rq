@@ -57,11 +57,6 @@ const variablesField = StateField.define<EditorVariable[]>({
   },
 });
 
-interface ValidationResult {
-  valid: boolean;
-  error: string;
-}
-
 const VARIABLE_QUOTED_REGEX = /"\{\{\s*(\w+)\s*\}\}"/g;
 const VARIABLE_UNQUOTED_REGEX = /\{\{\s*(\w+)\s*\}\}/g;
 const INDENT = '  ';
@@ -158,7 +153,6 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
   readonly text = input<string>('');
   readonly language = input<EditorLanguage>('json');
   readonly variables = input<EditorVariable[]>([]);
-  readonly showToolbar = input<boolean>(true);
 
   readonly textChange = output<string>();
 
@@ -169,8 +163,6 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
   private charWidth = 7.8;
 
   readonly isJson = computed(() => this.language() === 'json');
-  readonly isValid = signal(true);
-  readonly validationError = signal('');
   readonly dropdownOpen = signal(false);
   readonly dropdownTop = signal(0);
   readonly dropdownLeft = signal(0);
@@ -342,9 +334,7 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
       ),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
-          const value = update.state.doc.toString();
-          this.textChange.emit(value);
-          this.validate(value);
+          this.textChange.emit(update.state.doc.toString());
         }
       }),
       this.customTheme(),
@@ -568,33 +558,6 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
           message: (err as Error).message,
         },
       ];
-    }
-  }
-
-  private validate(value: string): void {
-    const result = this.validateForLanguage(value, this.language());
-    this.isValid.set(result.valid);
-    this.validationError.set(result.error);
-  }
-
-  private validateForLanguage(value: string, language: EditorLanguage): ValidationResult {
-    if (language === 'json') {
-      return this.validateJson(value);
-    }
-    return { valid: true, error: '' };
-  }
-
-  private validateJson(value: string): ValidationResult {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return { valid: true, error: '' };
-    }
-    const { text } = this.replaceVariablesWithPlaceholders(trimmed);
-    try {
-      JSON.parse(text);
-      return { valid: true, error: '' };
-    } catch (err) {
-      return { valid: false, error: (err as Error).message };
     }
   }
 
