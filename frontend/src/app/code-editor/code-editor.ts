@@ -59,15 +59,7 @@ const variablesField = StateField.define<EditorVariable[]>({
 
 const VARIABLE_QUOTED_REGEX = /"\{\{\s*(\w+)\s*\}\}"/g;
 const VARIABLE_UNQUOTED_REGEX = /\{\{\s*(\w+)\s*\}\}/g;
-const VARIABLE_REGEX = /"\{\{\s*(\w+)\s*\}\}"|\{\{\s*(\w+)\s*\}\}/g;
 const INDENT = '  ';
-
-interface LintReplacementRange {
-  originalFrom: number;
-  originalTo: number;
-  replacedFrom: number;
-  replacedTo: number;
-}
 
 class VariableWidget extends WidgetType {
   constructor(
@@ -360,7 +352,7 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
 
   private languageExtension(isJson: boolean): Extension {
     if (!isJson) return [];
-    return [json(), linter((view) => this.jsonLinter(view), { delay: 10 })];
+    return [json(), linter(jsonParseLinter(), { delay: 100 })];
   }
 
   private customTheme(): Extension {
@@ -559,21 +551,6 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
     return ctx.measureText('M').width;
   }
 
-  private readonly jsonLint = jsonParseLinter();
-
-  private jsonLinter(view: EditorView): Diagnostic[] {
-    const raw = view.state.doc.toString();
-    if (!raw.trim()) return [];
-    const { text, ranges } = this.replaceVariablesForLint(raw);
-    const state = EditorState.create({ doc: text });
-    const diagnostics = this.jsonLint({ state } as EditorView);
-    return diagnostics.map((d) => ({
-      ...d,
-      from: this.mapReplacedToOriginal(d.from, ranges),
-      to: this.mapReplacedToOriginal(d.to, ranges),
-    }));
-  }
-
   private formatJson(value: string): string {
     const { text, placeholders } = this.replaceVariablesWithPlaceholders(value);
     try {
@@ -615,49 +592,6 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
       result = result.replaceAll(token, original);
     }
     return result;
-  }
-
-  private replaceVariablesForLint(value: string): {
-    text: string;
-    ranges: LintReplacementRange[];
-  } {
-    const ranges: LintReplacementRange[] = [];
-    let result = '';
-    let lastIndex = 0;
-    let counterQ = 0;
-    let counterU = 0;
-
-    VARIABLE_REGEX.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = VARIABLE_REGEX.exec(value)) !== null) {
-      const original = match[0];
-      const isQuoted = original.startsWith('"');
-      const token = isQuoted ? `"__VAR_Q_${counterQ++}__"` : `"__VAR_U_${counterU++}__"`;
-      const originalFrom = match.index;
-      const originalTo = originalFrom + original.length;
-      const replacedFrom = result.length + (originalFrom - lastIndex);
-      const replacedTo = replacedFrom + token.length;
-
-      result += value.slice(lastIndex, originalFrom);
-      result += token;
-      ranges.push({ originalFrom, originalTo, replacedFrom, replacedTo });
-      lastIndex = originalTo;
-    }
-    result += value.slice(lastIndex);
-    return { text: result, ranges };
-  }
-
-  private mapReplacedToOriginal(pos: number, ranges: LintReplacementRange[]): number {
-    let originalPos = pos;
-    for (const range of ranges) {
-      if (pos <= range.replacedFrom) break;
-      if (pos >= range.replacedTo) {
-        originalPos += range.originalTo - range.originalFrom - (range.replacedTo - range.replacedFrom);
-      } else {
-        return range.originalFrom + (pos - range.replacedFrom);
-      }
-    }
-    return originalPos;
   }
 
   private onDocumentClick(event: MouseEvent): void {
