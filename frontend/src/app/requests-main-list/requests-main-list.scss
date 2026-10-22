@@ -303,6 +303,7 @@
   grid-template-columns: 44px 100px minmax(0, 1fr);
   align-items: center;
   width: 100%;
+  container-type: inline-size;
 }
 
 .spreadsheet-viewport {
@@ -455,6 +456,26 @@
 .request-line--url {
   font-size: 0.75rem;
   color: var(--muted);
+}
+
+@container (min-width: 560px) {
+  .request-details {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--s-2);
+  }
+
+  .request-line--name {
+    flex: 0 0 200px;
+    width: 200px;
+    max-width: 200px;
+  }
+
+  .request-line--url {
+    flex: 1 1 0;
+    min-width: 0;
+  }
 }
 
 .zen-mode-button {
