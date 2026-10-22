@@ -29,39 +29,6 @@
       in {{ activeGroupName() }}
     </span>
   }
-  <div class="sort-control">
-    <button
-      class="sort-button"
-      type="button"
-      (click)="toggleSortMenu()"
-      [attr.aria-expanded]="sortMenuOpen()"
-      aria-haspopup="menu"
-    >
-      {{ sortLabel() }}
-    </button>
-
-    @if (sortMenuOpen()) {
-      <div class="sort-menu" role="menu">
-        @for (col of columns; track col.key) {
-          <button
-            class="sort-menu-option"
-            type="button"
-            role="menuitemradio"
-            [class.is-active]="sortColumn() === col.key"
-            [attr.aria-checked]="sortColumn() === col.key"
-            (click)="selectSortColumn(col.key)"
-          >
-            <span>{{ col.label }}</span>
-            @if (sortColumn() === col.key) {
-              <span class="sort-menu-direction">
-                {{ sortDirection() === 'asc' ? '▲' : '▼' }}
-              </span>
-            }
-          </button>
-        }
-      </div>
-    }
-  </div>
   <span class="header-spacer"></span>
   @if (selectedRowIds().size > 1) {
     <span class="selection-count">{{ selectedRowIds().size }} selected</span>
@@ -147,7 +114,76 @@
 }
 
 @if (activeGroupName() && filteredActiveRequests().length > 0) {
-  <div class="spreadsheet-wrapper" [class.is-dragging]="isDragging()">
+  <div
+    class="spreadsheet-wrapper"
+    [class.is-dragging]="isDragging()"
+    [class.is-resizing]="isResizingColumn()"
+    [style.--method-col-width]="methodColumnWidthCss()"
+    [style.--name-col-width]="nameColumnWidthCss()"
+  >
+    <div class="spreadsheet-header">
+      <div class="spreadsheet-header-cell spreadsheet-header-cell--action"></div>
+      <div
+        #methodHeaderCell
+        class="spreadsheet-header-cell spreadsheet-header-cell--method"
+        [attr.aria-sort]="
+          sortColumn() === 'method'
+            ? (sortDirection() === 'asc' ? 'ascending' : 'descending')
+            : null
+        "
+      >
+        <button
+          class="spreadsheet-header-button"
+          type="button"
+          (click)="toggleSort('method')"
+        >
+          <span>Method</span>
+          @if (sortColumn() === 'method') {
+            <span class="sort-indicator">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>
+          }
+        </button>
+      </div>
+      <div
+        #nameHeaderCell
+        class="spreadsheet-header-cell spreadsheet-header-cell--name"
+        [attr.aria-sort]="
+          sortColumn() === 'name'
+            ? (sortDirection() === 'asc' ? 'ascending' : 'descending')
+            : null
+        "
+      >
+        <button
+          class="spreadsheet-header-button"
+          type="button"
+          (click)="toggleSort('name')"
+        >
+          <span>Name</span>
+          @if (sortColumn() === 'name') {
+            <span class="sort-indicator">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>
+          }
+        </button>
+      </div>
+      <div
+        class="spreadsheet-header-cell spreadsheet-header-cell--url"
+        [attr.aria-sort]="
+          sortColumn() === 'url'
+            ? (sortDirection() === 'asc' ? 'ascending' : 'descending')
+            : null
+        "
+      >
+        <button
+          class="spreadsheet-header-button"
+          type="button"
+          (click)="toggleSort('url')"
+        >
+          <span>URL</span>
+          @if (sortColumn() === 'url') {
+            <span class="sort-indicator">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>
+          }
+        </button>
+      </div>
+    </div>
+
     <cdk-virtual-scroll-viewport
       [itemSize]="rowHeight"
       class="spreadsheet-viewport"
@@ -199,49 +235,60 @@
           >{{ req.method }}</span>
         </div>
 
-        <div class="request-details">
-          <div
-            class="request-line request-line--name"
-            [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['name']"
-            (click)="onRowClick(req, $event, 'name')"
-            [title]="req.name"
-          >
-            @if (editingNameId() === req.id) {
-              <input
-                #inlineNameInput
-                class="inline-name-input"
-                type="text"
-                [ngModel]="editingNameValue()"
-                (ngModelChange)="editingNameValue.set($event)"
-                (mousedown)="$event.stopPropagation()"
-                (click)="$event.stopPropagation()"
-                (dblclick)="$event.stopPropagation()"
-                (keydown.enter)="commitInlineNameEdit(req)"
-                (keydown.escape)="cancelInlineNameEdit(); $event.stopPropagation()"
-                (blur)="commitInlineNameEdit(req)"
-              />
-            } @else {
-              <span
-                class="cell-text"
-                (dblclick)="onCellDoubleClick(req, 'name')"
-              >{{ req.name }}</span>
-            }
-          </div>
-
-          <div
-            class="request-line request-line--url"
-            [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['url']"
-            (click)="onRowClick(req, $event, 'url')"
-            [title]="req.url"
-          >
+        <div
+          class="spreadsheet-cell spreadsheet-cell--name"
+          [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['name']"
+          (click)="onRowClick(req, $event, 'name')"
+          [title]="req.name"
+        >
+          @if (editingNameId() === req.id) {
+            <input
+              #inlineNameInput
+              class="inline-name-input"
+              type="text"
+              [ngModel]="editingNameValue()"
+              (ngModelChange)="editingNameValue.set($event)"
+              (mousedown)="$event.stopPropagation()"
+              (click)="$event.stopPropagation()"
+              (dblclick)="$event.stopPropagation()"
+              (keydown.enter)="commitInlineNameEdit(req)"
+              (keydown.escape)="cancelInlineNameEdit(); $event.stopPropagation()"
+              (blur)="commitInlineNameEdit(req)"
+            />
+          } @else {
             <span
               class="cell-text"
-              (dblclick)="onCellDoubleClick(req, 'url')"
-            >{{ req.url }}</span>
-          </div>
+              (dblclick)="onCellDoubleClick(req, 'name')"
+            >{{ req.name }}</span>
+          }
+        </div>
+
+        <div
+          class="spreadsheet-cell spreadsheet-cell--url"
+          [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['url']"
+          (click)="onRowClick(req, $event, 'url')"
+          [title]="req.url"
+        >
+          <span
+            class="cell-text"
+            (dblclick)="onCellDoubleClick(req, 'url')"
+          >{{ req.url }}</span>
         </div>
       </div>
     </cdk-virtual-scroll-viewport>
+
+    <div class="spreadsheet-overlay" aria-hidden="true">
+      <div
+        class="column-separator"
+        [style.left.px]="methodSeparatorLeft()"
+        (mousedown)="startColumnResize($event, 'method')"
+      ></div>
+      <div
+        class="column-separator"
+        [style.left.px]="nameSeparatorLeft()"
+        (mousedown)="startColumnResize($event, 'name')"
+      ></div>
+    </div>
   </div>
 }
 

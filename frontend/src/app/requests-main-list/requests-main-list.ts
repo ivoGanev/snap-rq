@@ -28,13 +28,6 @@ interface RowState {
   isCellSelected: Record<ColumnKey, boolean>;
 }
 
-const COLUMNS: { key: ColumnKey; label: string }[] = [
-  { key: 'name', label: 'Name' },
-  { key: 'url', label: 'URL' },
-  { key: 'method', label: 'Method' },
-  { key: 'tags', label: 'Tags' },
-];
-
 const BOTTOM_TABS: BottomTab[] = [
   { id: 'body', label: 'Body', icon: 'body', component: RequestBodyTab },
   { id: 'headers', label: 'Headers', icon: 'headers', component: RequestHeadersTab },
@@ -42,6 +35,8 @@ const BOTTOM_TABS: BottomTab[] = [
 
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
 const DRAG_THRESHOLD_PX = 5;
+const METHOD_COLUMN_MIN_WIDTH = 60;
+const NAME_COLUMN_MIN_WIDTH = 120;
 
 /**
  * Spreadsheet-style request list with multi-select and bulk actions.
@@ -58,7 +53,7 @@ const DRAG_THRESHOLD_PX = 5;
     '(window:keydown)': 'onWindowKeydown($event)',
     '(window:mousemove)': 'onWindowMouseMove($event)',
     '(window:mouseup)': 'onWindowMouseUp()',
-    '(document:click)': 'onDocumentClick($event)',
+    '(window:resize)': 'onWindowResize()',
   },
 })
 export class RequestsMainList {
@@ -75,7 +70,6 @@ export class RequestsMainList {
   @ViewChild(CdkVirtualScrollViewport, { static: false })
   private readonly viewport!: CdkVirtualScrollViewport;
 
-  protected readonly columns = COLUMNS;
   protected readonly bottomTabs = BOTTOM_TABS;
   protected readonly httpMethods = HTTP_METHODS;
   protected readonly requestTags = this.tagApi.requestTags;
@@ -105,16 +99,23 @@ export class RequestsMainList {
 
   readonly sortColumn = signal<ColumnKey | null>(null);
   readonly sortDirection = signal<SortDirection>('asc');
-  readonly sortMenuOpen = signal(false);
 
   protected readonly rowHeight = 44;
 
-  readonly sortLabel = computed(() => {
-    const column = this.sortColumn();
-    if (!column) return 'Sort';
-    const label = COLUMNS.find((col) => col.key === column)?.label ?? column;
-    return `${label} ${this.sortDirection() === 'asc' ? '▲' : '▼'}`;
-  });
+  readonly methodColumnWidth = signal(100);
+  readonly nameColumnWidth = signal(200);
+  private readonly columnResizeState = signal<{
+    column: 'method' | 'name';
+    startX: number;
+    startWidth: number;
+  } | null>(null);
+  readonly isResizingColumn = computed(() => this.columnResizeState() !== null);
+  readonly methodColumnWidthCss = computed(() => `${this.methodColumnWidth()}px`);
+  readonly nameColumnWidthCss = computed(() => `${this.nameColumnWidth()}px`);
+
+  readonly methodSeparatorLeft = signal(0);
+  readonly nameSeparatorLeft = signal(0);
+  private readonly resizeTick = signal(0);
 
   // Single-cell edit modals
   readonly editModalOpen = signal(false);
@@ -125,6 +126,8 @@ export class RequestsMainList {
   readonly editingNameId = signal<number | null>(null);
   readonly editingNameValue = signal('');
   private readonly inlineNameInput = viewChild<ElementRef<HTMLInputElement>>('inlineNameInput');
+  private readonly methodHeaderCell = viewChild<ElementRef<HTMLElement>>('methodHeaderCell');
+  private readonly nameHeaderCell = viewChild<ElementRef<HTMLElement>>('nameHeaderCell');
 
   readonly methodModalOpen = signal(false);
   readonly methodModalRequest = signal<HttpRequestSummary | null>(null);
@@ -309,7 +312,6 @@ export class RequestsMainList {
 
       const version = ++this.loadVersion;
       this.requestSearchQuery.set('');
-      this.sortMenuOpen.set(false);
       if (showFamous) {
         this.sortColumn.set(null);
         this.sortDirection.set('asc');
@@ -341,6 +343,17 @@ export class RequestsMainList {
 
     effect(() => {
       this.state.multiSelectionActive.set(this.selectedRowIds().size > 1);
+    });
+
+    effect(() => {
+      this.methodColumnWidth();
+      this.nameColumnWidth();
+      this.resizeTick();
+      const methodCell = this.methodHeaderCell()?.nativeElement;
+      const nameCell = this.nameHeaderCell()?.nativeElement;
+      if (!methodCell || !nameCell) return;
+      this.methodSeparatorLeft.set(methodCell.offsetLeft + methodCell.offsetWidth);
+      this.nameSeparatorLeft.set(nameCell.offsetLeft + nameCell.offsetWidth);
     });
   }
 
@@ -455,10 +468,6 @@ export class RequestsMainList {
   onEscapePressed(): void {
     if (this.editingNameId() !== null) {
       this.cancelInlineNameEdit();
-      return;
-    }
-    if (this.sortMenuOpen()) {
-      this.closeSortMenu();
       return;
     }
     if (this.contextMenu.isOpen()) {
@@ -675,6 +684,20 @@ export class RequestsMainList {
   }
 
   onWindowMouseMove(event: MouseEvent): void {
+    const resizeState = this.columnResizeState();
+    if (resizeState) {
+      const delta = event.clientX - resizeState.startX;
+      const minWidth =
+        resizeState.column === 'method' ? METHOD_COLUMN_MIN_WIDTH : NAME_COLUMN_MIN_WIDTH;
+      const nextWidth = Math.max(minWidth, resizeState.startWidth + delta);
+      if (resizeState.column === 'method') {
+        this.methodColumnWidth.set(nextWidth);
+      } else {
+        this.nameColumnWidth.set(nextWidth);
+      }
+      return;
+    }
+
     if (this.dragStartRowId() === null) return;
 
     if (!this.isDragging()) {
@@ -748,6 +771,11 @@ export class RequestsMainList {
   }
 
   onWindowMouseUp(): void {
+    if (this.columnResizeState()) {
+      this.columnResizeState.set(null);
+      return;
+    }
+
     if (this.dragStartRowId() === null) return;
 
     const wasDragging = this.isDragging() || this.dragHasMoved();
@@ -1100,24 +1128,18 @@ export class RequestsMainList {
     }
   }
 
-  toggleSortMenu(): void {
-    this.sortMenuOpen.update((open) => !open);
+  startColumnResize(event: MouseEvent, column: 'method' | 'name'): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.columnResizeState.set({
+      column,
+      startX: event.clientX,
+      startWidth: column === 'method' ? this.methodColumnWidth() : this.nameColumnWidth(),
+    });
   }
 
-  closeSortMenu(): void {
-    this.sortMenuOpen.set(false);
-  }
-
-  onDocumentClick(event: MouseEvent): void {
-    if (!this.sortMenuOpen()) return;
-    const target = event.target;
-    if (target instanceof Element && target.closest('.sort-control')) return;
-    this.closeSortMenu();
-  }
-
-  selectSortColumn(column: ColumnKey): void {
-    this.toggleSort(column);
-    this.closeSortMenu();
+  onWindowResize(): void {
+    this.resizeTick.update((tick) => tick + 1);
   }
 
   private compareRequests(a: HttpRequestSummary, b: HttpRequestSummary, column: ColumnKey): number {
@@ -1130,11 +1152,6 @@ export class RequestsMainList {
         return a.url.localeCompare(b.url) * dir;
       case 'method':
         return a.method.localeCompare(b.method) * dir;
-      case 'tags': {
-        const aTags = (this.requestTags()[a.id] ?? []).join(', ');
-        const bTags = (this.requestTags()[b.id] ?? []).join(', ');
-        return aTags.localeCompare(bTags) * dir;
-      }
       default:
         return 0;
     }
