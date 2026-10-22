@@ -32,7 +32,7 @@ import {
   DecorationSet,
   WidgetType,
 } from '@codemirror/view';
-import { json } from '@codemirror/lang-json';
+import { json, jsonParseLinter } from '@codemirror/lang-json';
 import { linter, type Diagnostic } from '@codemirror/lint';
 import { defaultKeymap, history, historyKeymap, redo } from '@codemirror/commands';
 
@@ -175,11 +175,13 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
   constructor() {
     effect(() => {
       const value = this.text();
-      if (this.view && this.view.state.doc.toString() !== value) {
-        this.view.dispatch({
-          changes: { from: 0, to: this.view.state.doc.length, insert: value },
-        });
-      }
+      if (!this.view || this.view.state.doc.toString() === value) return;
+      // Don't overwrite the editor while the user is typing in it.
+      // Other editors subscribe to the same parent signal, so they still update.
+      if (this.view.hasFocus) return;
+      this.view.dispatch({
+        changes: { from: 0, to: this.view.state.doc.length, insert: value },
+      });
     });
 
     effect(() => {
@@ -350,7 +352,7 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
 
   private languageExtension(isJson: boolean): Extension {
     if (!isJson) return [];
-    return [json(), linter((view) => this.jsonLinter(view))];
+    return [json(), linter(jsonParseLinter(), { delay: 100 })];
   }
 
   private customTheme(): Extension {
@@ -547,25 +549,6 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
     const style = getComputedStyle(element);
     ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
     return ctx.measureText('M').width;
-  }
-
-  private jsonLinter(view: EditorView): Diagnostic[] {
-    const raw = view.state.doc.toString().trim();
-    if (!raw) return [];
-    const { text } = this.replaceVariablesWithPlaceholders(raw);
-    try {
-      JSON.parse(text);
-      return [];
-    } catch (err) {
-      return [
-        {
-          from: 0,
-          to: view.state.doc.length,
-          severity: 'error',
-          message: (err as Error).message,
-        },
-      ];
-    }
   }
 
   private formatJson(value: string): string {
