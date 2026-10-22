@@ -32,7 +32,7 @@ import {
   DecorationSet,
   WidgetType,
 } from '@codemirror/view';
-import { json } from '@codemirror/lang-json';
+import { json, jsonParseLinter } from '@codemirror/lang-json';
 import { linter, type Diagnostic } from '@codemirror/lint';
 import { defaultKeymap, history, historyKeymap, redo } from '@codemirror/commands';
 
@@ -360,7 +360,7 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
 
   private languageExtension(isJson: boolean): Extension {
     if (!isJson) return [];
-    return [json(), linter((view) => this.jsonLinter(view), { delay: 100 })];
+    return [json(), linter((view) => this.jsonLinter(view), { delay: 10 })];
   }
 
   private customTheme(): Extension {
@@ -559,23 +559,19 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
     return ctx.measureText('M').width;
   }
 
+  private readonly jsonLint = jsonParseLinter();
+
   private jsonLinter(view: EditorView): Diagnostic[] {
     const raw = view.state.doc.toString();
     if (!raw.trim()) return [];
     const { text, ranges } = this.replaceVariablesForLint(raw);
-    try {
-      JSON.parse(text);
-      return [];
-    } catch (err) {
-      const message = (err as Error).message;
-      const match = /position (\d+)/i.exec(message);
-      const replacedPos = match ? parseInt(match[1], 10) : 0;
-      const pos = this.mapReplacedToOriginal(replacedPos, ranges);
-      const len = view.state.doc.length;
-      const from = Math.max(0, Math.min(pos, len - 1));
-      const to = Math.min(from + 1, len);
-      return [{ from, to, severity: 'error', message }];
-    }
+    const state = EditorState.create({ doc: text });
+    const diagnostics = this.jsonLint({ state } as EditorView);
+    return diagnostics.map((d) => ({
+      ...d,
+      from: this.mapReplacedToOriginal(d.from, ranges),
+      to: this.mapReplacedToOriginal(d.to, ranges),
+    }));
   }
 
   private formatJson(value: string): string {
