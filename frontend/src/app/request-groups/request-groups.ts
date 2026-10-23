@@ -4,7 +4,7 @@ import { WorkspaceStateService } from '../core/services/workspace-state.service'
 import { CollectionApiService, type Collection, type CollectionAppearance } from '../core/services/collection.service';
 import { FavouriteApiService, type FavouriteCollection, type FavouriteAppearance } from '../core/services/favourite.service';
 import { RequestApiService } from '../core/services/request.service';
-import { SelectionStateService } from '../core/services/selection-state.service';
+import { SelectionStateService, groupKey } from '../core/services/selection-state.service';
 import { IconManifestService } from '../core/services/icon-manifest.service';
 import { TagApiService, type Tag, type TagAppearance } from '../core/services/tag.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
@@ -465,7 +465,7 @@ export class RequestGroups {
       for (const requestId of deletedRequestIds) {
         this.selectionState.deleteRequest(requestId);
       }
-      this.selectionState.setSelectedRequestForCollection(collection.id, null);
+      this.selectionState.setSelectedRequest(groupKey.collection(collection.id), null);
 
       if (this.state.selectedCollection()?.id === collection.id) {
         this.state.selectedCollection.set(null);

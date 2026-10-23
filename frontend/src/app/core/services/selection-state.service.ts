@@ -1,68 +1,52 @@
 import { Injectable } from '@angular/core';
 
+export const groupKey = {
+  collection: (collectionId: number) => `collection:${collectionId}`,
+  favourite: (favouriteId: number) => `favourite:${favouriteId}`,
+  tag: (projectId: number, tagName: string) => `tag:${projectId}:${tagName}`,
+  allRequests: (projectId: number) => `all:${projectId}`,
+  famous: (projectId: number) => `famous:${projectId}`,
+  bin: (projectId: number) => `bin:${projectId}`,
+};
+
 /**
- * In-memory runtime state for the user's last selected request within a
- * collection or favourite group. This is intentionally not persisted across
- * app restarts — it only preserves selection state during the current session.
+ * In-memory runtime state for the user's last selected request within each
+ * request-list group (collection, favourite, tag, all requests, famous, bin).
+ * This is intentionally not persisted across app restarts — it only preserves
+ * selection state during the current session.
  *
  * A reverse index is maintained so that when a request is deleted we can
- * efficiently clear it from every collection/favourite that had it selected.
+ * efficiently clear it from every group that had it selected.
  */
 @Injectable({ providedIn: 'root' })
 export class SelectionStateService {
-  private readonly collectionSelections = new Map<number, number>();
-  private readonly favouriteSelections = new Map<number, number>();
-  private readonly requestToCollections = new Map<number, Set<number>>();
-  private readonly requestToFavourites = new Map<number, Set<number>>();
+  private readonly groupSelections = new Map<string, number>();
+  private readonly requestToGroups = new Map<number, Set<string>>();
 
-  getSelectedRequestForCollection(collectionId: number): number | null {
-    return this.collectionSelections.get(collectionId) ?? null;
+  getSelectedRequest(key: string): number | null {
+    return this.groupSelections.get(key) ?? null;
   }
 
-  setSelectedRequestForCollection(collectionId: number, requestId: number | null): void {
-    const previous = this.collectionSelections.get(collectionId);
+  setSelectedRequest(key: string, requestId: number | null): void {
+    const previous = this.groupSelections.get(key);
     if (previous !== undefined) {
-      this.requestToCollections.get(previous)?.delete(collectionId);
-      if (this.requestToCollections.get(previous)?.size === 0) {
-        this.requestToCollections.delete(previous);
+      const groups = this.requestToGroups.get(previous);
+      groups?.delete(key);
+      if (groups?.size === 0) {
+        this.requestToGroups.delete(previous);
       }
     }
 
     if (requestId === null) {
-      this.collectionSelections.delete(collectionId);
+      this.groupSelections.delete(key);
       return;
     }
 
-    this.collectionSelections.set(collectionId, requestId);
-    if (!this.requestToCollections.has(requestId)) {
-      this.requestToCollections.set(requestId, new Set());
+    this.groupSelections.set(key, requestId);
+    if (!this.requestToGroups.has(requestId)) {
+      this.requestToGroups.set(requestId, new Set());
     }
-    this.requestToCollections.get(requestId)!.add(collectionId);
-  }
-
-  getSelectedRequestForFavourite(favouriteId: number): number | null {
-    return this.favouriteSelections.get(favouriteId) ?? null;
-  }
-
-  setSelectedRequestForFavourite(favouriteId: number, requestId: number | null): void {
-    const previous = this.favouriteSelections.get(favouriteId);
-    if (previous !== undefined) {
-      this.requestToFavourites.get(previous)?.delete(favouriteId);
-      if (this.requestToFavourites.get(previous)?.size === 0) {
-        this.requestToFavourites.delete(previous);
-      }
-    }
-
-    if (requestId === null) {
-      this.favouriteSelections.delete(favouriteId);
-      return;
-    }
-
-    this.favouriteSelections.set(favouriteId, requestId);
-    if (!this.requestToFavourites.has(requestId)) {
-      this.requestToFavourites.set(requestId, new Set());
-    }
-    this.requestToFavourites.get(requestId)!.add(favouriteId);
+    this.requestToGroups.get(requestId)!.add(key);
   }
 
   /**
@@ -70,20 +54,12 @@ export class SelectionStateService {
    * deleted from the database so stale selections are cleared everywhere.
    */
   deleteRequest(requestId: number): void {
-    const collections = this.requestToCollections.get(requestId);
-    if (collections) {
-      for (const collectionId of collections) {
-        this.collectionSelections.delete(collectionId);
+    const groups = this.requestToGroups.get(requestId);
+    if (groups) {
+      for (const key of groups) {
+        this.groupSelections.delete(key);
       }
-      this.requestToCollections.delete(requestId);
-    }
-
-    const favourites = this.requestToFavourites.get(requestId);
-    if (favourites) {
-      for (const favouriteId of favourites) {
-        this.favouriteSelections.delete(favouriteId);
-      }
-      this.requestToFavourites.delete(requestId);
+      this.requestToGroups.delete(requestId);
     }
   }
 }
