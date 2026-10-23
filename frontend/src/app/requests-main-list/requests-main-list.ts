@@ -7,7 +7,7 @@ import { RequestApiService, type HttpRequest, type HttpRequestSummary } from '..
 import { ApiRequestsService } from '../core/services/api-requests.service';
 import { FavouriteApiService, type FavouriteCollection } from '../core/services/favourite.service';
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
-import { SelectionStateService } from '../core/services/selection-state.service';
+import { SelectionStateService, groupKey } from '../core/services/selection-state.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
 import { BinApiService, type HttpBinnedRequestSummary, type RestoreBinnedRequestInput } from '../core/services/bin.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
@@ -199,6 +199,32 @@ export class RequestsMainList {
     return null;
   });
 
+  readonly activeGroupKey = computed<string | null>(() => {
+    const projectId = this.state.selectedProject()?.id ?? null;
+    if (this.state.showingBin()) {
+      return projectId !== null ? groupKey.bin(projectId) : null;
+    }
+    const tag = this.state.selectedTag();
+    if (tag) {
+      return projectId !== null ? groupKey.tag(projectId, tag) : null;
+    }
+    const favourite = this.state.selectedFavouriteCollection();
+    if (favourite) {
+      return groupKey.favourite(favourite.id);
+    }
+    const collection = this.state.selectedCollection();
+    if (collection) {
+      return groupKey.collection(collection.id);
+    }
+    if (this.state.showingFamousRequests()) {
+      return projectId !== null ? groupKey.famous(projectId) : null;
+    }
+    if (this.state.showingAllRequests()) {
+      return projectId !== null ? groupKey.allRequests(projectId) : null;
+    }
+    return null;
+  });
+
   readonly filteredActiveRequests = computed<HttpRequestSummary[]>(() => {
     const query = this.requestSearchQuery().trim().toLowerCase();
     const requests = this.activeRequests();
@@ -337,6 +363,7 @@ export class RequestsMainList {
           showFamous,
           showBin,
           project?.id ?? null,
+          this.activeGroupKey(),
         );
       });
     });
@@ -366,11 +393,16 @@ export class RequestsMainList {
     showFamous: boolean,
     showBin: boolean,
     projectId: number | null,
+    groupKeyOfView: string | null,
   ): Promise<void> {
     try {
       if (showBin && projectId !== null) {
         await this.binApi.loadForProject(projectId);
         if (version !== this.loadVersion) return;
+        this.restoreRememberedRequest(
+          this.binApi.binnedRequests() as HttpRequestSummary[],
+          this.rememberedRequestId(groupKeyOfView),
+        );
         return;
       }
 
@@ -378,6 +410,7 @@ export class RequestsMainList {
         const requests = await this.requestApi.loadRecentRequests(projectId, 50);
         if (version !== this.loadVersion) return;
         this.recentRequests.set(requests);
+        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView));
         return;
       }
 
@@ -388,7 +421,9 @@ export class RequestsMainList {
         if (version !== this.loadVersion) return;
         this.tagRequests.set(requests);
         await this.tagApi.loadTagsForRequests(requests);
+        if (version !== this.loadVersion) return;
         this.favouriteApi.requestsMembership.set({});
+        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView));
         return;
       }
 
@@ -397,8 +432,8 @@ export class RequestsMainList {
         if (version !== this.loadVersion) return;
         const requests = this.favouriteApi.requests();
         await this.tagApi.loadTagsForRequests(requests);
-        const rememberedId = this.selectionState.getSelectedRequestForFavourite(favouriteId);
-        this.restoreRememberedRequest(requests, rememberedId);
+        if (version !== this.loadVersion) return;
+        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView));
         return;
       }
 
@@ -406,8 +441,8 @@ export class RequestsMainList {
         if (version !== this.loadVersion) return;
         const requests = this.apiRequests.forCollection(collectionId);
         await this.tagApi.loadTagsForRequests(requests);
-        const rememberedId = this.selectionState.getSelectedRequestForCollection(collectionId);
-        this.restoreRememberedRequest(requests, rememberedId);
+        if (version !== this.loadVersion) return;
+        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView));
         return;
       }
 
@@ -415,6 +450,8 @@ export class RequestsMainList {
         if (version !== this.loadVersion) return;
         const requests = this.apiRequests.forProject(projectId);
         await this.tagApi.loadTagsForRequests(requests);
+        if (version !== this.loadVersion) return;
+        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView));
         return;
       }
 
@@ -425,12 +462,15 @@ export class RequestsMainList {
     }
   }
 
+  private rememberedRequestId(groupKeyOfView: string | null): number | null {
+    return groupKeyOfView !== null ? this.selectionState.getSelectedRequest(groupKeyOfView) : null;
+  }
+
   private restoreRememberedRequest(requests: HttpRequestSummary[], rememberedId: number | null): void {
     if (rememberedId === null) return;
-    const index = requests.findIndex((r) => r.id === rememberedId);
-    if (index === -1) return;
+    const remembered = requests.find((r) => r.id === rememberedId);
+    if (!remembered) return;
 
-    const remembered = requests[index];
     // Restore selection without letting the outer reactive effect track the
     // workspace request signal. Otherwise any later change to selectedRequest
     // (e.g. loading the full request for send) would re-run the group-load
@@ -439,9 +479,13 @@ export class RequestsMainList {
       this.selectCell(remembered, 'name');
     });
 
-    // Ensure the remembered row is visible in the virtual viewport.
+    // Ensure the remembered row is visible in the virtual viewport. The index
+    // must come from the displayed list so active sorting/search is respected.
     if (this.viewport) {
-      this.viewport.scrollToIndex(index, 'auto');
+      const index = this.filteredActiveRequests().findIndex((r) => r.id === rememberedId);
+      if (index >= 0) {
+        this.viewport.scrollToIndex(index, 'auto');
+      }
     }
   }
 
@@ -521,19 +565,9 @@ export class RequestsMainList {
     this.highlightedCell.set(highlight ? cell : null);
     this.syncWorkspaceSelection(req);
 
-    if (this.state.showingBin()) {
-      return;
-    }
-
-    const collection = this.state.selectedCollection();
-    if (collection) {
-      this.selectionState.setSelectedRequestForCollection(collection.id, req.id);
-      return;
-    }
-
-    const favourite = this.state.selectedFavouriteCollection();
-    if (favourite) {
-      this.selectionState.setSelectedRequestForFavourite(favourite.id, req.id);
+    const groupKeyOfView = this.activeGroupKey();
+    if (groupKeyOfView !== null) {
+      this.selectionState.setSelectedRequest(groupKeyOfView, req.id);
     }
   }
 
