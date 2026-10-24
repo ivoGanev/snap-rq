@@ -156,9 +156,9 @@ export class RequestsMainList {
   private dropHighlightTimeout: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly rowHeight = 44;
-  /** Doubled CDK defaults (100/200) for smoother fast scrolling. */
-  protected readonly virtualMinBufferPx = 200;
-  protected readonly virtualMaxBufferPx = 400;
+  /**  CDK buffer settings for smoother fast scrolling. */
+  protected readonly virtualMinBufferPx = 200*10;
+  protected readonly virtualMaxBufferPx = 400*10;
 
   readonly methodColumnWidth = signal(100);
   readonly nameColumnWidth = signal(200);
