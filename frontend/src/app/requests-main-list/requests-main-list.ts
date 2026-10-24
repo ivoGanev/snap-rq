@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, TemplateRef, ViewChild, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, OnDestroy, TemplateRef, ViewChild, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { Clipboard } from '@wailsio/runtime';
@@ -885,7 +885,7 @@ export class RequestsMainList {
       this.reorderPending.set(null);
       this.reorderDrag.set(null);
       this.stopReorderFrameLoop();
-      document.body.style.cursor = '';
+      document.body.classList.remove('reorder-dragging');
       if (drag) {
         this.ignoreNextClick.set(true);
         // The insertion slot counts the dragged row itself; adjust for its
@@ -965,9 +965,10 @@ export class RequestsMainList {
       this.reorderInsertIndex = fromIndex;
       this.reorderDrag.set({ request: requests[fromIndex], fromIndex });
       this.startReorderFrameLoop();
-      // Keep the grabbing cursor even when the pointer moves over rows that
-      // would otherwise override it (rows, cells, buttons).
-      document.body.style.cursor = 'grabbing';
+      // A body-level class (global CSS forces the grabbing cursor over every
+      // element) — element-level cursor rules would otherwise win as the
+      // pointer crosses buttons and other rows' handles.
+      document.body.classList.add('reorder-dragging');
       return;
     }
 
@@ -1049,8 +1050,15 @@ export class RequestsMainList {
     this.reorderPending.set(null);
     this.reorderDrag.set(null);
     this.stopReorderFrameLoop();
-    document.body.style.cursor = '';
+    document.body.classList.remove('reorder-dragging');
     return true;
+  }
+
+  ngOnDestroy(): void {
+    // If the component goes away mid-drag (view switch), the window-level
+    // mouseup listener dies with it — clean up here so the global dragging
+    // cursor and the rAF loop never leak.
+    this.cancelReorder();
   }
 
   /**
