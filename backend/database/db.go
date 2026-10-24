@@ -30,6 +30,12 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("enabling foreign keys: %w", err)
 	}
 
+	// WAL keeps bulk writes (e.g. reordering hundreds of requests) from paying
+	// rollback-journal overhead on every commit.
+	if _, err := db.Exec("PRAGMA journal_mode = WAL"); err != nil {
+		return nil, fmt.Errorf("enabling WAL journal mode: %w", err)
+	}
+
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("pinging database: %w", err)
 	}
@@ -51,6 +57,10 @@ func Open() (*sql.DB, error) {
 	}
 
 	if err := addBodyTypeColumns(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
+	if err := addUserSortOrderColumns(db); err != nil {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
@@ -95,6 +105,7 @@ func migrate(db *sql.DB) error {
 			request_headers TEXT,
 			status_code INTEGER NOT NULL DEFAULT 0,
 			response_id INTEGER NOT NULL DEFAULT 0,
+			user_sort_order INTEGER NOT NULL DEFAULT 0,
 			FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE
 		);
 		CREATE INDEX IF NOT EXISTS idx_http_requests_collection_id ON http_requests(collection_id);
@@ -153,7 +164,7 @@ func migrate(db *sql.DB) error {
 			favourite_collection_id INTEGER NOT NULL,
 			http_request_id INTEGER NOT NULL,
 			added_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			sort_order INTEGER NOT NULL DEFAULT 0,
+			user_sort_order INTEGER NOT NULL DEFAULT 0,
 			FOREIGN KEY (favourite_collection_id) REFERENCES favourite_collections(id) ON DELETE CASCADE,
 			FOREIGN KEY (http_request_id) REFERENCES http_requests(id) ON DELETE CASCADE,
 			UNIQUE (favourite_collection_id, http_request_id)
@@ -174,6 +185,7 @@ func migrate(db *sql.DB) error {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			request_id INTEGER NOT NULL,
 			tag_id INTEGER NOT NULL,
+			user_sort_order INTEGER NOT NULL DEFAULT 0,
 			FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE,
 			FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
 			UNIQUE (request_id, tag_id)
@@ -553,6 +565,51 @@ func backfillRequestBodyTypes(db *sql.DB, table string) error {
 			return fmt.Errorf("backfilling body_type for %s %d: %w", table, id, err)
 		}
 	}
+	return nil
+}
+
+// addUserSortOrderColumns introduces the per-view user ordering columns.
+//
+// - http_requests.user_sort_order orders a request within its collection.
+// - request_tags.user_sort_order orders a request within a tag.
+// - favourite_items.sort_order is renamed to user_sort_order for naming
+//   consistency (values are preserved).
+//
+// Legacy rows keep 0; every consumer orders by user_sort_order with the
+// previous natural tiebreaker (name), so existing ordering is unchanged until
+// the user drags for the first time.
+func addUserSortOrderColumns(db *sql.DB) error {
+	if !columnExists(db, "http_requests", "user_sort_order") {
+		_, err := db.Exec("ALTER TABLE http_requests ADD COLUMN user_sort_order INTEGER NOT NULL DEFAULT 0")
+		if err != nil {
+			return fmt.Errorf("adding user_sort_order column to http_requests: %w", err)
+		}
+	}
+
+	if !columnExists(db, "request_tags", "user_sort_order") {
+		_, err := db.Exec("ALTER TABLE request_tags ADD COLUMN user_sort_order INTEGER NOT NULL DEFAULT 0")
+		if err != nil {
+			return fmt.Errorf("adding user_sort_order column to request_tags: %w", err)
+		}
+	}
+
+	if columnExists(db, "favourite_items", "sort_order") && !columnExists(db, "favourite_items", "user_sort_order") {
+		_, err := db.Exec("ALTER TABLE favourite_items RENAME COLUMN sort_order TO user_sort_order")
+		if err != nil {
+			return fmt.Errorf("renaming favourite_items.sort_order to user_sort_order: %w", err)
+		}
+	}
+
+	_, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_http_requests_collection_sort ON http_requests(collection_id, user_sort_order)")
+	if err != nil {
+		return fmt.Errorf("creating http_requests collection sort index: %w", err)
+	}
+
+	_, err = db.Exec("CREATE INDEX IF NOT EXISTS idx_request_tags_tag_sort ON request_tags(tag_id, user_sort_order)")
+	if err != nil {
+		return fmt.Errorf("creating request_tags tag sort index: %w", err)
+	}
+
 	return nil
 }
 

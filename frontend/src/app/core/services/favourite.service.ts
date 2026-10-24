@@ -83,6 +83,11 @@ export class FavouriteApiService {
     });
   }
 
+  /** Persists the user's custom order of requests within one favourite collection. */
+  async updateRequestOrder(collectionId: number, orderedRequestIds: number[]): Promise<void> {
+    await FavouriteService.FavouriteService.UpdateFavouriteRequestOrder(collectionId, orderedRequestIds);
+  }
+
   clearMembership(): void {
     this.membership.set(new Set());
   }

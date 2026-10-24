@@ -8,5 +8,5 @@ type FavouriteItem struct {
 	FavouriteCollectionID  int64     `json:"favourite_collection_id"`
 	HTTPRequestID          int64     `json:"http_request_id"`
 	AddedAt                time.Time `json:"added_at"`
-	SortOrder              int       `json:"sort_order"`
+	UserSortOrder          int       `json:"user_sort_order"`
 }
