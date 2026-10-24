@@ -1,151 +1,69 @@
-<button
-  class="all-requests-button"
-  type="button"
-  [class.is-active]="state.showingAllRequests()"
-  [disabled]="!state.selectedProject()"
-  (click)="selectAll()"
->
-  <span class="all-requests-button__icon" aria-hidden="true">
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
-    </svg>
-  </span>
-  <span class="all-requests-button__label">All requests</span>
-</button>
-
-<button
-  class="all-requests-button all-requests-button--famous"
-  type="button"
-  [class.is-active]="state.showingFamousRequests()"
-  [disabled]="!state.selectedProject()"
-  (click)="selectFamous()"
->
-  <span class="all-requests-button__icon" aria-hidden="true">
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77 5.82 21.02 7 14.14 2 9.27l6.91-1.01L12 2z"/>
-    </svg>
-  </span>
-  <span class="all-requests-button__label">Famous</span>
-</button>
-
-<div class="sidebar-divider"></div>
-
-<button
-  class="add-button add-button--full"
-  type="button"
-  (click)="onAddButtonClick()"
-  [disabled]="!state.selectedProject()"
-  [attr.aria-label]="'Add new ' + folderFilter()"
->
-  +
-</button>
-
-<div class="sidebar-divider"></div>
-
-<div class="folder-tree folder-tree--flat">
-  @if (filteredItems().length === 0) {
-    <div class="state-message">{{ activeFolderEmptyMessage() }}</div>
-  }
-  <ul class="folder-children folder-children--flat">
-    @for (item of filteredItems(); track item.id + '-' + item.type) {
-      <li
-        class="tree-item"
-        [class.is-selected]="isSelected(item)"
-        (click)="selectSidebarItem(item)"
-        (contextmenu)="openItemContextMenu(item, $event, itemContextMenu)"
+<div class="request-groups-shell">
+  @if (state.sidebarExpanded()) {
+    <nav class="request-groups-nav">
+      <button
+        class="nav-toggle"
+        type="button"
+        title="Collapse sidebar"
+        aria-label="Collapse sidebar"
+        (click)="collapseSidebar()"
       >
-        @if (renamingItem()?.id === item.id && renamingItem()?.type === item.type) {
-          <form class="rename-form" (submit)="saveRename($event)">
-            <input
-              class="rename-input"
-              type="text"
-              [ngModel]="renameValue()"
-              (ngModelChange)="renameValue.set($event)"
-              (keydown.escape)="cancelRename()"
-              (blur)="saveRename()"
-              autofocus
-            />
-          </form>
-        } @else {
-          <button
-            class="item-indicator"
-            type="button"
-            [style.background-color]="colorValue(item.appearance) ?? null"
-            (click)="openAppearancePopup(item, $event)"
-            [attr.aria-label]="'Edit appearance for ' + item.name"
-          >
-            @let cp = iconPath(item.appearance);
-            @if (cp) {
-              <img [src]="cp" alt="" />
-            } @else if (isDefaultAppearance(item.appearance)) {
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-              </svg>
-            }
-          </button>
-          <span class="tree-item-label">{{ item.name }}</span>
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path
+            d="M17.59 18L19 16.59 14.42 12 19 7.41 17.59 6l-6 6zM9.59 18L11 16.59 6.42 12 11 7.41 9.59 6l-6 6z"
+          />
+        </svg>
+      </button>
+
+      @for (view of sidebarViews; track view.id) {
+        @if (view.dividerBefore) {
+          <div class="sidebar-divider"></div>
         }
-      </li>
+        <button
+          class="nav-button"
+          [class.is-active]="isViewActive(view)"
+          [class.nav-button--trash]="view.id === 'trash'"
+          type="button"
+          [disabled]="!state.selectedProject()"
+          (click)="selectView(view.id)"
+        >
+          <span class="nav-button__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path [attr.d]="view.iconPath" />
+            </svg>
+          </span>
+          <span class="nav-button__label">{{ view.label }}</span>
+        </button>
+      }
+    </nav>
+
+    @if (folderFilter()) {
+      <app-request-group-list
+        class="request-group-list"
+        [folderFilter]="folderFilter()!"
+        [items]="filteredItems()"
+        [renamingItem]="renamingItem()"
+        [renameValue]="renameValue()"
+        [selectedKey]="selectedKey()"
+        (addClick)="onAddButtonClick()"
+        (itemSelect)="selectSidebarItem($event)"
+        (itemContextMenu)="openItemContextMenu($event.item, $event.event, itemContextMenu)"
+        (appearanceClick)="openAppearancePopup($event.item, $event.event)"
+        (renameStart)="startRename($event)"
+        (renameValueChange)="renameValue.set($event)"
+        (renameSubmit)="saveRename()"
+        (renameCancel)="cancelRename()"
+      />
     }
-  </ul>
+  } @else {
+    <app-sidebar-rail
+      [activeView]="activeView()"
+      [disabled]="!state.selectedProject()"
+      (viewSelect)="selectView($event)"
+      (expand)="expandSidebar()"
+    />
+  }
 </div>
-
-<!-- Sticky folder filter buttons -->
-<div class="folder-filter-bar">
-  <button
-    class="folder-filter-button folder-filter-button--icon"
-    [class.is-active]="folderFilter() === 'collections'"
-    type="button"
-    (click)="setFolderFilter('collections')"
-    aria-label="Collections"
-    title="Collections"
-  >
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/>
-    </svg>
-  </button>
-  <button
-    class="folder-filter-button folder-filter-button--icon"
-    [class.is-active]="folderFilter() === 'favourites'"
-    type="button"
-    (click)="setFolderFilter('favourites')"
-    aria-label="Favourites"
-    title="Favourites"
-  >
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-    </svg>
-  </button>
-  <button
-    class="folder-filter-button folder-filter-button--icon"
-    [class.is-active]="folderFilter() === 'tags'"
-    type="button"
-    (click)="setFolderFilter('tags')"
-    aria-label="Tags"
-    title="Tags"
-  >
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-    </svg>
-  </button>
-</div>
-
-<div class="sidebar-divider"></div>
-
-<button
-  class="trash-bin-button"
-  type="button"
-  [class.is-active]="state.showingBin()"
-  [disabled]="!state.selectedProject()"
-  (click)="selectTrashBin()"
->
-  <span class="trash-bin-button__icon" aria-hidden="true">
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-    </svg>
-  </span>
-  <span class="trash-bin-button__label">Trash bin</span>
-</button>
 
 <!-- Add: Collection -->
 @if (newCollectionPopupOpen()) {
@@ -232,7 +150,7 @@
 }
 
 <ng-template #itemContextMenu let-item>
-  @if (item.type !== 'tag') {
+  @if (item.kind !== 'tag') {
     <button class="context-menu-item" type="button" (click)="startRename(item)">Rename</button>
   } @else {
     <button class="context-menu-item" type="button" (click)="startRename(item)">Rename Tag</button>
@@ -240,11 +158,11 @@
   <button class="context-menu-item" type="button" (click)="openAppearancePopup(item)">
     Change style
   </button>
-  @if (item.type === 'favourite') {
+  @if (item.kind === 'favourite') {
     <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteItem(item)">
       Delete Favourites
     </button>
-  } @else if (item.type === 'tag') {
+  } @else if (item.kind === 'tag') {
     <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteItem(item)">
       Delete Tag
     </button>

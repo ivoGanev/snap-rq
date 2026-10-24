@@ -1,0 +1,59 @@
+<div class="column-header group-list-header">
+  <span class="group-list-title">{{ folderTitle() }}</span>
+  <button
+    class="add-button"
+    type="button"
+    (click)="onAddClick()"
+    [attr.aria-label]="'Add new ' + folderFilter()"
+  >
+    +
+  </button>
+</div>
+
+<div class="group-list-scroll">
+  @if (items().length === 0) {
+    <div class="state-message">{{ activeFolderEmptyMessage() }}</div>
+  }
+  <ul class="group-list">
+    @for (item of items(); track item.kind + ':' + item.id) {
+      <li
+        class="group-list-item"
+        [class.is-selected]="isSelected(item)"
+        (click)="onItemClick(item)"
+        (contextmenu)="onContextMenu(item, $event)"
+      >
+        @if (renamingItem()?.kind === item.kind && renamingItem()?.id === item.id) {
+          <form class="rename-form" (submit)="onRenameSubmit()">
+            <input
+              class="rename-input"
+              type="text"
+              [ngModel]="renameValue()"
+              (ngModelChange)="onRenameInput($event)"
+              (keydown.escape)="onRenameCancel()"
+              (blur)="onRenameSubmit()"
+              autofocus
+            />
+          </form>
+        } @else {
+          <button
+            class="item-indicator"
+            type="button"
+            [style.background-color]="colorValue(item.appearance) ?? null"
+            (click)="onAppearanceClick(item, $event)"
+            [attr.aria-label]="'Edit appearance for ' + item.name"
+          >
+            @let cp = iconPath(item.appearance);
+            @if (cp) {
+              <img [src]="cp" alt="" />
+            } @else if (isDefaultAppearance(item.appearance)) {
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+              </svg>
+            }
+          </button>
+          <span class="group-list-item-label">{{ item.name }}</span>
+        }
+      </li>
+    }
+  </ul>
+</div>

@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, inject, OnInit, signal } from '@angular/core';
+import { AfterViewInit, Component, inject, OnInit, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WML } from '@wailsio/runtime';
 import { WorkspaceStateService } from './core/services/workspace-state.service';
@@ -50,9 +50,18 @@ export class App implements OnInit, AfterViewInit {
   protected readonly projects = this.projectApi.projects;
   protected readonly environments = this.environmentApi.environments;
 
-  readonly leftColumnWidth = signal(13);
+  readonly leftColumnWidthExpanded = signal(22);
   readonly rightColumnWidth = signal(30);
   readonly resizingColumn = signal<'left' | 'right' | null>(null);
+
+  /**
+   * Collapsed rail is fixed; expanded without a group list shrinks to fit the
+   * nav buttons; expanded with a list uses the resizable percentage.
+   */
+  readonly leftSidebarWidth = computed(() => {
+    if (!this.state.sidebarExpanded()) return '72px';
+    return this.state.sidebarListOpen() ? `${this.leftColumnWidthExpanded()}%` : 'max-content';
+  });
 
   readonly variablesOverlayOpen = signal(false);
   readonly projectEditorOpen = signal(false);
@@ -140,9 +149,13 @@ export class App implements OnInit, AfterViewInit {
 
   startColumnResize(side: 'left' | 'right', event: MouseEvent): void {
     event.preventDefault();
+    if (side === 'left' && !(this.state.sidebarExpanded() && this.state.sidebarListOpen())) {
+      return;
+    }
     this.resizingColumn.set(side);
     this.resizeStartX = event.clientX;
-    this.resizeStartWidth = side === 'left' ? this.leftColumnWidth() : this.rightColumnWidth();
+    this.resizeStartWidth =
+      side === 'left' ? this.leftColumnWidthExpanded() : this.rightColumnWidth();
 
     document.addEventListener('mousemove', this.onColumnResizeMove);
     document.addEventListener('mouseup', this.onColumnResizeEnd);
@@ -154,13 +167,13 @@ export class App implements OnInit, AfterViewInit {
 
     const delta = event.clientX - this.resizeStartX;
     const deltaPercent = (delta / window.innerWidth) * 100;
-    const width = Math.max(
-      12,
-      this.resizeStartWidth + (side === 'left' ? deltaPercent : -deltaPercent),
+    const width = Math.min(
+      45,
+      Math.max(12, this.resizeStartWidth + (side === 'left' ? deltaPercent : -deltaPercent)),
     );
 
     if (side === 'left') {
-      this.leftColumnWidth.set(width);
+      this.leftColumnWidthExpanded.set(width);
     } else {
       this.rightColumnWidth.set(width);
     }
