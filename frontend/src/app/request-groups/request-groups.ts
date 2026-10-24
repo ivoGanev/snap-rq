@@ -368,6 +368,8 @@ export class RequestGroups {
     if (next !== null) {
       this.state.showingAllRequests.set(false);
       this.state.showingFamousRequests.set(false);
+      // Opening a folder must reveal its list, even from the collapsed rail.
+      this.state.sidebarExpanded.set(true);
     }
 
     this.folderFilter.set(next);
