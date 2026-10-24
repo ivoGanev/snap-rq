@@ -225,6 +225,10 @@
   user-select: none;
 }
 
+.spreadsheet-wrapper.is-reordering {
+  user-select: none;
+}
+
 .spreadsheet-overlay {
   position: absolute;
   top: 0;
@@ -259,7 +263,7 @@
 .spreadsheet-header,
 .spreadsheet-row {
   grid-template-columns:
-    44px
+    var(--action-col-width, 44px)
     minmax(60px, var(--method-col-width, 100px))
     minmax(120px, var(--name-col-width, 200px))
     minmax(120px, 1fr);
@@ -416,7 +420,139 @@
 .spreadsheet-cell--action {
   align-self: stretch;
   justify-content: center;
+  gap: 4px;
   padding: 4px;
+}
+
+// Three-dot reorder handle; rendered on every row of user-orderable views
+// (collections / favourites / tags) and revealed on row hover or selection.
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  cursor: grab;
+  opacity: 0;
+  transition:
+    color 0.15s ease,
+    opacity 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.drag-handle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.spreadsheet-row:hover .drag-handle,
+.spreadsheet-row.is-selected .drag-handle {
+  opacity: 1;
+}
+
+// In multi-selection mode a selected row must not offer a drag handle
+// (reordering one member of a multi-selection is ambiguous), not even on
+// hover. Handles on unselected rows still work.
+.spreadsheet-wrapper.is-multi-selecting .spreadsheet-row.is-selected .drag-handle {
+  opacity: 0;
+}
+
+.drag-handle:hover {
+  color: var(--text);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+// The row being dragged stays in place but dims; the ghost follows the cursor.
+.spreadsheet-row.is-reorder-source {
+  opacity: 0.45;
+}
+
+// Quick confirmation bounce after a drop: the row springs vertically while a
+// soft highlight fades out, showing where the request landed.
+@keyframes reorder-drop-bounce {
+  0% {
+    transform: translateY(0);
+  }
+  35% {
+    transform: translateY(-4px);
+  }
+  65% {
+    transform: translateY(2px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes reorder-drop-flash {
+  0% {
+    background-color: var(--selected-bg);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.spreadsheet-row.is-dropped {
+  border-radius: var(--radius);
+  animation:
+    reorder-drop-bounce 320ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    reorder-drop-flash 500ms ease-out;
+}
+
+// Hidden until the drag frame loop positions them, so they never flash at
+// their unpositioned coordinates; the loop sets visibility: visible.
+.reorder-drop-line {
+  position: fixed;
+  visibility: hidden;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--accent);
+  border-radius: 1px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  z-index: 60;
+}
+
+.reorder-ghost {
+  position: fixed;
+  visibility: hidden;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  max-width: 360px;
+  padding: 6px 10px;
+  transform: translate(14px, -50%);
+  background: var(--surface-solid);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 61;
+  user-select: none;
+}
+
+.reorder-ghost .request-method {
+  font-size: 0.6875rem;
+  padding: 1px 6px;
+}
+
+.reorder-ghost-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .spreadsheet-cell--method {

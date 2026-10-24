@@ -109,4 +109,9 @@ export class TagApiService {
   async getRequestsForTag(projectId: number, tagName: string): Promise<HttpRequestSummary[]> {
     return ((await TagService.TagService.GetRequestsForTag(projectId, tagName)) as HttpRequestSummary[] | null) ?? [];
   }
+
+  /** Persists the user's custom order of requests within one tag. */
+  async updateRequestOrder(projectId: number, tagName: string, orderedRequestIds: number[]): Promise<void> {
+    await TagService.TagService.UpdateTagRequestOrder(projectId, tagName, orderedRequestIds);
+  }
 }

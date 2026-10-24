@@ -51,7 +51,7 @@ export class RequestApiService {
     );
   }
 
-  async create(req: Omit<HttpRequest, 'id'>): Promise<HttpRequest> {
+  async create(req: Omit<HttpRequest, 'id' | 'user_sort_order'>): Promise<HttpRequest> {
     const created = await RequestService.RequestService.CreateRequest(req as HttpRequest);
     this.addToRequests(created);
     return created;
@@ -91,6 +91,11 @@ export class RequestApiService {
     await RequestService.RequestService.BulkRecordRequestUsage(ids);
   }
 
+  /** Persists the user's custom order of requests within one collection. */
+  async updateCollectionRequestOrder(collectionId: number, orderedRequestIds: number[]): Promise<void> {
+    await RequestService.RequestService.UpdateCollectionRequestOrder(collectionId, orderedRequestIds);
+  }
+
   async update(req: HttpRequest): Promise<HttpRequest> {
     const updated = await RequestService.RequestService.UpdateRequest(req);
     this.patchRequest({
@@ -101,6 +106,7 @@ export class RequestApiService {
       method: updated.method,
       status_code: updated.status_code,
       response_id: updated.response_id,
+      user_sort_order: updated.user_sort_order,
     });
     return updated;
   }

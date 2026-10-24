@@ -166,17 +166,18 @@ func (s *FavouriteService) DeleteFavouriteCollection(id int64) error {
 }
 
 // AddRequestToFavouriteCollection adds a request to a favourite collection.
+// The request is appended to the end of the collection's user order.
 func (s *FavouriteService) AddRequestToFavouriteCollection(favouriteCollectionID, httpRequestID int64) (models.FavouriteItem, error) {
 	var nextSort int
 	if err := s.db.QueryRow(
-		"SELECT COALESCE(MAX(sort_order), 0) + 1 FROM favourite_items WHERE favourite_collection_id = ?",
+		"SELECT COALESCE(MAX(user_sort_order), 0) + 1 FROM favourite_items WHERE favourite_collection_id = ?",
 		favouriteCollectionID,
 	).Scan(&nextSort); err != nil {
 		return models.FavouriteItem{}, fmt.Errorf("calculating sort order: %w", err)
 	}
 
 	result, err := s.db.Exec(
-		`INSERT INTO favourite_items (favourite_collection_id, http_request_id, sort_order)
+		`INSERT INTO favourite_items (favourite_collection_id, http_request_id, user_sort_order)
 		 VALUES (?, ?, ?)`,
 		favouriteCollectionID, httpRequestID, nextSort,
 	)
@@ -193,8 +194,37 @@ func (s *FavouriteService) AddRequestToFavouriteCollection(favouriteCollectionID
 		ID:                    id,
 		FavouriteCollectionID: favouriteCollectionID,
 		HTTPRequestID:         httpRequestID,
-		SortOrder:             nextSort,
+		UserSortOrder:         nextSort,
 	}, nil
+}
+
+// UpdateFavouriteRequestOrder persists the user's custom ordering of the
+// requests inside a single favourite collection. The slice defines the full
+// order; each membership receives user_sort_order 0..n-1. The whole reorder
+// is ONE bulk UPDATE (CASE http_request_id WHEN ...) instead of a statement
+// per row.
+func (s *FavouriteService) UpdateFavouriteRequestOrder(favouriteCollectionID int64, orderedRequestIDs []int64) error {
+	if favouriteCollectionID == 0 {
+		return fmt.Errorf("favourite collection id is required")
+	}
+	if len(orderedRequestIDs) == 0 {
+		return nil
+	}
+
+	var query strings.Builder
+	query.WriteString("UPDATE favourite_items SET user_sort_order = CASE http_request_id")
+	args := make([]any, 0, len(orderedRequestIDs)*2+1)
+	for index, requestID := range orderedRequestIDs {
+		query.WriteString(" WHEN ? THEN ?")
+		args = append(args, requestID, index)
+	}
+	query.WriteString(" ELSE user_sort_order END WHERE favourite_collection_id = ?")
+	args = append(args, favouriteCollectionID)
+
+	if _, err := s.db.Exec(query.String(), args...); err != nil {
+		return fmt.Errorf("bulk updating favourite order: %w", err)
+	}
+	return nil
 }
 
 // RemoveRequestFromFavouriteCollection removes a request from a favourite collection.
@@ -209,15 +239,16 @@ func (s *FavouriteService) RemoveRequestFromFavouriteCollection(favouriteCollect
 	return nil
 }
 
-// GetRequestsForFavouriteCollection returns all HTTP requests in a favourite collection.
+// GetRequestsForFavouriteCollection returns all HTTP requests in a favourite
+// collection, ordered by the user's custom order (name as tiebreaker).
 func (s *FavouriteService) GetRequestsForFavouriteCollection(favouriteCollectionID int64) ([]models.HttpRequest, error) {
 	rows, err := s.db.Query(
-		`SELECT r.id, r.collection_id, c.project_id, r.name, r.url, r.method, r.body, r.body_type, r.request_headers, r.status_code, r.response_id
+		`SELECT r.id, r.collection_id, c.project_id, r.name, r.url, r.method, r.body, r.body_type, r.request_headers, r.status_code, r.response_id, fi.user_sort_order
 		 FROM http_requests r
 		 JOIN collections c ON c.id = r.collection_id
 		 JOIN favourite_items fi ON fi.http_request_id = r.id
 		 WHERE fi.favourite_collection_id = ?
-		 ORDER BY fi.sort_order, r.name`,
+		 ORDER BY fi.user_sort_order, r.name`,
 		favouriteCollectionID,
 	)
 	if err != nil {
@@ -230,7 +261,7 @@ func (s *FavouriteService) GetRequestsForFavouriteCollection(favouriteCollection
 		var req models.HttpRequest
 		if err := rows.Scan(
 			&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method,
-			&req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID,
+			&req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder,
 		); err != nil {
 			return nil, fmt.Errorf("scanning request: %w", err)
 		}
