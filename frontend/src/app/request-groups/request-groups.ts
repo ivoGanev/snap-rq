@@ -1,4 +1,4 @@
-import { Component, TemplateRef, computed, inject, signal } from '@angular/core';
+import { Component, effect, TemplateRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
@@ -284,6 +284,12 @@ export class RequestGroups {
     const tag = this.state.selectedTag();
     return tag ? sidebarTagKey(tag) : null;
   });
+
+  constructor() {
+    effect(() => {
+      this.state.sidebarListOpen.set(this.folderFilter() !== null);
+    });
+  }
 
   onEscapePressed(): void {
     if (this.contextMenu.isOpen()) {

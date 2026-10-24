@@ -42,6 +42,7 @@ export class WorkspaceStateService {
   readonly selectedBinnedRequest = signal<HttpBinnedRequestSummary | null>(null);
   readonly showingBin = signal(false);
   readonly sidebarExpanded = signal(false);
+  readonly sidebarListOpen = signal(false);
   readonly multiSelectionActive = signal(false);
   readonly zenModeOpen = signal(false);
 

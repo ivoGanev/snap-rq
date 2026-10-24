@@ -40,7 +40,7 @@
 
   <app-request-panel [style.width.%]="rightColumnWidth()"></app-request-panel>
 
-  @if (state.sidebarExpanded()) {
+  @if (state.sidebarExpanded() && state.sidebarListOpen()) {
     <div
       class="resizer resizer--left"
       (mousedown)="startColumnResize('left', $event)"

@@ -54,10 +54,14 @@ export class App implements OnInit, AfterViewInit {
   readonly rightColumnWidth = signal(30);
   readonly resizingColumn = signal<'left' | 'right' | null>(null);
 
-  /** Fixed rail width when collapsed; resizable percentage when expanded. */
-  readonly leftSidebarWidth = computed(() =>
-    this.state.sidebarExpanded() ? `${this.leftColumnWidthExpanded()}%` : '72px',
-  );
+  /**
+   * Collapsed rail is fixed; expanded without a group list shrinks to fit the
+   * nav buttons; expanded with a list uses the resizable percentage.
+   */
+  readonly leftSidebarWidth = computed(() => {
+    if (!this.state.sidebarExpanded()) return '72px';
+    return this.state.sidebarListOpen() ? `${this.leftColumnWidthExpanded()}%` : 'max-content';
+  });
 
   readonly variablesOverlayOpen = signal(false);
   readonly projectEditorOpen = signal(false);
@@ -145,7 +149,9 @@ export class App implements OnInit, AfterViewInit {
 
   startColumnResize(side: 'left' | 'right', event: MouseEvent): void {
     event.preventDefault();
-    if (side === 'left' && !this.state.sidebarExpanded()) return;
+    if (side === 'left' && !(this.state.sidebarExpanded() && this.state.sidebarListOpen())) {
+      return;
+    }
     this.resizingColumn.set(side);
     this.resizeStartX = event.clientX;
     this.resizeStartWidth =
