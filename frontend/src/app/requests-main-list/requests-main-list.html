@@ -189,6 +189,8 @@
 
     <cdk-virtual-scroll-viewport
       [itemSize]="rowHeight"
+      [minBufferPx]="virtualMinBufferPx"
+      [maxBufferPx]="virtualMaxBufferPx"
       class="spreadsheet-viewport"
       (mousemove)="onViewportMouseMove($event)"
     >
