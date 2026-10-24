@@ -1,0 +1,21 @@
+<nav class="rail" aria-label="Request views">
+  @for (view of views; track view.id) {
+    @if (view.dividerBefore) {
+      <div class="rail-divider" aria-hidden="true"></div>
+    }
+    <button
+      class="rail-button"
+      [class.is-active]="activeView() === view.id"
+      [class.rail-button--trash]="view.id === 'trash'"
+      type="button"
+      [disabled]="disabled()"
+      [attr.aria-label]="view.hint"
+      [title]="view.hint"
+      (click)="onViewClick(view.id)"
+    >
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path [attr.d]="view.iconPath" />
+      </svg>
+    </button>
+  }
+</nav>

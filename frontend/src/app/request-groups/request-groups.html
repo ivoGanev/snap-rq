@@ -1,99 +1,28 @@
 <div class="request-groups-shell" [class.is-expanded]="folderFilter() !== null">
-  <nav class="request-groups-nav">
-    <button
-      class="nav-button"
-      type="button"
-      [class.is-active]="state.showingAllRequests()"
-      [disabled]="!state.selectedProject()"
-      (click)="selectAll()"
-    >
-      <span class="nav-button__icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
-        </svg>
-      </span>
-      <span class="nav-button__label">All requests</span>
-    </button>
-
-    <button
-      class="nav-button"
-      type="button"
-      [class.is-active]="state.showingFamousRequests()"
-      [disabled]="!state.selectedProject()"
-      (click)="selectFamous()"
-    >
-      <span class="nav-button__icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77 5.82 21.02 7 14.14 2 9.27l6.91-1.01L12 2z"/>
-        </svg>
-      </span>
-      <span class="nav-button__label">Famous</span>
-    </button>
-
-    <button
-      class="nav-button"
-      type="button"
-      [class.is-active]="folderFilter() === 'collections'"
-      [disabled]="!state.selectedProject()"
-      (click)="selectCollections()"
-    >
-      <span class="nav-button__icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/>
-        </svg>
-      </span>
-      <span class="nav-button__label">Collections</span>
-    </button>
-
-    <button
-      class="nav-button"
-      type="button"
-      [class.is-active]="folderFilter() === 'favourites'"
-      [disabled]="!state.selectedProject()"
-      (click)="selectFavourites()"
-    >
-      <span class="nav-button__icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-        </svg>
-      </span>
-      <span class="nav-button__label">Favourites</span>
-    </button>
-
-    <button
-      class="nav-button"
-      type="button"
-      [class.is-active]="folderFilter() === 'tags'"
-      [disabled]="!state.selectedProject()"
-      (click)="selectTags()"
-    >
-      <span class="nav-button__icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-        </svg>
-      </span>
-      <span class="nav-button__label">Tags</span>
-    </button>
-
-    <div class="sidebar-divider"></div>
-
-    <button
-      class="nav-button nav-button--trash"
-      type="button"
-      [class.is-active]="state.showingBin()"
-      [disabled]="!state.selectedProject()"
-      (click)="selectTrashBin()"
-    >
-      <span class="nav-button__icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-        </svg>
-      </span>
-      <span class="nav-button__label">Trash bin</span>
-    </button>
-  </nav>
-
   @if (folderFilter()) {
+    <nav class="request-groups-nav">
+      @for (view of sidebarViews; track view.id) {
+        @if (view.dividerBefore) {
+          <div class="sidebar-divider"></div>
+        }
+        <button
+          class="nav-button"
+          [class.is-active]="isViewActive(view)"
+          [class.nav-button--trash]="view.id === 'trash'"
+          type="button"
+          [disabled]="!state.selectedProject()"
+          (click)="selectView(view.id)"
+        >
+          <span class="nav-button__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path [attr.d]="view.iconPath" />
+            </svg>
+          </span>
+          <span class="nav-button__label">{{ view.label }}</span>
+        </button>
+      }
+    </nav>
+
     <app-request-group-list
       class="request-group-list"
       [folderFilter]="folderFilter()!"
@@ -109,6 +38,12 @@
       (renameValueChange)="renameValue.set($event)"
       (renameSubmit)="saveRename()"
       (renameCancel)="cancelRename()"
+    />
+  } @else {
+    <app-sidebar-rail
+      [activeView]="activeView()"
+      [disabled]="!state.selectedProject()"
+      (viewSelect)="selectView($event)"
     />
   }
 </div>

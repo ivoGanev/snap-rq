@@ -50,13 +50,13 @@ export class App implements OnInit, AfterViewInit {
   protected readonly projects = this.projectApi.projects;
   protected readonly environments = this.environmentApi.environments;
 
-  readonly leftColumnWidthCollapsed = signal(13);
   readonly leftColumnWidthExpanded = signal(22);
   readonly rightColumnWidth = signal(30);
   readonly resizingColumn = signal<'left' | 'right' | null>(null);
 
-  readonly effectiveLeftColumnWidth = computed(() =>
-    this.state.sidebarExpanded() ? this.leftColumnWidthExpanded() : this.leftColumnWidthCollapsed(),
+  /** Fixed rail width when collapsed; resizable percentage when expanded. */
+  readonly leftSidebarWidth = computed(() =>
+    this.state.sidebarExpanded() ? `${this.leftColumnWidthExpanded()}%` : '64px',
   );
 
   readonly variablesOverlayOpen = signal(false);
@@ -145,9 +145,11 @@ export class App implements OnInit, AfterViewInit {
 
   startColumnResize(side: 'left' | 'right', event: MouseEvent): void {
     event.preventDefault();
+    if (side === 'left' && !this.state.sidebarExpanded()) return;
     this.resizingColumn.set(side);
     this.resizeStartX = event.clientX;
-    this.resizeStartWidth = side === 'left' ? this.effectiveLeftColumnWidth() : this.rightColumnWidth();
+    this.resizeStartWidth =
+      side === 'left' ? this.leftColumnWidthExpanded() : this.rightColumnWidth();
 
     document.addEventListener('mousemove', this.onColumnResizeMove);
     document.addEventListener('mouseup', this.onColumnResizeEnd);
@@ -165,11 +167,7 @@ export class App implements OnInit, AfterViewInit {
     );
 
     if (side === 'left') {
-      if (this.state.sidebarExpanded()) {
-        this.leftColumnWidthExpanded.set(width);
-      } else {
-        this.leftColumnWidthCollapsed.set(width);
-      }
+      this.leftColumnWidthExpanded.set(width);
     } else {
       this.rightColumnWidth.set(width);
     }

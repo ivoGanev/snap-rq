@@ -21,6 +21,12 @@ import {
   type SidebarFolder,
   type SidebarItem,
 } from '../request-group-list/request-group-list';
+import { SidebarRail } from '../sidebar-rail/sidebar-rail';
+import {
+  SIDEBAR_VIEWS,
+  type SidebarView,
+  type SidebarViewId,
+} from '../sidebar-rail/sidebar-views';
 
 type SidebarItemOfKind<K extends SidebarItem['kind']> = Extract<SidebarItem, { kind: K }>;
 
@@ -72,7 +78,7 @@ const COLLECTION_COLOR_PALETTE: string[] = [
  */
 @Component({
   selector: 'app-request-groups',
-  imports: [FormsModule, RequestGroupList],
+  imports: [FormsModule, RequestGroupList, SidebarRail],
   templateUrl: './request-groups.html',
   styleUrl: './request-groups.scss',
   host: {
@@ -172,6 +178,41 @@ export class RequestGroups {
 
   // Which folder panel is open in the second column.
   protected readonly folderFilter = signal<SidebarFolder | null>(null);
+
+  protected readonly sidebarViews = SIDEBAR_VIEWS;
+
+  private readonly viewSelectHandlers: Record<SidebarViewId, () => void> = {
+    all: () => this.selectAll(),
+    famous: () => this.selectFamous(),
+    collections: () => this.selectCollections(),
+    favourites: () => this.selectFavourites(),
+    tags: () => this.selectTags(),
+    trash: () => this.selectTrashBin(),
+  };
+
+  private readonly viewActiveHandlers: Record<SidebarViewId, () => boolean> = {
+    all: () => this.state.showingAllRequests(),
+    famous: () => this.state.showingFamousRequests(),
+    collections: () => this.folderFilter() === 'collections',
+    favourites: () => this.folderFilter() === 'favourites',
+    tags: () => this.folderFilter() === 'tags',
+    trash: () => this.state.showingBin(),
+  };
+
+  /** Active primary view while the rail (collapsed mode) is shown. */
+  protected readonly activeView = computed<SidebarViewId>(() => {
+    if (this.state.showingBin()) return 'trash';
+    if (this.state.showingFamousRequests()) return 'famous';
+    return 'all';
+  });
+
+  selectView(id: SidebarViewId): void {
+    this.viewSelectHandlers[id]();
+  }
+
+  isViewActive(view: SidebarView): boolean {
+    return this.viewActiveHandlers[view.id]();
+  }
 
   // Creation popups
   protected readonly newCollectionPopupOpen = signal(false);

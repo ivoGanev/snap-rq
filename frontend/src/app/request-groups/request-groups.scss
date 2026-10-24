@@ -15,14 +15,16 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-1);
-  width: 100%;
+  width: 160px;
   height: 100%;
   padding: var(--s-2) 0;
   overflow: hidden;
 }
 
-.request-groups-shell.is-expanded .request-groups-nav {
-  width: 160px;
+app-sidebar-rail {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
 }
 
 .request-group-list {
