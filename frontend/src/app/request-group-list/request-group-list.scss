@@ -1,0 +1,169 @@
+.group-list-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--glass-border);
+  background: var(--surface);
+}
+
+.group-list-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.add-button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition:
+    filter 0.15s ease,
+    opacity 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.add-button:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+
+.add-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.group-list-scroll {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 0 var(--s-3);
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.group-list-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.group-list-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.group-list-scroll::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+.group-list-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+.group-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.group-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) var(--s-3);
+  margin: 0 var(--s-3);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.group-list-item:hover {
+  background: var(--hover-bg);
+}
+
+.group-list-item.is-selected {
+  background: var(--hover-highlight);
+  font-weight: 600;
+}
+
+.group-list-item-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+.item-indicator {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+  --wails-draggable: no-drag;
+}
+
+.item-indicator:hover {
+  transform: scale(1.05);
+}
+
+.item-indicator img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.item-indicator svg {
+  width: 18px;
+  height: 18px;
+}
+
+.rename-form {
+  flex: 1 1 auto;
+  display: flex;
+  min-width: 0;
+}
+
+.rename-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 2px var(--s-2);
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.state-message {
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.875rem;
+  color: var(--muted);
+}
