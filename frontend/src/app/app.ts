@@ -56,7 +56,7 @@ export class App implements OnInit, AfterViewInit {
 
   /** Fixed rail width when collapsed; resizable percentage when expanded. */
   readonly leftSidebarWidth = computed(() =>
-    this.state.sidebarExpanded() ? `${this.leftColumnWidthExpanded()}%` : '64px',
+    this.state.sidebarExpanded() ? `${this.leftColumnWidthExpanded()}%` : '72px',
   );
 
   readonly variablesOverlayOpen = signal(false);
