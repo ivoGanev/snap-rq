@@ -44,6 +44,7 @@ const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'
 const DRAG_THRESHOLD_PX = 5;
 const REORDER_EDGE_SCROLL_PX = 44;
 const REORDER_EDGE_SCROLL_STEP_PX = 10;
+const DROP_HIGHLIGHT_MS = 500;
 const METHOD_COLUMN_MIN_WIDTH = 60;
 const NAME_COLUMN_MIN_WIDTH = 120;
 
@@ -149,6 +150,10 @@ export class RequestsMainList {
   private reorderFrame: number | null = null;
   private readonly reorderGhost = viewChild<ElementRef<HTMLElement>>('reorderGhost');
   private readonly reorderDropLine = viewChild<ElementRef<HTMLElement>>('reorderDropLine');
+
+  /** Row briefly animated after a drop so the user sees where it landed. */
+  readonly dropHighlightedId = signal<number | null>(null);
+  private dropHighlightTimeout: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly rowHeight = 44;
 
@@ -894,6 +899,7 @@ export class RequestsMainList {
           this.reorderInsertIndex > drag.fromIndex ? this.reorderInsertIndex - 1 : this.reorderInsertIndex;
         if (toIndex !== drag.fromIndex) {
           this.commitReorder(drag.fromIndex, toIndex);
+          this.flashDroppedRow(drag.request.id);
           void this.persistReorder();
         }
       }
@@ -1044,6 +1050,26 @@ export class RequestsMainList {
     }
   }
 
+  /**
+   * Plays the drop-confirmation bounce on the moved row. The id is cleared
+   * and re-applied on the next frame so dropping the same row again restarts
+   * the animation instead of reusing the already-present class.
+   */
+  private flashDroppedRow(requestId: number): void {
+    if (this.dropHighlightTimeout !== null) {
+      clearTimeout(this.dropHighlightTimeout);
+      this.dropHighlightTimeout = null;
+    }
+    this.dropHighlightedId.set(null);
+    requestAnimationFrame(() => {
+      this.dropHighlightedId.set(requestId);
+      this.dropHighlightTimeout = setTimeout(() => {
+        this.dropHighlightedId.set(null);
+        this.dropHighlightTimeout = null;
+      }, DROP_HIGHLIGHT_MS);
+    });
+  }
+
   /** Aborts an in-progress reorder gesture without changing any order. */
   private cancelReorder(): boolean {
     if (this.reorderPending() === null && this.reorderDrag() === null) return false;
@@ -1059,6 +1085,10 @@ export class RequestsMainList {
     // mouseup listener dies with it — clean up here so the global dragging
     // cursor and the rAF loop never leak.
     this.cancelReorder();
+    if (this.dropHighlightTimeout !== null) {
+      clearTimeout(this.dropHighlightTimeout);
+      this.dropHighlightTimeout = null;
+    }
   }
 
   /**
