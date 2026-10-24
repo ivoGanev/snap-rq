@@ -1,6 +1,20 @@
-<div class="request-groups-shell" [class.is-expanded]="folderFilter() !== null">
-  @if (folderFilter()) {
+<div class="request-groups-shell">
+  @if (state.sidebarExpanded()) {
     <nav class="request-groups-nav">
+      <button
+        class="nav-toggle"
+        type="button"
+        title="Collapse sidebar"
+        aria-label="Collapse sidebar"
+        (click)="collapseSidebar()"
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path
+            d="M17.59 18L19 16.59 14.42 12 19 7.41 17.59 6l-6 6zM9.59 18L11 16.59 6.42 12 11 7.41 9.59 6l-6 6z"
+          />
+        </svg>
+      </button>
+
       @for (view of sidebarViews; track view.id) {
         @if (view.dividerBefore) {
           <div class="sidebar-divider"></div>
@@ -23,27 +37,30 @@
       }
     </nav>
 
-    <app-request-group-list
-      class="request-group-list"
-      [folderFilter]="folderFilter()!"
-      [items]="filteredItems()"
-      [renamingItem]="renamingItem()"
-      [renameValue]="renameValue()"
-      [selectedKey]="selectedKey()"
-      (addClick)="onAddButtonClick()"
-      (itemSelect)="selectSidebarItem($event)"
-      (itemContextMenu)="openItemContextMenu($event.item, $event.event, itemContextMenu)"
-      (appearanceClick)="openAppearancePopup($event.item, $event.event)"
-      (renameStart)="startRename($event)"
-      (renameValueChange)="renameValue.set($event)"
-      (renameSubmit)="saveRename()"
-      (renameCancel)="cancelRename()"
-    />
+    @if (folderFilter()) {
+      <app-request-group-list
+        class="request-group-list"
+        [folderFilter]="folderFilter()!"
+        [items]="filteredItems()"
+        [renamingItem]="renamingItem()"
+        [renameValue]="renameValue()"
+        [selectedKey]="selectedKey()"
+        (addClick)="onAddButtonClick()"
+        (itemSelect)="selectSidebarItem($event)"
+        (itemContextMenu)="openItemContextMenu($event.item, $event.event, itemContextMenu)"
+        (appearanceClick)="openAppearancePopup($event.item, $event.event)"
+        (renameStart)="startRename($event)"
+        (renameValueChange)="renameValue.set($event)"
+        (renameSubmit)="saveRename()"
+        (renameCancel)="cancelRename()"
+      />
+    }
   } @else {
     <app-sidebar-rail
       [activeView]="activeView()"
       [disabled]="!state.selectedProject()"
       (viewSelect)="selectView($event)"
+      (expand)="expandSidebar()"
     />
   }
 </div>

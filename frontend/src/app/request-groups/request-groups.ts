@@ -1,4 +1,4 @@
-import { Component, effect, TemplateRef, computed, inject, signal } from '@angular/core';
+import { Component, TemplateRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
@@ -72,9 +72,9 @@ const COLLECTION_COLOR_PALETTE: string[] = [
 ];
 
 /**
- * Left navigation shell. Holds the primary view buttons (All, Famous,
- * Collections, Favourites, Tags, Trash) and, when a folder button is active,
- * renders the matching <app-request-group-list> panel beside it.
+ * Left navigation shell. Collapsed mode renders an icon-only rail with an
+ * explicit expand control; expanded mode renders the labelled nav plus the
+ * active folder's group list. Mode changes are always user-driven.
  */
 @Component({
   selector: 'app-request-groups',
@@ -199,8 +199,10 @@ export class RequestGroups {
     trash: () => this.state.showingBin(),
   };
 
-  /** Active primary view while the rail (collapsed mode) is shown. */
+  /** Active entry, used by the collapsed rail to keep its highlight in sync. */
   protected readonly activeView = computed<SidebarViewId>(() => {
+    const folder = this.folderFilter();
+    if (folder) return folder;
     if (this.state.showingBin()) return 'trash';
     if (this.state.showingFamousRequests()) return 'famous';
     return 'all';
@@ -212,6 +214,14 @@ export class RequestGroups {
 
   isViewActive(view: SidebarView): boolean {
     return this.viewActiveHandlers[view.id]();
+  }
+
+  expandSidebar(): void {
+    this.state.sidebarExpanded.set(true);
+  }
+
+  collapseSidebar(): void {
+    this.state.sidebarExpanded.set(false);
   }
 
   // Creation popups
@@ -274,12 +284,6 @@ export class RequestGroups {
     const tag = this.state.selectedTag();
     return tag ? sidebarTagKey(tag) : null;
   });
-
-  constructor() {
-    effect(() => {
-      this.state.sidebarExpanded.set(this.folderFilter() !== null);
-    });
-  }
 
   onEscapePressed(): void {
     if (this.contextMenu.isOpen()) {

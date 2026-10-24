@@ -17,8 +17,13 @@ export class SidebarRail {
   readonly activeView = input<SidebarViewId | null>(null);
   readonly disabled = input(false);
   readonly viewSelect = output<SidebarViewId>();
+  readonly expand = output<void>();
 
   onViewClick(id: SidebarViewId): void {
     this.viewSelect.emit(id);
+  }
+
+  onExpandClick(): void {
+    this.expand.emit();
   }
 }
