@@ -1,13 +1,56 @@
-import { Component, TemplateRef, computed, inject, signal } from '@angular/core';
+import { Component, effect, TemplateRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
-import { CollectionApiService, type Collection, type CollectionAppearance } from '../core/services/collection.service';
-import { FavouriteApiService, type FavouriteCollection, type FavouriteAppearance } from '../core/services/favourite.service';
+import { CollectionApiService, type Collection } from '../core/services/collection.service';
+import {
+  FavouriteApiService,
+  type FavouriteCollection,
+} from '../core/services/favourite.service';
 import { RequestApiService } from '../core/services/request.service';
 import { SelectionStateService, groupKey } from '../core/services/selection-state.service';
-import { IconManifestService } from '../core/services/icon-manifest.service';
-import { TagApiService, type Tag, type TagAppearance } from '../core/services/tag.service';
+import { TagApiService, type Tag } from '../core/services/tag.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
+import { IconManifestService } from '../core/services/icon-manifest.service';
+import {
+  FOLDER_FOR_KIND,
+  RequestGroupList,
+  sidebarCollectionKey,
+  sidebarFavouriteKey,
+  sidebarTagKey,
+  type SidebarAppearancePatch,
+  type SidebarFolder,
+  type SidebarItem,
+} from '../request-group-list/request-group-list';
+import { SidebarRail } from '../sidebar-rail/sidebar-rail';
+import {
+  SIDEBAR_VIEWS,
+  type SidebarView,
+  type SidebarViewId,
+} from '../sidebar-rail/sidebar-views';
+
+type SidebarItemOfKind<K extends SidebarItem['kind']> = Extract<SidebarItem, { kind: K }>;
+
+/**
+ * Per-kind behaviour maps. Each map is keyed exhaustively by item kind, so
+ * adding a new kind is a compile error until an entry exists — no scattered
+ * if/else chains to drift apart. `kind` discriminates the union, so handlers
+ * receive fully typed items without casts.
+ */
+type SelectHandlerMap = {
+  [K in SidebarItem['kind']]: (item: SidebarItemOfKind<K>) => void;
+};
+type RenameHandlerMap = {
+  [K in SidebarItem['kind']]: (item: SidebarItemOfKind<K>, newName: string) => Promise<void>;
+};
+type SaveAppearanceHandlerMap = {
+  [K in SidebarItem['kind']]: (
+    item: SidebarItemOfKind<K>,
+    patch: SidebarAppearancePatch,
+  ) => Promise<void>;
+};
+type RemoveHandlerMap = {
+  [K in SidebarItem['kind']]: (item: SidebarItemOfKind<K>) => Promise<void>;
+};
 
 const COLLECTION_COLOR_PALETTE: string[] = [
   '#ef4444',
@@ -28,31 +71,19 @@ const COLLECTION_COLOR_PALETTE: string[] = [
   '#374151',
 ];
 
-type SidebarFolder = 'collections' | 'favourites' | 'tags';
-type SidebarItemType = 'collection' | 'favourite' | 'tag';
-type Appearance = CollectionAppearance | FavouriteAppearance | TagAppearance;
-
-interface SidebarItem {
-  id: number;
-  name: string;
-  type: SidebarItemType;
-  folder: SidebarFolder;
-  appearance: Appearance;
-  data: Collection | FavouriteCollection | Tag;
-}
-
 /**
- * Unified sidebar for Collections, Favourites, and Tags rendered as a single
- * folder tree with shared expand/collapse, search, + menu, and context menus.
+ * Left navigation shell. Collapsed mode renders an icon-only rail with an
+ * explicit expand control; expanded mode renders the labelled nav plus the
+ * active folder's group list. Mode changes are always user-driven.
  */
 @Component({
   selector: 'app-request-groups',
-  imports: [FormsModule],
+  imports: [FormsModule, RequestGroupList, SidebarRail],
   templateUrl: './request-groups.html',
   styleUrl: './request-groups.scss',
   host: {
     class: 'sidebar sidebar-left',
-    'aria-label': 'Collections, Favourites, and Tags',
+    'aria-label': 'Request groups',
     '(window:keydown.escape)': 'onEscapePressed()',
   },
 })
@@ -66,12 +97,132 @@ export class RequestGroups {
   private readonly tagApi = inject(TagApiService);
   private readonly contextMenu = inject(ContextMenuService);
 
+  /**
+   * Single registry of per-kind behaviour. Adding a new sidebar kind is a
+   * compile error until an entry exists here — no scattered if/else to drift.
+   */
+  private readonly selectHandlers: SelectHandlerMap = {
+    collection: (item) => {
+      this.state.selectedCollection.set(item.data);
+    },
+    favourite: (item) => {
+      this.state.selectedFavouriteCollection.set(item.data);
+    },
+    tag: (item) => {
+      this.state.selectedTag.set(item.data.name);
+    },
+  };
+
+  private readonly renameHandlers: RenameHandlerMap = {
+    collection: async (item, newName) => {
+      await this.collectionApi.update({ ...item.data, name: newName });
+    },
+    favourite: async (item, newName) => {
+      await this.favouriteApi.updateCollection({ ...item.data, name: newName });
+    },
+    tag: async (item, newName) => {
+      const project = this.state.selectedProject();
+      if (!project) return;
+      await this.tagApi.renameTag(project.id, item.data.name, newName);
+      if (this.state.selectedTag() === item.data.name) {
+        this.state.selectedTag.set(newName);
+      }
+    },
+  };
+
+  private readonly saveAppearanceHandlers: SaveAppearanceHandlerMap = {
+    collection: async (item, patch) => {
+      await this.collectionApi.updateAppearance(item.id, patch);
+    },
+    favourite: async (item, patch) => {
+      await this.favouriteApi.updateAppearance(item.id, patch);
+    },
+    tag: async (item, patch) => {
+      await this.tagApi.updateAppearance(item.id, patch);
+    },
+  };
+
+  private readonly removeHandlers: RemoveHandlerMap = {
+    collection: (item) => this.deleteCollection(item.data),
+    favourite: (item) => this.deleteFavouriteCollection(item.data),
+    tag: (item) => this.deleteTag(item.data),
+  };
+
+  // Generic dispatchers: they tie the map key to the item's kind, so the
+  // compiler keeps the two correlated without casts or per-kind branches.
+  private selectItem<K extends SidebarItem['kind']>(item: SidebarItemOfKind<K>): void {
+    this.selectHandlers[item.kind](item);
+  }
+
+  private renameItem<K extends SidebarItem['kind']>(
+    item: SidebarItemOfKind<K>,
+    newName: string,
+  ): Promise<void> {
+    return this.renameHandlers[item.kind](item, newName);
+  }
+
+  private applyAppearance<K extends SidebarItem['kind']>(
+    item: SidebarItemOfKind<K>,
+    patch: SidebarAppearancePatch,
+  ): Promise<void> {
+    return this.saveAppearanceHandlers[item.kind](item, patch);
+  }
+
+  private removeItem<K extends SidebarItem['kind']>(item: SidebarItemOfKind<K>): Promise<void> {
+    return this.removeHandlers[item.kind](item);
+  }
+
   protected readonly collections = this.collectionApi.collections;
   protected readonly favouriteCollections = this.favouriteApi.collections;
   protected readonly allTags = this.tagApi.allTags;
 
-  // Filter for which folder is visible.
-  protected readonly folderFilter = signal<SidebarFolder>('collections');
+  // Which folder panel is open in the second column.
+  protected readonly folderFilter = signal<SidebarFolder | null>(null);
+
+  protected readonly sidebarViews = SIDEBAR_VIEWS;
+
+  private readonly viewSelectHandlers: Record<SidebarViewId, () => void> = {
+    all: () => this.selectAll(),
+    famous: () => this.selectFamous(),
+    collections: () => this.selectCollections(),
+    favourites: () => this.selectFavourites(),
+    tags: () => this.selectTags(),
+    trash: () => this.selectTrashBin(),
+  };
+
+  private readonly viewActiveHandlers: Record<SidebarViewId, () => boolean> = {
+    all: () => this.state.showingAllRequests(),
+    famous: () => this.state.showingFamousRequests(),
+    collections: () => this.folderFilter() === 'collections',
+    favourites: () => this.folderFilter() === 'favourites',
+    tags: () => this.folderFilter() === 'tags',
+    trash: () => this.state.showingBin(),
+  };
+
+  /** Active entry, used by the collapsed rail to keep its highlight in sync. */
+  protected readonly activeView = computed<SidebarViewId>(() => {
+    const folder = this.folderFilter();
+    if (folder) return folder;
+    if (this.state.showingBin()) return 'trash';
+    if (this.state.showingFamousRequests()) return 'famous';
+    return 'all';
+  });
+
+  selectView(id: SidebarViewId): void {
+    this.viewSelectHandlers[id]();
+  }
+
+  isViewActive(view: SidebarView): boolean {
+    return this.viewActiveHandlers[view.id]();
+  }
+
+  expandSidebar(): void {
+    this.state.sidebarExpanded.set(true);
+  }
+
+  collapseSidebar(): void {
+    this.state.sidebarExpanded.set(false);
+  }
 
   // Creation popups
   protected readonly newCollectionPopupOpen = signal(false);
@@ -91,28 +242,53 @@ export class RequestGroups {
   protected readonly appearanceTab = signal<'icon' | 'color'>('icon');
   protected readonly collectionColorPalette = COLLECTION_COLOR_PALETTE;
 
+  /** Per-folder adapters from domain models to the sidebar item union. */
+  private readonly folderSources: Record<SidebarFolder, () => SidebarItem[]> = {
+    collections: () =>
+      this.collections().map((c) => ({
+        kind: 'collection',
+        id: c.id,
+        name: c.name,
+        appearance: c.appearance,
+        data: c,
+      })),
+    favourites: () =>
+      this.favouriteCollections().map((f) => ({
+        kind: 'favourite',
+        id: f.id,
+        name: f.name,
+        appearance: f.appearance,
+        data: f,
+      })),
+    tags: () =>
+      this.allTags().map((t) => ({
+        kind: 'tag',
+        id: t.id,
+        name: t.name,
+        appearance: t.appearance,
+        data: t,
+      })),
+  };
+
   readonly filteredItems = computed<SidebarItem[]>(() => {
     const filter = this.folderFilter();
-    const items: SidebarItem[] = [
-      ...this.collections().map((c) => this.toSidebarItem(c, 'collection')),
-      ...this.favouriteCollections().map((f) => this.toSidebarItem(f, 'favourite')),
-      ...this.allTags().map((t) => this.toSidebarItem(t, 'tag')),
-    ];
-    return items.filter((item) => item.folder === filter);
+    return filter ? this.folderSources[filter]() : [];
   });
 
-  private toSidebarItem(
-    data: Collection | FavouriteCollection | Tag,
-    type: SidebarItemType,
-  ): SidebarItem {
-    return {
-      id: data.id,
-      name: data.name,
-      type,
-      folder: type === 'collection' ? 'collections' : type === 'favourite' ? 'favourites' : 'tags',
-      appearance: data.appearance,
-      data,
-    };
+  /** Single key describing which sidebar item is selected, in any folder. */
+  protected readonly selectedKey = computed<string | null>(() => {
+    const collection = this.state.selectedCollection();
+    if (collection) return sidebarCollectionKey(collection.id);
+    const favourite = this.state.selectedFavouriteCollection();
+    if (favourite) return sidebarFavouriteKey(favourite.id);
+    const tag = this.state.selectedTag();
+    return tag ? sidebarTagKey(tag) : null;
+  });
+
+  constructor() {
+    effect(() => {
+      this.state.sidebarListOpen.set(this.folderFilter() !== null);
+    });
   }
 
   onEscapePressed(): void {
@@ -142,10 +318,6 @@ export class RequestGroups {
     }
   }
 
-  setFolderFilter(filter: SidebarFolder): void {
-    this.folderFilter.set(filter);
-  }
-
   // ---------- Selection ----------
 
   selectAll(): void {
@@ -155,6 +327,7 @@ export class RequestGroups {
     this.state.exitBinView();
     this.state.showingFamousRequests.set(false);
     this.state.showingAllRequests.set(true);
+    this.folderFilter.set(null);
   }
 
   selectFamous(): void {
@@ -164,66 +337,51 @@ export class RequestGroups {
     this.state.exitBinView();
     this.state.showingAllRequests.set(false);
     this.state.showingFamousRequests.set(true);
+    this.folderFilter.set(null);
   }
 
   selectTrashBin(): void {
     const project = this.state.selectedProject();
     if (!project) return;
     this.state.enterBinView();
+    this.folderFilter.set(null);
     void this.state.loadBinnedRequests(project.id);
   }
 
-  selectCollection(data: Collection | FavouriteCollection | Tag): void {
-    const collection = data as Collection;
-    this.state.exitBinView();
-    this.state.selectedCollection.set(collection);
-    this.state.selectedFavouriteCollection.set(null);
-    this.state.selectedTag.set(null);
-    this.state.showingAllRequests.set(false);
-    this.state.showingFamousRequests.set(false);
+  selectCollections(): void {
+    this.toggleFolderFilter('collections');
   }
 
-  selectFavouriteCollection(data: Collection | FavouriteCollection | Tag): void {
-    const collection = data as FavouriteCollection;
-    this.state.exitBinView();
-    this.state.selectedFavouriteCollection.set(collection);
-    this.state.selectedCollection.set(null);
-    this.state.selectedTag.set(null);
-    this.state.showingAllRequests.set(false);
-    this.state.showingFamousRequests.set(false);
+  selectFavourites(): void {
+    this.toggleFolderFilter('favourites');
   }
 
-  selectTag(data: Collection | FavouriteCollection | Tag): void {
-    const tag = data as Tag;
+  selectTags(): void {
+    this.toggleFolderFilter('tags');
+  }
+
+  private toggleFolderFilter(filter: SidebarFolder): void {
     this.state.exitBinView();
-    this.state.selectedTag.set(tag.name);
-    this.state.selectedCollection.set(null);
-    this.state.selectedFavouriteCollection.set(null);
-    this.state.showingAllRequests.set(false);
-    this.state.showingFamousRequests.set(false);
+    const current = this.folderFilter();
+    const next = current === filter ? null : filter;
+
+    if (next !== null) {
+      this.state.showingAllRequests.set(false);
+      this.state.showingFamousRequests.set(false);
+    }
+
+    this.folderFilter.set(next);
   }
 
   selectSidebarItem(item: SidebarItem): void {
-    if (item.type === 'collection') {
-      this.selectCollection(item.data);
-    } else if (item.type === 'favourite') {
-      this.selectFavouriteCollection(item.data);
-    } else {
-      this.selectTag(item.data);
-    }
-  }
-
-  activeFolderEmptyMessage(): string {
-    switch (this.folderFilter()) {
-      case 'collections':
-        return 'No collections.';
-      case 'favourites':
-        return 'No favourite collections.';
-      case 'tags':
-        return 'No tags yet.';
-      default:
-        return '';
-    }
+    this.state.exitBinView();
+    this.state.selectedCollection.set(null);
+    this.state.selectedFavouriteCollection.set(null);
+    this.state.selectedTag.set(null);
+    this.state.showingAllRequests.set(false);
+    this.state.showingFamousRequests.set(false);
+    this.selectItem(item);
+    this.folderFilter.set(FOLDER_FOR_KIND[item.kind]);
   }
 
   // ---------- Add ----------
@@ -361,21 +519,7 @@ export class RequestGroups {
     }
 
     try {
-      if (item.type === 'collection') {
-        const collection = item.data as Collection;
-        await this.collectionApi.update({ ...collection, name: newName });
-      } else if (item.type === 'favourite') {
-        const favourite = item.data as FavouriteCollection;
-        await this.favouriteApi.updateCollection({ ...favourite, name: newName });
-      } else {
-        const project = this.state.selectedProject();
-        const tag = item.data as Tag;
-        if (!project) return;
-        await this.tagApi.renameTag(project.id, tag.name, newName);
-        if (this.state.selectedTag() === tag.name) {
-          this.state.selectedTag.set(newName);
-        }
-      }
+      await this.renameItem(item, newName);
     } catch (err) {
       console.error(err);
     } finally {
@@ -413,23 +557,12 @@ export class RequestGroups {
     this.closeAppearancePopup();
   }
 
-  private async saveAppearance(
-    appearance: Omit<Appearance, 'id' | 'collection_id' | 'favourite_collection_id' | 'tag_id'>,
-  ): Promise<void> {
+  private async saveAppearance(patch: SidebarAppearancePatch): Promise<void> {
     const item = this.appearanceTarget();
     if (!item) return;
 
     try {
-      if (item.type === 'collection') {
-        await this.collectionApi.updateAppearance(item.id, appearance as Omit<CollectionAppearance, 'id' | 'collection_id'>);
-      } else if (item.type === 'favourite') {
-        await this.favouriteApi.updateAppearance(
-          item.id,
-          appearance as Omit<FavouriteAppearance, 'id' | 'favourite_collection_id'>,
-        );
-      } else {
-        await this.tagApi.updateAppearance(item.id, appearance as Omit<TagAppearance, 'id' | 'tag_id'>);
-      }
+      await this.applyAppearance(item, patch);
     } catch (err) {
       console.error(err);
     }
@@ -446,13 +579,7 @@ export class RequestGroups {
     this.contextMenu.close();
 
     try {
-      if (item.type === 'collection') {
-        await this.deleteCollection(item.data as Collection);
-      } else if (item.type === 'favourite') {
-        await this.deleteFavouriteCollection(item.data as FavouriteCollection);
-      } else {
-        await this.deleteTag(item.data as Tag);
-      }
+      await this.removeItem(item);
     } catch (err) {
       console.error(err);
     }
@@ -508,30 +635,7 @@ export class RequestGroups {
 
   // ---------- Helpers ----------
 
-  isSelected(item: SidebarItem): boolean {
-    if (item.type === 'collection') {
-      return this.state.selectedCollection()?.id === item.id;
-    }
-    if (item.type === 'favourite') {
-      return this.state.selectedFavouriteCollection()?.id === item.id;
-    }
-    return this.state.selectedTag() === item.name;
-  }
-
-  iconPath(appearance: Appearance): string | undefined {
-    if (appearance.appearance_type !== 'icon') return undefined;
-    return this.iconManifest.pathFor(appearance.appearance_value);
-  }
-
-  colorValue(appearance: Appearance): string | null {
-    return appearance.appearance_type === 'color' ? appearance.appearance_value : null;
-  }
-
-  isDefaultAppearance(appearance: Appearance): boolean {
-    return appearance.appearance_type === 'icon' && appearance.appearance_value === 'default';
-  }
-
-  isAppearanceSelected(appearance: Appearance, type: 'icon' | 'color', value: string): boolean {
+  isAppearanceSelected(appearance: SidebarItem['appearance'], type: 'icon' | 'color', value: string): boolean {
     return appearance.appearance_type === type && appearance.appearance_value === value;
   }
 }

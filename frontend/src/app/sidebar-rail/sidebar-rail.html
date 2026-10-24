@@ -1,0 +1,35 @@
+<nav class="rail" aria-label="Request views">
+  <button
+    class="rail-button rail-toggle"
+    type="button"
+    title="Expand sidebar"
+    aria-label="Expand sidebar"
+    (click)="onExpandClick()"
+  >
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path
+        d="M6.41 6L5 7.41 9.58 12 5 16.59 6.41 18l6-6zM14.41 6L13 7.41 17.58 12 13 16.59 14.41 18l6-6z"
+      />
+    </svg>
+  </button>
+
+  @for (view of views; track view.id) {
+    @if (view.dividerBefore) {
+      <div class="rail-divider" aria-hidden="true"></div>
+    }
+    <button
+      class="rail-button"
+      [class.is-active]="activeView() === view.id"
+      [class.rail-button--trash]="view.id === 'trash'"
+      type="button"
+      [disabled]="disabled()"
+      [attr.aria-label]="view.hint"
+      [title]="view.hint"
+      (click)="onViewClick(view.id)"
+    >
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path [attr.d]="view.iconPath" />
+      </svg>
+    </button>
+  }
+</nav>

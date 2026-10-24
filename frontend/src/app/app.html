@@ -34,18 +34,20 @@
 </div>
 
 <div class="app-shell" (window:keydown.escape)="onEscapePressed()">
-  <app-request-groups [style.width.%]="leftColumnWidth()"></app-request-groups>
+  <app-request-groups [style.width]="leftSidebarWidth()"></app-request-groups>
 
   <app-requests-main-list></app-requests-main-list>
 
   <app-request-panel [style.width.%]="rightColumnWidth()"></app-request-panel>
 
-  <div
-    class="resizer resizer--left"
-    (mousedown)="startColumnResize('left', $event)"
-    [style.left.%]="leftColumnWidth()"
-    aria-hidden="true"
-  ></div>
+  @if (state.sidebarExpanded() && state.sidebarListOpen()) {
+    <div
+      class="resizer resizer--left"
+      (mousedown)="startColumnResize('left', $event)"
+      [style.left]="leftSidebarWidth()"
+      aria-hidden="true"
+    ></div>
+  }
 
   <div
     class="resizer resizer--right"
