@@ -55,8 +55,15 @@ export class ApiRequestsService {
     return this.allRequestsArray().filter(r => r.project_id === projectId);
   }
 
+  /**
+   * Requests of one collection in the user's custom order. "All requests"
+   * (allRequestsArray) stays name-sorted because that view is not
+   * user-orderable; only collection views read the persisted order.
+   */
   forCollection(collectionId: number): HttpRequestSummary[] {
-    return this.allRequestsArray().filter(r => r.collection_id === collectionId);
+    return this.allRequestsArray()
+      .filter(r => r.collection_id === collectionId)
+      .sort((a, b) => a.user_sort_order - b.user_sort_order || a.name.localeCompare(b.name));
   }
 
   all(): HttpRequestSummary[] {
@@ -67,7 +74,11 @@ export class ApiRequestsService {
   // Dual-write CRUD
   // ---------------------------------------------------------------------------
 
-  async create(req: Omit<HttpRequest, 'id'>): Promise<HttpRequest> {
+  /**
+   * Creates a request. `user_sort_order` is omitted from the input because
+   * the backend always assigns it (appended to the collection's order).
+   */
+  async create(req: Omit<HttpRequest, 'id' | 'user_sort_order'>): Promise<HttpRequest> {
     const created = await this.requestApi.create(req as HttpRequest);
     this.addOrReplace(created);
     return created;
@@ -89,6 +100,7 @@ export class ApiRequestsService {
       method: updated.method,
       status_code: updated.status_code,
       response_id: updated.response_id,
+      user_sort_order: updated.user_sort_order,
     });
     return updated;
   }
@@ -124,6 +136,7 @@ export class ApiRequestsService {
         method: req.method,
         status_code: req.status_code,
         response_id: req.response_id,
+        user_sort_order: req.user_sort_order,
       });
     }
     return updated;
@@ -141,8 +154,14 @@ export class ApiRequestsService {
 
   async move(requestId: number, collectionId: number, projectId: number): Promise<void> {
     const full = await this.requestApi.get(requestId);
-    await this.requestApi.update({ ...full, collection_id: collectionId, project_id: projectId });
-    this.patch(requestId, { collection_id: collectionId, project_id: projectId });
+    const updated = await this.requestApi.update({ ...full, collection_id: collectionId, project_id: projectId });
+    // The backend appends the request to the end of the target collection's
+    // user order; keep the in-memory store in sync with the new position.
+    this.patch(requestId, {
+      collection_id: collectionId,
+      project_id: projectId,
+      user_sort_order: updated.user_sort_order,
+    });
   }
 
   // ---------------------------------------------------------------------------

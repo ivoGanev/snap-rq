@@ -141,8 +141,9 @@ func (s *TagService) AddTagToRequest(requestID int64, projectID int64, tagName s
 
 	if requestID != 0 {
 		_, err = s.db.Exec(
-			"INSERT OR IGNORE INTO request_tags (request_id, tag_id) VALUES (?, ?)",
-			requestID, tag.ID,
+			`INSERT OR IGNORE INTO request_tags (request_id, tag_id, user_sort_order)
+			 VALUES (?, ?, (SELECT COALESCE(MAX(user_sort_order), -1) + 1 FROM request_tags WHERE tag_id = ?))`,
+			requestID, tag.ID, tag.ID,
 		)
 		if err != nil {
 			return models.Tag{}, fmt.Errorf("linking tag to request: %w", err)
@@ -219,8 +220,9 @@ func (s *TagService) SetRequestTags(requestID int64, tagNames []string) error {
 			return err
 		}
 		_, err = tx.Exec(
-			"INSERT INTO request_tags (request_id, tag_id) VALUES (?, ?)",
-			requestID, tag.ID,
+			`INSERT INTO request_tags (request_id, tag_id, user_sort_order)
+			 VALUES (?, ?, (SELECT COALESCE(MAX(user_sort_order), -1) + 1 FROM request_tags WHERE tag_id = ?))`,
+			requestID, tag.ID, tag.ID,
 		)
 		if err != nil {
 			return fmt.Errorf("linking tag to request: %w", err)
@@ -272,17 +274,18 @@ func (s *TagService) DeleteTag(projectID int64, tagName string) error {
 	return nil
 }
 
-// GetRequestsForTag returns all requests in the project that have the given tag.
+// GetRequestsForTag returns all requests in the project that have the given
+// tag, ordered by the user's custom order within that tag (name as tiebreaker).
 func (s *TagService) GetRequestsForTag(projectID int64, tagName string) ([]models.HttpRequest, error) {
 	name := normaliseTagName(tagName)
 	rows, err := s.db.Query(`
-		SELECT r.id, r.collection_id, c.project_id, r.name, r.url, r.method, r.body, r.body_type, r.request_headers, r.status_code, r.response_id
+		SELECT r.id, r.collection_id, c.project_id, r.name, r.url, r.method, r.body, r.body_type, r.request_headers, r.status_code, r.response_id, rt.user_sort_order
 		FROM http_requests r
 		JOIN collections c ON c.id = r.collection_id
 		JOIN request_tags rt ON rt.request_id = r.id
 		JOIN tags t ON t.id = rt.tag_id
 		WHERE t.project_id = ? AND t.name = ?
-		ORDER BY r.name`,
+		ORDER BY rt.user_sort_order, r.name`,
 		projectID, name,
 	)
 	if err != nil {
@@ -293,7 +296,7 @@ func (s *TagService) GetRequestsForTag(projectID int64, tagName string) ([]model
 	var requests []models.HttpRequest
 	for rows.Next() {
 		var req models.HttpRequest
-		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID); err != nil {
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder); err != nil {
 			return nil, fmt.Errorf("scanning request for tag: %w", err)
 		}
 		requests = append(requests, req)
@@ -304,6 +307,56 @@ func (s *TagService) GetRequestsForTag(projectID int64, tagName string) ([]model
 	}
 
 	return requests, nil
+}
+
+// UpdateTagRequestOrder persists the user's custom ordering of the requests
+// within a single tag. The slice defines the full order; each membership
+// receives user_sort_order 0..n-1 in one transaction.
+func (s *TagService) UpdateTagRequestOrder(projectID int64, tagName string, orderedRequestIDs []int64) error {
+	name := normaliseTagName(tagName)
+	if name == "" {
+		return fmt.Errorf("tag name is required")
+	}
+	if projectID == 0 {
+		return fmt.Errorf("project id is required")
+	}
+	if len(orderedRequestIDs) == 0 {
+		return nil
+	}
+
+	var tagID int64
+	err := s.db.QueryRow("SELECT id FROM tags WHERE project_id = ? AND name = ?", projectID, name).Scan(&tagID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("tag not found")
+		}
+		return fmt.Errorf("finding tag: %w", err)
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("beginning tag order transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare(
+		`UPDATE request_tags SET user_sort_order = ? WHERE tag_id = ? AND request_id = ?`,
+	)
+	if err != nil {
+		return fmt.Errorf("preparing tag order statement: %w", err)
+	}
+	defer stmt.Close()
+
+	for index, requestID := range orderedRequestIDs {
+		if _, err := stmt.Exec(index, tagID, requestID); err != nil {
+			return fmt.Errorf("updating order for request %d: %w", requestID, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("committing tag order transaction: %w", err)
+	}
+	return nil
 }
 
 func (s *TagService) findOrCreateTag(projectID int64, name string) (models.Tag, error) {

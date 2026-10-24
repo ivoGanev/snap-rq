@@ -225,6 +225,11 @@
   user-select: none;
 }
 
+.spreadsheet-wrapper.is-reordering {
+  cursor: grabbing;
+  user-select: none;
+}
+
 .spreadsheet-overlay {
   position: absolute;
   top: 0;
@@ -259,7 +264,7 @@
 .spreadsheet-header,
 .spreadsheet-row {
   grid-template-columns:
-    44px
+    var(--action-col-width, 44px)
     minmax(60px, var(--method-col-width, 100px))
     minmax(120px, var(--name-col-width, 200px))
     minmax(120px, 1fr);
@@ -416,7 +421,44 @@
 .spreadsheet-cell--action {
   align-self: stretch;
   justify-content: center;
+  gap: 4px;
   padding: 4px;
+}
+
+// Three-dot reorder handle; only rendered on the selected row of
+// user-orderable views (collections / favourites / tags).
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  cursor: grab;
+  opacity: 0.7;
+  transition:
+    color 0.15s ease,
+    opacity 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.drag-handle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.drag-handle:hover {
+  color: var(--text);
+  opacity: 1;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
 }
 
 .spreadsheet-cell--method {

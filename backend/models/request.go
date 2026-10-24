@@ -4,14 +4,15 @@ package models
 // It omits the body and headers so large payloads are not serialized over IPC
 // when only id/name/url/method/status are needed.
 type HttpRequestSummary struct {
-	ID           int64  `json:"id"`
-	CollectionID int64  `json:"collection_id"`
-	ProjectID    int64  `json:"project_id"`
-	Name         string `json:"name"`
-	URL          string `json:"url"`
-	Method       string `json:"method"`
-	StatusCode   int    `json:"status_code"`
-	ResponseID   int64  `json:"response_id"`
+	ID            int64  `json:"id"`
+	CollectionID  int64  `json:"collection_id"`
+	ProjectID     int64  `json:"project_id"`
+	Name          string `json:"name"`
+	URL           string `json:"url"`
+	Method        string `json:"method"`
+	StatusCode    int    `json:"status_code"`
+	ResponseID    int64  `json:"response_id"`
+	UserSortOrder int    `json:"user_sort_order"`
 }
 
 // HttpRequest represents a saved REST API request.
@@ -27,4 +28,5 @@ type HttpRequest struct {
 	RequestHeaders string `json:"request_headers"`
 	StatusCode     int    `json:"status_code"`
 	ResponseID     int64  `json:"response_id"`
+	UserSortOrder  int    `json:"user_sort_order"`
 }
