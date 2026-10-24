@@ -1,12 +1,21 @@
 import { Component, effect, TemplateRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
-import { CollectionApiService, type Collection } from '../core/services/collection.service';
-import { FavouriteApiService, type FavouriteCollection } from '../core/services/favourite.service';
+import {
+  CollectionApiService,
+  type Collection,
+  type CollectionAppearance,
+} from '../core/services/collection.service';
+import {
+  FavouriteApiService,
+  type FavouriteCollection,
+  type FavouriteAppearance,
+} from '../core/services/favourite.service';
 import { RequestApiService } from '../core/services/request.service';
 import { SelectionStateService, groupKey } from '../core/services/selection-state.service';
-import { TagApiService, type Tag } from '../core/services/tag.service';
+import { TagApiService, type Tag, type TagAppearance } from '../core/services/tag.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
+import { IconManifestService } from '../core/services/icon-manifest.service';
 import {
   RequestGroupList,
   type SidebarFolder,
@@ -423,7 +432,10 @@ export class RequestGroups {
   }
 
   private async saveAppearance(
-    appearance: Omit<Appearance, 'id' | 'collection_id' | 'favourite_collection_id' | 'tag_id'>,
+    appearance: Omit<
+      NonNullable<SidebarItem['appearance']>,
+      'id' | 'collection_id' | 'favourite_collection_id' | 'tag_id'
+    >,
   ): Promise<void> {
     const item = this.appearanceTarget();
     if (!item) return;
