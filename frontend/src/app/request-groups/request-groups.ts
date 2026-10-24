@@ -198,7 +198,13 @@ export class RequestGroups {
 
   private toggleFolderFilter(filter: SidebarFolder): void {
     this.state.exitBinView();
-    this.folderFilter.update((current) => (current === filter ? null : filter));
+    const next = this.folderFilter() === filter ? null : filter;
+
+    if (next !== 'collections') this.state.selectedCollection.set(null);
+    if (next !== 'favourites') this.state.selectedFavouriteCollection.set(null);
+    if (next !== 'tags') this.state.selectedTag.set(null);
+
+    this.folderFilter.set(next);
   }
 
   selectCollection(data: Collection | FavouriteCollection | Tag): void {
