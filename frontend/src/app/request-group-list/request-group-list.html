@@ -4,30 +4,30 @@
     class="add-button"
     type="button"
     (click)="onAddClick()"
-    [attr.aria-label]="'Add new ' + folderFilter"
+    [attr.aria-label]="'Add new ' + folderFilter()"
   >
     +
   </button>
 </div>
 
 <div class="group-list-scroll">
-  @if (items.length === 0) {
+  @if (items().length === 0) {
     <div class="state-message">{{ activeFolderEmptyMessage() }}</div>
   }
   <ul class="group-list">
-    @for (item of items; track item.id + '-' + item.type) {
+    @for (item of items(); track item.id + '-' + item.type) {
       <li
         class="group-list-item"
         [class.is-selected]="isSelected(item)"
         (click)="onItemClick(item)"
         (contextmenu)="onContextMenu(item, $event)"
       >
-        @if (renamingItem?.id === item.id && renamingItem?.type === item.type) {
+        @if (renamingItem()?.id === item.id && renamingItem()?.type === item.type) {
           <form class="rename-form" (submit)="onRenameSubmit()">
             <input
               class="rename-input"
               type="text"
-              [ngModel]="renameValue"
+              [ngModel]="renameValue()"
               (ngModelChange)="onRenameInput($event)"
               (keydown.escape)="onRenameCancel()"
               (blur)="onRenameSubmit()"

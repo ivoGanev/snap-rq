@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, inject, Input, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, model, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { Collection, CollectionAppearance } from '../core/services/collection.service';
 import type { FavouriteCollection, FavouriteAppearance } from '../core/services/favourite.service';
@@ -28,35 +28,34 @@ export interface SidebarItem {
 export class RequestGroupList {
   private readonly iconManifest = inject(IconManifestService);
 
-  @Input({ required: true }) folderFilter!: SidebarFolder;
-  @Input({ required: true }) items: SidebarItem[] = [];
-  @Input() renamingItem: SidebarItem | null = null;
-  @Input() renameValue = '';
-  @Input() selectedCollectionId: number | null = null;
-  @Input() selectedFavouriteId: number | null = null;
-  @Input() selectedTagName: string | null = null;
+  readonly folderFilter = input.required<SidebarFolder>();
+  readonly items = input.required<SidebarItem[]>();
+  readonly renamingItem = input<SidebarItem | null>(null);
+  readonly renameValue = model('');
+  readonly selectedCollectionId = input<number | null>(null);
+  readonly selectedFavouriteId = input<number | null>(null);
+  readonly selectedTagName = input<string | null>(null);
 
-  @Output() addClick = new EventEmitter<void>();
-  @Output() itemSelect = new EventEmitter<SidebarItem>();
-  @Output() itemContextMenu = new EventEmitter<{ item: SidebarItem; event: MouseEvent }>();
-  @Output() appearanceClick = new EventEmitter<{ item: SidebarItem; event: MouseEvent }>();
-  @Output() renameStart = new EventEmitter<SidebarItem>();
-  @Output() renameValueChange = new EventEmitter<string>();
-  @Output() renameSubmit = new EventEmitter<void>();
-  @Output() renameCancel = new EventEmitter<void>();
+  readonly addClick = output<void>();
+  readonly itemSelect = output<SidebarItem>();
+  readonly itemContextMenu = output<{ item: SidebarItem; event: MouseEvent }>();
+  readonly appearanceClick = output<{ item: SidebarItem; event: MouseEvent }>();
+  readonly renameStart = output<SidebarItem>();
+  readonly renameSubmit = output<void>();
+  readonly renameCancel = output<void>();
 
   isSelected(item: SidebarItem): boolean {
     if (item.type === 'collection') {
-      return this.selectedCollectionId === item.id;
+      return this.selectedCollectionId() === item.id;
     }
     if (item.type === 'favourite') {
-      return this.selectedFavouriteId === item.id;
+      return this.selectedFavouriteId() === item.id;
     }
-    return this.selectedTagName === item.name;
+    return this.selectedTagName() === item.name;
   }
 
   activeFolderEmptyMessage(): string {
-    switch (this.folderFilter) {
+    switch (this.folderFilter()) {
       case 'collections':
         return 'No collections.';
       case 'favourites':
@@ -69,7 +68,7 @@ export class RequestGroupList {
   }
 
   folderTitle(): string {
-    switch (this.folderFilter) {
+    switch (this.folderFilter()) {
       case 'collections':
         return 'Collections';
       case 'favourites':
@@ -105,7 +104,7 @@ export class RequestGroupList {
   }
 
   onRenameInput(value: string): void {
-    this.renameValueChange.emit(value);
+    this.renameValue.set(value);
   }
 
   onRenameSubmit(): void {
