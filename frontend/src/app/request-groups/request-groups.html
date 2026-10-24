@@ -100,9 +100,7 @@
       [items]="filteredItems()"
       [renamingItem]="renamingItem()"
       [renameValue]="renameValue()"
-      [selectedCollectionId]="state.selectedCollection()?.id ?? null"
-      [selectedFavouriteId]="state.selectedFavouriteCollection()?.id ?? null"
-      [selectedTagName]="state.selectedTag()"
+      [selectedKey]="selectedKey()"
       (addClick)="onAddButtonClick()"
       (itemSelect)="selectSidebarItem($event)"
       (itemContextMenu)="openItemContextMenu($event.item, $event.event, itemContextMenu)"
@@ -200,7 +198,7 @@
 }
 
 <ng-template #itemContextMenu let-item>
-  @if (item.type !== 'tag') {
+  @if (item.kind !== 'tag') {
     <button class="context-menu-item" type="button" (click)="startRename(item)">Rename</button>
   } @else {
     <button class="context-menu-item" type="button" (click)="startRename(item)">Rename Tag</button>
@@ -208,11 +206,11 @@
   <button class="context-menu-item" type="button" (click)="openAppearancePopup(item)">
     Change style
   </button>
-  @if (item.type === 'favourite') {
+  @if (item.kind === 'favourite') {
     <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteItem(item)">
       Delete Favourites
     </button>
-  } @else if (item.type === 'tag') {
+  } @else if (item.kind === 'tag') {
     <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteItem(item)">
       Delete Tag
     </button>

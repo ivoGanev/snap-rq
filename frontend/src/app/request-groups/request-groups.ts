@@ -1,26 +1,50 @@
 import { Component, effect, TemplateRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
-import {
-  CollectionApiService,
-  type Collection,
-  type CollectionAppearance,
-} from '../core/services/collection.service';
+import { CollectionApiService, type Collection } from '../core/services/collection.service';
 import {
   FavouriteApiService,
   type FavouriteCollection,
-  type FavouriteAppearance,
 } from '../core/services/favourite.service';
 import { RequestApiService } from '../core/services/request.service';
 import { SelectionStateService, groupKey } from '../core/services/selection-state.service';
-import { TagApiService, type Tag, type TagAppearance } from '../core/services/tag.service';
+import { TagApiService, type Tag } from '../core/services/tag.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
 import { IconManifestService } from '../core/services/icon-manifest.service';
 import {
+  FOLDER_FOR_KIND,
   RequestGroupList,
+  sidebarCollectionKey,
+  sidebarFavouriteKey,
+  sidebarTagKey,
+  type SidebarAppearancePatch,
   type SidebarFolder,
   type SidebarItem,
 } from '../request-group-list/request-group-list';
+
+type SidebarItemOfKind<K extends SidebarItem['kind']> = Extract<SidebarItem, { kind: K }>;
+
+/**
+ * Per-kind behaviour maps. Each map is keyed exhaustively by item kind, so
+ * adding a new kind is a compile error until an entry exists — no scattered
+ * if/else chains to drift apart. `kind` discriminates the union, so handlers
+ * receive fully typed items without casts.
+ */
+type SelectHandlerMap = {
+  [K in SidebarItem['kind']]: (item: SidebarItemOfKind<K>) => void;
+};
+type RenameHandlerMap = {
+  [K in SidebarItem['kind']]: (item: SidebarItemOfKind<K>, newName: string) => Promise<void>;
+};
+type SaveAppearanceHandlerMap = {
+  [K in SidebarItem['kind']]: (
+    item: SidebarItemOfKind<K>,
+    patch: SidebarAppearancePatch,
+  ) => Promise<void>;
+};
+type RemoveHandlerMap = {
+  [K in SidebarItem['kind']]: (item: SidebarItemOfKind<K>) => Promise<void>;
+};
 
 const COLLECTION_COLOR_PALETTE: string[] = [
   '#ef4444',
@@ -67,6 +91,81 @@ export class RequestGroups {
   private readonly tagApi = inject(TagApiService);
   private readonly contextMenu = inject(ContextMenuService);
 
+  /**
+   * Single registry of per-kind behaviour. Adding a new sidebar kind is a
+   * compile error until an entry exists here — no scattered if/else to drift.
+   */
+  private readonly selectHandlers: SelectHandlerMap = {
+    collection: (item) => {
+      this.state.selectedCollection.set(item.data);
+    },
+    favourite: (item) => {
+      this.state.selectedFavouriteCollection.set(item.data);
+    },
+    tag: (item) => {
+      this.state.selectedTag.set(item.data.name);
+    },
+  };
+
+  private readonly renameHandlers: RenameHandlerMap = {
+    collection: async (item, newName) => {
+      await this.collectionApi.update({ ...item.data, name: newName });
+    },
+    favourite: async (item, newName) => {
+      await this.favouriteApi.updateCollection({ ...item.data, name: newName });
+    },
+    tag: async (item, newName) => {
+      const project = this.state.selectedProject();
+      if (!project) return;
+      await this.tagApi.renameTag(project.id, item.data.name, newName);
+      if (this.state.selectedTag() === item.data.name) {
+        this.state.selectedTag.set(newName);
+      }
+    },
+  };
+
+  private readonly saveAppearanceHandlers: SaveAppearanceHandlerMap = {
+    collection: async (item, patch) => {
+      await this.collectionApi.updateAppearance(item.id, patch);
+    },
+    favourite: async (item, patch) => {
+      await this.favouriteApi.updateAppearance(item.id, patch);
+    },
+    tag: async (item, patch) => {
+      await this.tagApi.updateAppearance(item.id, patch);
+    },
+  };
+
+  private readonly removeHandlers: RemoveHandlerMap = {
+    collection: (item) => this.deleteCollection(item.data),
+    favourite: (item) => this.deleteFavouriteCollection(item.data),
+    tag: (item) => this.deleteTag(item.data),
+  };
+
+  // Generic dispatchers: they tie the map key to the item's kind, so the
+  // compiler keeps the two correlated without casts or per-kind branches.
+  private selectItem<K extends SidebarItem['kind']>(item: SidebarItemOfKind<K>): void {
+    this.selectHandlers[item.kind](item);
+  }
+
+  private renameItem<K extends SidebarItem['kind']>(
+    item: SidebarItemOfKind<K>,
+    newName: string,
+  ): Promise<void> {
+    return this.renameHandlers[item.kind](item, newName);
+  }
+
+  private applyAppearance<K extends SidebarItem['kind']>(
+    item: SidebarItemOfKind<K>,
+    patch: SidebarAppearancePatch,
+  ): Promise<void> {
+    return this.saveAppearanceHandlers[item.kind](item, patch);
+  }
+
+  private removeItem<K extends SidebarItem['kind']>(item: SidebarItemOfKind<K>): Promise<void> {
+    return this.removeHandlers[item.kind](item);
+  }
+
   protected readonly collections = this.collectionApi.collections;
   protected readonly favouriteCollections = this.favouriteApi.collections;
   protected readonly allTags = this.tagApi.allTags;
@@ -92,35 +191,53 @@ export class RequestGroups {
   protected readonly appearanceTab = signal<'icon' | 'color'>('icon');
   protected readonly collectionColorPalette = COLLECTION_COLOR_PALETTE;
 
+  /** Per-folder adapters from domain models to the sidebar item union. */
+  private readonly folderSources: Record<SidebarFolder, () => SidebarItem[]> = {
+    collections: () =>
+      this.collections().map((c) => ({
+        kind: 'collection',
+        id: c.id,
+        name: c.name,
+        appearance: c.appearance,
+        data: c,
+      })),
+    favourites: () =>
+      this.favouriteCollections().map((f) => ({
+        kind: 'favourite',
+        id: f.id,
+        name: f.name,
+        appearance: f.appearance,
+        data: f,
+      })),
+    tags: () =>
+      this.allTags().map((t) => ({
+        kind: 'tag',
+        id: t.id,
+        name: t.name,
+        appearance: t.appearance,
+        data: t,
+      })),
+  };
+
   readonly filteredItems = computed<SidebarItem[]>(() => {
     const filter = this.folderFilter();
-    if (!filter) return [];
-    const items: SidebarItem[] = [
-      ...this.collections().map((c) => this.toSidebarItem(c, 'collection')),
-      ...this.favouriteCollections().map((f) => this.toSidebarItem(f, 'favourite')),
-      ...this.allTags().map((t) => this.toSidebarItem(t, 'tag')),
-    ];
-    return items.filter((item) => item.folder === filter);
+    return filter ? this.folderSources[filter]() : [];
+  });
+
+  /** Single key describing which sidebar item is selected, in any folder. */
+  protected readonly selectedKey = computed<string | null>(() => {
+    const collection = this.state.selectedCollection();
+    if (collection) return sidebarCollectionKey(collection.id);
+    const favourite = this.state.selectedFavouriteCollection();
+    if (favourite) return sidebarFavouriteKey(favourite.id);
+    const tag = this.state.selectedTag();
+    return tag ? sidebarTagKey(tag) : null;
   });
 
   constructor() {
     effect(() => {
       this.state.sidebarExpanded.set(this.folderFilter() !== null);
     });
-  }
-
-  private toSidebarItem(
-    data: Collection | FavouriteCollection | Tag,
-    type: SidebarItem['type'],
-  ): SidebarItem {
-    return {
-      id: data.id,
-      name: data.name,
-      type,
-      folder: type === 'collection' ? 'collections' : type === 'favourite' ? 'favourites' : 'tags',
-      appearance: data.appearance,
-      data,
-    };
   }
 
   onEscapePressed(): void {
@@ -148,10 +265,6 @@ export class RequestGroups {
       this.cancelRename();
       return;
     }
-  }
-
-  setFolderFilter(filter: SidebarFolder): void {
-    this.folderFilter.set(filter);
   }
 
   // ---------- Selection ----------
@@ -209,47 +322,15 @@ export class RequestGroups {
     this.folderFilter.set(next);
   }
 
-  selectCollection(data: Collection | FavouriteCollection | Tag): void {
-    const collection = data as Collection;
-    this.state.exitBinView();
-    this.state.selectedCollection.set(collection);
-    this.state.selectedFavouriteCollection.set(null);
-    this.state.selectedTag.set(null);
-    this.state.showingAllRequests.set(false);
-    this.state.showingFamousRequests.set(false);
-    this.folderFilter.set('collections');
-  }
-
-  selectFavouriteCollection(data: Collection | FavouriteCollection | Tag): void {
-    const collection = data as FavouriteCollection;
-    this.state.exitBinView();
-    this.state.selectedFavouriteCollection.set(collection);
-    this.state.selectedCollection.set(null);
-    this.state.selectedTag.set(null);
-    this.state.showingAllRequests.set(false);
-    this.state.showingFamousRequests.set(false);
-    this.folderFilter.set('favourites');
-  }
-
-  selectTag(data: Collection | FavouriteCollection | Tag): void {
-    const tag = data as Tag;
-    this.state.exitBinView();
-    this.state.selectedTag.set(tag.name);
-    this.state.selectedCollection.set(null);
-    this.state.selectedFavouriteCollection.set(null);
-    this.state.showingAllRequests.set(false);
-    this.state.showingFamousRequests.set(false);
-    this.folderFilter.set('tags');
-  }
-
   selectSidebarItem(item: SidebarItem): void {
-    if (item.type === 'collection') {
-      this.selectCollection(item.data);
-    } else if (item.type === 'favourite') {
-      this.selectFavouriteCollection(item.data);
-    } else {
-      this.selectTag(item.data);
-    }
+    this.state.exitBinView();
+    this.state.selectedCollection.set(null);
+    this.state.selectedFavouriteCollection.set(null);
+    this.state.selectedTag.set(null);
+    this.state.showingAllRequests.set(false);
+    this.state.showingFamousRequests.set(false);
+    this.selectItem(item);
+    this.folderFilter.set(FOLDER_FOR_KIND[item.kind]);
   }
 
   // ---------- Add ----------
@@ -387,21 +468,7 @@ export class RequestGroups {
     }
 
     try {
-      if (item.type === 'collection') {
-        const collection = item.data as Collection;
-        await this.collectionApi.update({ ...collection, name: newName });
-      } else if (item.type === 'favourite') {
-        const favourite = item.data as FavouriteCollection;
-        await this.favouriteApi.updateCollection({ ...favourite, name: newName });
-      } else {
-        const project = this.state.selectedProject();
-        const tag = item.data as Tag;
-        if (!project) return;
-        await this.tagApi.renameTag(project.id, tag.name, newName);
-        if (this.state.selectedTag() === tag.name) {
-          this.state.selectedTag.set(newName);
-        }
-      }
+      await this.renameItem(item, newName);
     } catch (err) {
       console.error(err);
     } finally {
@@ -439,26 +506,12 @@ export class RequestGroups {
     this.closeAppearancePopup();
   }
 
-  private async saveAppearance(
-    appearance: Omit<
-      NonNullable<SidebarItem['appearance']>,
-      'id' | 'collection_id' | 'favourite_collection_id' | 'tag_id'
-    >,
-  ): Promise<void> {
+  private async saveAppearance(patch: SidebarAppearancePatch): Promise<void> {
     const item = this.appearanceTarget();
     if (!item) return;
 
     try {
-      if (item.type === 'collection') {
-        await this.collectionApi.updateAppearance(item.id, appearance as Omit<CollectionAppearance, 'id' | 'collection_id'>);
-      } else if (item.type === 'favourite') {
-        await this.favouriteApi.updateAppearance(
-          item.id,
-          appearance as Omit<FavouriteAppearance, 'id' | 'favourite_collection_id'>,
-        );
-      } else {
-        await this.tagApi.updateAppearance(item.id, appearance as Omit<TagAppearance, 'id' | 'tag_id'>);
-      }
+      await this.applyAppearance(item, patch);
     } catch (err) {
       console.error(err);
     }
@@ -475,13 +528,7 @@ export class RequestGroups {
     this.contextMenu.close();
 
     try {
-      if (item.type === 'collection') {
-        await this.deleteCollection(item.data as Collection);
-      } else if (item.type === 'favourite') {
-        await this.deleteFavouriteCollection(item.data as FavouriteCollection);
-      } else {
-        await this.deleteTag(item.data as Tag);
-      }
+      await this.removeItem(item);
     } catch (err) {
       console.error(err);
     }
@@ -536,16 +583,6 @@ export class RequestGroups {
   }
 
   // ---------- Helpers ----------
-
-  isSelected(item: SidebarItem): boolean {
-    if (item.type === 'collection') {
-      return this.state.selectedCollection()?.id === item.id;
-    }
-    if (item.type === 'favourite') {
-      return this.state.selectedFavouriteCollection()?.id === item.id;
-    }
-    return this.state.selectedTag() === item.name;
-  }
 
   isAppearanceSelected(appearance: SidebarItem['appearance'], type: 'icon' | 'color', value: string): boolean {
     return appearance.appearance_type === type && appearance.appearance_value === value;

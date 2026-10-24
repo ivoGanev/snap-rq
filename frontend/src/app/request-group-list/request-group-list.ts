@@ -6,17 +6,64 @@ import type { Tag, TagAppearance } from '../core/services/tag.service';
 import { IconManifestService } from '../core/services/icon-manifest.service';
 
 export type SidebarFolder = 'collections' | 'favourites' | 'tags';
-export type SidebarItemType = 'collection' | 'favourite' | 'tag';
 export type SidebarItemAppearance = CollectionAppearance | FavouriteAppearance | TagAppearance;
 
-export interface SidebarItem {
+/** Discriminated union of sidebar entries; `kind` narrows `data` and `appearance`. */
+export interface CollectionSidebarItem {
+  kind: 'collection';
   id: number;
   name: string;
-  type: SidebarItemType;
-  folder: SidebarFolder;
-  appearance: SidebarItemAppearance;
-  data: Collection | FavouriteCollection | Tag;
+  appearance: CollectionAppearance;
+  data: Collection;
 }
+
+export interface FavouriteSidebarItem {
+  kind: 'favourite';
+  id: number;
+  name: string;
+  appearance: FavouriteAppearance;
+  data: FavouriteCollection;
+}
+
+export interface TagSidebarItem {
+  kind: 'tag';
+  id: number;
+  name: string;
+  appearance: TagAppearance;
+  data: Tag;
+}
+
+export type SidebarItem = CollectionSidebarItem | FavouriteSidebarItem | TagSidebarItem;
+
+export const FOLDER_FOR_KIND: Record<SidebarItem['kind'], SidebarFolder> = {
+  collection: 'collections',
+  favourite: 'favourites',
+  tag: 'tags',
+};
+
+/** Stable identity of a sidebar item, e.g. `collection:12` or `tag:auth`. */
+export const sidebarCollectionKey = (id: number): string => `collection:${id}`;
+export const sidebarFavouriteKey = (id: number): string => `favourite:${id}`;
+export const sidebarTagKey = (name: string): string => `tag:${name}`;
+
+export function sidebarItemKey(item: SidebarItem): string {
+  return item.kind === 'tag'
+    ? sidebarTagKey(item.name)
+    : item.kind === 'favourite'
+      ? sidebarFavouriteKey(item.id)
+      : sidebarCollectionKey(item.id);
+}
+
+export interface SidebarAppearancePatch {
+  appearance_type: string;
+  appearance_value: string;
+}
+
+const FOLDER_META: Record<SidebarFolder, { title: string; emptyMessage: string }> = {
+  collections: { title: 'Collections', emptyMessage: 'No collections.' },
+  favourites: { title: 'Favourites', emptyMessage: 'No favourite collections.' },
+  tags: { title: 'Tags', emptyMessage: 'No tags yet.' },
+};
 
 @Component({
   selector: 'app-request-group-list',
@@ -32,9 +79,7 @@ export class RequestGroupList {
   readonly items = input.required<SidebarItem[]>();
   readonly renamingItem = input<SidebarItem | null>(null);
   readonly renameValue = model('');
-  readonly selectedCollectionId = input<number | null>(null);
-  readonly selectedFavouriteId = input<number | null>(null);
-  readonly selectedTagName = input<string | null>(null);
+  readonly selectedKey = input<string | null>(null);
 
   readonly addClick = output<void>();
   readonly itemSelect = output<SidebarItem>();
@@ -45,39 +90,15 @@ export class RequestGroupList {
   readonly renameCancel = output<void>();
 
   isSelected(item: SidebarItem): boolean {
-    if (item.type === 'collection') {
-      return this.selectedCollectionId() === item.id;
-    }
-    if (item.type === 'favourite') {
-      return this.selectedFavouriteId() === item.id;
-    }
-    return this.selectedTagName() === item.name;
-  }
-
-  activeFolderEmptyMessage(): string {
-    switch (this.folderFilter()) {
-      case 'collections':
-        return 'No collections.';
-      case 'favourites':
-        return 'No favourite collections.';
-      case 'tags':
-        return 'No tags yet.';
-      default:
-        return '';
-    }
+    return this.selectedKey() === sidebarItemKey(item);
   }
 
   folderTitle(): string {
-    switch (this.folderFilter()) {
-      case 'collections':
-        return 'Collections';
-      case 'favourites':
-        return 'Favourites';
-      case 'tags':
-        return 'Tags';
-      default:
-        return '';
-    }
+    return FOLDER_META[this.folderFilter()].title;
+  }
+
+  activeFolderEmptyMessage(): string {
+    return FOLDER_META[this.folderFilter()].emptyMessage;
   }
 
   onAddClick(): void {
