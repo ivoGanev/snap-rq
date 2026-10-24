@@ -188,7 +188,7 @@ export class RequestsMainList {
 
   readonly activeGroupName = computed<string | null>(() => {
     if (this.state.showingBin()) return 'Trash bin';
-    if (this.state.showingFamousRequests()) return 'Famous';
+    if (this.state.showingFamousRequests()) return 'Recent';
     if (this.state.showingAllRequests()) return 'All requests';
     const tag = this.state.selectedTag();
     if (tag) return tag;
