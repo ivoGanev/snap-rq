@@ -561,7 +561,10 @@ func (s *RequestService) UpdateRequest(req models.HttpRequest) (models.HttpReque
 
 // UpdateCollectionRequestOrder persists the user's custom ordering of the
 // requests inside a single collection. The slice defines the full order; each
-// request receives user_sort_order 0..n-1 in one transaction.
+// request receives user_sort_order 0..n-1. The whole reorder is ONE bulk
+// UPDATE (CASE id WHEN ...) instead of a statement per row — with hundreds of
+// requests the per-row round-trips through statement preparation and index
+// maintenance dominate otherwise.
 func (s *RequestService) UpdateCollectionRequestOrder(collectionID int64, orderedRequestIDs []int64) error {
 	if collectionID == 0 {
 		return fmt.Errorf("collection id is required")
@@ -570,28 +573,18 @@ func (s *RequestService) UpdateCollectionRequestOrder(collectionID int64, ordere
 		return nil
 	}
 
-	tx, err := s.db.Begin()
-	if err != nil {
-		return fmt.Errorf("beginning collection order transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	stmt, err := tx.Prepare(
-		`UPDATE http_requests SET user_sort_order = ? WHERE id = ? AND collection_id = ?`,
-	)
-	if err != nil {
-		return fmt.Errorf("preparing collection order statement: %w", err)
-	}
-	defer stmt.Close()
-
+	var query strings.Builder
+	query.WriteString("UPDATE http_requests SET user_sort_order = CASE id")
+	args := make([]any, 0, len(orderedRequestIDs)*2+1)
 	for index, requestID := range orderedRequestIDs {
-		if _, err := stmt.Exec(index, requestID, collectionID); err != nil {
-			return fmt.Errorf("updating order for request %d: %w", requestID, err)
-		}
+		query.WriteString(" WHEN ? THEN ?")
+		args = append(args, requestID, index)
 	}
+	query.WriteString(" ELSE user_sort_order END WHERE collection_id = ?")
+	args = append(args, collectionID)
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("committing collection order transaction: %w", err)
+	if _, err := s.db.Exec(query.String(), args...); err != nil {
+		return fmt.Errorf("bulk updating collection order: %w", err)
 	}
 	return nil
 }

@@ -470,8 +470,11 @@
   opacity: 0.45;
 }
 
+// Hidden until the drag frame loop positions them, so they never flash at
+// their unpositioned coordinates; the loop sets visibility: visible.
 .reorder-drop-line {
   position: fixed;
+  visibility: hidden;
   height: 2px;
   margin-top: -1px;
   background: var(--accent);
@@ -483,6 +486,7 @@
 
 .reorder-ghost {
   position: fixed;
+  visibility: hidden;
   display: flex;
   align-items: center;
   gap: var(--s-2);

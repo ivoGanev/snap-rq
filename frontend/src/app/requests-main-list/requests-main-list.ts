@@ -33,14 +33,6 @@ interface ReorderDrag {
   /** Snapshot of the dragged row shown in the ghost. */
   request: HttpRequestSummary;
   fromIndex: number;
-  /** Insertion slot between rows (0..length), derived from the cursor. */
-  insertIndex: number;
-  lastClientX: number;
-  lastClientY: number;
-  /** Drop-indicator geometry in client coordinates (fixed positioning). */
-  lineTop: number;
-  lineLeft: number;
-  lineWidth: number;
 }
 
 const BOTTOM_TABS: BottomTab[] = [
@@ -52,7 +44,6 @@ const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'
 const DRAG_THRESHOLD_PX = 5;
 const REORDER_EDGE_SCROLL_PX = 44;
 const REORDER_EDGE_SCROLL_STEP_PX = 10;
-const REORDER_AUTOSCROLL_INTERVAL_MS = 16;
 const METHOD_COLUMN_MIN_WIDTH = 60;
 const NAME_COLUMN_MIN_WIDTH = 120;
 
@@ -145,8 +136,19 @@ export class RequestsMainList {
   // ---------- Row reorder drag ----------
 
   private readonly reorderPending = signal<{ requestId: number; startY: number } | null>(null);
+  /**
+   * Structural drag state only (set once at start, cleared at end) so the
+   * signal never changes per pixel. Per-cursor values live in plain fields
+   * below and are applied to the DOM directly inside a rAF loop — writing a
+   * signal per mousemove would trigger a change-detection pass per pixel.
+   */
   readonly reorderDrag = signal<ReorderDrag | null>(null);
-  private reorderAutoScroll: ReturnType<typeof setInterval> | null = null;
+  private reorderInsertIndex = 0;
+  private reorderLastX = 0;
+  private reorderLastY = 0;
+  private reorderFrame: number | null = null;
+  private readonly reorderGhost = viewChild<ElementRef<HTMLElement>>('reorderGhost');
+  private readonly reorderDropLine = viewChild<ElementRef<HTMLElement>>('reorderDropLine');
 
   protected readonly rowHeight = 44;
 
@@ -882,13 +884,14 @@ export class RequestsMainList {
       const drag = this.reorderDrag();
       this.reorderPending.set(null);
       this.reorderDrag.set(null);
-      this.stopReorderAutoScroll();
+      this.stopReorderFrameLoop();
       document.body.style.cursor = '';
       if (drag) {
         this.ignoreNextClick.set(true);
         // The insertion slot counts the dragged row itself; adjust for its
         // removal to get the final insert position.
-        const toIndex = drag.insertIndex > drag.fromIndex ? drag.insertIndex - 1 : drag.insertIndex;
+        const toIndex =
+          this.reorderInsertIndex > drag.fromIndex ? this.reorderInsertIndex - 1 : this.reorderInsertIndex;
         if (toIndex !== drag.fromIndex) {
           this.commitReorder(drag.fromIndex, toIndex);
           void this.persistReorder();
@@ -941,10 +944,13 @@ export class RequestsMainList {
    * selection: recycled virtual rows are never inspected, the insertion slot
    * is derived from (clientY - viewport top + scrollOffset) / rowHeight.
    *
-   * The list itself is NOT reordered while dragging. The drag keeps a ghost
-   * of the source row and a drop indicator between rows; the order is only
-   * committed (in memory + database) when the user releases the mouse. ESC
-   * cancels the gesture with no changes.
+   * The list itself is NOT reordered while dragging. A ghost of the source
+   * row follows the cursor with a drop indicator between rows; the order is
+   * only committed (in memory + database) on release. ESC cancels.
+   *
+   * Per-pixel updates bypass Angular entirely: mousemove only records plain
+   * fields, and a requestAnimationFrame loop applies auto-scroll, geometry
+   * and the ghost/indicator positions via direct DOM writes.
    */
   private handleReorderMouseMove(event: MouseEvent): void {
     const pending = this.reorderPending();
@@ -954,82 +960,86 @@ export class RequestsMainList {
       const fromIndex = requests.findIndex(r => r.id === pending.requestId);
       this.reorderPending.set(null);
       if (fromIndex === -1 || !this.canReorderRows()) return;
-      this.reorderDrag.set({
-        request: requests[fromIndex],
-        fromIndex,
-        insertIndex: fromIndex,
-        lastClientX: event.clientX,
-        lastClientY: event.clientY,
-        lineTop: 0,
-        lineLeft: 0,
-        lineWidth: 0,
-      });
-      this.updateReorderGeometry();
-      this.startReorderAutoScroll();
+      this.reorderLastX = event.clientX;
+      this.reorderLastY = event.clientY;
+      this.reorderInsertIndex = fromIndex;
+      this.reorderDrag.set({ request: requests[fromIndex], fromIndex });
+      this.startReorderFrameLoop();
       // Keep the grabbing cursor even when the pointer moves over rows that
       // would otherwise override it (rows, cells, buttons).
       document.body.style.cursor = 'grabbing';
       return;
     }
 
-    const drag = this.reorderDrag();
-    if (!drag) return;
-    this.reorderDrag.set({ ...drag, lastClientX: event.clientX, lastClientY: event.clientY });
-    this.updateReorderGeometry();
+    if (!this.reorderDrag()) return;
+    this.reorderLastX = event.clientX;
+    this.reorderLastY = event.clientY;
   }
 
-  /** Recomputes the insertion slot and drop-indicator geometry. */
-  private updateReorderGeometry(): void {
+  /**
+   * One frame of the drag: edge auto-scroll, insertion slot computation and
+   * direct DOM writes for the ghost and drop indicator. Runs at display
+   * refresh rate; auto-scroll keeps going even when the cursor is held
+   * still near an edge.
+   */
+  private renderReorderFrame(): void {
     const drag = this.reorderDrag();
-    if (!drag || !this.viewport) return;
+    const ghost = this.reorderGhost()?.nativeElement;
+    const line = this.reorderDropLine()?.nativeElement;
+    if (!drag || !ghost || !line || !this.viewport) return;
 
     const viewport = this.viewport.elementRef.nativeElement;
     const rect = viewport.getBoundingClientRect();
+
+    if (this.reorderLastY < rect.top + REORDER_EDGE_SCROLL_PX) {
+      this.viewport.scrollToOffset(
+        Math.max(0, this.viewport.measureScrollOffset('top') - REORDER_EDGE_SCROLL_STEP_PX),
+      );
+    } else if (this.reorderLastY > rect.bottom - REORDER_EDGE_SCROLL_PX) {
+      // Native scrollTop clamping stops at the end of the content.
+      this.viewport.scrollToOffset(
+        this.viewport.measureScrollOffset('top') + REORDER_EDGE_SCROLL_STEP_PX,
+      );
+    }
+
     const scrollOffset = this.viewport.measureScrollOffset('top');
     const length = this.filteredActiveRequests().length;
 
     // Insertion slot between rows: the top half of a row inserts above it,
     // the bottom half below it; clamped to the list ends.
-    const yInContent = scrollOffset + drag.lastClientY - rect.top;
-    const insertIndex = Math.max(0, Math.min(Math.round(yInContent / this.rowHeight), length));
+    const yInContent = scrollOffset + this.reorderLastY - rect.top;
+    this.reorderInsertIndex = Math.max(
+      0,
+      Math.min(Math.round(yInContent / this.rowHeight), length),
+    );
 
-    this.reorderDrag.set({
-      ...drag,
-      insertIndex,
-      lineTop: rect.top + insertIndex * this.rowHeight - scrollOffset,
-      lineLeft: rect.left + 4,
-      lineWidth: Math.max(0, rect.width - 8),
-    });
+    const lineTop = rect.top + this.reorderInsertIndex * this.rowHeight - scrollOffset;
+    ghost.style.left = `${this.reorderLastX}px`;
+    ghost.style.top = `${this.reorderLastY}px`;
+    line.style.top = `${lineTop}px`;
+    line.style.left = `${rect.left + 4}px`;
+    line.style.width = `${Math.max(0, rect.width - 8)}px`;
+    // Hidden by CSS until first positioned, so the ghost never flashes at
+    // its unpositioned coordinates.
+    ghost.style.visibility = 'visible';
+    line.style.visibility = 'visible';
   }
 
-  /**
-   * Continuous edge auto-scroll: a plain interval so scrolling keeps going
-   * while the cursor is held still near a viewport edge (mousemoves alone
-   * would stop the moment the pointer stops).
-   */
-  private startReorderAutoScroll(): void {
-    this.stopReorderAutoScroll();
-    this.reorderAutoScroll = setInterval(() => {
-      const drag = this.reorderDrag();
-      if (!drag || !this.viewport) return;
-      const rect = this.viewport.elementRef.nativeElement.getBoundingClientRect();
-      const offset = this.viewport.measureScrollOffset('top');
-      if (drag.lastClientY < rect.top + REORDER_EDGE_SCROLL_PX) {
-        this.viewport.scrollToOffset(Math.max(0, offset - REORDER_EDGE_SCROLL_STEP_PX));
-      } else if (drag.lastClientY > rect.bottom - REORDER_EDGE_SCROLL_PX) {
-        // Native scrollTop clamping stops at the end of the content.
-        this.viewport.scrollToOffset(offset + REORDER_EDGE_SCROLL_STEP_PX);
-      } else {
-        return;
-      }
-      this.updateReorderGeometry();
-    }, REORDER_AUTOSCROLL_INTERVAL_MS);
+  private startReorderFrameLoop(): void {
+    if (this.reorderFrame !== null) return;
+    const tick = (): void => {
+      this.reorderFrame = null;
+      if (this.reorderDrag() === null) return;
+      this.renderReorderFrame();
+      this.reorderFrame = requestAnimationFrame(tick);
+    };
+    this.reorderFrame = requestAnimationFrame(tick);
   }
 
-  private stopReorderAutoScroll(): void {
-    if (this.reorderAutoScroll !== null) {
-      clearInterval(this.reorderAutoScroll);
-      this.reorderAutoScroll = null;
+  private stopReorderFrameLoop(): void {
+    if (this.reorderFrame !== null) {
+      cancelAnimationFrame(this.reorderFrame);
+      this.reorderFrame = null;
     }
   }
 
@@ -1038,16 +1048,16 @@ export class RequestsMainList {
     if (this.reorderPending() === null && this.reorderDrag() === null) return false;
     this.reorderPending.set(null);
     this.reorderDrag.set(null);
-    this.stopReorderAutoScroll();
+    this.stopReorderFrameLoop();
     document.body.style.cursor = '';
     return true;
   }
 
   /**
    * Commits the drop: moves the row in the active view's source and assigns
-   * user_sort_order 0..n-1. `to` is the insert position in the list *after*
-   * the dragged row has been removed, so callers adjust the between-rows
-   * insertion slot beforehand.
+   * user_sort_order 0..n-1 in ONE bulk update per store. `to` is the insert
+   * position in the list *after* the dragged row has been removed, so
+   * callers adjust the between-rows insertion slot beforehand.
    */
   private commitReorder(from: number, to: number): void {
     const kind = this.activeViewKind();
@@ -1059,9 +1069,11 @@ export class RequestsMainList {
       const [moved] = next.splice(from, 1);
       if (!moved) return;
       next.splice(to, 0, moved);
+      const orders: Record<number, number> = {};
       for (const [index, req] of next.entries()) {
-        this.apiRequests.patch(req.id, { user_sort_order: index });
+        orders[req.id] = index;
       }
+      this.apiRequests.applyUserSortOrders(orders);
       return;
     }
 

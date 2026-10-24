@@ -193,6 +193,27 @@ export class ApiRequestsService {
     });
   }
 
+  /**
+   * Bulk-applies new user_sort_order values in ONE signal write. Calling
+   * patch() per request re-spreads the whole map N times (O(n²) with large
+   * lists); this rebuilds it once.
+   */
+  applyUserSortOrders(orders: Record<number, number>): void {
+    const ids = Object.keys(orders);
+    if (ids.length === 0) return;
+    this.allRequests.update(map => {
+      const next = { ...map };
+      for (const key of ids) {
+        const id = Number(key);
+        const existing = next[id];
+        if (existing) {
+          next[id] = { ...existing, user_sort_order: orders[id] };
+        }
+      }
+      return next;
+    });
+  }
+
   private remove(id: number): void {
     this.allRequests.update(map => {
       const next = { ...map };

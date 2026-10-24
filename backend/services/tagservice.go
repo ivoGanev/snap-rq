@@ -311,7 +311,8 @@ func (s *TagService) GetRequestsForTag(projectID int64, tagName string) ([]model
 
 // UpdateTagRequestOrder persists the user's custom ordering of the requests
 // within a single tag. The slice defines the full order; each membership
-// receives user_sort_order 0..n-1 in one transaction.
+// receives user_sort_order 0..n-1. The whole reorder is ONE bulk UPDATE
+// (CASE request_id WHEN ...) instead of a statement per row.
 func (s *TagService) UpdateTagRequestOrder(projectID int64, tagName string, orderedRequestIDs []int64) error {
 	name := normaliseTagName(tagName)
 	if name == "" {
@@ -333,28 +334,18 @@ func (s *TagService) UpdateTagRequestOrder(projectID int64, tagName string, orde
 		return fmt.Errorf("finding tag: %w", err)
 	}
 
-	tx, err := s.db.Begin()
-	if err != nil {
-		return fmt.Errorf("beginning tag order transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	stmt, err := tx.Prepare(
-		`UPDATE request_tags SET user_sort_order = ? WHERE tag_id = ? AND request_id = ?`,
-	)
-	if err != nil {
-		return fmt.Errorf("preparing tag order statement: %w", err)
-	}
-	defer stmt.Close()
-
+	var query strings.Builder
+	query.WriteString("UPDATE request_tags SET user_sort_order = CASE request_id")
+	args := make([]any, 0, len(orderedRequestIDs)*2+1)
 	for index, requestID := range orderedRequestIDs {
-		if _, err := stmt.Exec(index, tagID, requestID); err != nil {
-			return fmt.Errorf("updating order for request %d: %w", requestID, err)
-		}
+		query.WriteString(" WHEN ? THEN ?")
+		args = append(args, requestID, index)
 	}
+	query.WriteString(" ELSE user_sort_order END WHERE tag_id = ?")
+	args = append(args, tagID)
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("committing tag order transaction: %w", err)
+	if _, err := s.db.Exec(query.String(), args...); err != nil {
+		return fmt.Errorf("bulk updating tag order: %w", err)
 	}
 	return nil
 }

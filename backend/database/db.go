@@ -30,6 +30,12 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("enabling foreign keys: %w", err)
 	}
 
+	// WAL keeps bulk writes (e.g. reordering hundreds of requests) from paying
+	// rollback-journal overhead on every commit.
+	if _, err := db.Exec("PRAGMA journal_mode = WAL"); err != nil {
+		return nil, fmt.Errorf("enabling WAL journal mode: %w", err)
+	}
+
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("pinging database: %w", err)
 	}

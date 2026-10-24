@@ -296,19 +296,8 @@
     </cdk-virtual-scroll-viewport>
 
     @if (reorderDrag(); as drag) {
-      <div
-        class="reorder-drop-line"
-        [style.top.px]="drag.lineTop"
-        [style.left.px]="drag.lineLeft"
-        [style.width.px]="drag.lineWidth"
-        aria-hidden="true"
-      ></div>
-      <div
-        class="reorder-ghost"
-        [style.left.px]="drag.lastClientX"
-        [style.top.px]="drag.lastClientY"
-        aria-hidden="true"
-      >
+      <div #reorderDropLine class="reorder-drop-line" aria-hidden="true"></div>
+      <div #reorderGhost class="reorder-ghost" aria-hidden="true">
         <span class="request-method" [attr.data-method]="drag.request.method">
           {{ drag.request.method }}
         </span>

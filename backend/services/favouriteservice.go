@@ -200,7 +200,9 @@ func (s *FavouriteService) AddRequestToFavouriteCollection(favouriteCollectionID
 
 // UpdateFavouriteRequestOrder persists the user's custom ordering of the
 // requests inside a single favourite collection. The slice defines the full
-// order; each membership receives user_sort_order 0..n-1 in one transaction.
+// order; each membership receives user_sort_order 0..n-1. The whole reorder
+// is ONE bulk UPDATE (CASE http_request_id WHEN ...) instead of a statement
+// per row.
 func (s *FavouriteService) UpdateFavouriteRequestOrder(favouriteCollectionID int64, orderedRequestIDs []int64) error {
 	if favouriteCollectionID == 0 {
 		return fmt.Errorf("favourite collection id is required")
@@ -209,28 +211,18 @@ func (s *FavouriteService) UpdateFavouriteRequestOrder(favouriteCollectionID int
 		return nil
 	}
 
-	tx, err := s.db.Begin()
-	if err != nil {
-		return fmt.Errorf("beginning favourite order transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	stmt, err := tx.Prepare(
-		`UPDATE favourite_items SET user_sort_order = ? WHERE favourite_collection_id = ? AND http_request_id = ?`,
-	)
-	if err != nil {
-		return fmt.Errorf("preparing favourite order statement: %w", err)
-	}
-	defer stmt.Close()
-
+	var query strings.Builder
+	query.WriteString("UPDATE favourite_items SET user_sort_order = CASE http_request_id")
+	args := make([]any, 0, len(orderedRequestIDs)*2+1)
 	for index, requestID := range orderedRequestIDs {
-		if _, err := stmt.Exec(index, favouriteCollectionID, requestID); err != nil {
-			return fmt.Errorf("updating order for request %d: %w", requestID, err)
-		}
+		query.WriteString(" WHEN ? THEN ?")
+		args = append(args, requestID, index)
 	}
+	query.WriteString(" ELSE user_sort_order END WHERE favourite_collection_id = ?")
+	args = append(args, favouriteCollectionID)
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("committing favourite order transaction: %w", err)
+	if _, err := s.db.Exec(query.String(), args...); err != nil {
+		return fmt.Errorf("bulk updating favourite order: %w", err)
 	}
 	return nil
 }
