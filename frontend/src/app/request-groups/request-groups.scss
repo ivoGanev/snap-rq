@@ -67,6 +67,11 @@
   border-color: rgba(99, 102, 241, 0.5);
 }
 
+.nav-button.is-active:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
 .nav-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -99,6 +104,11 @@
 }
 
 .nav-button--trash.is-active {
+  background: var(--selected-bg);
+  border-color: var(--selected-border);
+}
+
+.nav-button--trash.is-active:hover:not(:disabled) {
   background: var(--selected-bg);
   border-color: var(--selected-border);
 }
