@@ -37,6 +37,7 @@ func runMigrations(t *testing.T, db *sql.DB) {
 			request_headers TEXT,
 			status_code INTEGER NOT NULL DEFAULT 0,
 			response_id INTEGER NOT NULL DEFAULT 0,
+			user_sort_order INTEGER NOT NULL DEFAULT 0,
 			FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE
 		);
 		CREATE TABLE responses (
@@ -59,14 +60,22 @@ func runMigrations(t *testing.T, db *sql.DB) {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			favourite_collection_id INTEGER NOT NULL,
 			http_request_id INTEGER NOT NULL,
+			user_sort_order INTEGER NOT NULL DEFAULT 0,
 			FOREIGN KEY (favourite_collection_id) REFERENCES favourite_collections(id) ON DELETE CASCADE,
 			FOREIGN KEY (http_request_id) REFERENCES http_requests(id) ON DELETE CASCADE
 		);
 		CREATE TABLE tags (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, name TEXT NOT NULL);
+		CREATE TABLE tag_appearances (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			tag_id INTEGER NOT NULL,
+			appearance_type TEXT NOT NULL,
+			appearance_value TEXT NOT NULL
+		);
 		CREATE TABLE request_tags (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			request_id INTEGER NOT NULL,
 			tag_id INTEGER NOT NULL,
+			user_sort_order INTEGER NOT NULL DEFAULT 0,
 			FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE,
 			FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
 		);

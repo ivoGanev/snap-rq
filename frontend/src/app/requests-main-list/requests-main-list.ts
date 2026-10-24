@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, TemplateRef, ViewChild, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, OnDestroy, TemplateRef, ViewChild, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { Clipboard } from '@wailsio/runtime';
@@ -14,6 +14,7 @@ import { ContextMenuService } from '../core/services/context-menu.service';
 import { RequestBottomDrawer, type BottomTab } from '../request-bottom-drawer/request-bottom-drawer';
 import { RequestBodyTab } from '../request-body-tab/request-body-tab';
 import { RequestHeadersTab } from '../request-headers-tab/request-headers-tab';
+import { USER_ORDERABLE_VIEWS, type RequestListViewKind } from './request-view-ordering';
 
 type ColumnKey = 'name' | 'url' | 'method' | 'tags';
 type SortDirection = 'asc' | 'desc';
@@ -28,6 +29,12 @@ interface RowState {
   isCellSelected: Record<ColumnKey, boolean>;
 }
 
+interface ReorderDrag {
+  /** Snapshot of the dragged row shown in the ghost. */
+  request: HttpRequestSummary;
+  fromIndex: number;
+}
+
 const BOTTOM_TABS: BottomTab[] = [
   { id: 'body', label: 'Body', icon: 'body', component: RequestBodyTab },
   { id: 'headers', label: 'Headers', icon: 'headers', component: RequestHeadersTab },
@@ -35,6 +42,9 @@ const BOTTOM_TABS: BottomTab[] = [
 
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
 const DRAG_THRESHOLD_PX = 5;
+const REORDER_EDGE_SCROLL_PX = 44;
+const REORDER_EDGE_SCROLL_STEP_PX = 10;
+const DROP_HIGHLIGHT_MS = 500;
 const METHOD_COLUMN_MIN_WIDTH = 60;
 const NAME_COLUMN_MIN_WIDTH = 120;
 
@@ -100,6 +110,51 @@ export class RequestsMainList {
   readonly sortColumn = signal<ColumnKey | null>(null);
   readonly sortDirection = signal<SortDirection>('asc');
 
+  // ---------- View ordering capability ----------
+
+  /** Which logical view (collection/favourite/tag/all/recent/bin) is shown. */
+  readonly activeViewKind = computed<RequestListViewKind>(() => {
+    if (this.state.showingBin()) return 'bin';
+    if (this.state.showingFamousRequests()) return 'recent';
+    if (this.state.selectedTag()) return 'tag';
+    if (this.state.selectedFavouriteCollection()) return 'favourite';
+    if (this.state.selectedCollection()) return 'collection';
+    return 'all';
+  });
+
+  /**
+   * Rows can only be drag-reordered on user-orderable views (see
+   * request-view-ordering.ts) while the user's own order is actually the
+   * displayed order: no column sort and no search filter active.
+   */
+  readonly canReorderRows = computed(
+    () =>
+      USER_ORDERABLE_VIEWS[this.activeViewKind()] &&
+      this.sortColumn() === null &&
+      !this.requestSearchQuery().trim(),
+  );
+
+  // ---------- Row reorder drag ----------
+
+  private readonly reorderPending = signal<{ requestId: number; startY: number } | null>(null);
+  /**
+   * Structural drag state only (set once at start, cleared at end) so the
+   * signal never changes per pixel. Per-cursor values live in plain fields
+   * below and are applied to the DOM directly inside a rAF loop — writing a
+   * signal per mousemove would trigger a change-detection pass per pixel.
+   */
+  readonly reorderDrag = signal<ReorderDrag | null>(null);
+  private reorderInsertIndex = 0;
+  private reorderLastX = 0;
+  private reorderLastY = 0;
+  private reorderFrame: number | null = null;
+  private readonly reorderGhost = viewChild<ElementRef<HTMLElement>>('reorderGhost');
+  private readonly reorderDropLine = viewChild<ElementRef<HTMLElement>>('reorderDropLine');
+
+  /** Row briefly animated after a drop so the user sees where it landed. */
+  readonly dropHighlightedId = signal<number | null>(null);
+  private dropHighlightTimeout: ReturnType<typeof setTimeout> | null = null;
+
   protected readonly rowHeight = 44;
 
   readonly methodColumnWidth = signal(100);
@@ -155,9 +210,27 @@ export class RequestsMainList {
 
   private loadVersion = 0;
 
+  /**
+   * Binned rows are structurally compatible view models except for the
+   * ordering column (the bin is not user-orderable, so it is fixed at 0).
+   */
+  private binSummaries(): HttpRequestSummary[] {
+    return this.binApi.binnedRequests().map(b => ({
+      id: b.id,
+      collection_id: b.collection_id,
+      project_id: b.project_id,
+      name: b.name,
+      url: b.url,
+      method: b.method,
+      status_code: b.status_code,
+      response_id: b.response_id,
+      user_sort_order: 0,
+    }));
+  }
+
   readonly activeRequests = computed<HttpRequestSummary[]>(() => {
     if (this.state.showingBin()) {
-      return this.binApi.binnedRequests() as HttpRequestSummary[];
+      return this.binSummaries();
     }
 
     const tag = this.state.selectedTag();
@@ -400,7 +473,7 @@ export class RequestsMainList {
         await this.binApi.loadForProject(projectId);
         if (version !== this.loadVersion) return;
         this.restoreRememberedRequest(
-          this.binApi.binnedRequests() as HttpRequestSummary[],
+          this.binSummaries(),
           this.rememberedRequestId(groupKeyOfView),
         );
         return;
@@ -491,6 +564,8 @@ export class RequestsMainList {
 
   onWindowKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
+      // Cancelling an in-progress reorder takes precedence: no order changes.
+      if (this.cancelReorder()) return;
       this.onEscapePressed();
       return;
     }
@@ -732,6 +807,11 @@ export class RequestsMainList {
       return;
     }
 
+    if (this.reorderPending() !== null || this.reorderDrag() !== null) {
+      this.handleReorderMouseMove(event);
+      return;
+    }
+
     if (this.dragStartRowId() === null) return;
 
     if (!this.isDragging()) {
@@ -805,6 +885,27 @@ export class RequestsMainList {
   }
 
   onWindowMouseUp(): void {
+    if (this.reorderPending() !== null || this.reorderDrag() !== null) {
+      const drag = this.reorderDrag();
+      this.reorderPending.set(null);
+      this.reorderDrag.set(null);
+      this.stopReorderFrameLoop();
+      document.body.classList.remove('reorder-dragging');
+      if (drag) {
+        this.ignoreNextClick.set(true);
+        // The insertion slot counts the dragged row itself; adjust for its
+        // removal to get the final insert position.
+        const toIndex =
+          this.reorderInsertIndex > drag.fromIndex ? this.reorderInsertIndex - 1 : this.reorderInsertIndex;
+        if (toIndex !== drag.fromIndex) {
+          this.commitReorder(drag.fromIndex, toIndex);
+          this.flashDroppedRow(drag.request.id);
+          void this.persistReorder();
+        }
+      }
+      return;
+    }
+
     if (this.columnResizeState()) {
       this.columnResizeState.set(null);
       return;
@@ -826,6 +927,252 @@ export class RequestsMainList {
       const req = this.activeRequests().find(r => this.selectedRowIds().has(r.id)) ?? null;
       if (req) {
         this.syncWorkspaceSelection(req);
+      }
+    }
+  }
+
+  // ---------- Row reorder drag ----------
+
+  onReorderHandleMouseDown(req: HttpRequestSummary, event: MouseEvent): void {
+    if (event.button !== 0) return;
+    // Keep the gesture away from row clicks, the multi-select drag and text
+    // selection: the handle owns this mousedown.
+    event.preventDefault();
+    event.stopPropagation();
+    // Defense in depth: the handle is hidden in multi-selection for selected
+    // rows, but re-check so a stale/hidden handle can never start a drag on
+    // one of the selected members.
+    if (!this.canReorderRows()) return;
+    if (this.selectedRowIds().size > 1 && this.selectedRowIds().has(req.id)) return;
+    this.reorderPending.set({ requestId: req.id, startY: event.clientY });
+  }
+
+  /**
+   * Reorder drag powered by the same arithmetic-index technique as drag
+   * selection: recycled virtual rows are never inspected, the insertion slot
+   * is derived from (clientY - viewport top + scrollOffset) / rowHeight.
+   *
+   * The list itself is NOT reordered while dragging. A ghost of the source
+   * row follows the cursor with a drop indicator between rows; the order is
+   * only committed (in memory + database) on release. ESC cancels.
+   *
+   * Per-pixel updates bypass Angular entirely: mousemove only records plain
+   * fields, and a requestAnimationFrame loop applies auto-scroll, geometry
+   * and the ghost/indicator positions via direct DOM writes.
+   */
+  private handleReorderMouseMove(event: MouseEvent): void {
+    const pending = this.reorderPending();
+    if (pending) {
+      if (Math.abs(event.clientY - pending.startY) <= DRAG_THRESHOLD_PX) return;
+      const requests = this.filteredActiveRequests();
+      const fromIndex = requests.findIndex(r => r.id === pending.requestId);
+      this.reorderPending.set(null);
+      if (fromIndex === -1 || !this.canReorderRows()) return;
+      this.reorderLastX = event.clientX;
+      this.reorderLastY = event.clientY;
+      this.reorderInsertIndex = fromIndex;
+      this.reorderDrag.set({ request: requests[fromIndex], fromIndex });
+      this.startReorderFrameLoop();
+      // A body-level class (global CSS forces the grabbing cursor over every
+      // element) — element-level cursor rules would otherwise win as the
+      // pointer crosses buttons and other rows' handles.
+      document.body.classList.add('reorder-dragging');
+      return;
+    }
+
+    if (!this.reorderDrag()) return;
+    this.reorderLastX = event.clientX;
+    this.reorderLastY = event.clientY;
+  }
+
+  /**
+   * One frame of the drag: edge auto-scroll, insertion slot computation and
+   * direct DOM writes for the ghost and drop indicator. Runs at display
+   * refresh rate; auto-scroll keeps going even when the cursor is held
+   * still near an edge.
+   */
+  private renderReorderFrame(): void {
+    const drag = this.reorderDrag();
+    const ghost = this.reorderGhost()?.nativeElement;
+    const line = this.reorderDropLine()?.nativeElement;
+    if (!drag || !ghost || !line || !this.viewport) return;
+
+    const viewport = this.viewport.elementRef.nativeElement;
+    const rect = viewport.getBoundingClientRect();
+
+    if (this.reorderLastY < rect.top + REORDER_EDGE_SCROLL_PX) {
+      this.viewport.scrollToOffset(
+        Math.max(0, this.viewport.measureScrollOffset('top') - REORDER_EDGE_SCROLL_STEP_PX),
+      );
+    } else if (this.reorderLastY > rect.bottom - REORDER_EDGE_SCROLL_PX) {
+      // Native scrollTop clamping stops at the end of the content.
+      this.viewport.scrollToOffset(
+        this.viewport.measureScrollOffset('top') + REORDER_EDGE_SCROLL_STEP_PX,
+      );
+    }
+
+    const scrollOffset = this.viewport.measureScrollOffset('top');
+    const length = this.filteredActiveRequests().length;
+
+    // Insertion slot between rows: the top half of a row inserts above it,
+    // the bottom half below it; clamped to the list ends.
+    const yInContent = scrollOffset + this.reorderLastY - rect.top;
+    this.reorderInsertIndex = Math.max(
+      0,
+      Math.min(Math.round(yInContent / this.rowHeight), length),
+    );
+
+    const lineTop = rect.top + this.reorderInsertIndex * this.rowHeight - scrollOffset;
+    ghost.style.left = `${this.reorderLastX}px`;
+    ghost.style.top = `${this.reorderLastY}px`;
+    line.style.top = `${lineTop}px`;
+    line.style.left = `${rect.left + 4}px`;
+    line.style.width = `${Math.max(0, rect.width - 8)}px`;
+    // Hidden by CSS until first positioned, so the ghost never flashes at
+    // its unpositioned coordinates.
+    ghost.style.visibility = 'visible';
+    line.style.visibility = 'visible';
+  }
+
+  private startReorderFrameLoop(): void {
+    if (this.reorderFrame !== null) return;
+    const tick = (): void => {
+      this.reorderFrame = null;
+      if (this.reorderDrag() === null) return;
+      this.renderReorderFrame();
+      this.reorderFrame = requestAnimationFrame(tick);
+    };
+    this.reorderFrame = requestAnimationFrame(tick);
+  }
+
+  private stopReorderFrameLoop(): void {
+    if (this.reorderFrame !== null) {
+      cancelAnimationFrame(this.reorderFrame);
+      this.reorderFrame = null;
+    }
+  }
+
+  /**
+   * Plays the drop-confirmation bounce on the moved row. The id is cleared
+   * and re-applied on the next frame so dropping the same row again restarts
+   * the animation instead of reusing the already-present class.
+   */
+  private flashDroppedRow(requestId: number): void {
+    if (this.dropHighlightTimeout !== null) {
+      clearTimeout(this.dropHighlightTimeout);
+      this.dropHighlightTimeout = null;
+    }
+    this.dropHighlightedId.set(null);
+    requestAnimationFrame(() => {
+      this.dropHighlightedId.set(requestId);
+      this.dropHighlightTimeout = setTimeout(() => {
+        this.dropHighlightedId.set(null);
+        this.dropHighlightTimeout = null;
+      }, DROP_HIGHLIGHT_MS);
+    });
+  }
+
+  /** Aborts an in-progress reorder gesture without changing any order. */
+  private cancelReorder(): boolean {
+    if (this.reorderPending() === null && this.reorderDrag() === null) return false;
+    this.reorderPending.set(null);
+    this.reorderDrag.set(null);
+    this.stopReorderFrameLoop();
+    document.body.classList.remove('reorder-dragging');
+    return true;
+  }
+
+  ngOnDestroy(): void {
+    // If the component goes away mid-drag (view switch), the window-level
+    // mouseup listener dies with it — clean up here so the global dragging
+    // cursor and the rAF loop never leak.
+    this.cancelReorder();
+    if (this.dropHighlightTimeout !== null) {
+      clearTimeout(this.dropHighlightTimeout);
+      this.dropHighlightTimeout = null;
+    }
+  }
+
+  /**
+   * Commits the drop: moves the row in the active view's source and assigns
+   * user_sort_order 0..n-1 in ONE bulk update per store. `to` is the insert
+   * position in the list *after* the dragged row has been removed, so
+   * callers adjust the between-rows insertion slot beforehand.
+   */
+  private commitReorder(from: number, to: number): void {
+    const kind = this.activeViewKind();
+
+    if (kind === 'collection') {
+      const collection = this.state.selectedCollection();
+      if (!collection) return;
+      const next = [...this.apiRequests.forCollection(collection.id)];
+      const [moved] = next.splice(from, 1);
+      if (!moved) return;
+      next.splice(to, 0, moved);
+      const orders: Record<number, number> = {};
+      for (const [index, req] of next.entries()) {
+        orders[req.id] = index;
+      }
+      this.apiRequests.applyUserSortOrders(orders);
+      return;
+    }
+
+    if (kind === 'favourite') {
+      const next = [...this.favouriteApi.requests()];
+      const [moved] = next.splice(from, 1);
+      if (!moved) return;
+      next.splice(to, 0, moved);
+      this.favouriteApi.requests.set(next.map((req, index) => ({ ...req, user_sort_order: index })));
+      return;
+    }
+
+    if (kind === 'tag') {
+      const next = [...this.tagRequests()];
+      const [moved] = next.splice(from, 1);
+      if (!moved) return;
+      next.splice(to, 0, moved);
+      this.tagRequests.set(next.map((req, index) => ({ ...req, user_sort_order: index })));
+    }
+  }
+
+  /** Persists the displayed order; on failure the view is reloaded from DB. */
+  private async persistReorder(): Promise<void> {
+    const orderedIds = this.filteredActiveRequests().map(r => r.id);
+    if (orderedIds.length === 0) return;
+
+    const kind = this.activeViewKind();
+    try {
+      if (kind === 'collection') {
+        const collection = this.state.selectedCollection();
+        if (!collection) return;
+        await this.requestApi.updateCollectionRequestOrder(collection.id, orderedIds);
+      } else if (kind === 'favourite') {
+        const favourite = this.state.selectedFavouriteCollection();
+        if (!favourite) return;
+        await this.favouriteApi.updateRequestOrder(favourite.id, orderedIds);
+      } else if (kind === 'tag') {
+        const project = this.state.selectedProject();
+        const tag = this.state.selectedTag();
+        if (!project || !tag) return;
+        await this.tagApi.updateRequestOrder(project.id, tag, orderedIds);
+      }
+    } catch (err) {
+      console.error('persisting request order failed, reloading view', err);
+      try {
+        if (kind === 'collection') {
+          await this.apiRequests.loadAll();
+        } else if (kind === 'favourite') {
+          const favourite = this.state.selectedFavouriteCollection();
+          if (favourite) await this.favouriteApi.loadRequestsForCollection(favourite.id);
+        } else if (kind === 'tag') {
+          const project = this.state.selectedProject();
+          const tag = this.state.selectedTag();
+          if (project && tag) {
+            this.tagRequests.set(await this.tagApi.getRequestsForTag(project.id, tag));
+          }
+        }
+      } catch (reloadErr) {
+        console.error('reloading view after failed reorder', reloadErr);
       }
     }
   }
@@ -1153,9 +1500,19 @@ export class RequestsMainList {
 
   // ---------- Sorting ----------
 
+  /**
+   * Column sort cycles asc -> desc -> none. The third click clears the sort
+   * so the list returns to the user's custom order (or the view's natural
+   * order on non-orderable views).
+   */
   toggleSort(column: ColumnKey): void {
     if (this.sortColumn() === column) {
-      this.sortDirection.update((d) => (d === 'asc' ? 'desc' : 'asc'));
+      if (this.sortDirection() === 'asc') {
+        this.sortDirection.set('desc');
+      } else {
+        this.sortColumn.set(null);
+        this.sortDirection.set('asc');
+      }
     } else {
       this.sortColumn.set(column);
       this.sortDirection.set('asc');
