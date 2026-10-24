@@ -939,9 +939,9 @@ export class RequestsMainList {
     // selection: the handle owns this mousedown.
     event.preventDefault();
     event.stopPropagation();
-    // Defense in depth: the handle is only rendered when reordering is
-    // allowed, but re-check here so a stray handle can never start a drag.
-    if (!this.canReorderRows()) return;
+    // Defense in depth: the handle is hidden in multi-selection, but re-check
+    // so a stale/hidden handle can never start a single-row reorder.
+    if (!this.canReorderRows() || this.selectedRowIds().size > 1) return;
     this.reorderPending.set({ requestId: req.id, startY: event.clientY });
   }
 
