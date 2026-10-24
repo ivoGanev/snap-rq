@@ -104,7 +104,6 @@ func migrate(db *sql.DB) error {
 		);
 		CREATE INDEX IF NOT EXISTS idx_http_requests_collection_id ON http_requests(collection_id);
 		CREATE INDEX IF NOT EXISTS idx_http_requests_name ON http_requests(name);
-		CREATE INDEX IF NOT EXISTS idx_http_requests_collection_sort ON http_requests(collection_id, user_sort_order);
 
 		CREATE TABLE IF NOT EXISTS responses (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -187,7 +186,6 @@ func migrate(db *sql.DB) error {
 		);
 		CREATE INDEX IF NOT EXISTS idx_request_tags_request_id ON request_tags(request_id);
 		CREATE INDEX IF NOT EXISTS idx_request_tags_tag_id ON request_tags(tag_id);
-		CREATE INDEX IF NOT EXISTS idx_request_tags_tag_sort ON request_tags(tag_id, user_sort_order);
 
 		CREATE TABLE IF NOT EXISTS binned_requests (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
