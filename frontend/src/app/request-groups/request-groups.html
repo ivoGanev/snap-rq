@@ -1,151 +1,119 @@
-<button
-  class="all-requests-button"
-  type="button"
-  [class.is-active]="state.showingAllRequests()"
-  [disabled]="!state.selectedProject()"
-  (click)="selectAll()"
->
-  <span class="all-requests-button__icon" aria-hidden="true">
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
-    </svg>
-  </span>
-  <span class="all-requests-button__label">All requests</span>
-</button>
+<div class="request-groups-shell" [class.is-expanded]="folderFilter() !== null">
+  <nav class="request-groups-nav">
+    <button
+      class="nav-button"
+      type="button"
+      [class.is-active]="state.showingAllRequests()"
+      [disabled]="!state.selectedProject()"
+      (click)="selectAll()"
+    >
+      <span class="nav-button__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+        </svg>
+      </span>
+      <span class="nav-button__label">All requests</span>
+    </button>
 
-<button
-  class="all-requests-button all-requests-button--famous"
-  type="button"
-  [class.is-active]="state.showingFamousRequests()"
-  [disabled]="!state.selectedProject()"
-  (click)="selectFamous()"
->
-  <span class="all-requests-button__icon" aria-hidden="true">
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77 5.82 21.02 7 14.14 2 9.27l6.91-1.01L12 2z"/>
-    </svg>
-  </span>
-  <span class="all-requests-button__label">Famous</span>
-</button>
+    <button
+      class="nav-button"
+      type="button"
+      [class.is-active]="state.showingFamousRequests()"
+      [disabled]="!state.selectedProject()"
+      (click)="selectFamous()"
+    >
+      <span class="nav-button__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77 5.82 21.02 7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+      </span>
+      <span class="nav-button__label">Famous</span>
+    </button>
 
-<div class="sidebar-divider"></div>
+    <button
+      class="nav-button"
+      type="button"
+      [class.is-active]="folderFilter() === 'collections'"
+      [disabled]="!state.selectedProject()"
+      (click)="selectCollections()"
+    >
+      <span class="nav-button__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/>
+        </svg>
+      </span>
+      <span class="nav-button__label">Collections</span>
+    </button>
 
-<button
-  class="add-button add-button--full"
-  type="button"
-  (click)="onAddButtonClick()"
-  [disabled]="!state.selectedProject()"
-  [attr.aria-label]="'Add new ' + folderFilter()"
->
-  +
-</button>
+    <button
+      class="nav-button"
+      type="button"
+      [class.is-active]="folderFilter() === 'favourites'"
+      [disabled]="!state.selectedProject()"
+      (click)="selectFavourites()"
+    >
+      <span class="nav-button__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+        </svg>
+      </span>
+      <span class="nav-button__label">Favourites</span>
+    </button>
 
-<div class="sidebar-divider"></div>
+    <button
+      class="nav-button"
+      type="button"
+      [class.is-active]="folderFilter() === 'tags'"
+      [disabled]="!state.selectedProject()"
+      (click)="selectTags()"
+    >
+      <span class="nav-button__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+        </svg>
+      </span>
+      <span class="nav-button__label">Tags</span>
+    </button>
 
-<div class="folder-tree folder-tree--flat">
-  @if (filteredItems().length === 0) {
-    <div class="state-message">{{ activeFolderEmptyMessage() }}</div>
+    <div class="sidebar-divider"></div>
+
+    <button
+      class="nav-button nav-button--trash"
+      type="button"
+      [class.is-active]="state.showingBin()"
+      [disabled]="!state.selectedProject()"
+      (click)="selectTrashBin()"
+    >
+      <span class="nav-button__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+        </svg>
+      </span>
+      <span class="nav-button__label">Trash bin</span>
+    </button>
+  </nav>
+
+  @if (folderFilter()) {
+    <app-request-group-list
+      class="request-group-list"
+      [folderFilter]="folderFilter()!"
+      [items]="filteredItems()"
+      [renamingItem]="renamingItem()"
+      [renameValue]="renameValue()"
+      [selectedCollectionId]="state.selectedCollection()?.id ?? null"
+      [selectedFavouriteId]="state.selectedFavouriteCollection()?.id ?? null"
+      [selectedTagName]="state.selectedTag()"
+      (addClick)="onAddButtonClick()"
+      (itemSelect)="selectSidebarItem($event)"
+      (itemContextMenu)="openItemContextMenu($event.item, $event.event, itemContextMenu)"
+      (appearanceClick)="openAppearancePopup($event.item, $event.event)"
+      (renameStart)="startRename($event)"
+      (renameValueChange)="renameValue.set($event)"
+      (renameSubmit)="saveRename()"
+      (renameCancel)="cancelRename()"
+    />
   }
-  <ul class="folder-children folder-children--flat">
-    @for (item of filteredItems(); track item.id + '-' + item.type) {
-      <li
-        class="tree-item"
-        [class.is-selected]="isSelected(item)"
-        (click)="selectSidebarItem(item)"
-        (contextmenu)="openItemContextMenu(item, $event, itemContextMenu)"
-      >
-        @if (renamingItem()?.id === item.id && renamingItem()?.type === item.type) {
-          <form class="rename-form" (submit)="saveRename($event)">
-            <input
-              class="rename-input"
-              type="text"
-              [ngModel]="renameValue()"
-              (ngModelChange)="renameValue.set($event)"
-              (keydown.escape)="cancelRename()"
-              (blur)="saveRename()"
-              autofocus
-            />
-          </form>
-        } @else {
-          <button
-            class="item-indicator"
-            type="button"
-            [style.background-color]="colorValue(item.appearance) ?? null"
-            (click)="openAppearancePopup(item, $event)"
-            [attr.aria-label]="'Edit appearance for ' + item.name"
-          >
-            @let cp = iconPath(item.appearance);
-            @if (cp) {
-              <img [src]="cp" alt="" />
-            } @else if (isDefaultAppearance(item.appearance)) {
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-              </svg>
-            }
-          </button>
-          <span class="tree-item-label">{{ item.name }}</span>
-        }
-      </li>
-    }
-  </ul>
 </div>
-
-<!-- Sticky folder filter buttons -->
-<div class="folder-filter-bar">
-  <button
-    class="folder-filter-button folder-filter-button--icon"
-    [class.is-active]="folderFilter() === 'collections'"
-    type="button"
-    (click)="setFolderFilter('collections')"
-    aria-label="Collections"
-    title="Collections"
-  >
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/>
-    </svg>
-  </button>
-  <button
-    class="folder-filter-button folder-filter-button--icon"
-    [class.is-active]="folderFilter() === 'favourites'"
-    type="button"
-    (click)="setFolderFilter('favourites')"
-    aria-label="Favourites"
-    title="Favourites"
-  >
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-    </svg>
-  </button>
-  <button
-    class="folder-filter-button folder-filter-button--icon"
-    [class.is-active]="folderFilter() === 'tags'"
-    type="button"
-    (click)="setFolderFilter('tags')"
-    aria-label="Tags"
-    title="Tags"
-  >
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-    </svg>
-  </button>
-</div>
-
-<div class="sidebar-divider"></div>
-
-<button
-  class="trash-bin-button"
-  type="button"
-  [class.is-active]="state.showingBin()"
-  [disabled]="!state.selectedProject()"
-  (click)="selectTrashBin()"
->
-  <span class="trash-bin-button__icon" aria-hidden="true">
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-    </svg>
-  </span>
-  <span class="trash-bin-button__label">Trash bin</span>
-</button>
 
 <!-- Add: Collection -->
 @if (newCollectionPopupOpen()) {

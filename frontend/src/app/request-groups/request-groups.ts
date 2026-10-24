@@ -1,13 +1,17 @@
-import { Component, TemplateRef, computed, inject, signal } from '@angular/core';
+import { Component, effect, TemplateRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
-import { CollectionApiService, type Collection, type CollectionAppearance } from '../core/services/collection.service';
-import { FavouriteApiService, type FavouriteCollection, type FavouriteAppearance } from '../core/services/favourite.service';
+import { CollectionApiService, type Collection } from '../core/services/collection.service';
+import { FavouriteApiService, type FavouriteCollection } from '../core/services/favourite.service';
 import { RequestApiService } from '../core/services/request.service';
 import { SelectionStateService, groupKey } from '../core/services/selection-state.service';
-import { IconManifestService } from '../core/services/icon-manifest.service';
-import { TagApiService, type Tag, type TagAppearance } from '../core/services/tag.service';
+import { TagApiService, type Tag } from '../core/services/tag.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
+import {
+  RequestGroupList,
+  type SidebarFolder,
+  type SidebarItem,
+} from '../request-group-list/request-group-list';
 
 const COLLECTION_COLOR_PALETTE: string[] = [
   '#ef4444',
@@ -28,31 +32,19 @@ const COLLECTION_COLOR_PALETTE: string[] = [
   '#374151',
 ];
 
-type SidebarFolder = 'collections' | 'favourites' | 'tags';
-type SidebarItemType = 'collection' | 'favourite' | 'tag';
-type Appearance = CollectionAppearance | FavouriteAppearance | TagAppearance;
-
-interface SidebarItem {
-  id: number;
-  name: string;
-  type: SidebarItemType;
-  folder: SidebarFolder;
-  appearance: Appearance;
-  data: Collection | FavouriteCollection | Tag;
-}
-
 /**
- * Unified sidebar for Collections, Favourites, and Tags rendered as a single
- * folder tree with shared expand/collapse, search, + menu, and context menus.
+ * Left navigation shell. Holds the primary view buttons (All, Famous,
+ * Collections, Favourites, Tags, Trash) and, when a folder button is active,
+ * renders the matching <app-request-group-list> panel beside it.
  */
 @Component({
   selector: 'app-request-groups',
-  imports: [FormsModule],
+  imports: [FormsModule, RequestGroupList],
   templateUrl: './request-groups.html',
   styleUrl: './request-groups.scss',
   host: {
     class: 'sidebar sidebar-left',
-    'aria-label': 'Collections, Favourites, and Tags',
+    'aria-label': 'Request groups',
     '(window:keydown.escape)': 'onEscapePressed()',
   },
 })
@@ -70,8 +62,8 @@ export class RequestGroups {
   protected readonly favouriteCollections = this.favouriteApi.collections;
   protected readonly allTags = this.tagApi.allTags;
 
-  // Filter for which folder is visible.
-  protected readonly folderFilter = signal<SidebarFolder>('collections');
+  // Which folder panel is open in the second column.
+  protected readonly folderFilter = signal<SidebarFolder | null>(null);
 
   // Creation popups
   protected readonly newCollectionPopupOpen = signal(false);
@@ -93,6 +85,7 @@ export class RequestGroups {
 
   readonly filteredItems = computed<SidebarItem[]>(() => {
     const filter = this.folderFilter();
+    if (!filter) return [];
     const items: SidebarItem[] = [
       ...this.collections().map((c) => this.toSidebarItem(c, 'collection')),
       ...this.favouriteCollections().map((f) => this.toSidebarItem(f, 'favourite')),
@@ -101,9 +94,15 @@ export class RequestGroups {
     return items.filter((item) => item.folder === filter);
   });
 
+  constructor() {
+    effect(() => {
+      this.state.sidebarExpanded.set(this.folderFilter() !== null);
+    });
+  }
+
   private toSidebarItem(
     data: Collection | FavouriteCollection | Tag,
-    type: SidebarItemType,
+    type: SidebarItem['type'],
   ): SidebarItem {
     return {
       id: data.id,
@@ -155,6 +154,7 @@ export class RequestGroups {
     this.state.exitBinView();
     this.state.showingFamousRequests.set(false);
     this.state.showingAllRequests.set(true);
+    this.folderFilter.set(null);
   }
 
   selectFamous(): void {
@@ -164,13 +164,32 @@ export class RequestGroups {
     this.state.exitBinView();
     this.state.showingAllRequests.set(false);
     this.state.showingFamousRequests.set(true);
+    this.folderFilter.set(null);
   }
 
   selectTrashBin(): void {
     const project = this.state.selectedProject();
     if (!project) return;
     this.state.enterBinView();
+    this.folderFilter.set(null);
     void this.state.loadBinnedRequests(project.id);
+  }
+
+  selectCollections(): void {
+    this.toggleFolderFilter('collections');
+  }
+
+  selectFavourites(): void {
+    this.toggleFolderFilter('favourites');
+  }
+
+  selectTags(): void {
+    this.toggleFolderFilter('tags');
+  }
+
+  private toggleFolderFilter(filter: SidebarFolder): void {
+    this.state.exitBinView();
+    this.folderFilter.update((current) => (current === filter ? null : filter));
   }
 
   selectCollection(data: Collection | FavouriteCollection | Tag): void {
@@ -181,6 +200,7 @@ export class RequestGroups {
     this.state.selectedTag.set(null);
     this.state.showingAllRequests.set(false);
     this.state.showingFamousRequests.set(false);
+    this.folderFilter.set('collections');
   }
 
   selectFavouriteCollection(data: Collection | FavouriteCollection | Tag): void {
@@ -191,6 +211,7 @@ export class RequestGroups {
     this.state.selectedTag.set(null);
     this.state.showingAllRequests.set(false);
     this.state.showingFamousRequests.set(false);
+    this.folderFilter.set('favourites');
   }
 
   selectTag(data: Collection | FavouriteCollection | Tag): void {
@@ -201,6 +222,7 @@ export class RequestGroups {
     this.state.selectedFavouriteCollection.set(null);
     this.state.showingAllRequests.set(false);
     this.state.showingFamousRequests.set(false);
+    this.folderFilter.set('tags');
   }
 
   selectSidebarItem(item: SidebarItem): void {
@@ -210,19 +232,6 @@ export class RequestGroups {
       this.selectFavouriteCollection(item.data);
     } else {
       this.selectTag(item.data);
-    }
-  }
-
-  activeFolderEmptyMessage(): string {
-    switch (this.folderFilter()) {
-      case 'collections':
-        return 'No collections.';
-      case 'favourites':
-        return 'No favourite collections.';
-      case 'tags':
-        return 'No tags yet.';
-      default:
-        return '';
     }
   }
 
@@ -518,20 +527,7 @@ export class RequestGroups {
     return this.state.selectedTag() === item.name;
   }
 
-  iconPath(appearance: Appearance): string | undefined {
-    if (appearance.appearance_type !== 'icon') return undefined;
-    return this.iconManifest.pathFor(appearance.appearance_value);
-  }
-
-  colorValue(appearance: Appearance): string | null {
-    return appearance.appearance_type === 'color' ? appearance.appearance_value : null;
-  }
-
-  isDefaultAppearance(appearance: Appearance): boolean {
-    return appearance.appearance_type === 'icon' && appearance.appearance_value === 'default';
-  }
-
-  isAppearanceSelected(appearance: Appearance, type: 'icon' | 'color', value: string): boolean {
+  isAppearanceSelected(appearance: SidebarItem['appearance'], type: 'icon' | 'color', value: string): boolean {
     return appearance.appearance_type === type && appearance.appearance_value === value;
   }
 }
