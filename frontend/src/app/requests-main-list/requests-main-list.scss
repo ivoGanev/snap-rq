@@ -456,6 +456,13 @@
   opacity: 1;
 }
 
+// In multi-selection mode a selected row must not offer a drag handle
+// (reordering one member of a multi-selection is ambiguous), not even on
+// hover. Handles on unselected rows still work.
+.spreadsheet-wrapper.is-multi-selecting .spreadsheet-row.is-selected .drag-handle {
+  opacity: 0;
+}
+
 .drag-handle:hover {
   color: var(--text);
 }
