@@ -50,9 +50,14 @@ export class App implements OnInit, AfterViewInit {
   protected readonly projects = this.projectApi.projects;
   protected readonly environments = this.environmentApi.environments;
 
-  readonly leftColumnWidth = signal(13);
+  readonly leftColumnWidthCollapsed = signal(13);
+  readonly leftColumnWidthExpanded = signal(22);
   readonly rightColumnWidth = signal(30);
   readonly resizingColumn = signal<'left' | 'right' | null>(null);
+
+  readonly effectiveLeftColumnWidth = computed(() =>
+    this.state.sidebarExpanded() ? this.leftColumnWidthExpanded() : this.leftColumnWidthCollapsed(),
+  );
 
   readonly variablesOverlayOpen = signal(false);
   readonly projectEditorOpen = signal(false);
@@ -142,7 +147,7 @@ export class App implements OnInit, AfterViewInit {
     event.preventDefault();
     this.resizingColumn.set(side);
     this.resizeStartX = event.clientX;
-    this.resizeStartWidth = side === 'left' ? this.leftColumnWidth() : this.rightColumnWidth();
+    this.resizeStartWidth = side === 'left' ? this.effectiveLeftColumnWidth() : this.rightColumnWidth();
 
     document.addEventListener('mousemove', this.onColumnResizeMove);
     document.addEventListener('mouseup', this.onColumnResizeEnd);
@@ -154,13 +159,17 @@ export class App implements OnInit, AfterViewInit {
 
     const delta = event.clientX - this.resizeStartX;
     const deltaPercent = (delta / window.innerWidth) * 100;
-    const width = Math.max(
-      12,
-      this.resizeStartWidth + (side === 'left' ? deltaPercent : -deltaPercent),
+    const width = Math.min(
+      45,
+      Math.max(12, this.resizeStartWidth + (side === 'left' ? deltaPercent : -deltaPercent)),
     );
 
     if (side === 'left') {
-      this.leftColumnWidth.set(width);
+      if (this.state.sidebarExpanded()) {
+        this.leftColumnWidthExpanded.set(width);
+      } else {
+        this.leftColumnWidthCollapsed.set(width);
+      }
     } else {
       this.rightColumnWidth.set(width);
     }

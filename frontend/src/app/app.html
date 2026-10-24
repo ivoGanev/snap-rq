@@ -34,7 +34,7 @@
 </div>
 
 <div class="app-shell" (window:keydown.escape)="onEscapePressed()">
-  <app-request-groups [style.width.%]="leftColumnWidth()"></app-request-groups>
+  <app-request-groups [style.width.%]="effectiveLeftColumnWidth()"></app-request-groups>
 
   <app-requests-main-list></app-requests-main-list>
 
@@ -43,7 +43,7 @@
   <div
     class="resizer resizer--left"
     (mousedown)="startColumnResize('left', $event)"
-    [style.left.%]="leftColumnWidth()"
+    [style.left.%]="effectiveLeftColumnWidth()"
     aria-hidden="true"
   ></div>
 
