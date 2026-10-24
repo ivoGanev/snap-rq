@@ -425,8 +425,8 @@
   padding: 4px;
 }
 
-// Three-dot reorder handle; only rendered on the selected row of
-// user-orderable views (collections / favourites / tags).
+// Three-dot reorder handle; rendered on every row of user-orderable views
+// (collections / favourites / tags) and revealed on row hover or selection.
 .drag-handle {
   display: inline-flex;
   align-items: center;
@@ -440,7 +440,7 @@
   border: none;
   border-radius: var(--radius);
   cursor: grab;
-  opacity: 0.7;
+  opacity: 0;
   transition:
     color 0.15s ease,
     opacity 0.15s ease;
@@ -452,13 +452,64 @@
   height: 16px;
 }
 
+.spreadsheet-row:hover .drag-handle,
+.spreadsheet-row.is-selected .drag-handle {
+  opacity: 1;
+}
+
 .drag-handle:hover {
   color: var(--text);
-  opacity: 1;
 }
 
 .drag-handle:active {
   cursor: grabbing;
+}
+
+// The row being dragged stays in place but dims; the ghost follows the cursor.
+.spreadsheet-row.is-reorder-source {
+  opacity: 0.45;
+}
+
+.reorder-drop-line {
+  position: fixed;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--accent);
+  border-radius: 1px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  z-index: 60;
+}
+
+.reorder-ghost {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  max-width: 360px;
+  padding: 6px 10px;
+  transform: translate(14px, -50%);
+  background: var(--surface-solid);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 61;
+  user-select: none;
+}
+
+.reorder-ghost .request-method {
+  font-size: 0.6875rem;
+  padding: 1px 6px;
+}
+
+.reorder-ghost-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .spreadsheet-cell--method {

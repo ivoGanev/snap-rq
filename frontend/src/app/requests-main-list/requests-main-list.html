@@ -196,12 +196,13 @@
         class="spreadsheet-row"
         [class.is-selected]="rowState()[req.id]?.isSelected"
         [class.is-active-drag-row]="dragStartRowId() === req.id"
+        [class.is-reorder-source]="reorderDrag()?.request?.id === req.id"
         (mousedown)="onRowMouseDown(req, $event)"
         (click)="onRowClick(req, $event, 'name')"
         (contextmenu)="onRowContextMenu(req, $event, rowContextMenu)"
       >
         <div class="spreadsheet-cell spreadsheet-cell--action">
-          @if (canReorderRows() && rowState()[req.id]?.isSelected) {
+          @if (canReorderRows()) {
             <button
               class="drag-handle"
               type="button"
@@ -293,6 +294,27 @@
         </div>
       </div>
     </cdk-virtual-scroll-viewport>
+
+    @if (reorderDrag(); as drag) {
+      <div
+        class="reorder-drop-line"
+        [style.top.px]="drag.lineTop"
+        [style.left.px]="drag.lineLeft"
+        [style.width.px]="drag.lineWidth"
+        aria-hidden="true"
+      ></div>
+      <div
+        class="reorder-ghost"
+        [style.left.px]="drag.lastClientX"
+        [style.top.px]="drag.lastClientY"
+        aria-hidden="true"
+      >
+        <span class="request-method" [attr.data-method]="drag.request.method">
+          {{ drag.request.method }}
+        </span>
+        <span class="reorder-ghost-name">{{ drag.request.name }}</span>
+      </div>
+    }
 
     <div class="spreadsheet-overlay" aria-hidden="true">
       <div

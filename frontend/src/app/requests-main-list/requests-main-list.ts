@@ -30,9 +30,17 @@ interface RowState {
 }
 
 interface ReorderDrag {
-  requestId: number;
+  /** Snapshot of the dragged row shown in the ghost. */
+  request: HttpRequestSummary;
   fromIndex: number;
-  currentIndex: number;
+  /** Insertion slot between rows (0..length), derived from the cursor. */
+  insertIndex: number;
+  lastClientX: number;
+  lastClientY: number;
+  /** Drop-indicator geometry in client coordinates (fixed positioning). */
+  lineTop: number;
+  lineLeft: number;
+  lineWidth: number;
 }
 
 const BOTTOM_TABS: BottomTab[] = [
@@ -43,6 +51,8 @@ const BOTTOM_TABS: BottomTab[] = [
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
 const DRAG_THRESHOLD_PX = 5;
 const REORDER_EDGE_SCROLL_PX = 44;
+const REORDER_EDGE_SCROLL_STEP_PX = 10;
+const REORDER_AUTOSCROLL_INTERVAL_MS = 16;
 const METHOD_COLUMN_MIN_WIDTH = 60;
 const NAME_COLUMN_MIN_WIDTH = 120;
 
@@ -136,6 +146,7 @@ export class RequestsMainList {
 
   private readonly reorderPending = signal<{ requestId: number; startY: number } | null>(null);
   readonly reorderDrag = signal<ReorderDrag | null>(null);
+  private reorderAutoScroll: ReturnType<typeof setInterval> | null = null;
 
   protected readonly rowHeight = 44;
 
@@ -546,6 +557,8 @@ export class RequestsMainList {
 
   onWindowKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
+      // Cancelling an in-progress reorder takes precedence: no order changes.
+      if (this.cancelReorder()) return;
       this.onEscapePressed();
       return;
     }
@@ -869,9 +882,17 @@ export class RequestsMainList {
       const drag = this.reorderDrag();
       this.reorderPending.set(null);
       this.reorderDrag.set(null);
+      this.stopReorderAutoScroll();
+      document.body.style.cursor = '';
       if (drag) {
         this.ignoreNextClick.set(true);
-        void this.persistReorder();
+        // The insertion slot counts the dragged row itself; adjust for its
+        // removal to get the final insert position.
+        const toIndex = drag.insertIndex > drag.fromIndex ? drag.insertIndex - 1 : drag.insertIndex;
+        if (toIndex !== drag.fromIndex) {
+          this.commitReorder(drag.fromIndex, toIndex);
+          void this.persistReorder();
+        }
       }
       return;
     }
@@ -917,8 +938,13 @@ export class RequestsMainList {
 
   /**
    * Reorder drag powered by the same arithmetic-index technique as drag
-   * selection: recycled virtual rows are never inspected, the row under the
-   * cursor is derived from (clientY - viewport top + scrollOffset) / rowHeight.
+   * selection: recycled virtual rows are never inspected, the insertion slot
+   * is derived from (clientY - viewport top + scrollOffset) / rowHeight.
+   *
+   * The list itself is NOT reordered while dragging. The drag keeps a ghost
+   * of the source row and a drop indicator between rows; the order is only
+   * committed (in memory + database) when the user releases the mouse. ESC
+   * cancels the gesture with no changes.
    */
   private handleReorderMouseMove(event: MouseEvent): void {
     const pending = this.reorderPending();
@@ -928,50 +954,102 @@ export class RequestsMainList {
       const fromIndex = requests.findIndex(r => r.id === pending.requestId);
       this.reorderPending.set(null);
       if (fromIndex === -1 || !this.canReorderRows()) return;
-      this.reorderDrag.set({ requestId: pending.requestId, fromIndex, currentIndex: fromIndex });
+      this.reorderDrag.set({
+        request: requests[fromIndex],
+        fromIndex,
+        insertIndex: fromIndex,
+        lastClientX: event.clientX,
+        lastClientY: event.clientY,
+        lineTop: 0,
+        lineLeft: 0,
+        lineWidth: 0,
+      });
+      this.updateReorderGeometry();
+      this.startReorderAutoScroll();
+      // Keep the grabbing cursor even when the pointer moves over rows that
+      // would otherwise override it (rows, cells, buttons).
+      document.body.style.cursor = 'grabbing';
+      return;
     }
 
     const drag = this.reorderDrag();
-    if (!drag || !this.canReorderRows()) return;
+    if (!drag) return;
+    this.reorderDrag.set({ ...drag, lastClientX: event.clientX, lastClientY: event.clientY });
+    this.updateReorderGeometry();
+  }
+
+  /** Recomputes the insertion slot and drop-indicator geometry. */
+  private updateReorderGeometry(): void {
+    const drag = this.reorderDrag();
+    if (!drag || !this.viewport) return;
 
     const viewport = this.viewport.elementRef.nativeElement;
     const rect = viewport.getBoundingClientRect();
     const scrollOffset = this.viewport.measureScrollOffset('top');
-
-    // Auto-scroll near the viewport edges so long lists can be dragged
-    // through; continued mousemove events keep the scroll going.
-    if (event.clientY < rect.top + REORDER_EDGE_SCROLL_PX) {
-      this.viewport.scrollToOffset(Math.max(0, scrollOffset - this.rowHeight));
-    } else if (event.clientY > rect.bottom - REORDER_EDGE_SCROLL_PX) {
-      this.viewport.scrollToOffset(scrollOffset + this.rowHeight);
-    }
-
     const length = this.filteredActiveRequests().length;
-    if (length === 0) return;
-    const index = Math.max(
-      0,
-      Math.min(
-        Math.floor((scrollOffset + event.clientY - rect.top) / this.rowHeight),
-        length - 1,
-      ),
-    );
 
-    if (index !== drag.currentIndex) {
-      // Live preview: reorder the view's own source signal so the virtual
-      // list re-renders through its normal recycling path.
-      this.applyReorderMove(drag.currentIndex, index);
-      this.reorderDrag.set({ ...drag, currentIndex: index });
-    }
+    // Insertion slot between rows: the top half of a row inserts above it,
+    // the bottom half below it; clamped to the list ends.
+    const yInContent = scrollOffset + drag.lastClientY - rect.top;
+    const insertIndex = Math.max(0, Math.min(Math.round(yInContent / this.rowHeight), length));
+
+    this.reorderDrag.set({
+      ...drag,
+      insertIndex,
+      lineTop: rect.top + insertIndex * this.rowHeight - scrollOffset,
+      lineLeft: rect.left + 4,
+      lineWidth: Math.max(0, rect.width - 8),
+    });
   }
 
   /**
-   * Moves one row between two indexes in the active view's source.
-   *
-   * Indexes refer to filteredActiveRequests positions. Reordering is only
-   * enabled while no search filter and no column sort is active, so those
-   * positions are exactly the source array positions.
+   * Continuous edge auto-scroll: a plain interval so scrolling keeps going
+   * while the cursor is held still near a viewport edge (mousemoves alone
+   * would stop the moment the pointer stops).
    */
-  private applyReorderMove(from: number, to: number): void {
+  private startReorderAutoScroll(): void {
+    this.stopReorderAutoScroll();
+    this.reorderAutoScroll = setInterval(() => {
+      const drag = this.reorderDrag();
+      if (!drag || !this.viewport) return;
+      const rect = this.viewport.elementRef.nativeElement.getBoundingClientRect();
+      const offset = this.viewport.measureScrollOffset('top');
+      if (drag.lastClientY < rect.top + REORDER_EDGE_SCROLL_PX) {
+        this.viewport.scrollToOffset(Math.max(0, offset - REORDER_EDGE_SCROLL_STEP_PX));
+      } else if (drag.lastClientY > rect.bottom - REORDER_EDGE_SCROLL_PX) {
+        // Native scrollTop clamping stops at the end of the content.
+        this.viewport.scrollToOffset(offset + REORDER_EDGE_SCROLL_STEP_PX);
+      } else {
+        return;
+      }
+      this.updateReorderGeometry();
+    }, REORDER_AUTOSCROLL_INTERVAL_MS);
+  }
+
+  private stopReorderAutoScroll(): void {
+    if (this.reorderAutoScroll !== null) {
+      clearInterval(this.reorderAutoScroll);
+      this.reorderAutoScroll = null;
+    }
+  }
+
+  /** Aborts an in-progress reorder gesture without changing any order. */
+  private cancelReorder(): boolean {
+    if (this.reorderPending() === null && this.reorderDrag() === null) return false;
+    this.reorderPending.set(null);
+    this.reorderDrag.set(null);
+    this.stopReorderAutoScroll();
+    document.body.style.cursor = '';
+    return true;
+  }
+
+  /**
+   * Commits the drop: moves the row in the active view's source and assigns
+   * user_sort_order 0..n-1. `to` is the insert position in the list *after*
+   * the dragged row has been removed, so callers adjust the between-rows
+   * insertion slot beforehand.
+   */
+  private commitReorder(from: number, to: number): void {
     const kind = this.activeViewKind();
 
     if (kind === 'collection') {
