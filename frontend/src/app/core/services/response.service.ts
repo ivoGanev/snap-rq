@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import * as RequestService from '../../../../bindings/snap-rq/backend/services';
 import { RequestApiService, type HttpRequest, type HttpResponse } from './request.service';
+import type { EnvironmentContext } from '../models/environment-context';
 
 export type { HttpRequest, HttpResponse };
 
@@ -35,10 +36,13 @@ export class ResponseApiService {
    * Sends a request, creates a pending response record, updates its duration
    * in the database while the request is in flight, and writes the final
    * response data when complete. Multiple calls run independently.
+   *
+   * The request is interpolated against `environment` for execution, while
+   * the raw (uninterpolated) request is what gets persisted afterwards.
    */
   async sendRequest(
     req: HttpRequest,
-    environmentId: number,
+    environment: EnvironmentContext,
     callbacks?: SendRequestCallbacks,
     trackUsage = true,
   ): Promise<HttpResponse> {
@@ -79,7 +83,7 @@ export class ResponseApiService {
     }, 50);
 
     try {
-      const rawResponse = await this.requestApi.execute(req.id, environmentId);
+      const rawResponse = await this.requestApi.execute(environment.interpolateRequest(req));
       completed = true;
       window.clearInterval(intervalId);
       const totalDuration = Date.now() - start;
@@ -136,16 +140,19 @@ export class ResponseApiService {
   /**
    * Sends a batch of requests concurrently (HTTP only, no database writes) and
    * persists every response plus request status update in a single transaction.
+   * Each request is interpolated against `environment` for execution only.
    */
   async sendRequests(
     reqs: HttpRequest[],
-    environmentId: number,
+    environment: EnvironmentContext,
     trackUsage = true,
   ): Promise<HttpResponse[]> {
     if (reqs.length === 0) return [];
 
     const createdAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
-    const raw = await Promise.all(reqs.map((req) => this.requestApi.execute(req.id, environmentId)));
+    const raw = await Promise.all(
+      reqs.map((req) => this.requestApi.execute(environment.interpolateRequest(req))),
+    );
     const responses = raw.map((resp) =>
       resp.created_at ? resp : { ...resp, created_at: createdAt },
     );

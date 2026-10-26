@@ -289,12 +289,12 @@
           class="spreadsheet-cell spreadsheet-cell--url"
           [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['url']"
           (click)="onRowClick(req, $event, 'url')"
-          [title]="req.url"
+          [title]="rowState()[req.id]?.displayUrl ?? req.url"
         >
           <span
             class="cell-text"
             (dblclick)="onCellDoubleClick(req, 'url')"
-          >{{ req.url }}</span>
+          >{{ rowState()[req.id]?.displayUrl ?? req.url }}</span>
         </div>
       </div>
     </cdk-virtual-scroll-viewport>
