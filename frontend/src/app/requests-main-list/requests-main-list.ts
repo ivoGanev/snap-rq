@@ -1270,6 +1270,55 @@ export class RequestsMainList {
     }
   }
 
+  /**
+   * Clears the colour on every request in the current view in one bulk call.
+   */
+  async clearAllRequestColors(): Promise<void> {
+    const kind = this.activeViewKind();
+    if (!USER_COLORABLE_VIEWS[kind]) return;
+
+    const ids = this.activeRequests().map(r => r.id);
+    if (ids.length === 0) return;
+
+    try {
+      if (kind === 'collection') {
+        const colors: Record<number, string | null> = {};
+        for (const id of ids) colors[id] = null;
+        this.apiRequests.applyUserColors(colors);
+        await this.requestApi.bulkUpdateColor(ids, null);
+      } else if (kind === 'favourite') {
+        const favourite = this.state.selectedFavouriteCollection();
+        if (!favourite) return;
+        this.favouriteApi.requests.set(this.favouriteApi.requests().map(r => ({ ...r, user_color: null })));
+        await this.favouriteApi.updateRequestColor(favourite.id, ids, null);
+      } else if (kind === 'tag') {
+        const project = this.state.selectedProject();
+        const tag = this.state.selectedTag();
+        if (!project || !tag) return;
+        this.tagRequests.set(this.tagRequests().map(r => ({ ...r, user_color: null })));
+        await this.tagApi.updateRequestColor(project.id, tag, ids, null);
+      }
+    } catch (err) {
+      console.error('clearing all request colours failed, reloading view', err);
+      try {
+        if (kind === 'collection') {
+          await this.apiRequests.loadAll();
+        } else if (kind === 'favourite') {
+          const favourite = this.state.selectedFavouriteCollection();
+          if (favourite) await this.favouriteApi.loadRequestsForCollection(favourite.id);
+        } else if (kind === 'tag') {
+          const project = this.state.selectedProject();
+          const tag = this.state.selectedTag();
+          if (project && tag) {
+            this.tagRequests.set(await this.tagApi.getRequestsForTag(project.id, tag));
+          }
+        }
+      } catch (reloadErr) {
+        console.error('reloading view after failed colour clear', reloadErr);
+      }
+    }
+  }
+
   // ---------- Context menu ----------
 
   onRowContextMenu(

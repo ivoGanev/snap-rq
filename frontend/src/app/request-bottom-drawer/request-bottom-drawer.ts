@@ -41,6 +41,8 @@ export class RequestBottomDrawer {
   readonly activeColor = input<string | null>(null);
   /** Emits the chosen hex, or null when the active colour is clicked again (clear). */
   readonly colorSelect = output<string | null>();
+  /** Emits when the user asks to clear every colour in the current view. */
+  readonly clearAllColors = output<void>();
 
   readonly colors = REQUEST_COLORS;
 
@@ -64,7 +66,7 @@ export class RequestBottomDrawer {
   }
 
   onClearColor(): void {
-    this.colorSelect.emit(null);
+    this.clearAllColors.emit();
   }
 
   closeDrawer(): void {

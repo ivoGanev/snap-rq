@@ -333,6 +333,7 @@
   [showColors]="canColorSelection()"
   [activeColor]="activeColor()"
   (colorSelect)="applyRequestColor($event)"
+  (clearAllColors)="clearAllRequestColors()"
 ></app-request-bottom-drawer>
 
 <ng-template #rowContextMenu let-req>
