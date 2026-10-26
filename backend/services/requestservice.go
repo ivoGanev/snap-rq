@@ -1,4 +1,4 @@
-package services
+﻿package services
 
 import (
 	"crypto/tls"
@@ -7,14 +7,11 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
 	"snap-rq/backend/models"
 )
-
-var interpolationRegex = regexp.MustCompile(`{{\s*([a-zA-Z0-9_-]+)\s*}}`)
 
 // RequestService provides CRUD operations for saved HTTP requests.
 type RequestService struct {
@@ -141,29 +138,18 @@ func (s *RequestService) GetRequest(id int64) (models.HttpRequest, error) {
 	return req, nil
 }
 
-// ExecuteRequest runs the saved HTTP request and returns the response data.
-// The response is not persisted; callers are responsible for creating/updating
-// the response record (e.g. via CreateResponse/UpdateResponse). Network or
-// client errors are captured as a response with the error message in the body
-// and status code 0.
-// If environmentID is non-zero, any {{variable_name}} placeholders in the URL,
-// headers and body are interpolated using variables from that environment.
-func (s *RequestService) ExecuteRequest(id int64, environmentID int64) (models.HttpResponse, error) {
-	req, err := s.GetRequest(id)
-	if err != nil {
-		return models.HttpResponse{}, fmt.Errorf("loading request: %w", err)
+// ExecuteRequest runs a request and returns the response data. The response is
+// not persisted; callers are responsible for creating/updating the response
+// record (e.g. via CreateResponse/UpdateResponse). Network or client errors are
+// captured as a response with the error message in the body and status code 0.
+//
+// The caller supplies the request content. Environment-variable interpolation
+// is performed by the client before calling this, so the backend executes
+// exactly the URL/headers/body it is given and never reads variables itself.
+func (s *RequestService) ExecuteRequest(req models.HttpRequest) (models.HttpResponse, error) {
+	if req.ID == 0 {
+		return models.HttpResponse{}, fmt.Errorf("request id is required")
 	}
-
-	variables, err := s.loadVariables(environmentID)
-	if err != nil {
-		return models.HttpResponse{}, fmt.Errorf("loading variables: %w", err)
-	}
-
-	req.URL = interpolate(req.URL, variables)
-	req.Body = interpolate(req.Body, variables)
-	req.RequestHeaders = interpolate(req.RequestHeaders, variables)
-
-	fmt.Printf("[ExecuteRequest] id=%d envID=%d url=%q body=%q\n", id, environmentID, req.URL, req.Body)
 
 	method := strings.ToUpper(strings.TrimSpace(req.Method))
 	if method == "" {
@@ -178,7 +164,7 @@ func (s *RequestService) ExecuteRequest(id int64, environmentID int64) (models.H
 	httpReq, err := http.NewRequest(method, req.URL, bodyReader)
 	if err != nil {
 		return models.HttpResponse{
-			RequestID:  id,
+			RequestID:  req.ID,
 			StatusCode: 0,
 			Body:       fmt.Errorf("building request: %w", err).Error(),
 			DurationMs: 0,
@@ -203,7 +189,7 @@ func (s *RequestService) ExecuteRequest(id int64, environmentID int64) (models.H
 	duration := time.Since(start).Milliseconds()
 	if err != nil {
 		return models.HttpResponse{
-			RequestID:  id,
+			RequestID:  req.ID,
 			StatusCode: 0,
 			Body:       fmt.Errorf("request failed: %w", err).Error(),
 			DurationMs: duration,
@@ -214,7 +200,7 @@ func (s *RequestService) ExecuteRequest(id int64, environmentID int64) (models.H
 	respBody, err := io.ReadAll(httpResp.Body)
 	if err != nil {
 		return models.HttpResponse{
-			RequestID:  id,
+			RequestID:  req.ID,
 			StatusCode: 0,
 			Body:       fmt.Errorf("reading response body: %w", err).Error(),
 			DurationMs: duration,
@@ -229,7 +215,7 @@ func (s *RequestService) ExecuteRequest(id int64, environmentID int64) (models.H
 	}
 
 	return models.HttpResponse{
-		RequestID:  id,
+		RequestID:  req.ID,
 		StatusCode: httpResp.StatusCode,
 		Headers:    strings.TrimSpace(respHeaders.String()),
 		Body:       string(respBody),
@@ -254,50 +240,6 @@ func (s *RequestService) httpClient() *http.Client {
 	cloned.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	client.Transport = cloned
 	return client
-}
-
-func (s *RequestService) loadVariables(environmentID int64) (map[string]string, error) {
-	if environmentID == 0 {
-		return nil, nil
-	}
-
-	rows, err := s.db.Query(
-		`SELECT key, value FROM environment_variables WHERE environment_id = ?`,
-		environmentID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("querying variables: %w", err)
-	}
-	defer rows.Close()
-
-	variables := make(map[string]string)
-	for rows.Next() {
-		var key, value string
-		if err := rows.Scan(&key, &value); err != nil {
-			return nil, fmt.Errorf("scanning variable: %w", err)
-		}
-		variables[key] = value
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterating variables: %w", err)
-	}
-
-	return variables, nil
-}
-
-func interpolate(input string, variables map[string]string) string {
-	if variables == nil {
-		return input
-	}
-
-	return interpolationRegex.ReplaceAllStringFunc(input, func(match string) string {
-		name := interpolationRegex.FindStringSubmatch(match)[1]
-		if value, ok := variables[name]; ok {
-			return value
-		}
-		return match
-	})
 }
 
 // GetAllRequests returns all saved HTTP requests ordered by name.

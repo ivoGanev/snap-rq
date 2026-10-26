@@ -28,6 +28,8 @@ interface SelectedCell {
 interface RowState {
   isSelected: boolean;
   isCellSelected: Record<ColumnKey, boolean>;
+  /** URL with environment variables resolved, for display only. */
+  displayUrl: string;
 }
 
 interface ReorderDrag {
@@ -341,6 +343,7 @@ export class RequestsMainList {
   readonly rowState = computed<Record<number, RowState>>(() => {
     const selectedIds = this.selectedRowIds();
     const cell = this.highlightedCell();
+    const environment = this.state.environment();
     const result: Record<number, RowState> = {};
 
     for (const req of this.filteredActiveRequests()) {
@@ -359,6 +362,7 @@ export class RequestsMainList {
       result[req.id] = {
         isSelected,
         isCellSelected,
+        displayUrl: environment.interpolate(req.url),
       };
     }
     return result;

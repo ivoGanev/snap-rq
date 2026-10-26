@@ -161,8 +161,9 @@ export class RequestApiService {
     return saved ?? [];
   }
 
-  async execute(requestId: number, environmentId: number): Promise<HttpResponse> {
-    return RequestService.RequestService.ExecuteRequest(requestId, environmentId);
+  /** Executes the given request content; interpolation happens client-side. */
+  async execute(req: HttpRequest): Promise<HttpResponse> {
+    return RequestService.RequestService.ExecuteRequest(req);
   }
 
   async requestToCurl(req: HttpRequest): Promise<string> {
