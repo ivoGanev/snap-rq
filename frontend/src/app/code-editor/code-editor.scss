@@ -62,26 +62,21 @@
   overflow: auto;
 }
 
-.variable-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 6px;
-  margin: 0 1px;
-  font: inherit;
-  font-weight: 700;
-  color: #fff;
-  background: var(--grad);
-  border: none;
-  border-radius: 4px;
-  cursor: help;
-  vertical-align: baseline;
-  position: relative;
-  pointer-events: auto;
+// Single-line usage (e.g. the URL field) sizes to its one row instead of
+// filling a flex parent. The flex wrappers above otherwise collapse to
+// height 0 in an auto-height host, leaving only the wrapper border visible.
+:host(.code-editor--single-line) {
+  display: block;
 }
 
-.variable-chip.is-missing {
-  background: var(--danger-solid) !important;
+:host(.code-editor--single-line) .code-editor,
+:host(.code-editor--single-line) .code-editor-editor-wrap,
+:host(.code-editor--single-line) .code-editor-editor {
+  display: block;
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .variable-dropdown {

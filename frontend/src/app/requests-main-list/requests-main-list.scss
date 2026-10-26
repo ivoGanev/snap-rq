@@ -733,12 +733,31 @@
 }
 
 .new-request-popup,
-.edit-modal,
 .method-modal,
 .tags-modal,
 .favourites-modal,
 .move-collection-modal {
   width: min(420px, calc(100vw - 2 * var(--s-4)));
+}
+
+// The URL editor benefits from room: long URLs and variable chips.
+.edit-modal {
+  width: min(920px, calc(100vw - 2 * var(--s-4)));
+}
+
+// Single-line CodeMirror URL editor inside the edit modal, styled like the
+// text inputs used by the other modal fields.
+.modal-url-editor {
+  display: block;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  overflow: hidden;
+}
+
+.modal-url-editor:focus-within {
+  border-color: var(--focus-border);
+  box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 .edit-textarea--modal {
