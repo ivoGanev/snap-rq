@@ -81,7 +81,12 @@ func TestExecuteRequestHonorsSSLValidationSetting(t *testing.T) {
 	requestID, _ := res.LastInsertId()
 
 	requestSvc := NewRequestService(db)
-	response, err := requestSvc.ExecuteRequest(requestID, 0)
+	executeReq, err := requestSvc.GetRequest(requestID)
+	if err != nil {
+		t.Fatalf("loading request: %v", err)
+	}
+
+	response, err := requestSvc.ExecuteRequest(executeReq)
 	if err != nil {
 		t.Fatalf("ExecuteRequest with validation enabled failed: %v", err)
 	}
@@ -94,7 +99,7 @@ func TestExecuteRequestHonorsSSLValidationSetting(t *testing.T) {
 		t.Fatalf("disabling SSL validation failed: %v", err)
 	}
 
-	response, err = requestSvc.ExecuteRequest(requestID, 0)
+	response, err = requestSvc.ExecuteRequest(executeReq)
 	if err != nil {
 		t.Fatalf("ExecuteRequest with validation disabled failed: %v", err)
 	}
