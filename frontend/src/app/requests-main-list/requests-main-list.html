@@ -475,7 +475,17 @@
       </div>
 
       <div class="overlay-body">
-        @if (editModalColumn() === 'name' || editModalColumn() === 'url') {
+        @if (editModalColumn() === 'url') {
+          <app-code-editor
+            class="modal-url-editor"
+            language="text"
+            [singleLine]="true"
+            [text]="editModalValue()"
+            [variables]="state.environmentVariables()"
+            (textChange)="editModalValue.set($event)"
+            (submit)="saveEditModal()"
+          ></app-code-editor>
+        } @else if (editModalColumn() === 'name') {
           <input
             class="edit-input"
             type="text"

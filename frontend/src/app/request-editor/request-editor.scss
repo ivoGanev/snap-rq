@@ -51,6 +51,20 @@
   min-height: 0;
 }
 
+// Single-line CodeMirror URL editor styled like the text inputs around it.
+.edit-url-editor {
+  display: block;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  overflow: hidden;
+}
+
+.edit-url-editor:focus-within {
+  border-color: var(--focus-border);
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
 .edit-headers-editor {
   flex: 1 1 auto;
   min-height: 180px;

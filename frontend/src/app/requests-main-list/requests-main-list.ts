@@ -14,6 +14,7 @@ import { ContextMenuService } from '../core/services/context-menu.service';
 import { RequestBottomDrawer, type BottomTab } from '../request-bottom-drawer/request-bottom-drawer';
 import { RequestBodyTab } from '../request-body-tab/request-body-tab';
 import { RequestHeadersTab } from '../request-headers-tab/request-headers-tab';
+import { CodeEditor } from '../code-editor/code-editor';
 import { USER_ORDERABLE_VIEWS, type RequestListViewKind } from './request-view-ordering';
 
 type ColumnKey = 'name' | 'url' | 'method' | 'tags';
@@ -53,7 +54,7 @@ const NAME_COLUMN_MIN_WIDTH = 120;
  */
 @Component({
   selector: 'app-requests-main-list',
-  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer],
+  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor],
   templateUrl: './requests-main-list.html',
   styleUrl: './requests-main-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
