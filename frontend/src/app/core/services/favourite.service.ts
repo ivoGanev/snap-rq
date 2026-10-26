@@ -90,7 +90,7 @@ export class FavouriteApiService {
 
   /** Sets (or clears with null) the colour on memberships of one favourite collection. */
   async updateRequestColor(collectionId: number, requestIds: number[], color: string | null): Promise<void> {
-    await FavouriteService.FavouriteService.BulkUpdateFavouriteRequestColor(collectionId, requestIds, color);
+    await FavouriteService.FavouriteService.BulkUpdateFavouriteRequestColor(collectionId, requestIds, color ?? '');
   }
 
   clearMembership(): void {

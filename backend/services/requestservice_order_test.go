@@ -193,8 +193,6 @@ func TestDuplicateRequestAppendsToOrders(t *testing.T) {
 	}
 }
 
-func strPtr(s string) *string { return &s }
-
 func TestBulkRequestColor(t *testing.T) {
 	db := newTestDB(t)
 	runMigrations(t, db)
@@ -219,7 +217,7 @@ func TestBulkRequestColor(t *testing.T) {
 	}
 
 	blue := "#AECBFA"
-	updated, err := rs.BulkUpdateRequestColor(ids, strPtr(blue))
+	updated, err := rs.BulkUpdateRequestColor(ids, blue)
 	if err != nil {
 		t.Fatalf("bulk colour update: %v", err)
 	}
@@ -239,8 +237,8 @@ func TestBulkRequestColor(t *testing.T) {
 		}
 	}
 
-	// Clearing via nil.
-	if _, err := rs.BulkUpdateRequestColor(ids, nil); err != nil {
+	// Clearing via empty string.
+	if _, err := rs.BulkUpdateRequestColor(ids, ""); err != nil {
 		t.Fatalf("clearing colour: %v", err)
 	}
 	got, _ = rs.GetRequestsForCollection(10)
@@ -291,7 +289,7 @@ func TestBulkFavouriteAndTagColor(t *testing.T) {
 	}
 
 	green := "#B6E2C6"
-	if err := fs.BulkUpdateFavouriteRequestColor(20, ids, strPtr(green)); err != nil {
+	if err := fs.BulkUpdateFavouriteRequestColor(20, ids, green); err != nil {
 		t.Fatalf("bulk favourite colour: %v", err)
 	}
 	favReqs, err := fs.GetRequestsForFavouriteCollection(20)
@@ -305,7 +303,7 @@ func TestBulkFavouriteAndTagColor(t *testing.T) {
 	}
 
 	yellow := "#F7E6A3"
-	if err := ts.BulkUpdateTagRequestColor(1, "urgent", ids, strPtr(yellow)); err != nil {
+	if err := ts.BulkUpdateTagRequestColor(1, "urgent", ids, yellow); err != nil {
 		t.Fatalf("bulk tag colour: %v", err)
 	}
 	tagReqs, err := ts.GetRequestsForTag(1, "urgent")

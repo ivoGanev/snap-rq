@@ -159,3 +159,22 @@
 .color-dot.is-active {
   border-color: var(--text);
 }
+
+.color-dot--clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 2px solid var(--glass-border);
+  color: var(--muted);
+}
+
+.color-dot--clear:hover {
+  color: var(--text);
+  border-color: var(--text);
+}
+
+.color-dot--clear svg {
+  width: 9px;
+  height: 9px;
+}

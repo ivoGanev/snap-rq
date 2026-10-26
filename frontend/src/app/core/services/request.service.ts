@@ -129,7 +129,7 @@ export class RequestApiService {
 
   /** Sets (or clears with null) the colour on many requests in one call. */
   async bulkUpdateColor(ids: number[], color: string | null): Promise<HttpRequest[]> {
-    const result = await RequestService.RequestService.BulkUpdateRequestColor(ids, color);
+    const result = await RequestService.RequestService.BulkUpdateRequestColor(ids, color ?? '');
     return result ?? [];
   }
 

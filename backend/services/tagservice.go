@@ -351,9 +351,9 @@ func (s *TagService) UpdateTagRequestOrder(projectID int64, tagName string, orde
 }
 
 // BulkUpdateTagRequestColor sets the same colour on the memberships of a tag
-// (a nil colour clears it). One scoped statement; request IDs outside the tag
-// are never touched.
-func (s *TagService) BulkUpdateTagRequestColor(projectID int64, tagName string, requestIDs []int64, color *string) error {
+// (an empty colour clears it). One scoped statement; request IDs outside the
+// tag are never touched.
+func (s *TagService) BulkUpdateTagRequestColor(projectID int64, tagName string, requestIDs []int64, color string) error {
 	name := normaliseTagName(tagName)
 	if name == "" {
 		return fmt.Errorf("tag name is required")
@@ -374,13 +374,20 @@ func (s *TagService) BulkUpdateTagRequestColor(projectID int64, tagName string, 
 		return fmt.Errorf("finding tag: %w", err)
 	}
 
+	var value any
+	if color == "" {
+		value = nil
+	} else {
+		value = color
+	}
+
 	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(requestIDs)), ",")
 	query := fmt.Sprintf(
 		"UPDATE request_tags SET user_color = ? WHERE tag_id = ? AND request_id IN (%s)",
 		placeholders,
 	)
 	args := make([]any, 0, len(requestIDs)+2)
-	args = append(args, color, tagID)
+	args = append(args, value, tagID)
 	for _, id := range requestIDs {
 		args = append(args, id)
 	}

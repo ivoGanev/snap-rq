@@ -228,14 +228,21 @@ func (s *FavouriteService) UpdateFavouriteRequestOrder(favouriteCollectionID int
 }
 
 // BulkUpdateFavouriteRequestColor sets the same colour on the memberships of a
-// favourite collection (a nil colour clears it). One scoped statement; request
-// IDs outside the collection are never touched.
-func (s *FavouriteService) BulkUpdateFavouriteRequestColor(favouriteCollectionID int64, requestIDs []int64, color *string) error {
+// favourite collection (an empty colour clears it). One scoped statement;
+// request IDs outside the collection are never touched.
+func (s *FavouriteService) BulkUpdateFavouriteRequestColor(favouriteCollectionID int64, requestIDs []int64, color string) error {
 	if favouriteCollectionID == 0 {
 		return fmt.Errorf("favourite collection id is required")
 	}
 	if len(requestIDs) == 0 {
 		return nil
+	}
+
+	var value any
+	if color == "" {
+		value = nil
+	} else {
+		value = color
 	}
 
 	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(requestIDs)), ",")
@@ -244,7 +251,7 @@ func (s *FavouriteService) BulkUpdateFavouriteRequestColor(favouriteCollectionID
 		placeholders,
 	)
 	args := make([]any, 0, len(requestIDs)+2)
-	args = append(args, color, favouriteCollectionID)
+	args = append(args, value, favouriteCollectionID)
 	for _, id := range requestIDs {
 		args = append(args, id)
 	}

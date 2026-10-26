@@ -63,6 +63,10 @@ export class RequestBottomDrawer {
     this.colorSelect.emit(this.activeColor() === hex ? null : hex);
   }
 
+  onClearColor(): void {
+    this.colorSelect.emit(null);
+  }
+
   closeDrawer(): void {
     this.activeTab.set(null);
   }

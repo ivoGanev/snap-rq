@@ -612,11 +612,18 @@ func (s *RequestService) BulkUpdateRequestHeaders(ids []int64, headers string) (
 }
 
 // BulkUpdateRequestColor sets the same colour on multiple requests in a single
-// transaction; a nil colour clears it. It returns the updated requests in the
-// same order as the ids.
-func (s *RequestService) BulkUpdateRequestColor(ids []int64, color *string) ([]models.HttpRequest, error) {
+// transaction; an empty colour clears it (stored as NULL). It returns the
+// updated requests in the same order as the ids.
+func (s *RequestService) BulkUpdateRequestColor(ids []int64, color string) ([]models.HttpRequest, error) {
 	if len(ids) == 0 {
 		return nil, nil
+	}
+
+	var value any
+	if color == "" {
+		value = nil
+	} else {
+		value = color
 	}
 
 	tx, err := s.db.Begin()
@@ -641,11 +648,15 @@ func (s *RequestService) BulkUpdateRequestColor(ids []int64, color *string) ([]m
 			return nil, fmt.Errorf("fetching request %d: %w", id, err)
 		}
 
-		if _, err = tx.Exec(`UPDATE http_requests SET user_color = ? WHERE id = ?`, color, id); err != nil {
+		if _, err = tx.Exec(`UPDATE http_requests SET user_color = ? WHERE id = ?`, value, id); err != nil {
 			return nil, fmt.Errorf("updating colour for request %d: %w", id, err)
 		}
 
-		req.UserColor = color
+		if color == "" {
+			req.UserColor = nil
+		} else {
+			req.UserColor = &color
+		}
 		updated = append(updated, req)
 	}
 
