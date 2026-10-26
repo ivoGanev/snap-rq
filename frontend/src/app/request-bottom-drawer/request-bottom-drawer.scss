@@ -129,3 +129,33 @@
 .bottom-tab-label {
   padding-top: 1px;
 }
+
+.color-picker {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 0 var(--s-3);
+}
+
+.color-dot {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  transition:
+    transform 0.1s ease,
+    border-color 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.color-dot:hover {
+  transform: scale(1.15);
+}
+
+.color-dot.is-active {
+  border-color: var(--text);
+}

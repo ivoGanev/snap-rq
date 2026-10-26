@@ -1,4 +1,4 @@
-package services
+﻿package services
 
 import (
 	"database/sql"
@@ -227,9 +227,36 @@ func (s *FavouriteService) UpdateFavouriteRequestOrder(favouriteCollectionID int
 	return nil
 }
 
+// BulkUpdateFavouriteRequestColor sets the same colour on the memberships of a
+// favourite collection (a nil colour clears it). One scoped statement; request
+// IDs outside the collection are never touched.
+func (s *FavouriteService) BulkUpdateFavouriteRequestColor(favouriteCollectionID int64, requestIDs []int64, color *string) error {
+	if favouriteCollectionID == 0 {
+		return fmt.Errorf("favourite collection id is required")
+	}
+	if len(requestIDs) == 0 {
+		return nil
+	}
+
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(requestIDs)), ",")
+	query := fmt.Sprintf(
+		"UPDATE favourite_items SET user_color = ? WHERE favourite_collection_id = ? AND http_request_id IN (%s)",
+		placeholders,
+	)
+	args := make([]any, 0, len(requestIDs)+2)
+	args = append(args, color, favouriteCollectionID)
+	for _, id := range requestIDs {
+		args = append(args, id)
+	}
+
+	if _, err := s.db.Exec(query, args...); err != nil {
+		return fmt.Errorf("bulk updating favourite colour: %w", err)
+	}
+	return nil
+}
+
 // RemoveRequestFromFavouriteCollection removes a request from a favourite collection.
-func (s *FavouriteService) RemoveRequestFromFavouriteCollection(favouriteCollectionID, httpRequestID int64) error {
-	_, err := s.db.Exec(
+func (s *FavouriteService) RemoveRequestFromFavouriteCollection(favouriteCollectionID, httpRequestID int64) error {	_, err := s.db.Exec(
 		"DELETE FROM favourite_items WHERE favourite_collection_id = ? AND http_request_id = ?",
 		favouriteCollectionID, httpRequestID,
 	)
@@ -243,7 +270,7 @@ func (s *FavouriteService) RemoveRequestFromFavouriteCollection(favouriteCollect
 // collection, ordered by the user's custom order (name as tiebreaker).
 func (s *FavouriteService) GetRequestsForFavouriteCollection(favouriteCollectionID int64) ([]models.HttpRequest, error) {
 	rows, err := s.db.Query(
-		`SELECT r.id, r.collection_id, c.project_id, r.name, r.url, r.method, r.body, r.body_type, r.request_headers, r.status_code, r.response_id, fi.user_sort_order
+		`SELECT r.id, r.collection_id, c.project_id, r.name, r.url, r.method, r.body, r.body_type, r.request_headers, r.status_code, r.response_id, fi.user_sort_order, fi.user_color
 		 FROM http_requests r
 		 JOIN collections c ON c.id = r.collection_id
 		 JOIN favourite_items fi ON fi.http_request_id = r.id
@@ -261,7 +288,7 @@ func (s *FavouriteService) GetRequestsForFavouriteCollection(favouriteCollection
 		var req models.HttpRequest
 		if err := rows.Scan(
 			&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method,
-			&req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder,
+			&req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder, &req.UserColor,
 		); err != nil {
 			return nil, fmt.Errorf("scanning request: %w", err)
 		}

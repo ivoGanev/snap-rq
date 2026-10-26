@@ -51,7 +51,7 @@ export class RequestApiService {
     );
   }
 
-  async create(req: Omit<HttpRequest, 'id' | 'user_sort_order'>): Promise<HttpRequest> {
+  async create(req: Omit<HttpRequest, 'id' | 'user_sort_order' | 'user_color'>): Promise<HttpRequest> {
     const created = await RequestService.RequestService.CreateRequest(req as HttpRequest);
     this.addToRequests(created);
     return created;
@@ -107,6 +107,7 @@ export class RequestApiService {
       status_code: updated.status_code,
       response_id: updated.response_id,
       user_sort_order: updated.user_sort_order,
+      user_color: updated.user_color,
     });
     return updated;
   }
@@ -123,6 +124,12 @@ export class RequestApiService {
 
   async bulkUpdateUrl(ids: number[], url: string): Promise<HttpRequest[]> {
     const result = await RequestService.RequestService.BulkUpdateRequestUrl(ids, url);
+    return result ?? [];
+  }
+
+  /** Sets (or clears with null) the colour on many requests in one call. */
+  async bulkUpdateColor(ids: number[], color: string | null): Promise<HttpRequest[]> {
+    const result = await RequestService.RequestService.BulkUpdateRequestColor(ids, color);
     return result ?? [];
   }
 
