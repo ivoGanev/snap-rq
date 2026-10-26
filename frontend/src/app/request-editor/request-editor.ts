@@ -11,11 +11,11 @@ import { FavouriteApiService } from '../core/services/favourite.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
 import { RequestBodyEditor } from '../request-body-editor/request-body-editor';
 import { RequestHeadersEditor } from '../request-headers-editor/request-headers-editor';
-import { type EditorLanguage } from '../code-editor/code-editor';
+import { CodeEditor, type EditorLanguage } from '../code-editor/code-editor';
 
 @Component({
   selector: 'app-request-editor',
-  imports: [FormsModule, RequestBodyEditor, RequestHeadersEditor],
+  imports: [FormsModule, RequestBodyEditor, RequestHeadersEditor, CodeEditor],
   templateUrl: './request-editor.html',
   styleUrl: './request-editor.scss',
 })

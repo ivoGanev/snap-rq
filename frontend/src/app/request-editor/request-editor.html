@@ -12,16 +12,17 @@
         />
       </label>
 
-      <label class="edit-field">
+      <div class="edit-field">
         <span class="edit-label">URL</span>
-        <input
-          class="edit-input"
-          type="text"
-          [ngModel]="draftRequest()!.url"
-          (ngModelChange)="updateRequestField('url', $event)"
-          name="reqUrl"
-        />
-      </label>
+        <app-code-editor
+          class="edit-url-editor"
+          language="text"
+          [singleLine]="true"
+          [text]="draftRequest()!.url"
+          [variables]="environmentVariables()"
+          (textChange)="updateRequestField('url', $event)"
+        ></app-code-editor>
+      </div>
 
       <label class="edit-field">
         <span class="edit-label">Method</span>

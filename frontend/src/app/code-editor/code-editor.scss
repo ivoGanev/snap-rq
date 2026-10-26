@@ -62,28 +62,6 @@
   overflow: auto;
 }
 
-.variable-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 6px;
-  margin: 0 1px;
-  font: inherit;
-  font-weight: 700;
-  color: #fff;
-  background: var(--grad);
-  border: none;
-  border-radius: 4px;
-  cursor: help;
-  vertical-align: baseline;
-  position: relative;
-  pointer-events: auto;
-}
-
-.variable-chip.is-missing {
-  background: var(--danger-solid) !important;
-}
-
 .variable-dropdown {
   position: fixed;
   z-index: 1000;
