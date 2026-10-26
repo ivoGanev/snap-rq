@@ -164,6 +164,8 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
   readonly singleLine = input(false);
 
   readonly textChange = output<string>();
+  /** Emitted when Enter is pressed in single-line mode (where newlines are blocked). */
+  readonly submit = output<void>();
 
   private readonly editorRef = viewChild<ElementRef<HTMLDivElement>>('editor');
 
@@ -392,7 +394,12 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
         keymap.of([
           {
             key: 'Enter',
-            run: () => true,
+            // Newlines are not allowed here, so Enter acts as a submit
+            // gesture for single-line fields (e.g. the URL editor).
+            run: () => {
+              this.submit.emit();
+              return true;
+            },
           },
         ]),
       ),
