@@ -62,6 +62,23 @@
   overflow: auto;
 }
 
+// Single-line usage (e.g. the URL field) sizes to its one row instead of
+// filling a flex parent. The flex wrappers above otherwise collapse to
+// height 0 in an auto-height host, leaving only the wrapper border visible.
+:host(.code-editor--single-line) {
+  display: block;
+}
+
+:host(.code-editor--single-line) .code-editor,
+:host(.code-editor--single-line) .code-editor-editor-wrap,
+:host(.code-editor--single-line) .code-editor-editor {
+  display: block;
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .variable-dropdown {
   position: fixed;
   z-index: 1000;

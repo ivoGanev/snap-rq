@@ -148,6 +148,9 @@ function variableDecorations(): Extension {
   imports: [FormsModule],
   templateUrl: './code-editor.html',
   styleUrl: './code-editor.scss',
+  host: {
+    '[class.code-editor--single-line]': 'singleLine()',
+  },
 })
 export class CodeEditor implements AfterViewInit, OnDestroy {
   readonly text = input<string>('');
