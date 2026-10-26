@@ -5,6 +5,7 @@ import { ResponseApiService } from './response.service';
 import { FavouriteApiService, type FavouriteCollection } from './favourite.service';
 import { BinApiService, type HttpBinnedRequestSummary } from './bin.service';
 import { EnvironmentVariableApiService } from './environment-variable.service';
+import { EnvironmentContext } from '../models/environment-context';
 import type { Collection } from './collection.service';
 import type { Project } from './project.service';
 import type { Environment } from './environment.service';
@@ -48,6 +49,19 @@ export class WorkspaceStateService {
 
   readonly environmentVariables = computed(() =>
     this.envVarApi.variables().map((v) => ({ key: v.key, value: v.value })),
+  );
+
+  /**
+   * The selected environment as an interpolation entity. Recomputes whenever
+   * the environment or its variables change, so display and execution always
+   * see the same resolved values.
+   */
+  readonly environment = computed(() =>
+    new EnvironmentContext(
+      this.selectedEnvironment()?.id ?? null,
+      this.selectedEnvironment()?.name ?? '',
+      this.environmentVariables(),
+    ),
   );
 
   constructor() {
@@ -102,8 +116,7 @@ export class WorkspaceStateService {
   async sendRequest(req: HttpRequest, event: Event, trackUsage = true): Promise<void> {
     event.stopPropagation();
     try {
-      const environmentId = this.selectedEnvironment()?.id ?? 0;
-      const resp = await this.responseApi.sendRequest(req, environmentId, {
+      const resp = await this.responseApi.sendRequest(req, this.environment(), {
         onPending: pending => {
           if (this.selectedRequest()?.id === req.id) {
             this.selectedResponse.set(pending);
@@ -150,8 +163,7 @@ export class WorkspaceStateService {
     if (reqs.length === 0) return;
 
     try {
-      const environmentId = this.selectedEnvironment()?.id ?? 0;
-      const responses = await this.responseApi.sendRequests(reqs, environmentId, trackUsage);
+      const responses = await this.responseApi.sendRequests(reqs, this.environment(), trackUsage);
 
       for (const resp of responses) {
         this.requestApi.patchRequest({
