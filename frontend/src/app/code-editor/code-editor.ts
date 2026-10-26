@@ -148,18 +148,30 @@ function variableDecorations(): Extension {
   imports: [FormsModule],
   templateUrl: './code-editor.html',
   styleUrl: './code-editor.scss',
+  host: {
+    '[class.code-editor--single-line]': 'singleLine()',
+  },
 })
 export class CodeEditor implements AfterViewInit, OnDestroy {
   readonly text = input<string>('');
   readonly language = input<EditorLanguage>('json');
   readonly variables = input<EditorVariable[]>([]);
+  /**
+   * Renders a compact single-line editor: no line numbers, no newlines
+   * (Enter is swallowed and pasted line breaks are flattened), horizontal
+   * scrolling only. Used for URL-style inputs.
+   */
+  readonly singleLine = input(false);
 
   readonly textChange = output<string>();
+  /** Emitted when Enter is pressed in single-line mode (where newlines are blocked). */
+  readonly submit = output<void>();
 
   private readonly editorRef = viewChild<ElementRef<HTMLDivElement>>('editor');
 
   private view: EditorView | null = null;
   private readonly languageCompartment = new Compartment();
+  private readonly singleLineCompartment = new Compartment();
   private charWidth = 7.8;
 
   readonly isJson = computed(() => this.language() === 'json');
@@ -197,6 +209,14 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
         effects: this.languageCompartment.reconfigure(this.languageExtension(isJson)),
       });
     });
+
+    effect(() => {
+      const singleLine = this.singleLine();
+      if (!this.view) return;
+      this.view.dispatch({
+        effects: this.singleLineCompartment.reconfigure(this.singleLineExtensions(singleLine)),
+      });
+    });
   }
 
   ngAfterViewInit(): void {
@@ -214,6 +234,7 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
           this.languageCompartment.of(this.languageExtension(this.isJson())),
           variablesField.init(() => this.variables()),
           variableDecorations(),
+          this.singleLineCompartment.of(this.singleLineExtensions(this.singleLine())),
         ],
       }),
     });
@@ -263,8 +284,6 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
 
   private baseExtensions(): Extension {
     return [
-      lineNumbers(),
-      highlightActiveLine(),
       drawSelection(),
       dropCursor(),
       history(),
@@ -355,6 +374,53 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
     return [json(), linter(jsonParseLinter(), { delay: 100 })];
   }
 
+  /**
+   * Multi-line languages get line numbers and active-line highlighting.
+   * Single-line mode instead swallows Enter, flattens line breaks from
+   * pasted/inserted text, and renders a compact one-row editor.
+   */
+  private singleLineExtensions(singleLine: boolean): Extension {
+    if (!singleLine) {
+      return [lineNumbers(), highlightActiveLine()];
+    }
+
+    return [
+      EditorState.transactionFilter.of((tr) => {
+        if (!tr.docChanged || tr.newDoc.lines <= 1) return tr;
+        const flattened = tr.newDoc.toString().replace(/[\r\n]+/g, ' ').trim();
+        return [tr, { changes: { from: 0, to: tr.newDoc.length, insert: flattened } }];
+      }),
+      Prec.highest(
+        keymap.of([
+          {
+            key: 'Enter',
+            // Newlines are not allowed here, so Enter acts as a submit
+            // gesture for single-line fields (e.g. the URL editor).
+            run: () => {
+              this.submit.emit();
+              return true;
+            },
+          },
+        ]),
+      ),
+      EditorView.theme({
+        '&': {
+          height: 'auto',
+          // Match the .edit-input font size so the single row has the same
+          // height as neighbouring form inputs.
+          fontSize: '0.875rem',
+        },
+        '.cm-scroller': {
+          overflowX: 'auto',
+          overflowY: 'hidden',
+        },
+        '.cm-gutters': {
+          display: 'none',
+        },
+      }),
+    ];
+  }
+
   private customTheme(): Extension {
     return EditorView.theme(
       {
@@ -402,6 +468,29 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
         },
         '.cm-lint-marker': {
           color: 'var(--error-text)',
+        },
+        // Variable chips are created dynamically by the widget, so they must
+        // be styled from the editor theme (Angular-scoped selectors cannot
+        // match generated DOM).
+        '& .variable-chip': {
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '0 6px',
+          margin: '0 1px',
+          font: 'inherit',
+          fontWeight: '700',
+          color: '#fff',
+          background: 'var(--grad)',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'help',
+          verticalAlign: 'baseline',
+          position: 'relative',
+          pointerEvents: 'auto',
+        },
+        '& .variable-chip.is-missing': {
+          background: 'var(--danger-solid)',
         },
       },
       { dark: true },
