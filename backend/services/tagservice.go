@@ -1,4 +1,4 @@
-package services
+﻿package services
 
 import (
 	"database/sql"
@@ -279,7 +279,7 @@ func (s *TagService) DeleteTag(projectID int64, tagName string) error {
 func (s *TagService) GetRequestsForTag(projectID int64, tagName string) ([]models.HttpRequest, error) {
 	name := normaliseTagName(tagName)
 	rows, err := s.db.Query(`
-		SELECT r.id, r.collection_id, c.project_id, r.name, r.url, r.method, r.body, r.body_type, r.request_headers, r.status_code, r.response_id, rt.user_sort_order
+		SELECT r.id, r.collection_id, c.project_id, r.name, r.url, r.method, r.body, r.body_type, r.request_headers, r.status_code, r.response_id, rt.user_sort_order, rt.user_color
 		FROM http_requests r
 		JOIN collections c ON c.id = r.collection_id
 		JOIN request_tags rt ON rt.request_id = r.id
@@ -296,7 +296,7 @@ func (s *TagService) GetRequestsForTag(projectID int64, tagName string) ([]model
 	var requests []models.HttpRequest
 	for rows.Next() {
 		var req models.HttpRequest
-		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder); err != nil {
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder, &req.UserColor); err != nil {
 			return nil, fmt.Errorf("scanning request for tag: %w", err)
 		}
 		requests = append(requests, req)
@@ -346,6 +346,54 @@ func (s *TagService) UpdateTagRequestOrder(projectID int64, tagName string, orde
 
 	if _, err := s.db.Exec(query.String(), args...); err != nil {
 		return fmt.Errorf("bulk updating tag order: %w", err)
+	}
+	return nil
+}
+
+// BulkUpdateTagRequestColor sets the same colour on the memberships of a tag
+// (an empty colour clears it). One scoped statement; request IDs outside the
+// tag are never touched.
+func (s *TagService) BulkUpdateTagRequestColor(projectID int64, tagName string, requestIDs []int64, color string) error {
+	name := normaliseTagName(tagName)
+	if name == "" {
+		return fmt.Errorf("tag name is required")
+	}
+	if projectID == 0 {
+		return fmt.Errorf("project id is required")
+	}
+	if len(requestIDs) == 0 {
+		return nil
+	}
+
+	var tagID int64
+	err := s.db.QueryRow("SELECT id FROM tags WHERE project_id = ? AND name = ?", projectID, name).Scan(&tagID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("tag not found")
+		}
+		return fmt.Errorf("finding tag: %w", err)
+	}
+
+	var value any
+	if color == "" {
+		value = nil
+	} else {
+		value = color
+	}
+
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(requestIDs)), ",")
+	query := fmt.Sprintf(
+		"UPDATE request_tags SET user_color = ? WHERE tag_id = ? AND request_id IN (%s)",
+		placeholders,
+	)
+	args := make([]any, 0, len(requestIDs)+2)
+	args = append(args, value, tagID)
+	for _, id := range requestIDs {
+		args = append(args, id)
+	}
+
+	if _, err := s.db.Exec(query, args...); err != nil {
+		return fmt.Errorf("bulk updating tag colour: %w", err)
 	}
 	return nil
 }

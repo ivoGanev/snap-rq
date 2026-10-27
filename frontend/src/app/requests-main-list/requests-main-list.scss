@@ -390,6 +390,27 @@
   background: var(--selected-bg);
 }
 
+// User-assigned colour: a left accent bar always shows; a soft tint sits
+// behind non-selected/non-hover rows (selection/hover backgrounds win).
+.spreadsheet-row {
+  position: relative;
+}
+
+.spreadsheet-row.has-color {
+  background-color: var(--row-tint);
+}
+
+.spreadsheet-row.has-color::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--row-color);
+  pointer-events: none;
+}
+
 .spreadsheet-cell {
   display: flex;
   align-items: center;

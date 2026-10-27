@@ -49,10 +49,10 @@ func (s *RequestService) DuplicateRequest(id int64) (models.HttpRequest, error) 
 	defer tx.Rollback()
 
 	result, err := tx.Exec(
-		`INSERT INTO http_requests (collection_id, name, url, method, body, body_type, request_headers, status_code, response_id, user_sort_order)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(user_sort_order), -1) + 1 FROM http_requests WHERE collection_id = ?))`,
+		`INSERT INTO http_requests (collection_id, name, url, method, body, body_type, request_headers, status_code, response_id, user_sort_order, user_color)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(user_sort_order), -1) + 1 FROM http_requests WHERE collection_id = ?), ?)`,
 		original.CollectionID, original.Name+" (copy)", original.URL, original.Method, original.Body,
-		normalizeBodyType(original.BodyType), original.RequestHeaders, 0, 0, original.CollectionID,
+		normalizeBodyType(original.BodyType), original.RequestHeaders, 0, 0, original.CollectionID, original.UserColor,
 	)
 	if err != nil {
 		return models.HttpRequest{}, fmt.Errorf("duplicating request: %w", err)
@@ -63,11 +63,13 @@ func (s *RequestService) DuplicateRequest(id int64) (models.HttpRequest, error) 
 		return models.HttpRequest{}, fmt.Errorf("getting duplicated request id: %w", err)
 	}
 
-	// The copy lands at the end of every tag list it belongs to.
+	// The copy lands at the end of every tag list it belongs to, keeping the
+	// original colour.
 	_, err = tx.Exec(
-		`INSERT INTO request_tags (request_id, tag_id, user_sort_order)
+		`INSERT INTO request_tags (request_id, tag_id, user_sort_order, user_color)
 		 SELECT ?, tag_id,
-		        (SELECT COALESCE(MAX(user_sort_order), -1) + 1 FROM request_tags rt2 WHERE rt2.tag_id = rt.tag_id)
+		        (SELECT COALESCE(MAX(user_sort_order), -1) + 1 FROM request_tags rt2 WHERE rt2.tag_id = rt.tag_id),
+		        rt.user_color
 		 FROM request_tags rt WHERE rt.request_id = ?`,
 		newID, id,
 	)
@@ -75,11 +77,13 @@ func (s *RequestService) DuplicateRequest(id int64) (models.HttpRequest, error) 
 		return models.HttpRequest{}, fmt.Errorf("copying tags: %w", err)
 	}
 
-	// The copy lands at the end of every favourite collection it belongs to.
+	// The copy lands at the end of every favourite collection it belongs to,
+	// keeping the original colour.
 	_, err = tx.Exec(
-		`INSERT INTO favourite_items (favourite_collection_id, http_request_id, user_sort_order)
+		`INSERT INTO favourite_items (favourite_collection_id, http_request_id, user_sort_order, user_color)
 		 SELECT fi.favourite_collection_id, ?,
-		        (SELECT COALESCE(MAX(user_sort_order), -1) + 1 FROM favourite_items fi2 WHERE fi2.favourite_collection_id = fi.favourite_collection_id)
+		        (SELECT COALESCE(MAX(user_sort_order), -1) + 1 FROM favourite_items fi2 WHERE fi2.favourite_collection_id = fi.favourite_collection_id),
+		        fi.user_color
 		 FROM favourite_items fi WHERE fi.http_request_id = ?`,
 		newID, id,
 	)
@@ -122,13 +126,13 @@ func (s *RequestService) CreateRequest(req models.HttpRequest) (models.HttpReque
 func (s *RequestService) GetRequest(id int64) (models.HttpRequest, error) {
 	var req models.HttpRequest
 	row := s.db.QueryRow(
-		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id, hr.user_sort_order
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color
 		 FROM http_requests hr
 		 JOIN collections c ON c.id = hr.collection_id
 		 WHERE hr.id = ?`,
 		id,
 	)
-	err := row.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder)
+	err := row.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder, &req.UserColor)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return models.HttpRequest{}, fmt.Errorf("request not found")
@@ -245,7 +249,7 @@ func (s *RequestService) httpClient() *http.Client {
 // GetAllRequests returns all saved HTTP requests ordered by name.
 func (s *RequestService) GetAllRequests() ([]models.HttpRequest, error) {
 	rows, err := s.db.Query(
-		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id, hr.user_sort_order
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color
 		 FROM http_requests hr
 		 JOIN collections c ON c.id = hr.collection_id
 		 ORDER BY hr.name`,
@@ -258,7 +262,7 @@ func (s *RequestService) GetAllRequests() ([]models.HttpRequest, error) {
 	var requests []models.HttpRequest
 	for rows.Next() {
 		var req models.HttpRequest
-		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder); err != nil {
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder, &req.UserColor); err != nil {
 			return nil, fmt.Errorf("scanning request: %w", err)
 		}
 		requests = append(requests, req)
@@ -275,7 +279,7 @@ func (s *RequestService) GetAllRequests() ([]models.HttpRequest, error) {
 // ordered by the user's custom order (name as tiebreaker for legacy rows).
 func (s *RequestService) GetRequestsForCollection(collectionID int64) ([]models.HttpRequest, error) {
 	rows, err := s.db.Query(
-		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id, hr.user_sort_order
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color
 		 FROM http_requests hr
 		 JOIN collections c ON c.id = hr.collection_id
 		 WHERE hr.collection_id = ?
@@ -290,7 +294,7 @@ func (s *RequestService) GetRequestsForCollection(collectionID int64) ([]models.
 	var requests []models.HttpRequest
 	for rows.Next() {
 		var req models.HttpRequest
-		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder); err != nil {
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder, &req.UserColor); err != nil {
 			return nil, fmt.Errorf("scanning request: %w", err)
 		}
 		requests = append(requests, req)
@@ -306,7 +310,7 @@ func (s *RequestService) GetRequestsForCollection(collectionID int64) ([]models.
 // GetRequestsForProject returns every HTTP request across all collections in a project.
 func (s *RequestService) GetRequestsForProject(projectID int64) ([]models.HttpRequest, error) {
 	rows, err := s.db.Query(
-		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id, hr.user_sort_order
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color
 		 FROM http_requests hr
 		 JOIN collections c ON c.id = hr.collection_id
 		 WHERE c.project_id = ?
@@ -321,7 +325,7 @@ func (s *RequestService) GetRequestsForProject(projectID int64) ([]models.HttpRe
 	var requests []models.HttpRequest
 	for rows.Next() {
 		var req models.HttpRequest
-		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder); err != nil {
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder, &req.UserColor); err != nil {
 			return nil, fmt.Errorf("scanning request: %w", err)
 		}
 		requests = append(requests, req)
@@ -338,7 +342,7 @@ func (s *RequestService) GetRequestsForProject(projectID int64) ([]models.HttpRe
 // requests ordered by name. It omits body and headers to keep IPC payloads small.
 func (s *RequestService) GetAllRequestSummaries() ([]models.HttpRequestSummary, error) {
 	rows, err := s.db.Query(
-		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.status_code, hr.response_id, hr.user_sort_order
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color
 		 FROM http_requests hr
 		 JOIN collections c ON c.id = hr.collection_id
 		 ORDER BY hr.name`,
@@ -351,7 +355,7 @@ func (s *RequestService) GetAllRequestSummaries() ([]models.HttpRequestSummary, 
 	var requests []models.HttpRequestSummary
 	for rows.Next() {
 		var req models.HttpRequestSummary
-		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID, &req.UserSortOrder); err != nil {
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID, &req.UserSortOrder, &req.UserColor); err != nil {
 			return nil, fmt.Errorf("scanning request summary: %w", err)
 		}
 		requests = append(requests, req)
@@ -375,7 +379,7 @@ func (s *RequestService) GetRecentRequests(projectID int64, limit int) ([]models
 	}
 
 	rows, err := s.db.Query(
-		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.status_code, hr.response_id, hr.user_sort_order
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color
 		 FROM http_requests hr
 		 JOIN collections c ON c.id = hr.collection_id
 		 JOIN request_usage ru ON ru.request_id = hr.id
@@ -392,7 +396,7 @@ func (s *RequestService) GetRecentRequests(projectID int64, limit int) ([]models
 	var requests []models.HttpRequestSummary
 	for rows.Next() {
 		var req models.HttpRequestSummary
-		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID, &req.UserSortOrder); err != nil {
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID, &req.UserSortOrder, &req.UserColor); err != nil {
 			return nil, fmt.Errorf("scanning recent request summary: %w", err)
 		}
 		requests = append(requests, req)
@@ -410,7 +414,7 @@ func (s *RequestService) GetRecentRequests(projectID int64, limit int) ([]models
 // (name as tiebreaker for legacy rows).
 func (s *RequestService) GetRequestSummariesForCollection(collectionID int64) ([]models.HttpRequestSummary, error) {
 	rows, err := s.db.Query(
-		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.status_code, hr.response_id, hr.user_sort_order
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color
 		 FROM http_requests hr
 		 JOIN collections c ON c.id = hr.collection_id
 		 WHERE hr.collection_id = ?
@@ -425,7 +429,7 @@ func (s *RequestService) GetRequestSummariesForCollection(collectionID int64) ([
 	var requests []models.HttpRequestSummary
 	for rows.Next() {
 		var req models.HttpRequestSummary
-		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID, &req.UserSortOrder); err != nil {
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID, &req.UserSortOrder, &req.UserColor); err != nil {
 			return nil, fmt.Errorf("scanning request summary: %w", err)
 		}
 		requests = append(requests, req)
@@ -442,7 +446,7 @@ func (s *RequestService) GetRequestSummariesForCollection(collectionID int64) ([
 // request across all collections in a project.
 func (s *RequestService) GetRequestSummariesForProject(projectID int64) ([]models.HttpRequestSummary, error) {
 	rows, err := s.db.Query(
-		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.status_code, hr.response_id, hr.user_sort_order
+		`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color
 		 FROM http_requests hr
 		 JOIN collections c ON c.id = hr.collection_id
 		 WHERE c.project_id = ?
@@ -457,7 +461,7 @@ func (s *RequestService) GetRequestSummariesForProject(projectID int64) ([]model
 	var requests []models.HttpRequestSummary
 	for rows.Next() {
 		var req models.HttpRequestSummary
-		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID, &req.UserSortOrder); err != nil {
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID, &req.UserSortOrder, &req.UserColor); err != nil {
 			return nil, fmt.Errorf("scanning request summary: %w", err)
 		}
 		requests = append(requests, req)
@@ -551,13 +555,13 @@ func (s *RequestService) BulkUpdateRequestBody(ids []int64, body string, bodyTyp
 	for _, id := range ids {
 		var req models.HttpRequest
 		err := tx.QueryRow(
-			`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id, hr.user_sort_order
+			`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color
 			 FROM http_requests hr
 			 JOIN collections c ON c.id = hr.collection_id
 			 WHERE hr.id = ?`, id,
 		).Scan(
 			&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method,
-			&req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder,
+			&req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder, &req.UserColor,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("fetching request %d: %w", id, err)
@@ -607,6 +611,62 @@ func (s *RequestService) BulkUpdateRequestHeaders(ids []int64, headers string) (
 	return s.bulkUpdateStringField(ids, "request_headers", headers)
 }
 
+// BulkUpdateRequestColor sets the same colour on multiple requests in a single
+// transaction; an empty colour clears it (stored as NULL). It returns the
+// updated requests in the same order as the ids.
+func (s *RequestService) BulkUpdateRequestColor(ids []int64, color string) ([]models.HttpRequest, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	var value any
+	if color == "" {
+		value = nil
+	} else {
+		value = color
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("beginning bulk color update transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	updated := make([]models.HttpRequest, 0, len(ids))
+	for _, id := range ids {
+		var req models.HttpRequest
+		err := tx.QueryRow(
+			`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color
+			 FROM http_requests hr
+			 JOIN collections c ON c.id = hr.collection_id
+			 WHERE hr.id = ?`, id,
+		).Scan(
+			&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method,
+			&req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder, &req.UserColor,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("fetching request %d: %w", id, err)
+		}
+
+		if _, err = tx.Exec(`UPDATE http_requests SET user_color = ? WHERE id = ?`, value, id); err != nil {
+			return nil, fmt.Errorf("updating colour for request %d: %w", id, err)
+		}
+
+		if color == "" {
+			req.UserColor = nil
+		} else {
+			req.UserColor = &color
+		}
+		updated = append(updated, req)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("committing bulk color update transaction: %w", err)
+	}
+
+	return updated, nil
+}
+
 // bulkUpdateStringField applies one string value to one column across many
 // requests. The column name is never user-supplied; callers pass a constant.
 func (s *RequestService) bulkUpdateStringField(ids []int64, column string, value string) ([]models.HttpRequest, error) {
@@ -624,13 +684,13 @@ func (s *RequestService) bulkUpdateStringField(ids []int64, column string, value
 	for _, id := range ids {
 		var req models.HttpRequest
 		err := tx.QueryRow(
-			`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id, hr.user_sort_order
+			`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color
 			 FROM http_requests hr
 			 JOIN collections c ON c.id = hr.collection_id
 			 WHERE hr.id = ?`, id,
 		).Scan(
 			&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method,
-			&req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder,
+			&req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder, &req.UserColor,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("fetching request %d: %w", id, err)
@@ -937,11 +997,11 @@ func (s *RequestService) SaveResponseToFile(responseID int64, filePath string) e
 func (s *RequestService) getRequestWithProjectTx(tx *sql.Tx, id int64) (models.HttpRequest, error) {
 	var req models.HttpRequest
 	row := tx.QueryRow(`
-		SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id, hr.user_sort_order
+		SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color
 		FROM http_requests hr
 		JOIN collections c ON c.id = hr.collection_id
 		WHERE hr.id = ?`, id)
-	err := row.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder)
+	err := row.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode, &req.ResponseID, &req.UserSortOrder, &req.UserColor)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return models.HttpRequest{}, fmt.Errorf("request not found")
