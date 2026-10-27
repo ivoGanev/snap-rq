@@ -9,7 +9,10 @@ export type { AppSettings };
  */
 @Injectable({ providedIn: 'root' })
 export class SettingsApiService {
-  readonly settings = signal<AppSettings>({ validate_ssl_certificates: true });
+  readonly settings = signal<AppSettings>({
+    validate_ssl_certificates: true,
+    request_timeout_seconds: 30,
+  });
   readonly loaded = signal(false);
 
   async load(): Promise<void> {

@@ -228,7 +228,7 @@ func (s *RequestService) ExecuteRequest(req models.HttpRequest) (models.HttpResp
 }
 
 func (s *RequestService) httpClient() *http.Client {
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: s.settings.RequestTimeout()}
 	if s.settings.ValidateSSLCertificates() {
 		return client
 	}
