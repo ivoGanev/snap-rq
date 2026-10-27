@@ -64,6 +64,10 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
+	if err := addUserColorColumns(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
 	if err := ensureDefaultCollection(db); err != nil {
 		return nil, fmt.Errorf("ensuring default collection: %w", err)
 	}
@@ -106,6 +110,7 @@ func migrate(db *sql.DB) error {
 			status_code INTEGER NOT NULL DEFAULT 0,
 			response_id INTEGER NOT NULL DEFAULT 0,
 			user_sort_order INTEGER NOT NULL DEFAULT 0,
+			user_color TEXT,
 			FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE
 		);
 		CREATE INDEX IF NOT EXISTS idx_http_requests_collection_id ON http_requests(collection_id);
@@ -165,6 +170,7 @@ func migrate(db *sql.DB) error {
 			http_request_id INTEGER NOT NULL,
 			added_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			user_sort_order INTEGER NOT NULL DEFAULT 0,
+			user_color TEXT,
 			FOREIGN KEY (favourite_collection_id) REFERENCES favourite_collections(id) ON DELETE CASCADE,
 			FOREIGN KEY (http_request_id) REFERENCES http_requests(id) ON DELETE CASCADE,
 			UNIQUE (favourite_collection_id, http_request_id)
@@ -186,6 +192,7 @@ func migrate(db *sql.DB) error {
 			request_id INTEGER NOT NULL,
 			tag_id INTEGER NOT NULL,
 			user_sort_order INTEGER NOT NULL DEFAULT 0,
+			user_color TEXT,
 			FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE,
 			FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
 			UNIQUE (request_id, tag_id)
@@ -613,8 +620,27 @@ func addUserSortOrderColumns(db *sql.DB) error {
 	return nil
 }
 
-func columnExists(db *sql.DB, table, column string) bool {
-	rows, err := db.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
+// addUserColorColumns introduces the per-view user colour columns.
+//
+// - http_requests.user_color colours a request within its collection.
+// - favourite_items.user_color colours a request within a favourite collection.
+// - request_tags.user_color colours a request within a tag.
+//
+// Columns are nullable; NULL means "no colour".
+func addUserColorColumns(db *sql.DB) error {
+	for _, table := range []string{"http_requests", "favourite_items", "request_tags"} {
+		if columnExists(db, table, "user_color") {
+			continue
+		}
+		_, err := db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN user_color TEXT", table))
+		if err != nil {
+			return fmt.Errorf("adding user_color column to %s: %w", table, err)
+		}
+	}
+	return nil
+}
+
+func columnExists(db *sql.DB, table, column string) bool {	rows, err := db.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
 	if err != nil {
 		return false
 	}

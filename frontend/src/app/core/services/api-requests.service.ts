@@ -75,10 +75,10 @@ export class ApiRequestsService {
   // ---------------------------------------------------------------------------
 
   /**
-   * Creates a request. `user_sort_order` is omitted from the input because
-   * the backend always assigns it (appended to the collection's order).
+   * Creates a request. `user_sort_order` and `user_color` are omitted from the
+   * input because the backend assigns the order and new requests start uncoloured.
    */
-  async create(req: Omit<HttpRequest, 'id' | 'user_sort_order'>): Promise<HttpRequest> {
+  async create(req: Omit<HttpRequest, 'id' | 'user_sort_order' | 'user_color'>): Promise<HttpRequest> {
     const created = await this.requestApi.create(req as HttpRequest);
     this.addOrReplace(created);
     return created;
@@ -101,6 +101,7 @@ export class ApiRequestsService {
       status_code: updated.status_code,
       response_id: updated.response_id,
       user_sort_order: updated.user_sort_order,
+      user_color: updated.user_color,
     });
     return updated;
   }
@@ -137,6 +138,7 @@ export class ApiRequestsService {
         status_code: req.status_code,
         response_id: req.response_id,
         user_sort_order: req.user_sort_order,
+        user_color: req.user_color,
       });
     }
     return updated;
@@ -161,6 +163,7 @@ export class ApiRequestsService {
       collection_id: collectionId,
       project_id: projectId,
       user_sort_order: updated.user_sort_order,
+      user_color: updated.user_color,
     });
   }
 
@@ -208,6 +211,26 @@ export class ApiRequestsService {
         const existing = next[id];
         if (existing) {
           next[id] = { ...existing, user_sort_order: orders[id] };
+        }
+      }
+      return next;
+    });
+  }
+
+  /**
+   * Bulk-applies user colours (null = clear) in ONE signal write, mirroring
+   * applyUserSortOrders to avoid the O(n²) per-row patch churn.
+   */
+  applyUserColors(colors: Record<number, string | null>): void {
+    const ids = Object.keys(colors);
+    if (ids.length === 0) return;
+    this.allRequests.update(map => {
+      const next = { ...map };
+      for (const key of ids) {
+        const id = Number(key);
+        const existing = next[id];
+        if (existing) {
+          next[id] = { ...existing, user_color: colors[id] };
         }
       }
       return next;

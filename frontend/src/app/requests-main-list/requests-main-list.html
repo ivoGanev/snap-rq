@@ -201,6 +201,9 @@
         [class.is-active-drag-row]="dragStartRowId() === req.id"
         [class.is-reorder-source]="reorderDrag()?.request?.id === req.id"
         [class.is-dropped]="dropHighlightedId() === req.id"
+        [class.has-color]="!!rowState()[req.id]?.colorHex"
+        [style.--row-color]="rowState()[req.id]?.colorHex"
+        [style.--row-tint]="rowState()[req.id]?.colorTint"
         (mousedown)="onRowMouseDown(req, $event)"
         (click)="onRowClick(req, $event, 'name')"
         (contextmenu)="onRowContextMenu(req, $event, rowContextMenu)"
@@ -327,6 +330,10 @@
 <app-request-bottom-drawer
   [tabs]="bottomTabs"
   [showingBin]="state.showingBin()"
+  [showColors]="canColorSelection()"
+  [activeColor]="activeColor()"
+  (colorSelect)="applyRequestColor($event)"
+  (clearAllColors)="clearAllRequestColors()"
 ></app-request-bottom-drawer>
 
 <ng-template #rowContextMenu let-req>
