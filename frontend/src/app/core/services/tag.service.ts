@@ -114,4 +114,9 @@ export class TagApiService {
   async updateRequestOrder(projectId: number, tagName: string, orderedRequestIds: number[]): Promise<void> {
     await TagService.TagService.UpdateTagRequestOrder(projectId, tagName, orderedRequestIds);
   }
+
+  /** Sets (or clears with null) the colour on memberships of one tag. */
+  async updateRequestColor(projectId: number, tagName: string, requestIds: number[], color: string | null): Promise<void> {
+    await TagService.TagService.BulkUpdateTagRequestColor(projectId, tagName, requestIds, color ?? '');
+  }
 }

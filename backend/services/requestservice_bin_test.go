@@ -38,6 +38,7 @@ func runMigrations(t *testing.T, db *sql.DB) {
 			status_code INTEGER NOT NULL DEFAULT 0,
 			response_id INTEGER NOT NULL DEFAULT 0,
 			user_sort_order INTEGER NOT NULL DEFAULT 0,
+			user_color TEXT,
 			FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE
 		);
 		CREATE TABLE responses (
@@ -61,6 +62,7 @@ func runMigrations(t *testing.T, db *sql.DB) {
 			favourite_collection_id INTEGER NOT NULL,
 			http_request_id INTEGER NOT NULL,
 			user_sort_order INTEGER NOT NULL DEFAULT 0,
+			user_color TEXT,
 			FOREIGN KEY (favourite_collection_id) REFERENCES favourite_collections(id) ON DELETE CASCADE,
 			FOREIGN KEY (http_request_id) REFERENCES http_requests(id) ON DELETE CASCADE
 		);
@@ -76,6 +78,7 @@ func runMigrations(t *testing.T, db *sql.DB) {
 			request_id INTEGER NOT NULL,
 			tag_id INTEGER NOT NULL,
 			user_sort_order INTEGER NOT NULL DEFAULT 0,
+			user_color TEXT,
 			FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE,
 			FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
 		);

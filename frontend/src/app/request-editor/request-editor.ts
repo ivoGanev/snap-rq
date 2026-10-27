@@ -78,8 +78,16 @@ export class RequestEditor {
       const favList = this.favouriteApi.requests();
       const favIndex = favList.findIndex((r) => r.id === saved.id);
       if (favIndex !== -1) {
+        // `saved` carries the collection-scoped membership fields; preserve the
+        // favourite-scoped ones so editing a request doesn't reset its colour
+        // or position within the favourite collection.
+        const existing = favList[favIndex];
         const newFavList = [...favList];
-        newFavList[favIndex] = saved;
+        newFavList[favIndex] = {
+          ...saved,
+          user_sort_order: existing.user_sort_order,
+          user_color: existing.user_color,
+        };
         this.favouriteApi.requests.set(newFavList);
       }
     } catch (err) {

@@ -192,3 +192,127 @@ func TestDuplicateRequestAppendsToOrders(t *testing.T) {
 		t.Fatalf("duplicate not appended to tag order: %+v", tagReqs)
 	}
 }
+
+func TestBulkRequestColor(t *testing.T) {
+	db := newTestDB(t)
+	runMigrations(t, db)
+
+	if _, err := db.Exec("INSERT INTO collections (id, project_id, name) VALUES (10, 1, 'c1'), (11, 1, 'c2')"); err != nil {
+		t.Fatalf("inserting collections: %v", err)
+	}
+
+	rs := NewRequestService(db)
+
+	var ids []int64
+	for _, name := range []string{"one", "two"} {
+		req, err := rs.CreateRequest(models.HttpRequest{CollectionID: 10, Name: name, URL: "http://x", Method: "GET"})
+		if err != nil {
+			t.Fatalf("creating request %s: %v", name, err)
+		}
+		ids = append(ids, req.ID)
+	}
+	other, err := rs.CreateRequest(models.HttpRequest{CollectionID: 11, Name: "other", URL: "http://x", Method: "GET"})
+	if err != nil {
+		t.Fatalf("creating other request: %v", err)
+	}
+
+	blue := "#AECBFA"
+	updated, err := rs.BulkUpdateRequestColor(ids, blue)
+	if err != nil {
+		t.Fatalf("bulk colour update: %v", err)
+	}
+	for _, req := range updated {
+		if req.UserColor == nil || *req.UserColor != blue {
+			t.Fatalf("expected colour %q on request %d, got %v", blue, req.ID, req.UserColor)
+		}
+	}
+
+	got, err := rs.GetRequestsForCollection(10)
+	if err != nil {
+		t.Fatalf("listing collection: %v", err)
+	}
+	for _, req := range got {
+		if req.UserColor == nil || *req.UserColor != blue {
+			t.Fatalf("expected persisted colour, got %v", req.UserColor)
+		}
+	}
+
+	// Clearing via empty string.
+	if _, err := rs.BulkUpdateRequestColor(ids, ""); err != nil {
+		t.Fatalf("clearing colour: %v", err)
+	}
+	got, _ = rs.GetRequestsForCollection(10)
+	for _, req := range got {
+		if req.UserColor != nil {
+			t.Fatalf("expected cleared colour, got %v", req.UserColor)
+		}
+	}
+
+	// The other collection's request is untouched.
+	otherGot, err := rs.GetRequestsForCollection(11)
+	if err != nil {
+		t.Fatalf("listing other collection: %v", err)
+	}
+	if otherGot[0].UserColor != nil || otherGot[0].ID != other.ID {
+		t.Fatalf("unexpected colour on unrelated request: %+v", otherGot[0])
+	}
+}
+
+func TestBulkFavouriteAndTagColor(t *testing.T) {
+	db := newTestDB(t)
+	runMigrations(t, db)
+
+	if _, err := db.Exec("INSERT INTO collections (id, project_id, name) VALUES (10, 1, 'c1')"); err != nil {
+		t.Fatalf("inserting collection: %v", err)
+	}
+	if _, err := db.Exec("INSERT INTO favourite_collections (id, project_id, name) VALUES (20, 1, 'fav')"); err != nil {
+		t.Fatalf("inserting favourite collection: %v", err)
+	}
+
+	rs := NewRequestService(db)
+	fs := NewFavouriteService(db)
+	ts := NewTagService(db)
+
+	var ids []int64
+	for _, name := range []string{"one", "two"} {
+		req, err := rs.CreateRequest(models.HttpRequest{CollectionID: 10, Name: name, URL: "http://x", Method: "GET"})
+		if err != nil {
+			t.Fatalf("creating request %s: %v", name, err)
+		}
+		ids = append(ids, req.ID)
+		if _, err := fs.AddRequestToFavouriteCollection(20, req.ID); err != nil {
+			t.Fatalf("favouriting %s: %v", name, err)
+		}
+		if _, err := ts.AddTagToRequest(req.ID, 1, "urgent"); err != nil {
+			t.Fatalf("tagging %s: %v", name, err)
+		}
+	}
+
+	green := "#B6E2C6"
+	if err := fs.BulkUpdateFavouriteRequestColor(20, ids, green); err != nil {
+		t.Fatalf("bulk favourite colour: %v", err)
+	}
+	favReqs, err := fs.GetRequestsForFavouriteCollection(20)
+	if err != nil {
+		t.Fatalf("listing favourites: %v", err)
+	}
+	for _, req := range favReqs {
+		if req.UserColor == nil || *req.UserColor != green {
+			t.Fatalf("expected favourite colour %q, got %v", green, req.UserColor)
+		}
+	}
+
+	yellow := "#F7E6A3"
+	if err := ts.BulkUpdateTagRequestColor(1, "urgent", ids, yellow); err != nil {
+		t.Fatalf("bulk tag colour: %v", err)
+	}
+	tagReqs, err := ts.GetRequestsForTag(1, "urgent")
+	if err != nil {
+		t.Fatalf("listing tag requests: %v", err)
+	}
+	for _, req := range tagReqs {
+		if req.UserColor == nil || *req.UserColor != yellow {
+			t.Fatalf("expected tag colour %q, got %v", yellow, req.UserColor)
+		}
+	}
+}

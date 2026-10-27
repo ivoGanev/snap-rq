@@ -81,5 +81,32 @@
         <span class="bottom-tab-label">{{ tab.label }}</span>
       </button>
     }
+    @if (showColors()) {
+      <div class="color-picker" aria-label="Request colour">
+        <button
+          class="color-dot color-dot--clear"
+          type="button"
+          title="Clear all colours in this view"
+          aria-label="Clear all colours in this view"
+          (click)="onClearColor()"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+            <line x1="6" y1="6" x2="18" y2="18" />
+            <line x1="18" y1="6" x2="6" y2="18" />
+          </svg>
+        </button>
+        @for (color of colors; track color.hex) {
+          <button
+            class="color-dot"
+            [class.is-active]="activeColor() === color.hex"
+            type="button"
+            [style.background-color]="color.hex"
+            [title]="activeColor() === color.hex ? color.label + ' (click to clear)' : color.label"
+            [attr.aria-label]="color.label"
+            (click)="onColorClick(color.hex)"
+          ></button>
+        }
+      </div>
+    }
   </div>
 }

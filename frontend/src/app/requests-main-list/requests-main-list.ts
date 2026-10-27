@@ -15,7 +15,8 @@ import { RequestBottomDrawer, type BottomTab } from '../request-bottom-drawer/re
 import { RequestBodyTab } from '../request-body-tab/request-body-tab';
 import { RequestHeadersTab } from '../request-headers-tab/request-headers-tab';
 import { CodeEditor } from '../code-editor/code-editor';
-import { USER_ORDERABLE_VIEWS, type RequestListViewKind } from './request-view-ordering';
+import { requestColorInfo } from '../core/request-colors';
+import { USER_ORDERABLE_VIEWS, USER_COLORABLE_VIEWS, type RequestListViewKind } from './request-view-capabilities';
 
 type ColumnKey = 'name' | 'url' | 'method' | 'tags';
 type SortDirection = 'asc' | 'desc';
@@ -30,6 +31,10 @@ interface RowState {
   isCellSelected: Record<ColumnKey, boolean>;
   /** URL with environment variables resolved, for display only. */
   displayUrl: string;
+  /** User colour (hex) for this row in the current view, or null. */
+  colorHex: string | null;
+  /** Row background tint matching colorHex, or null. */
+  colorTint: string | null;
 }
 
 interface ReorderDrag {
@@ -137,6 +142,27 @@ export class RequestsMainList {
       !this.requestSearchQuery().trim(),
   );
 
+  /** Whether the colour picker is available (selection in a colour-able view). */
+  readonly canColorSelection = computed(
+    () => USER_COLORABLE_VIEWS[this.activeViewKind()] && this.selectedRowIds().size > 0,
+  );
+
+  /** The colour shared by all selected rows in this view, or null when mixed/none. */
+  readonly activeColor = computed<string | null>(() => {
+    const selected = this.selectedRowIds();
+    if (selected.size === 0) return null;
+    let first: string | null | undefined;
+    for (const req of this.filteredActiveRequests()) {
+      if (!selected.has(req.id)) continue;
+      if (first === undefined) {
+        first = req.user_color;
+        continue;
+      }
+      if (first !== req.user_color) return null;
+    }
+    return first ?? null;
+  });
+
   // ---------- Row reorder drag ----------
 
   private readonly reorderPending = signal<{ requestId: number; startY: number } | null>(null);
@@ -231,6 +257,7 @@ export class RequestsMainList {
       status_code: b.status_code,
       response_id: b.response_id,
       user_sort_order: 0,
+      user_color: null,
     }));
   }
 
@@ -359,10 +386,13 @@ export class RequestsMainList {
       if (isSelected && selectedIds.size <= 1 && cell?.requestId === req.id) {
         isCellSelected[cell.column] = true;
       }
+      const colour = requestColorInfo(req.user_color);
       result[req.id] = {
         isSelected,
         isCellSelected,
         displayUrl: environment.interpolate(req.url),
+        colorHex: colour?.hex ?? null,
+        colorTint: colour?.tint ?? null,
       };
     }
     return result;
@@ -1181,6 +1211,110 @@ export class RequestsMainList {
         }
       } catch (reloadErr) {
         console.error('reloading view after failed reorder', reloadErr);
+      }
+    }
+  }
+
+  /**
+   * Applies a colour (or clears with null) to all selected requests in the
+   * current view. Optimistic single-write update, then a scoped bulk API;
+   * on failure the view is reloaded.
+   */
+  async applyRequestColor(color: string | null): Promise<void> {
+    const ids = [...this.selectedRowIds()];
+    if (ids.length === 0) return;
+
+    const kind = this.activeViewKind();
+    try {
+      if (kind === 'collection') {
+        const colors: Record<number, string | null> = {};
+        for (const id of ids) colors[id] = color;
+        this.apiRequests.applyUserColors(colors);
+        await this.requestApi.bulkUpdateColor(ids, color);
+      } else if (kind === 'favourite') {
+        const favourite = this.state.selectedFavouriteCollection();
+        if (!favourite) return;
+        const idSet = new Set(ids);
+        this.favouriteApi.requests.set(
+          this.favouriteApi.requests().map(r => (idSet.has(r.id) ? { ...r, user_color: color } : r)),
+        );
+        await this.favouriteApi.updateRequestColor(favourite.id, ids, color);
+      } else if (kind === 'tag') {
+        const project = this.state.selectedProject();
+        const tag = this.state.selectedTag();
+        if (!project || !tag) return;
+        const idSet = new Set(ids);
+        this.tagRequests.set(
+          this.tagRequests().map(r => (idSet.has(r.id) ? { ...r, user_color: color } : r)),
+        );
+        await this.tagApi.updateRequestColor(project.id, tag, ids, color);
+      }
+    } catch (err) {
+      console.error('persisting request colour failed, reloading view', err);
+      try {
+        if (kind === 'collection') {
+          await this.apiRequests.loadAll();
+        } else if (kind === 'favourite') {
+          const favourite = this.state.selectedFavouriteCollection();
+          if (favourite) await this.favouriteApi.loadRequestsForCollection(favourite.id);
+        } else if (kind === 'tag') {
+          const project = this.state.selectedProject();
+          const tag = this.state.selectedTag();
+          if (project && tag) {
+            this.tagRequests.set(await this.tagApi.getRequestsForTag(project.id, tag));
+          }
+        }
+      } catch (reloadErr) {
+        console.error('reloading view after failed colour update', reloadErr);
+      }
+    }
+  }
+
+  /**
+   * Clears the colour on every request in the current view in one bulk call.
+   */
+  async clearAllRequestColors(): Promise<void> {
+    const kind = this.activeViewKind();
+    if (!USER_COLORABLE_VIEWS[kind]) return;
+
+    const ids = this.activeRequests().map(r => r.id);
+    if (ids.length === 0) return;
+
+    try {
+      if (kind === 'collection') {
+        const colors: Record<number, string | null> = {};
+        for (const id of ids) colors[id] = null;
+        this.apiRequests.applyUserColors(colors);
+        await this.requestApi.bulkUpdateColor(ids, null);
+      } else if (kind === 'favourite') {
+        const favourite = this.state.selectedFavouriteCollection();
+        if (!favourite) return;
+        this.favouriteApi.requests.set(this.favouriteApi.requests().map(r => ({ ...r, user_color: null })));
+        await this.favouriteApi.updateRequestColor(favourite.id, ids, null);
+      } else if (kind === 'tag') {
+        const project = this.state.selectedProject();
+        const tag = this.state.selectedTag();
+        if (!project || !tag) return;
+        this.tagRequests.set(this.tagRequests().map(r => ({ ...r, user_color: null })));
+        await this.tagApi.updateRequestColor(project.id, tag, ids, null);
+      }
+    } catch (err) {
+      console.error('clearing all request colours failed, reloading view', err);
+      try {
+        if (kind === 'collection') {
+          await this.apiRequests.loadAll();
+        } else if (kind === 'favourite') {
+          const favourite = this.state.selectedFavouriteCollection();
+          if (favourite) await this.favouriteApi.loadRequestsForCollection(favourite.id);
+        } else if (kind === 'tag') {
+          const project = this.state.selectedProject();
+          const tag = this.state.selectedTag();
+          if (project && tag) {
+            this.tagRequests.set(await this.tagApi.getRequestsForTag(project.id, tag));
+          }
+        }
+      } catch (reloadErr) {
+        console.error('reloading view after failed colour clear', reloadErr);
       }
     }
   }

@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, input, signal, type Type } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output, signal, type Type } from '@angular/core';
 import { NgComponentOutlet } from '@angular/common';
+import { REQUEST_COLORS } from '../core/request-colors';
 
 export type BottomTabIcon = 'body' | 'headers';
 
@@ -34,6 +35,17 @@ export class RequestBottomDrawer {
   readonly tabs = input<BottomTab[]>([]);
   readonly showingBin = input<boolean>(false);
 
+  /** Whether the colour picker is available (a request is selected in a colour-able view). */
+  readonly showColors = input<boolean>(false);
+  /** The colour currently shared by the selection, or null when mixed/none. */
+  readonly activeColor = input<string | null>(null);
+  /** Emits the chosen hex, or null when the active colour is clicked again (clear). */
+  readonly colorSelect = output<string | null>();
+  /** Emits when the user asks to clear every colour in the current view. */
+  readonly clearAllColors = output<void>();
+
+  readonly colors = REQUEST_COLORS;
+
   readonly activeTab = signal<BottomTab | null>(null);
   readonly drawerHeight = signal(RequestBottomDrawer.initialHeight());
   readonly resizing = signal(false);
@@ -47,6 +59,14 @@ export class RequestBottomDrawer {
 
   selectTab(tab: BottomTab): void {
     this.activeTab.update((current) => (current?.id === tab.id ? null : tab));
+  }
+
+  onColorClick(hex: string): void {
+    this.colorSelect.emit(this.activeColor() === hex ? null : hex);
+  }
+
+  onClearColor(): void {
+    this.clearAllColors.emit();
   }
 
   closeDrawer(): void {
