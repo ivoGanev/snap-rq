@@ -254,6 +254,23 @@
           (change)="onSslValidationChange($event)"
         />
       </label>
+      <label class="settings-option">
+        <span class="settings-option-copy">
+          <span class="settings-option-label">Request timeout (seconds)</span>
+          <span class="settings-option-help">
+            Maximum time to wait for a response. Between 1 and 99999 seconds; default is 30.
+          </span>
+        </span>
+        <input
+          class="settings-number"
+          type="number"
+          min="1"
+          max="99999"
+          step="1"
+          [value]="settingsApi.settings().request_timeout_seconds"
+          (change)="onRequestTimeoutChange($event)"
+        />
+      </label>
     </div>
   </div>
 }
