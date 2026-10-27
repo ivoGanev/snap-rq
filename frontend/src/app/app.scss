@@ -336,6 +336,22 @@
   cursor: pointer;
 }
 
+.settings-option + .settings-option {
+  margin-top: var(--s-3);
+}
+
+.settings-number {
+  flex: 0 0 auto;
+  width: 80px;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--text);
+  background: var(--hover-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 4px;
+}
+
 .footer-theme {
   justify-self: end;
   position: relative;
