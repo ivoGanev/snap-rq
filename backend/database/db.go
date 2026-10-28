@@ -445,7 +445,7 @@ func migrateCollectionAppearancesFromLegacyColumns(db *sql.DB) error {
 		}
 
 		appearanceType := "icon"
-		appearanceValue := "default"
+		appearanceValue := "ico_1a9d4"
 		if item.iconID != "" {
 			appearanceValue = item.iconID
 		} else if item.color != "" {

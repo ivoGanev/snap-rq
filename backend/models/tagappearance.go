@@ -13,6 +13,6 @@ type TagAppearance struct {
 func DefaultTagAppearance() TagAppearance {
 	return TagAppearance{
 		AppearanceType:  "icon",
-		AppearanceValue: "default",
+		AppearanceValue: "ico_1a9d4",
 	}
 }

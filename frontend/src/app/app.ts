@@ -13,6 +13,8 @@ import { SelectionStateService } from './core/services/selection-state.service';
 import { TagApiService } from './core/services/tag.service';
 import { ThemeService, type Theme } from './core/services/theme.service';
 import { SettingsApiService } from './core/services/settings.service';
+import { IconManifestService } from './core/services/icon-manifest.service';
+import { IconApiService } from './core/services/icon-api.service';
 import { RequestGroups } from './request-groups/request-groups';
 import { RequestsMainList } from './requests-main-list/requests-main-list';
 import { RequestPanel } from './request-panel/request-panel';
@@ -46,6 +48,8 @@ export class App implements OnInit, AfterViewInit {
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly selectionState = inject(SelectionStateService);
   private readonly tagApi = inject(TagApiService);
+  private readonly iconManifest = inject(IconManifestService);
+  private readonly iconApi = inject(IconApiService);
 
   protected readonly projects = this.projectApi.projects;
   protected readonly environments = this.environmentApi.environments;
@@ -76,11 +80,28 @@ export class App implements OnInit, AfterViewInit {
   private resizeStartWidth = 0;
 
   async ngOnInit(): Promise<void> {
+    await this.cleanupDanglingIcons();
     await Promise.all([this.loadProjects(), this.settingsApi.load()]);
   }
 
   ngAfterViewInit(): void {
     WML.Enable();
+  }
+
+  /**
+   * Resets stored icon appearances that reference ids no longer in the
+   * registry, so removing an icon from the manifest also removes it from the
+   * database. Runs before projects load so the UI sees cleaned data.
+   */
+  private async cleanupDanglingIcons(): Promise<void> {
+    await this.iconManifest.ready;
+    const ids = this.iconManifest.validIconIds();
+    if (ids.length === 0) return;
+    try {
+      await this.iconApi.cleanupIconReferences(ids, this.iconManifest.defaultIconId());
+    } catch (err) {
+      console.error('icon cleanup failed', err);
+    }
   }
 
   onEscapePressed(): void {
