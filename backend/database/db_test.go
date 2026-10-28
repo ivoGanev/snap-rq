@@ -119,8 +119,8 @@ func TestMigrateCollectionAppearancesFromLegacyIconIDColumnOnly(t *testing.T) {
 	if appearances[0].typ != "icon" || appearances[0].value != "heart" {
 		t.Errorf("expected icon/heart for first collection, got %s/%s", appearances[0].typ, appearances[0].value)
 	}
-	if appearances[1].typ != "icon" || appearances[1].value != "default" {
-		t.Errorf("expected icon/default for second collection, got %s/%s", appearances[1].typ, appearances[1].value)
+	if appearances[1].typ != "icon" || appearances[1].value != "ico_1a9d4" {
+		t.Errorf("expected icon/ico_1a9d4 for second collection, got %s/%s", appearances[1].typ, appearances[1].value)
 	}
 }
 

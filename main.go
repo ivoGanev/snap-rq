@@ -46,6 +46,7 @@ func main() {
 	environmentVariableService := services.NewEnvironmentVariableService(db)
 	favouriteService := services.NewFavouriteService(db)
 	tagService := services.NewTagService(db)
+	iconService := services.NewIconService(db)
 
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
@@ -65,6 +66,7 @@ func main() {
 			application.NewService(environmentVariableService),
 			application.NewService(favouriteService),
 			application.NewService(tagService),
+			application.NewService(iconService),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

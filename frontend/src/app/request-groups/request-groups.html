@@ -204,7 +204,7 @@
       <div class="overlay-body">
         @if (appearanceTab() === 'icon') {
           <div class="appearance-grid appearance-grid--icons">
-            @for (icon of iconManifest.icons(); track icon.id) {
+            @for (icon of appearanceIconEntries(); track icon.id) {
               <button
                 class="appearance-swatch appearance-swatch--icon"
                 [class.is-selected]="isAppearanceSelected(appearanceTarget()!.appearance, 'icon', icon.id)"

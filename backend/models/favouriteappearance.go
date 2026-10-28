@@ -13,6 +13,6 @@ type FavouriteAppearance struct {
 func DefaultFavouriteAppearance() FavouriteAppearance {
 	return FavouriteAppearance{
 		AppearanceType:  "icon",
-		AppearanceValue: "default",
+		AppearanceValue: "ico_1a9d4",
 	}
 }
