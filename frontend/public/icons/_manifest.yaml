@@ -1,0 +1,31 @@
+# Icon manifest.
+# `default` is the fallback icon id used when a stored id is missing.
+# `id` is the immutable registry of valid icon ids (never rename/remove entries).
+# `packs.<name>.versions.<N>.<id>` maps an icon id to the file it renders for
+# that pack version. Themes pick the pack+version per feature in themes.json.
+# `label` is for humans only and is not read by the app.
+default: ico_1a9d4
+id: [ico_1a9d4, ico_3c7f2, ico_7k2f9, ico_4d6a1, ico_5e5b0, ico_6f4c9]
+
+packs:
+  standard:
+    versions:
+      1:
+        ico_1a9d4:
+          file: default.png
+          label: Default
+        ico_3c7f2:
+          file: rainbow.png
+          label: Rainbow
+        ico_7k2f9:
+          file: wood.png
+          label: Wood
+        ico_4d6a1:
+          file: mandala1.png
+          label: Mandala 1
+        ico_5e5b0:
+          file: mandala2.png
+          label: Mandala 2
+        ico_6f4c9:
+          file: mandala3.png
+          label: Mandala 3

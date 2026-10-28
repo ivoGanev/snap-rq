@@ -1,10 +1,19 @@
-import { computed, Injectable, signal } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
+
+export interface ThemeIconSetFeature {
+  pack: string;
+  version: number;
+}
+
+export interface ThemeIconSet {
+  features: Record<string, ThemeIconSetFeature>;
+}
 
 export interface Theme {
   id: string;
   name: string;
   css: string;
-  iconSet: string;
+  iconSet: ThemeIconSet;
   fontFamily: string;
   preview: string;
 }
@@ -17,10 +26,18 @@ export class ThemeService {
   readonly registry = signal<Theme[]>([]);
   readonly loaded = signal(false);
   readonly currentTheme = signal<Theme | null>(null);
-  readonly iconSetPath = computed(() => this.currentTheme()?.iconSet ?? '/icons/default/_manifest.yaml');
+
+  private resolveReady!: () => void;
+  private rejectReady!: (err: unknown) => void;
+
+  /** Resolves once the theme registry has loaded; rejects on failure. */
+  readonly ready = new Promise<void>((resolve, reject) => {
+    this.resolveReady = resolve;
+    this.rejectReady = reject;
+  });
 
   constructor() {
-    this.load();
+    void this.load();
   }
 
   select(themeId: string): void {
@@ -34,8 +51,7 @@ export class ThemeService {
     try {
       const response = await fetch('/themes/themes.json');
       if (!response.ok) {
-        console.error('Failed to load theme registry:', response.status);
-        return;
+        throw new Error(`Failed to load theme registry: ${response.status}`);
       }
       const themes: Theme[] = await response.json();
       this.registry.set(themes);
@@ -46,8 +62,10 @@ export class ThemeService {
         this.apply(initial);
       }
       this.loaded.set(true);
+      this.resolveReady();
     } catch (err) {
       console.error('Error loading theme registry:', err);
+      this.rejectReady(err);
     }
   }
 
