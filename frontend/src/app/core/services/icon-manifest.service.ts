@@ -1,21 +1,30 @@
-import { computed, effect, inject, Injectable, signal } from '@angular/core';
-import { ThemeService } from './theme.service';
-import type { IconReplacement } from './icon-api.service';
+import { inject, Injectable, signal } from '@angular/core';
+import { ThemeService, type Theme } from './theme.service';
 
 export interface IconEntry {
   id: string;
   path: string;
 }
 
-/** The reserved default icon id (shared by all packs). */
+export interface IconDefinition {
+  file: string;
+  label?: string;
+}
+
+/** One version of a pack: icon id -> definition. */
+export type IconPackVersion = Record<string, IconDefinition>;
+
+/** A named pack with immutable versions. */
+export interface IconPack {
+  versions: Record<number, IconPackVersion>;
+}
+
+/** The reserved default icon id (present in every pack version). */
 export const DEFAULT_ICON_ID = 'ico_1a9d4';
 
-/** A feature's icon pack: immutable, versioned list of icon ids. */
-export interface IconPack {
-  version: number;
-  icons: string[];
-  replaces: Record<string, string>;
-}
+const MANIFEST_PATH = '/icons/_manifest.yaml';
+const FEATURES = ['collections', 'favourites', 'tags'] as const;
+const FALLBACK_PACK = 'standard';
 
 interface Line {
   indent: number;
@@ -26,113 +35,134 @@ interface Line {
 export class IconManifestService {
   private readonly theme = inject(ThemeService);
 
-  /** icon id -> filename (append-only, immutable ids). */
-  readonly iconFiles = signal<Record<string, string>>({});
-  /** feature name (collections/favourites/tags) -> pack. */
   readonly packs = signal<Record<string, IconPack>>({});
   readonly loaded = signal(false);
 
-  private basePath = '/icons/default/';
-  private loadGeneration = 0;
+  private registryIds = new Set<string>();
   private resolveReady!: () => void;
+  private rejectReady!: (err: unknown) => void;
 
-  /** Resolves once the manifest has been loaded (successfully or not). */
-  readonly ready = new Promise<void>((resolve) => {
+  /** Resolves once the manifest is loaded AND validated; rejects otherwise. */
+  readonly ready = new Promise<void>((resolve, reject) => {
     this.resolveReady = resolve;
+    this.rejectReady = reject;
   });
 
   constructor() {
-    effect(() => {
-      const manifestPath = this.theme.iconSetPath();
-      this.basePath = this.deriveBasePath(manifestPath);
-      this.load(manifestPath);
-    });
+    void this.init();
   }
 
-  private isStaleGeneration(generation: number): boolean {
-    return generation !== this.loadGeneration;
-  }
-
-  /** Icons available in the given feature's current pack, for the picker. */
+  /** Icons available in the given feature's active pack, for the picker. */
   packIcons(feature: string): IconEntry[] {
-    const pack = this.packs()[feature];
-    if (!pack) return [];
-    const files = this.iconFiles();
-    return pack.icons
-      .filter((id) => files[id])
-      .map((id) => ({ id, path: this.resolvePath(files[id]) }));
+    const resolved = this.resolve(feature);
+    if (!resolved) return [];
+    const version = this.packs()[resolved.pack]?.versions[resolved.version];
+    if (!version) return [];
+    return Object.entries(version).map(([id, def]) => ({
+      id,
+      path: this.resolvePath(def.file),
+    }));
   }
 
   /**
-   * Resolves an icon id to its image path for the given feature, applying the
-   * pack's `replaces` chain so old ids keep rendering the new artwork.
+   * Resolves an icon id to its image path for the given feature, using the
+   * active pack/version. Missing ids fall back to the standard pack, then to
+   * the default icon, so a legacy or themed omission never renders nothing.
    */
   iconPath(feature: string, iconId: string): string | undefined {
-    const pack = this.packs()[feature];
-    const resolved = pack?.replaces[iconId] ?? iconId;
-    const filename = this.iconFiles()[resolved];
+    const resolved = this.resolve(feature);
+    const filename =
+      (resolved && this.fileFor(resolved.pack, resolved.version, iconId)) ||
+      this.fileFor(FALLBACK_PACK, this.latestVersion(FALLBACK_PACK), iconId) ||
+      this.fileFor(FALLBACK_PACK, this.latestVersion(FALLBACK_PACK), DEFAULT_ICON_ID);
     return filename ? this.resolvePath(filename) : undefined;
   }
 
-  /** The union of every pack's replacements, for the one-time DB migration. */
-  replacementPairs(): IconReplacement[] {
-    const seen = new Set<string>();
-    const pairs: IconReplacement[] = [];
-    for (const pack of Object.values(this.packs())) {
-      for (const [oldId, newId] of Object.entries(pack.replaces)) {
-        if (!seen.has(oldId)) {
-          seen.add(oldId);
-          pairs.push({ old_id: oldId, new_id: newId });
-        }
-      }
-    }
-    return pairs;
+  /** Resolves the active pack + version for a feature from the current theme. */
+  resolve(feature: string): { pack: string; version: number } | null {
+    const entry = this.theme.currentTheme()?.iconSet?.features?.[feature];
+    return entry ?? null;
   }
 
-  private resolvePath(filename: string): string {
-    return `${this.basePath}${filename}`;
+  private fileFor(packName: string, version: number, iconId: string): string | undefined {
+    return this.packs()[packName]?.versions[version]?.[iconId]?.file;
   }
 
-  private deriveBasePath(manifestPath: string): string {
-    const lastSlash = manifestPath.lastIndexOf('/');
-    return lastSlash === -1 ? '' : manifestPath.slice(0, lastSlash + 1);
+  private latestVersion(packName: string): number {
+    const versions = this.packs()[packName]?.versions;
+    if (!versions) return 1;
+    const keys = Object.keys(versions).map(Number);
+    return keys.length > 0 ? Math.max(...keys) : 1;
   }
 
-  private async load(manifestPath: string): Promise<void> {
-    const generation = ++this.loadGeneration;
+  private async init(): Promise<void> {
     try {
-      const response = await fetch(manifestPath);
-      if (this.isStaleGeneration(generation)) return;
+      await this.theme.ready;
+
+      const response = await fetch(MANIFEST_PATH);
       if (!response.ok) {
-        console.error('Failed to load icon manifest:', response.status);
-        this.iconFiles.set({});
-        this.packs.set({});
-        this.loaded.set(false);
-        this.resolveReady();
-        return;
+        throw new Error(`Failed to load icon manifest: ${response.status}`);
       }
       const text = await response.text();
-      if (this.isStaleGeneration(generation)) return;
       const parsed = this.parseManifest(text);
-      this.iconFiles.set(parsed.files);
+      this.registryIds = parsed.registryIds;
       this.packs.set(parsed.packs);
+
+      this.validate();
       this.loaded.set(true);
       this.resolveReady();
     } catch (err) {
-      if (this.isStaleGeneration(generation)) return;
-      console.error('Error loading icon manifest:', err);
-      this.iconFiles.set({});
-      this.packs.set({});
-      this.loaded.set(false);
-      this.resolveReady();
+      console.error('Icon registry validation failed:', err);
+      this.rejectReady(err);
     }
   }
 
-  private parseManifest(text: string): {
-    files: Record<string, string>;
-    packs: Record<string, IconPack>;
-  } {
-    const files: Record<string, string> = {};
+  /**
+   * The app cannot start without a correct registry, so any inconsistency
+   * throws here (surfaced through the APP_INITIALIZER).
+   */
+  private validate(): void {
+    // 1. Every icon id referenced in any pack version is in the registry, and
+    //    every pack version includes the default icon.
+    for (const [packName, pack] of Object.entries(this.packs())) {
+      for (const [version, icons] of Object.entries(pack.versions)) {
+        for (const id of Object.keys(icons)) {
+          if (!this.registryIds.has(id)) {
+            throw new Error(`icon pack ${packName}@${version} references unknown id ${id}`);
+          }
+        }
+        if (!(DEFAULT_ICON_ID in icons)) {
+          throw new Error(`icon pack ${packName}@${version} is missing the default icon ${DEFAULT_ICON_ID}`);
+        }
+      }
+    }
+
+    // 2. Every theme must map every feature to an existing pack + version.
+    const themes = this.theme.registry();
+    if (themes.length === 0) {
+      throw new Error('no themes registered');
+    }
+    for (const theme of themes) {
+      for (const feature of FEATURES) {
+        const entry = theme.iconSet?.features?.[feature];
+        if (!entry) {
+          throw new Error(`theme ${theme.id} is missing a pack for feature ${feature}`);
+        }
+        const pack = this.packs()[entry.pack];
+        if (!pack) {
+          throw new Error(`theme ${theme.id} feature ${feature} references unknown pack ${entry.pack}`);
+        }
+        if (!pack.versions[entry.version]) {
+          throw new Error(
+            `theme ${theme.id} feature ${feature} references unknown version ${entry.pack}@${entry.version}`,
+          );
+        }
+      }
+    }
+  }
+
+  private parseManifest(text: string): { registryIds: Set<string>; packs: Record<string, IconPack> } {
+    const registryIds = new Set<string>();
     const packs: Record<string, IconPack> = {};
     const lines = this.tokenize(text);
 
@@ -140,75 +170,65 @@ export class IconManifestService {
     while (idx < lines.length) {
       const line = lines[idx];
 
-      if (line.indent === 0 && line.text === 'icons:') {
-        idx++;
-        while (idx < lines.length && lines[idx].indent >= 2) {
-          const entry = lines[idx];
-          if (!entry.text.endsWith(':')) {
-            idx++;
-            continue;
-          }
-          const id = entry.text.slice(0, -1).trim();
-          let file = '';
-          idx++;
-          while (idx < lines.length && lines[idx].indent > entry.indent) {
-            const sep = lines[idx].text.indexOf(':');
-            if (sep !== -1) {
-              const key = lines[idx].text.slice(0, sep).trim();
-              const value = this.unquote(lines[idx].text.slice(sep + 1).trim());
-              if (key === 'file') file = value;
-            }
-            idx++;
-          }
-          if (file) files[id] = file;
+      if (line.indent === 0 && line.text.startsWith('id:')) {
+        const raw = line.text.slice(3).trim().replace(/[\[\]]/g, '');
+        for (const id of raw.split(',').map((s) => s.trim()).filter(Boolean)) {
+          registryIds.add(id);
         }
+        idx++;
       } else if (line.indent === 0 && line.text === 'packs:') {
         idx++;
         while (idx < lines.length && lines[idx].indent >= 2) {
           const packLine = lines[idx];
-          if (!packLine.text.endsWith(':')) {
-            idx++;
-            continue;
-          }
-          const feature = packLine.text.slice(0, -1).trim();
-          const pack: IconPack = { version: 1, icons: [], replaces: {} };
+          const packName = packLine.text.slice(0, -1).trim();
+          const pack: IconPack = { versions: {} };
           idx++;
+
           while (idx < lines.length && lines[idx].indent > packLine.indent) {
-            const sub = lines[idx];
-            if (sub.text === 'icons:') {
+            const versionsLine = lines[idx];
+            if (versionsLine.text !== 'versions:') {
               idx++;
-              while (idx < lines.length && lines[idx].indent > sub.indent) {
-                const id = lines[idx].text.replace(/^-\s*/, '').trim();
-                if (id) pack.icons.push(id);
+              continue;
+            }
+            idx++;
+            while (idx < lines.length && lines[idx].indent > versionsLine.indent) {
+              const versionLine = lines[idx];
+              const version = Number(versionLine.text.slice(0, -1).trim()) || 1;
+              const versionMap: IconPackVersion = {};
+              idx++;
+
+              while (idx < lines.length && lines[idx].indent > versionLine.indent) {
+                const iconLine = lines[idx];
+                const iconId = iconLine.text.slice(0, -1).trim();
+                const def: IconDefinition = { file: '' };
                 idx++;
-              }
-            } else if (sub.text === 'replaces:') {
-              idx++;
-              while (idx < lines.length && lines[idx].indent > sub.indent) {
-                const sep = lines[idx].text.indexOf(':');
-                if (sep !== -1) {
-                  const oldId = lines[idx].text.slice(0, sep).trim();
-                  const newId = lines[idx].text.slice(sep + 1).trim();
-                  if (oldId && newId) pack.replaces[oldId] = newId;
+
+                while (idx < lines.length && lines[idx].indent > iconLine.indent) {
+                  const sub = lines[idx];
+                  const sep = sub.text.indexOf(':');
+                  if (sep !== -1) {
+                    const key = sub.text.slice(0, sep).trim();
+                    const value = this.unquote(sub.text.slice(sep + 1).trim());
+                    if (key === 'file') def.file = value;
+                    else if (key === 'label') def.label = value;
+                  }
+                  idx++;
                 }
-                idx++;
+
+                if (def.file) versionMap[iconId] = def;
               }
-            } else {
-              const sep = sub.text.indexOf(':');
-              if (sep !== -1 && sub.text.slice(0, sep).trim() === 'version') {
-                pack.version = Number(sub.text.slice(sep + 1).trim()) || 1;
-              }
-              idx++;
+              pack.versions[version] = versionMap;
             }
           }
-          packs[feature] = pack;
+
+          packs[packName] = pack;
         }
       } else {
         idx++;
       }
     }
 
-    return { files, packs };
+    return { registryIds, packs };
   }
 
   private tokenize(text: string): Line[] {
@@ -224,5 +244,9 @@ export class IconManifestService {
 
   private unquote(value: string): string {
     return value.replace(/^["']|["']$/g, '');
+  }
+
+  private resolvePath(filename: string): string {
+    return `/icons/${filename}`;
   }
 }

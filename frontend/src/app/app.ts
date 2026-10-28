@@ -13,8 +13,6 @@ import { SelectionStateService } from './core/services/selection-state.service';
 import { TagApiService } from './core/services/tag.service';
 import { ThemeService, type Theme } from './core/services/theme.service';
 import { SettingsApiService } from './core/services/settings.service';
-import { IconManifestService } from './core/services/icon-manifest.service';
-import { IconApiService } from './core/services/icon-api.service';
 import { RequestGroups } from './request-groups/request-groups';
 import { RequestsMainList } from './requests-main-list/requests-main-list';
 import { RequestPanel } from './request-panel/request-panel';
@@ -48,8 +46,6 @@ export class App implements OnInit, AfterViewInit {
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly selectionState = inject(SelectionStateService);
   private readonly tagApi = inject(TagApiService);
-  private readonly iconManifest = inject(IconManifestService);
-  private readonly iconApi = inject(IconApiService);
 
   protected readonly projects = this.projectApi.projects;
   protected readonly environments = this.environmentApi.environments;
@@ -81,38 +77,10 @@ export class App implements OnInit, AfterViewInit {
 
   async ngOnInit(): Promise<void> {
     await Promise.all([this.loadProjects(), this.settingsApi.load()]);
-    await this.migrateIconsIfNeeded();
   }
 
   ngAfterViewInit(): void {
     WML.Enable();
-  }
-
-  /**
-   * One-time migration of stored icon ids. The icon manifest is the source of
-   * truth for replacements; when any are declared, they are applied in a single
-   * bulk backend call and the appearance-bearing lists are refreshed.
-   */
-  private async migrateIconsIfNeeded(): Promise<void> {
-    await this.iconManifest.ready;
-    const replacements = this.iconManifest.replacementPairs();
-    if (replacements.length === 0) return;
-
-    try {
-      await this.iconApi.migrateIconIds(replacements);
-    } catch (err) {
-      console.error('icon migration failed', err);
-      return;
-    }
-
-    const project = this.state.selectedProject();
-    if (project) {
-      await Promise.all([
-        this.collectionApi.loadForProject(project.id),
-        this.favouriteApi.loadCollectionsForProject(project.id),
-        this.tagApi.loadTagsForProject(project.id),
-      ]);
-    }
   }
 
   onEscapePressed(): void {

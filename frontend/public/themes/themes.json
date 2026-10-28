@@ -3,7 +3,13 @@
     "id": "neon-night",
     "name": "Neon Night",
     "css": "/themes/neon-night.css",
-    "iconSet": "/icons/default/_manifest.yaml",
+    "iconSet": {
+      "features": {
+        "collections": { "pack": "standard", "version": 1 },
+        "favourites": { "pack": "standard", "version": 1 },
+        "tags": { "pack": "standard", "version": 1 }
+      }
+    },
     "fontFamily": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
     "preview": "#06070f"
   },
@@ -11,7 +17,13 @@
     "id": "daylight",
     "name": "Daylight",
     "css": "/themes/daylight.css",
-    "iconSet": "/icons/default/_manifest.yaml",
+    "iconSet": {
+      "features": {
+        "collections": { "pack": "standard", "version": 1 },
+        "favourites": { "pack": "standard", "version": 1 },
+        "tags": { "pack": "standard", "version": 1 }
+      }
+    },
     "fontFamily": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
     "preview": "#f4f6fb"
   }
