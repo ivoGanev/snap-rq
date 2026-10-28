@@ -10,7 +10,7 @@ import { RequestApiService } from '../core/services/request.service';
 import { SelectionStateService, groupKey } from '../core/services/selection-state.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
-import { IconManifestService, DEFAULT_ICON_ID } from '../core/services/icon-manifest.service';
+import { IconManifestService } from '../core/services/icon-manifest.service';
 import {
   FOLDER_FOR_KIND,
   RequestGroupList,
@@ -555,7 +555,7 @@ export class RequestGroups {
   }
 
   async resetAppearance(): Promise<void> {
-    await this.saveAppearance({ appearance_type: 'icon', appearance_value: DEFAULT_ICON_ID });
+    await this.saveAppearance({ appearance_type: 'icon', appearance_value: this.iconManifest.defaultIconId() });
     this.closeAppearancePopup();
   }
 

@@ -13,7 +13,7 @@ import { SelectionStateService } from './core/services/selection-state.service';
 import { TagApiService } from './core/services/tag.service';
 import { ThemeService, type Theme } from './core/services/theme.service';
 import { SettingsApiService } from './core/services/settings.service';
-import { IconManifestService, DEFAULT_ICON_ID } from './core/services/icon-manifest.service';
+import { IconManifestService } from './core/services/icon-manifest.service';
 import { IconApiService } from './core/services/icon-api.service';
 import { RequestGroups } from './request-groups/request-groups';
 import { RequestsMainList } from './requests-main-list/requests-main-list';
@@ -98,7 +98,7 @@ export class App implements OnInit, AfterViewInit {
     const ids = this.iconManifest.validIconIds();
     if (ids.length === 0) return;
     try {
-      await this.iconApi.cleanupIconReferences(ids, DEFAULT_ICON_ID);
+      await this.iconApi.cleanupIconReferences(ids, this.iconManifest.defaultIconId());
     } catch (err) {
       console.error('icon cleanup failed', err);
     }

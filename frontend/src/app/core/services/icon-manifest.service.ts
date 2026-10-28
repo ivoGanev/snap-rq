@@ -20,15 +20,13 @@ export interface IconPack {
   versions: Record<number, IconPackVersion>;
 }
 
-/** The reserved default icon id (present in every pack version). */
-export const DEFAULT_ICON_ID = 'ico_1a9d4';
-
 const MANIFEST_PATH = '/icons/_manifest.yaml';
 const FEATURES = ['collections', 'favourites', 'tags'] as const;
 const FALLBACK_PACK = 'standard';
 
 /** Shape of the manifest, as parsed by the `yaml` library. */
 interface IconManifestDocument {
+  default?: string;
   id?: string[];
   packs?: Record<string, { versions?: Record<string, IconPackVersion> }>;
 }
@@ -39,6 +37,7 @@ export class IconManifestService {
 
   readonly packs = signal<Record<string, IconPack>>({});
   readonly loaded = signal(false);
+  readonly defaultIconId = signal<string>('');
 
   private idRegistry = new Set<string>();
   private resolveReady!: () => void;
@@ -81,7 +80,7 @@ export class IconManifestService {
     const filename =
       (resolved && this.fileFor(resolved.pack, resolved.version, iconId)) ||
       this.fileFor(FALLBACK_PACK, this.latestVersion(FALLBACK_PACK), iconId) ||
-      this.fileFor(FALLBACK_PACK, this.latestVersion(FALLBACK_PACK), DEFAULT_ICON_ID);
+      this.fileFor(FALLBACK_PACK, this.latestVersion(FALLBACK_PACK), this.defaultIconId());
     return filename ? this.resolvePath(filename) : undefined;
   }
 
@@ -114,6 +113,7 @@ export class IconManifestService {
       const doc = parse(text) as IconManifestDocument;
 
       this.idRegistry = new Set(doc.id ?? []);
+      this.defaultIconId.set(doc.default ?? '');
       this.packs.set(this.normalizePacks(doc.packs));
 
       this.validate();
@@ -144,6 +144,14 @@ export class IconManifestService {
    * throws here (surfaced through the APP_INITIALIZER).
    */
   private validate(): void {
+    const defaultId = this.defaultIconId();
+    if (!defaultId) {
+      throw new Error('icon manifest is missing its default icon id');
+    }
+    if (!this.idRegistry.has(defaultId)) {
+      throw new Error(`default icon ${defaultId} is not in the id registry`);
+    }
+
     // 1. Every icon id referenced in any pack version is in the registry, and
     //    every pack version includes the default icon.
     for (const [packName, pack] of Object.entries(this.packs())) {
@@ -153,8 +161,8 @@ export class IconManifestService {
             throw new Error(`icon pack ${packName}@${version} references unknown id ${id}`);
           }
         }
-        if (!(DEFAULT_ICON_ID in icons)) {
-          throw new Error(`icon pack ${packName}@${version} is missing the default icon ${DEFAULT_ICON_ID}`);
+        if (!(defaultId in icons)) {
+          throw new Error(`icon pack ${packName}@${version} is missing the default icon ${defaultId}`);
         }
       }
     }
