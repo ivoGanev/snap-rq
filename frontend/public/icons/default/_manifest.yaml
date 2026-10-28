@@ -1,10 +1,54 @@
-default: default.png
-parchment: parchment.png
-heart: heart.png
-dollars: dollars.png
-diamond: diamond.png
-rainbow: rainbow.png
-wood: wood.png
-mandala1: mandala1.png
-mandala2: mandala2.png
-mandala3: mandala3.png
+icons:
+  default:
+    file: default.png
+    label: Default
+  diamond:
+    file: diamond.png
+    label: Diamond
+  rainbow:
+    file: rainbow.png
+    label: Rainbow
+  wood:
+    file: wood.png
+    label: Wood
+  mandala1:
+    file: mandala1.png
+    label: Mandala 1
+  mandala2:
+    file: mandala2.png
+    label: Mandala 2
+  mandala3:
+    file: mandala3.png
+    label: Mandala 3
+
+packs:
+  collections:
+    version: 1
+    icons:
+      - default
+      - diamond
+      - rainbow
+      - wood
+      - mandala1
+      - mandala2
+      - mandala3
+  favourites:
+    version: 1
+    icons:
+      - default
+      - diamond
+      - rainbow
+      - wood
+      - mandala1
+      - mandala2
+      - mandala3
+  tags:
+    version: 1
+    icons:
+      - default
+      - diamond
+      - rainbow
+      - wood
+      - mandala1
+      - mandala2
+      - mandala3

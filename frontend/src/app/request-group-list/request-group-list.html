@@ -42,7 +42,7 @@
             (click)="onAppearanceClick(item, $event)"
             [attr.aria-label]="'Edit appearance for ' + item.name"
           >
-            @let cp = iconPath(item.appearance);
+            @let cp = iconPath(item);
             @if (cp) {
               <img [src]="cp" alt="" />
             } @else if (isDefaultAppearance(item.appearance)) {

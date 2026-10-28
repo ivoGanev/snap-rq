@@ -136,9 +136,10 @@ export class RequestGroupList {
     this.renameCancel.emit();
   }
 
-  iconPath(appearance: SidebarItemAppearance): string | undefined {
+  iconPath(item: SidebarItem): string | undefined {
+    const appearance = item.appearance;
     if (appearance.appearance_type !== 'icon') return undefined;
-    return this.iconManifest.pathFor(appearance.appearance_value);
+    return this.iconManifest.iconPath(FOLDER_FOR_KIND[item.kind], appearance.appearance_value);
   }
 
   colorValue(appearance: SidebarItemAppearance): string | null {

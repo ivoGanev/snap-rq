@@ -640,4 +640,10 @@ export class RequestGroups {
   isAppearanceSelected(appearance: SidebarItem['appearance'], type: 'icon' | 'color', value: string): boolean {
     return appearance.appearance_type === type && appearance.appearance_value === value;
   }
+
+  /** Icons available in the appearance popup for the targeted item's pack. */
+  appearanceIconEntries() {
+    const target = this.appearanceTarget();
+    return target ? this.iconManifest.packIcons(FOLDER_FOR_KIND[target.kind]) : [];
+  }
 }
