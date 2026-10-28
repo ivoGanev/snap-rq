@@ -1,5 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core';
-import { ThemeService, type Theme } from './theme.service';
+import { parse } from 'yaml';
+import { ThemeService } from './theme.service';
 
 export interface IconEntry {
   id: string;
@@ -26,9 +27,10 @@ const MANIFEST_PATH = '/icons/_manifest.yaml';
 const FEATURES = ['collections', 'favourites', 'tags'] as const;
 const FALLBACK_PACK = 'standard';
 
-interface Line {
-  indent: number;
-  text: string;
+/** Shape of the manifest, as parsed by the `yaml` library. */
+interface IconManifestDocument {
+  id?: string[];
+  packs?: Record<string, { versions?: Record<string, IconPackVersion> }>;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -109,9 +111,10 @@ export class IconManifestService {
         throw new Error(`Failed to load icon manifest: ${response.status}`);
       }
       const text = await response.text();
-      const parsed = this.parseManifest(text);
-      this.idRegistry = parsed.registryIds;
-      this.packs.set(parsed.packs);
+      const doc = parse(text) as IconManifestDocument;
+
+      this.idRegistry = new Set(doc.id ?? []);
+      this.packs.set(this.normalizePacks(doc.packs));
 
       this.validate();
       this.loaded.set(true);
@@ -120,6 +123,20 @@ export class IconManifestService {
       console.error('Icon registry validation failed:', err);
       this.rejectReady(err);
     }
+  }
+
+  private normalizePacks(
+    packs?: Record<string, { versions?: Record<string, IconPackVersion> }>,
+  ): Record<string, IconPack> {
+    const result: Record<string, IconPack> = {};
+    for (const [name, pack] of Object.entries(packs ?? {})) {
+      const versions: Record<number, IconPackVersion> = {};
+      for (const [version, icons] of Object.entries(pack.versions ?? {})) {
+        versions[Number(version)] = icons;
+      }
+      result[name] = { versions };
+    }
+    return result;
   }
 
   /**
@@ -164,91 +181,6 @@ export class IconManifestService {
         }
       }
     }
-  }
-
-  private parseManifest(text: string): { registryIds: Set<string>; packs: Record<string, IconPack> } {
-    const registryIds = new Set<string>();
-    const packs: Record<string, IconPack> = {};
-    const lines = this.tokenize(text);
-
-    let idx = 0;
-    while (idx < lines.length) {
-      const line = lines[idx];
-
-      if (line.indent === 0 && line.text.startsWith('id:')) {
-        const raw = line.text.slice(3).trim().replace(/[\[\]]/g, '');
-        for (const id of raw.split(',').map((s) => s.trim()).filter(Boolean)) {
-          registryIds.add(id);
-        }
-        idx++;
-      } else if (line.indent === 0 && line.text === 'packs:') {
-        idx++;
-        while (idx < lines.length && lines[idx].indent >= 2) {
-          const packLine = lines[idx];
-          const packName = packLine.text.slice(0, -1).trim();
-          const pack: IconPack = { versions: {} };
-          idx++;
-
-          while (idx < lines.length && lines[idx].indent > packLine.indent) {
-            const versionsLine = lines[idx];
-            if (versionsLine.text !== 'versions:') {
-              idx++;
-              continue;
-            }
-            idx++;
-            while (idx < lines.length && lines[idx].indent > versionsLine.indent) {
-              const versionLine = lines[idx];
-              const version = Number(versionLine.text.slice(0, -1).trim()) || 1;
-              const versionMap: IconPackVersion = {};
-              idx++;
-
-              while (idx < lines.length && lines[idx].indent > versionLine.indent) {
-                const iconLine = lines[idx];
-                const iconId = iconLine.text.slice(0, -1).trim();
-                const def: IconDefinition = { file: '' };
-                idx++;
-
-                while (idx < lines.length && lines[idx].indent > iconLine.indent) {
-                  const sub = lines[idx];
-                  const sep = sub.text.indexOf(':');
-                  if (sep !== -1) {
-                    const key = sub.text.slice(0, sep).trim();
-                    const value = this.unquote(sub.text.slice(sep + 1).trim());
-                    if (key === 'file') def.file = value;
-                    else if (key === 'label') def.label = value;
-                  }
-                  idx++;
-                }
-
-                if (def.file) versionMap[iconId] = def;
-              }
-              pack.versions[version] = versionMap;
-            }
-          }
-
-          packs[packName] = pack;
-        }
-      } else {
-        idx++;
-      }
-    }
-
-    return { registryIds, packs };
-  }
-
-  private tokenize(text: string): Line[] {
-    return text
-      .split(/\r?\n/)
-      .map((raw) => raw.replace(/\s+$/, ''))
-      .filter((raw) => raw.trim() && !raw.trim().startsWith('#'))
-      .map((raw) => ({
-        indent: raw.length - raw.trimStart().length,
-        text: raw.trim(),
-      }));
-  }
-
-  private unquote(value: string): string {
-    return value.replace(/^["']|["']$/g, '');
   }
 
   private resolvePath(filename: string): string {
