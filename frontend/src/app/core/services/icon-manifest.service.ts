@@ -38,7 +38,7 @@ export class IconManifestService {
   readonly packs = signal<Record<string, IconPack>>({});
   readonly loaded = signal(false);
 
-  private registryIds = new Set<string>();
+  private idRegistry = new Set<string>();
   private resolveReady!: () => void;
   private rejectReady!: (err: unknown) => void;
 
@@ -50,6 +50,11 @@ export class IconManifestService {
 
   constructor() {
     void this.init();
+  }
+
+  /** The full set of currently valid icon ids, for DB cleanup. */
+  validIconIds(): string[] {
+    return [...this.idRegistry];
   }
 
   /** Icons available in the given feature's active pack, for the picker. */
@@ -105,7 +110,7 @@ export class IconManifestService {
       }
       const text = await response.text();
       const parsed = this.parseManifest(text);
-      this.registryIds = parsed.registryIds;
+      this.idRegistry = parsed.registryIds;
       this.packs.set(parsed.packs);
 
       this.validate();
@@ -127,7 +132,7 @@ export class IconManifestService {
     for (const [packName, pack] of Object.entries(this.packs())) {
       for (const [version, icons] of Object.entries(pack.versions)) {
         for (const id of Object.keys(icons)) {
-          if (!this.registryIds.has(id)) {
+          if (!this.idRegistry.has(id)) {
             throw new Error(`icon pack ${packName}@${version} references unknown id ${id}`);
           }
         }

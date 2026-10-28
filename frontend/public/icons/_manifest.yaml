@@ -1,5 +1,5 @@
 # do not rename or remove
-id: [ico_1a9d4, ico_2b8e3, ico_3c7f2, ico_7k2f9, ico_4d6a1, ico_5e5b0, ico_6f4c9]
+id: [ico_1a9d4, ico_3c7f2, ico_7k2f9, ico_4d6a1, ico_5e5b0, ico_6f4c9]
 
 packs:
   standard:
@@ -8,9 +8,6 @@ packs:
         ico_1a9d4:
           file: default.png
           label: Default
-        ico_2b8e3:
-          file: diamond.png
-          label: Diamond
         ico_3c7f2:
           file: rainbow.png
           label: Rainbow
