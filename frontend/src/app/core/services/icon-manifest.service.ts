@@ -7,6 +7,9 @@ export interface IconEntry {
   path: string;
 }
 
+/** The reserved default icon id (shared by all packs). */
+export const DEFAULT_ICON_ID = 'ico_1a9d4';
+
 /** A feature's icon pack: immutable, versioned list of icon ids. */
 export interface IconPack {
   version: number;

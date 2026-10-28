@@ -13,6 +13,6 @@ type CollectionAppearance struct {
 func DefaultCollectionAppearance() CollectionAppearance {
 	return CollectionAppearance{
 		AppearanceType:  "icon",
-		AppearanceValue: "default",
+		AppearanceValue: "ico_1a9d4",
 	}
 }

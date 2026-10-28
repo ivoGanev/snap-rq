@@ -1,23 +1,23 @@
 icons:
-  default:
+  ico_1a9d4:
     file: default.png
     label: Default
-  diamond:
+  ico_2b8e3:
     file: diamond.png
     label: Diamond
-  rainbow:
+  ico_3c7f2:
     file: rainbow.png
     label: Rainbow
-  wood:
+  ico_7k2f9:
     file: wood.png
     label: Wood
-  mandala1:
+  ico_4d6a1:
     file: mandala1.png
     label: Mandala 1
-  mandala2:
+  ico_5e5b0:
     file: mandala2.png
     label: Mandala 2
-  mandala3:
+  ico_6f4c9:
     file: mandala3.png
     label: Mandala 3
 
@@ -25,30 +25,54 @@ packs:
   collections:
     version: 1
     icons:
-      - default
-      - diamond
-      - rainbow
-      - wood
-      - mandala1
-      - mandala2
-      - mandala3
+      - ico_1a9d4
+      - ico_2b8e3
+      - ico_3c7f2
+      - ico_7k2f9
+      - ico_4d6a1
+      - ico_5e5b0
+      - ico_6f4c9
+    replaces:
+      default: ico_1a9d4
+      diamond: ico_2b8e3
+      rainbow: ico_3c7f2
+      wood: ico_7k2f9
+      mandala1: ico_4d6a1
+      mandala2: ico_5e5b0
+      mandala3: ico_6f4c9
   favourites:
     version: 1
     icons:
-      - default
-      - diamond
-      - rainbow
-      - wood
-      - mandala1
-      - mandala2
-      - mandala3
+      - ico_1a9d4
+      - ico_2b8e3
+      - ico_3c7f2
+      - ico_7k2f9
+      - ico_4d6a1
+      - ico_5e5b0
+      - ico_6f4c9
+    replaces:
+      default: ico_1a9d4
+      diamond: ico_2b8e3
+      rainbow: ico_3c7f2
+      wood: ico_7k2f9
+      mandala1: ico_4d6a1
+      mandala2: ico_5e5b0
+      mandala3: ico_6f4c9
   tags:
     version: 1
     icons:
-      - default
-      - diamond
-      - rainbow
-      - wood
-      - mandala1
-      - mandala2
-      - mandala3
+      - ico_1a9d4
+      - ico_2b8e3
+      - ico_3c7f2
+      - ico_7k2f9
+      - ico_4d6a1
+      - ico_5e5b0
+      - ico_6f4c9
+    replaces:
+      default: ico_1a9d4
+      diamond: ico_2b8e3
+      rainbow: ico_3c7f2
+      wood: ico_7k2f9
+      mandala1: ico_4d6a1
+      mandala2: ico_5e5b0
+      mandala3: ico_6f4c9

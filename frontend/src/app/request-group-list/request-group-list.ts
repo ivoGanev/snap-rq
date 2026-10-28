@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import type { Collection, CollectionAppearance } from '../core/services/collection.service';
 import type { FavouriteCollection, FavouriteAppearance } from '../core/services/favourite.service';
 import type { Tag, TagAppearance } from '../core/services/tag.service';
-import { IconManifestService } from '../core/services/icon-manifest.service';
+import { IconManifestService, DEFAULT_ICON_ID } from '../core/services/icon-manifest.service';
 
 export type SidebarFolder = 'collections' | 'favourites' | 'tags';
 export type SidebarItemAppearance = CollectionAppearance | FavouriteAppearance | TagAppearance;
@@ -147,6 +147,9 @@ export class RequestGroupList {
   }
 
   isDefaultAppearance(appearance: SidebarItemAppearance): boolean {
-    return appearance.appearance_type === 'icon' && appearance.appearance_value === 'default';
+    return (
+      appearance.appearance_type === 'icon' &&
+      (appearance.appearance_value === DEFAULT_ICON_ID || appearance.appearance_value === 'default')
+    );
   }
 }
