@@ -154,6 +154,15 @@ export class RequestApiService {
     this.removeManyFromRequests(ids);
   }
 
+  /**
+   * Records a send's outcome (status code, newest response id) on the
+   * request row. This is the send flow's owned write; user edits go through
+   * update() and never touch these columns (column ownership).
+   */
+  async updateRequestResponse(id: number, statusCode: number, responseId: number): Promise<void> {
+    await RequestService.RequestService.UpdateRequestResponse(id, statusCode, responseId);
+  }
+
   async loadResponsesForRequest(requestId: number): Promise<void> {
     const all = await RequestService.RequestService.GetResponsesForRequest(requestId);
     this.responses.set(all ?? []);

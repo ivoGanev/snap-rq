@@ -1,4 +1,12 @@
-import { AfterViewInit, Component, inject, OnInit, signal, computed } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  HostListener,
+  inject,
+  OnInit,
+  signal,
+  computed,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WML } from '@wailsio/runtime';
 import { WorkspaceStateService } from './core/services/workspace-state.service';
@@ -15,12 +23,15 @@ import { ThemeService, type Theme } from './core/services/theme.service';
 import { SettingsApiService } from './core/services/settings.service';
 import { IconManifestService } from './core/services/icon-manifest.service';
 import { IconApiService } from './core/services/icon-api.service';
+import { CommandApiService } from './core/services/command.service';
 import { RequestGroups } from './request-groups/request-groups';
 import { RequestsMainList } from './requests-main-list/requests-main-list';
 import { RequestPanel } from './request-panel/request-panel';
 import { VariablesEditor } from './variables-editor/variables-editor';
 import { ZenMode } from './zen-mode/zen-mode';
 import { ContextMenuOutlet } from './context-menu-outlet/context-menu-outlet';
+import { ToastOutlet } from './toast-outlet/toast-outlet';
+import { UndoPanel } from './undo-panel/undo-panel';
 
 @Component({
   selector: 'app-root',
@@ -32,6 +43,8 @@ import { ContextMenuOutlet } from './context-menu-outlet/context-menu-outlet';
     VariablesEditor,
     ZenMode,
     ContextMenuOutlet,
+    ToastOutlet,
+    UndoPanel,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -40,6 +53,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly state = inject(WorkspaceStateService);
   protected readonly theme = inject(ThemeService);
   protected readonly settingsApi = inject(SettingsApiService);
+  protected readonly commands = inject(CommandApiService);
   private readonly projectApi = inject(ProjectApiService);
   private readonly environmentApi = inject(EnvironmentApiService);
   private readonly apiRequests = inject(ApiRequestsService);
@@ -171,6 +185,64 @@ export class App implements OnInit, AfterViewInit {
       console.error('Failed to update settings:', err);
       input.value = String(current.request_timeout_seconds);
     }
+  }
+
+  async onUndoLimitChange(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const parsed = Math.trunc(Number(input.value));
+    const value = Number.isFinite(parsed) ? Math.min(1000, Math.max(10, parsed)) : NaN;
+    const current = this.settingsApi.settings();
+    if (Number.isNaN(value) || input.value.trim() === '') {
+      input.value = String(current.undo_history_limit);
+      return;
+    }
+    input.value = String(value);
+    if (value === current.undo_history_limit) {
+      return;
+    }
+    try {
+      await this.settingsApi.update({ ...current, undo_history_limit: value });
+    } catch (err) {
+      console.error('Failed to update settings:', err);
+      input.value = String(current.undo_history_limit);
+    }
+  }
+
+  // ---------- Undo / redo hotkeys ----------
+
+  @HostListener('window:keydown.control.z', ['$event'])
+  async onUndoHotkey(event: Event): Promise<void> {
+    if (this.isEditableTarget(event)) {
+      return; // let text editors run their own text-level undo
+    }
+    event.preventDefault();
+    if (this.commands.undoDepth() === 0) return;
+    try {
+      await this.commands.undo();
+    } catch (err) {
+      console.error('Undo failed:', err);
+    }
+  }
+
+  @HostListener('window:keydown.control.shift.z', ['$event'])
+  @HostListener('window:keydown.control.y', ['$event'])
+  async onRedoHotkey(event: Event): Promise<void> {
+    if (this.isEditableTarget(event)) {
+      return;
+    }
+    event.preventDefault();
+    if (this.commands.redoDepth() === 0) return;
+    try {
+      await this.commands.redo();
+    } catch (err) {
+      console.error('Redo failed:', err);
+    }
+  }
+
+  private isEditableTarget(event: Event): boolean {
+    const target = event.target as HTMLElement | null;
+    if (!target) return false;
+    return !!target.closest('input, textarea, select, [contenteditable], .cm-editor');
   }
 
   openThemeSelector(): void {

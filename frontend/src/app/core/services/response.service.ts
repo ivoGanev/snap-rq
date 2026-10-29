@@ -96,11 +96,14 @@ export class ResponseApiService {
         duration_ms: totalDuration,
       });
 
-      await this.requestApi.update({
-        ...req,
-        status_code: rawResponse.status_code,
-        response_id: currentResponse.id,
-      });
+      // The send flow's owned write: status/response columns only. User
+      // edits (request.update) never touch these columns (column ownership),
+      // so an undo can never clobber a send's result.
+      await this.requestApi.updateRequestResponse(
+        req.id,
+        rawResponse.status_code,
+        currentResponse.id,
+      );
 
       this.requestApi.responses.update(current =>
         current.map(r => (r.id === currentResponse.id ? currentResponse : r)),

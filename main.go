@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"snap-rq/backend/commands"
 	"snap-rq/backend/database"
 	"snap-rq/backend/services"
 
@@ -48,11 +49,19 @@ func main() {
 	tagService := services.NewTagService(db)
 	iconService := services.NewIconService(db)
 
+	// Command bus: the single choke point for mutations, with memento-based
+	// undo (see specs/command-framework.md). Phase 1 pilot: request.update.
+	bus := commands.NewBus(db)
+	bus.SetLimitProvider(settingsService.UndoHistoryLimit)
+	if err := requestService.RegisterCommands(bus); err != nil {
+		log.Fatalf("registering commands: %v", err)
+	}
+
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
 	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
 	// 'Bind' is a list of Go struct instances. The frontend has access to the methods of these instances.
-	// 'Mac' options tailor the application when running an macOS.
+	// 'Mac' options tailor the application when running on a macOS.
 	app := application.New(application.Options{
 		Name:        "snap-rq-wails-v3",
 		Description: "A REST API client",
@@ -67,6 +76,7 @@ func main() {
 			application.NewService(favouriteService),
 			application.NewService(tagService),
 			application.NewService(iconService),
+			application.NewService(services.NewCommandService(bus)),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

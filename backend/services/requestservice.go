@@ -3,6 +3,7 @@
 import (
 	"crypto/tls"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"snap-rq/backend/commands"
 	"snap-rq/backend/models"
 )
 
@@ -17,6 +19,7 @@ import (
 type RequestService struct {
 	db       *sql.DB
 	settings *SettingsService
+	bus      *commands.Bus
 }
 
 // NewRequestService returns a RequestService backed by the given database.
@@ -474,8 +477,27 @@ func (s *RequestService) GetRequestSummariesForProject(projectID int64) ([]model
 	return requests, nil
 }
 
-// UpdateRequest updates an existing HTTP request.
+// UpdateRequest updates an existing HTTP request. When a command bus is
+// attached the update dispatches through the request.update command (same
+// result shape, plus undo history); the direct path remains for bus-less
+// callers such as tests.
 func (s *RequestService) UpdateRequest(req models.HttpRequest) (models.HttpRequest, error) {
+	if s.bus != nil {
+		payload, err := json.Marshal(req)
+		if err != nil {
+			return models.HttpRequest{}, fmt.Errorf("encoding request payload: %w", err)
+		}
+		out, err := s.bus.Execute(RequestUpdateCommandName, payload)
+		if err != nil {
+			return models.HttpRequest{}, err
+		}
+		updated, ok := out.(models.HttpRequest)
+		if !ok {
+			return models.HttpRequest{}, fmt.Errorf("unexpected result from %s", RequestUpdateCommandName)
+		}
+		return updated, nil
+	}
+
 	if req.ID == 0 {
 		return models.HttpRequest{}, fmt.Errorf("request id is required")
 	}
@@ -483,26 +505,27 @@ func (s *RequestService) UpdateRequest(req models.HttpRequest) (models.HttpReque
 		return models.HttpRequest{}, fmt.Errorf("collection id is required")
 	}
 
-	// When the request moves to a different collection it is appended to the
-	// end of the target collection's user order; otherwise its position is
-	// preserved. (SET expressions see the pre-update column values.)
-	_, err := s.db.Exec(
-		`UPDATE http_requests
-		 SET collection_id = ?, name = ?, url = ?, method = ?, body = ?, body_type = ?, request_headers = ?, status_code = ?, response_id = ?,
-		     user_sort_order = CASE
-		       WHEN collection_id = ? THEN user_sort_order
-		       ELSE (SELECT COALESCE(MAX(user_sort_order), -1) + 1 FROM http_requests h2 WHERE h2.collection_id = ?)
-		     END
-		 WHERE id = ?`,
-		req.CollectionID, req.Name, req.URL, req.Method, req.Body, normalizeBodyType(req.BodyType),
-		req.RequestHeaders, req.StatusCode, req.ResponseID,
-		req.CollectionID, req.CollectionID, req.ID,
-	)
-	if err != nil {
-		return models.HttpRequest{}, fmt.Errorf("updating request: %w", err)
+	if err := s.execUpdateRequest(s.db, req); err != nil {
+		return models.HttpRequest{}, err
 	}
 
 	return s.GetRequest(req.ID)
+}
+
+// UpdateRequestResponse records the outcome of a send on the request row:
+// its latest status code and newest response id. This write belongs to the
+// send flow (a System write in command terms) and is deliberately separate
+// from the user-owned request.update command, so an undo of a user edit can
+// never clobber a send's status (column ownership).
+func (s *RequestService) UpdateRequestResponse(requestID int64, statusCode int, responseID int64) error {
+	_, err := s.db.Exec(
+		`UPDATE http_requests SET status_code = ?, response_id = ? WHERE id = ?`,
+		statusCode, responseID, requestID,
+	)
+	if err != nil {
+		return fmt.Errorf("updating request response: %w", err)
+	}
+	return nil
 }
 
 // UpdateCollectionRequestOrder persists the user's custom ordering of the
@@ -1391,15 +1414,15 @@ func (s *RequestService) RestoreBinnedRequests(inputs []models.RestoreBinnedRequ
 }
 
 // PermanentlyDeleteBinnedRequest removes a single binned request forever.
+// Undo entries referencing the destroyed rows are purged so undo can never
+// resurrect data the user deliberately obliterated.
 func (s *RequestService) PermanentlyDeleteBinnedRequest(binID int64) error {
-	_, err := s.db.Exec(`DELETE FROM binned_requests WHERE id = ?`, binID)
-	if err != nil {
-		return fmt.Errorf("deleting binned request: %w", err)
-	}
-	return nil
+	return s.PermanentlyDeleteBinnedRequests([]int64{binID})
 }
 
 // PermanentlyDeleteBinnedRequests removes multiple binned requests forever.
+// Undo entries referencing the destroyed rows are purged so undo can never
+// resurrect data the user deliberately obliterated.
 func (s *RequestService) PermanentlyDeleteBinnedRequests(binIDs []int64) error {
 	if len(binIDs) == 0 {
 		return nil
@@ -1411,7 +1434,17 @@ func (s *RequestService) PermanentlyDeleteBinnedRequests(binIDs []int64) error {
 	}
 	defer tx.Rollback()
 
+	originalIDs := make([]int64, 0, len(binIDs))
 	for _, binID := range binIDs {
+		var originalID int64
+		err := tx.QueryRow(
+			`SELECT original_request_id FROM binned_requests WHERE id = ?`, binID,
+		).Scan(&originalID)
+		if err != nil {
+			return fmt.Errorf("loading binned request %d: %w", binID, err)
+		}
+		originalIDs = append(originalIDs, originalID)
+
 		if _, err := tx.Exec(`DELETE FROM binned_requests WHERE id = ?`, binID); err != nil {
 			return fmt.Errorf("deleting binned request %d: %w", binID, err)
 		}
@@ -1419,6 +1452,11 @@ func (s *RequestService) PermanentlyDeleteBinnedRequests(binIDs []int64) error {
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("committing permanent delete: %w", err)
+	}
+
+	if s.bus != nil {
+		s.bus.Purge("binned_requests", binIDs...)
+		s.bus.Purge("http_requests", originalIDs...)
 	}
 	return nil
 }

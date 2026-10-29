@@ -1,0 +1,68 @@
+<div class="undo-backdrop" (click)="close()">
+  <div class="undo-popup" (click)="$event.stopPropagation()">
+    <div class="undo-header">
+      <h3 class="undo-title">Undo history (dev)</h3>
+      <button class="undo-close" type="button" (click)="close()" aria-label="Close undo panel">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
+          <line x1="6" y1="6" x2="18" y2="18" />
+          <line x1="18" y1="6" x2="6" y2="18" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="undo-summary">
+      <span>undo: {{ commands.undoDepth() }}</span>
+      <span>redo: {{ commands.redoDepth() }}</span>
+      <span>next: {{ commands.nextUndoLabel() || '—' }}</span>
+    </div>
+
+    @if (status()) {
+      <div class="undo-status">{{ status() }}</div>
+    }
+
+    <div class="undo-body">
+      @if (ordered().length === 0 && !loading()) {
+        <div class="undo-empty">Stack is empty.</div>
+      }
+
+      <ul class="undo-list">
+        @for (entry of ordered(); track entry.seq) {
+          <li class="undo-entry" [class.is-redo]="entry.state === 'redo'">
+            <div class="undo-entry-main">
+              <span class="undo-entry-label">{{ entry.label }}</span>
+              <span class="undo-entry-command">{{ entry.command }}</span>
+            </div>
+            <div class="undo-entry-meta">
+              <span class="undo-entry-seq">#{{ entry.seq }}</span>
+              <span class="undo-entry-state">{{ entry.state }}</span>
+              <span class="undo-entry-at">{{ entry.at }}</span>
+            </div>
+            <div class="undo-entry-tables">{{ formatTables(entry) }}</div>
+            @if (entry.state === 'undo') {
+              <button class="undo-entry-rewind" type="button" (click)="rewindTo(entry)">
+                Rewind here
+              </button>
+            }
+          </li>
+        }
+      </ul>
+    </div>
+
+    <div class="undo-footer">
+      <button class="undo-button" type="button" [disabled]="commands.undoDepth() === 0" (click)="undoOnce()">
+        Undo
+      </button>
+      <button class="undo-button" type="button" [disabled]="commands.redoDepth() === 0" (click)="redoOnce()">
+        Redo
+      </button>
+      <button class="undo-button undo-button--ghost" type="button" (click)="refresh()">Refresh</button>
+    </div>
+  </div>
+</div>
