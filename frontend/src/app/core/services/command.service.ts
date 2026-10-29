@@ -68,11 +68,13 @@ export class CommandApiService {
   }
 
   async stack(): Promise<StackEntryInfo[]> {
-    return CommandService.CommandService.Stack();
+    const entries = await CommandService.CommandService.Stack();
+    return entries ?? [];
   }
 
   async listCommands(): Promise<CommandInfo[]> {
-    return CommandService.CommandService.ListCommands();
+    const commands = await CommandService.CommandService.ListCommands();
+    return commands ?? [];
   }
 
   openDevPanel(): void {
