@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { Events } from '@wailsio/runtime';
+import { Subject } from 'rxjs';
 import * as CommandService from '../../../../bindings/snap-rq/backend/services';
 import type {
   CommandInfo,
@@ -10,6 +11,13 @@ import type {
 import { ToastService } from './toast.service';
 
 export type { CommandInfo, HistorySnapshot, StackEntryInfo, UndoResult };
+
+/** Payload of the backend 'command:changed' event: IDs only, never values. */
+export interface CommandChange {
+  entity: string;
+  op: string;
+  ids: number[];
+}
 
 /**
  * Angular wrapper around the Wails-generated CommandService bindings, plus
@@ -26,8 +34,16 @@ export class CommandApiService {
   readonly nextRedoLabel = signal('');
   readonly devPanelOpen = signal(false);
 
+  /** Entity deltas from every committed command (and undo/redo replays). */
+  private readonly changes = new Subject<CommandChange[]>();
+  readonly change$ = this.changes.asObservable();
+
   constructor() {
     Events.On('command:history', ev => this.onHistory(ev.data as HistorySnapshot));
+    Events.On('command:changed', ev => {
+      const payload = ev.data as { command: string; changes: CommandChange[] | null };
+      this.changes.next(payload.changes ?? []);
+    });
   }
 
   private onHistory(history: HistorySnapshot): void {

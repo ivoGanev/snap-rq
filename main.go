@@ -50,11 +50,18 @@ func main() {
 	iconService := services.NewIconService(db)
 
 	// Command bus: the single choke point for mutations, with memento-based
-	// undo (see specs/command-framework.md). Phase 1 pilot: request.update.
+	// undo (see specs/command-framework.md). Converted so far: request
+	// update/delete, favourite collection delete, environment delete.
 	bus := commands.NewBus(db)
 	bus.SetLimitProvider(settingsService.UndoHistoryLimit)
-	if err := requestService.RegisterCommands(bus); err != nil {
-		log.Fatalf("registering commands: %v", err)
+	for _, register := range []func(*commands.Bus) error{
+		requestService.RegisterCommands,
+		favouriteService.RegisterCommands,
+		environmentService.RegisterCommands,
+	} {
+		if err := register(bus); err != nil {
+			log.Fatalf("registering commands: %v", err)
+		}
 	}
 
 	// Create a new Wails application by providing the necessary options.

@@ -1,4 +1,4 @@
-﻿package services
+package services
 
 import (
 	"crypto/tls"
@@ -746,14 +746,33 @@ func (s *RequestService) bulkUpdateStringField(ids []int64, column string, value
 	return updated, nil
 }
 
-// DeleteRequest moves an HTTP request to the trash bin.
+// DeleteRequest moves an HTTP request to the trash bin. When a command bus
+// is attached the delete dispatches through the request.delete command so it
+// is undoable; the direct path remains for bus-less callers such as tests.
 func (s *RequestService) DeleteRequest(id int64) error {
+	if s.bus != nil {
+		payload, err := json.Marshal(map[string]int64{"id": id})
+		if err != nil {
+			return err
+		}
+		_, err = s.bus.Execute(RequestDeleteCommandName, payload)
+		return err
+	}
 	_, err := s.BinRequest(id)
 	return err
 }
 
-// BulkDeleteRequests moves multiple HTTP requests to the trash bin.
+// BulkDeleteRequests moves multiple HTTP requests to the trash bin. When a
+// command bus is attached the whole batch is one undoable command.
 func (s *RequestService) BulkDeleteRequests(ids []int64) error {
+	if s.bus != nil {
+		payload, err := json.Marshal(map[string][]int64{"ids": ids})
+		if err != nil {
+			return err
+		}
+		_, err = s.bus.Execute(RequestDeleteBulkCommandName, payload)
+		return err
+	}
 	_, err := s.BinRequests(ids)
 	return err
 }
@@ -1020,7 +1039,7 @@ func (s *RequestService) SaveResponseToFile(responseID int64, filePath string) e
 func (s *RequestService) getRequestWithProjectTx(tx *sql.Tx, id int64) (models.HttpRequest, error) {
 	var req models.HttpRequest
 	row := tx.QueryRow(`
-		SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.body, hr.body_type, hr.request_headers, hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color
+		SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, COALESCE(hr.body, ''), hr.body_type, COALESCE(hr.request_headers, ''), hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color
 		FROM http_requests hr
 		JOIN collections c ON c.id = hr.collection_id
 		WHERE hr.id = ?`, id)
@@ -1036,7 +1055,7 @@ func (s *RequestService) getRequestWithProjectTx(tx *sql.Tx, id int64) (models.H
 
 func (s *RequestService) getBinnedResponsesTx(tx *sql.Tx, requestID int64) ([]models.BinnedResponseSnapshot, error) {
 	rows, err := tx.Query(`
-		SELECT id, headers, status_code, body, created_at, duration_ms
+		SELECT id, COALESCE(headers, ''), status_code, COALESCE(body, ''), created_at, duration_ms
 		FROM responses
 		WHERE request_id = ?
 		ORDER BY id`, requestID)

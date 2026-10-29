@@ -24,6 +24,7 @@ import { SettingsApiService } from './core/services/settings.service';
 import { IconManifestService } from './core/services/icon-manifest.service';
 import { IconApiService } from './core/services/icon-api.service';
 import { CommandApiService } from './core/services/command.service';
+import { StoreSyncService } from './core/services/store-sync.service';
 import { RequestGroups } from './request-groups/request-groups';
 import { RequestsMainList } from './requests-main-list/requests-main-list';
 import { RequestPanel } from './request-panel/request-panel';
@@ -54,6 +55,8 @@ export class App implements OnInit, AfterViewInit {
   protected readonly theme = inject(ThemeService);
   protected readonly settingsApi = inject(SettingsApiService);
   protected readonly commands = inject(CommandApiService);
+  /** Constructed for its side effect: reconciles stores after commands. */
+  private readonly storeSync = inject(StoreSyncService);
   private readonly projectApi = inject(ProjectApiService);
   private readonly environmentApi = inject(EnvironmentApiService);
   private readonly apiRequests = inject(ApiRequestsService);

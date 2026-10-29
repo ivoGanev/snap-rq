@@ -1,17 +1,20 @@
-﻿package services
+package services
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 
+	"snap-rq/backend/commands"
 	"snap-rq/backend/models"
 )
 
 // FavouriteService provides CRUD operations for favourite collections and the
 // items that link HTTP requests into them.
 type FavouriteService struct {
-	db *sql.DB
+	db  *sql.DB
+	bus *commands.Bus
 }
 
 // NewFavouriteService returns a FavouriteService backed by the given database.
@@ -156,8 +159,19 @@ func (s *FavouriteService) UpdateFavouriteAppearance(favouriteCollectionID int64
 }
 
 // DeleteFavouriteCollection removes a favourite collection and its items.
-// The actual HTTP requests are not deleted.
+// The actual HTTP requests are not deleted. When a command bus is attached
+// the delete dispatches through the favourite_collection.delete command so
+// it is undoable; the direct path remains for bus-less callers such as
+// tests.
 func (s *FavouriteService) DeleteFavouriteCollection(id int64) error {
+	if s.bus != nil {
+		payload, err := json.Marshal(map[string]int64{"id": id})
+		if err != nil {
+			return err
+		}
+		_, err = s.bus.Execute(FavouriteDeleteCollectionCommandName, payload)
+		return err
+	}
 	_, err := s.db.Exec("DELETE FROM favourite_collections WHERE id = ?", id)
 	if err != nil {
 		return fmt.Errorf("deleting favourite collection: %w", err)
@@ -263,7 +277,8 @@ func (s *FavouriteService) BulkUpdateFavouriteRequestColor(favouriteCollectionID
 }
 
 // RemoveRequestFromFavouriteCollection removes a request from a favourite collection.
-func (s *FavouriteService) RemoveRequestFromFavouriteCollection(favouriteCollectionID, httpRequestID int64) error {	_, err := s.db.Exec(
+func (s *FavouriteService) RemoveRequestFromFavouriteCollection(favouriteCollectionID, httpRequestID int64) error {
+	_, err := s.db.Exec(
 		"DELETE FROM favourite_items WHERE favourite_collection_id = ? AND http_request_id = ?",
 		favouriteCollectionID, httpRequestID,
 	)

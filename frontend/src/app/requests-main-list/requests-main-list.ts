@@ -483,6 +483,29 @@ export class RequestsMainList {
       this.state.multiSelectionActive.set(this.selectedRowIds().size > 1);
     });
 
+    // Command-driven data refresh (undo/redo replays included): reload the
+    // active group's data WITHOUT clearing selection or search, unlike the
+    // view-switch effect above. The initial value 0 is skipped so app start
+    // does not double-load.
+    effect(() => {
+      const refresh = this.state.dataRefresh();
+      if (refresh === 0) return;
+      untracked(() => {
+        const version = ++this.loadVersion;
+        void this.loadActiveGroup(
+          version,
+          this.state.selectedCollection()?.id ?? null,
+          this.state.selectedFavouriteCollection()?.id ?? null,
+          this.state.selectedTag(),
+          this.state.showingAllRequests(),
+          this.state.showingFamousRequests(),
+          this.state.showingBin(),
+          this.state.selectedProject()?.id ?? null,
+          this.activeGroupKey(),
+        );
+      });
+    });
+
     effect(() => {
       this.methodColumnWidth();
       this.nameColumnWidth();
