@@ -245,7 +245,8 @@ export class ApiRequestsService {
     });
   }
 
-  private removeMany(ids: number[]): void {
+  /** Drops the given requests from the store in ONE signal write. */
+  removeMany(ids: number[]): void {
     if (ids.length === 0) return;
     this.allRequests.update(map => {
       const next = { ...map };

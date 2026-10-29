@@ -2,14 +2,17 @@ package services
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 
+	"snap-rq/backend/commands"
 	"snap-rq/backend/models"
 )
 
 // EnvironmentVariableService provides CRUD operations for environment variables.
 type EnvironmentVariableService struct {
-	db *sql.DB
+	db  *sql.DB
+	bus *commands.Bus
 }
 
 // NewEnvironmentVariableService returns an EnvironmentVariableService backed by the given database.
@@ -101,8 +104,19 @@ func (s *EnvironmentVariableService) UpdateVariable(v models.EnvironmentVariable
 	return v, nil
 }
 
-// DeleteVariable removes a variable by ID.
+// DeleteVariable removes a variable by ID. When a command bus is attached
+// the delete dispatches through the environment_variable.delete command so
+// it is undoable; the direct path remains for bus-less callers such as
+// tests.
 func (s *EnvironmentVariableService) DeleteVariable(id int64) error {
+	if s.bus != nil {
+		payload, err := json.Marshal(map[string]int64{"id": id})
+		if err != nil {
+			return err
+		}
+		_, err = s.bus.Execute(EnvironmentVariableDeleteCommandName, payload)
+		return err
+	}
 	_, err := s.db.Exec(`DELETE FROM environment_variables WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("deleting variable: %w", err)

@@ -94,48 +94,53 @@ func (b *Bus) Register(cmd *Command) error {
 // Execute runs a named command. Undoable commands commit their mutation and
 // memento atomically and land on the undo stack; SideEffect and System
 // commands commit but never touch the stacks.
+//
+// Event emission happens after the mutex is released: Emit can block on a
+// busy webview, and holding the bus lock across it would stall every queued
+// command (a laggy undo).
 func (b *Bus) Execute(name string, payload json.RawMessage) (any, error) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.executeLocked(name, payload)
+	result, emissions, err := b.executeLocked(name, payload)
+	b.mu.Unlock()
+	runEmissions(emissions)
+	return result, err
 }
 
-func (b *Bus) executeLocked(name string, payload json.RawMessage) (any, error) {
+func (b *Bus) executeLocked(name string, payload json.RawMessage) (any, []func(), error) {
 	cmd, ok := b.registry[name]
 	if !ok {
-		return nil, fmt.Errorf("unknown command %q", name)
+		return nil, nil, fmt.Errorf("unknown command %q", name)
 	}
 
 	tx, err := b.db.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("beginning command transaction: %w", err)
+		return nil, nil, fmt.Errorf("beginning command transaction: %w", err)
 	}
 	defer tx.Rollback()
 
 	ctx := newContext(tx)
 	result, err := cmd.Handler(ctx, payload)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if cmd.Category == Undoable {
 		if err := ctx.captureAfterImages(); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if err := tx.Commit(); err != nil {
-			return nil, fmt.Errorf("committing command: %w", err)
+			return nil, nil, fmt.Errorf("committing command: %w", err)
 		}
 		b.pushLocked(cmd, payload, ctx)
 		b.lastAction, b.lastLabel = "execute", cmd.Label
 	} else {
 		if err := tx.Commit(); err != nil {
-			return nil, fmt.Errorf("committing command: %w", err)
+			return nil, nil, fmt.Errorf("committing command: %w", err)
 		}
 	}
 
-	b.emitChangedLocked(name, ctx.changes)
-	b.emitHistoryLocked()
-	return result, nil
+	emissions := []func(){b.changedEmission(name, ctx.changes), b.historyEmission()}
+	return result, emissions, nil
 }
 
 // pushLocked records a new undo entry, coalescing when the previous entry
@@ -190,8 +195,13 @@ type UndoResult struct {
 // transaction, the entry returns to the stack, and the error surfaces.
 func (b *Bus) Undo() (UndoResult, error) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	result, emissions, err := b.undoLocked()
+	b.mu.Unlock()
+	runEmissions(emissions)
+	return result, err
+}
 
+func (b *Bus) undoLocked() (UndoResult, []func(), error) {
 	var notices []string
 	for len(b.undo) > 0 {
 		entry := b.undo[len(b.undo)-1]
@@ -204,30 +214,34 @@ func (b *Bus) Undo() (UndoResult, error) {
 
 		if err := b.apply(entry.Memento.Before, entry.Memento.After, entry.Memento.Tables); err != nil {
 			b.undo = append(b.undo, entry)
-			return UndoResult{Notices: notices}, fmt.Errorf("undoing %s: %w", entry.Command, err)
+			return UndoResult{Notices: notices}, nil, fmt.Errorf("undoing %s: %w", entry.Command, err)
 		}
 
 		b.redo = append(b.redo, entry)
 		b.lastAction, b.lastLabel = "undo", entry.Label
-		b.emitChangedLocked(entry.Command, entry.Changes)
-		b.emitHistoryLocked()
+		emissions := []func(){b.changedEmission(entry.Command, entry.Changes), b.historyEmission()}
 		return UndoResult{
 			Command: entry.Command,
 			Label:   entry.Label,
 			Refs:    entry.refs(),
 			Notices: notices,
-		}, nil
+		}, emissions, nil
 	}
-	return UndoResult{Notices: notices}, ErrNothingToUndo
+	return UndoResult{Notices: notices}, nil, ErrNothingToUndo
 }
 
 // Redo re-applies the newest undone entry's after-image.
 func (b *Bus) Redo() (UndoResult, error) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	result, emissions, err := b.redoLocked()
+	b.mu.Unlock()
+	runEmissions(emissions)
+	return result, err
+}
 
+func (b *Bus) redoLocked() (UndoResult, []func(), error) {
 	if len(b.redo) == 0 {
-		return UndoResult{}, ErrNothingToRedo
+		return UndoResult{}, nil, ErrNothingToRedo
 	}
 
 	entry := b.redo[len(b.redo)-1]
@@ -235,18 +249,17 @@ func (b *Bus) Redo() (UndoResult, error) {
 
 	if err := b.apply(entry.Memento.After, entry.Memento.Before, entry.Memento.Tables); err != nil {
 		b.redo = append(b.redo, entry)
-		return UndoResult{}, fmt.Errorf("redoing %s: %w", entry.Command, err)
+		return UndoResult{}, nil, fmt.Errorf("redoing %s: %w", entry.Command, err)
 	}
 
 	b.undo = append(b.undo, entry)
 	b.lastAction, b.lastLabel = "redo", entry.Label
-	b.emitChangedLocked(entry.Command, entry.Changes)
-	b.emitHistoryLocked()
+	emissions := []func(){b.changedEmission(entry.Command, entry.Changes), b.historyEmission()}
 	return UndoResult{
 		Command: entry.Command,
 		Label:   entry.Label,
 		Refs:    entry.refs(),
-	}, nil
+	}, emissions, nil
 }
 
 // HistorySnapshot is the payload of EventHistory and the History() result.
@@ -396,14 +409,29 @@ type ChangedEvent struct {
 	Changes []Change `json:"changes"`
 }
 
-func (b *Bus) emitChangedLocked(name string, changes []Change) {
-	if app := application.Get(); app != nil {
-		app.Event.Emit(EventChanged, ChangedEvent{Command: name, Changes: changes})
+// changedEmission returns a closure that emits the command:changed event.
+// Emissions run outside the bus mutex so a busy webview can never stall
+// queued commands.
+func (b *Bus) changedEmission(name string, changes []Change) func() {
+	return func() {
+		if app := application.Get(); app != nil {
+			app.Event.Emit(EventChanged, ChangedEvent{Command: name, Changes: changes})
+		}
 	}
 }
 
-func (b *Bus) emitHistoryLocked() {
-	if app := application.Get(); app != nil {
-		app.Event.Emit(EventHistory, b.historyLocked())
+// historyEmission returns a closure that emits the command:history event.
+func (b *Bus) historyEmission() func() {
+	snapshot := b.historyLocked()
+	return func() {
+		if app := application.Get(); app != nil {
+			app.Event.Emit(EventHistory, snapshot)
+		}
+	}
+}
+
+func runEmissions(emissions []func()) {
+	for _, emit := range emissions {
+		emit()
 	}
 }

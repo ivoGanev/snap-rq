@@ -512,6 +512,58 @@ func (s *RequestService) UpdateRequest(req models.HttpRequest) (models.HttpReque
 	return s.GetRequest(req.ID)
 }
 
+// GetRequestSummariesByIDs returns lightweight projections of the given
+// requests, in input order. Used by the frontend's targeted store sync
+// after commands, so a single undo does not reload every summary.
+func (s *RequestService) GetRequestSummariesByIDs(ids []int64) ([]models.HttpRequestSummary, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	placeholders := ""
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		if i > 0 {
+			placeholders += ","
+		}
+		placeholders += "?"
+		args[i] = id
+	}
+
+	rows, err := s.db.Query(
+		fmt.Sprintf(`SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color
+		 FROM http_requests hr
+		 JOIN collections c ON c.id = hr.collection_id
+		 WHERE hr.id IN (%s)`, placeholders),
+		args...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("listing request summaries by ids: %w", err)
+	}
+	defer rows.Close()
+
+	byID := make(map[int64]models.HttpRequestSummary, len(ids))
+	for rows.Next() {
+		var req models.HttpRequestSummary
+		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method, &req.StatusCode, &req.ResponseID, &req.UserSortOrder, &req.UserColor); err != nil {
+			return nil, fmt.Errorf("scanning request summary: %w", err)
+		}
+		byID[req.ID] = req
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating request summaries: %w", err)
+	}
+
+	// Preserve input order; missing ids (deleted concurrently) are skipped.
+	summaries := make([]models.HttpRequestSummary, 0, len(ids))
+	for _, id := range ids {
+		if req, ok := byID[id]; ok {
+			summaries = append(summaries, req)
+		}
+	}
+	return summaries, nil
+}
+
 // UpdateRequestResponse records the outcome of a send on the request row:
 // its latest status code and newest response id. This write belongs to the
 // send flow (a System write in command terms) and is deliberately separate

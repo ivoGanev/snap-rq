@@ -58,6 +58,7 @@ func main() {
 		requestService.RegisterCommands,
 		favouriteService.RegisterCommands,
 		environmentService.RegisterCommands,
+		environmentVariableService.RegisterCommands,
 	} {
 		if err := register(bus); err != nil {
 			log.Fatalf("registering commands: %v", err)

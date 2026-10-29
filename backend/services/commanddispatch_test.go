@@ -229,3 +229,49 @@ func TestDeleteEnvironmentViaBusIsUndoable(t *testing.T) {
 		t.Errorf("expected restored variable value, got %q", value)
 	}
 }
+
+func TestDeleteVariableViaBusIsUndoable(t *testing.T) {
+	db := newTestDB(t)
+	runMigrations(t, db)
+	createEnvironmentTables(t, db)
+
+	if _, err := db.Exec(`
+		INSERT INTO profiles (name) VALUES ('p');
+		INSERT INTO projects (profile_id) VALUES (1);
+		INSERT INTO environments (project_id, name) VALUES (1, 'Default');
+		INSERT INTO environment_variables (environment_id, key, value) VALUES (1, 'API_KEY', 'secret-1');
+		INSERT INTO environment_variables (environment_id, key, value) VALUES (1, 'BASE_URL', 'http://x');
+	`); err != nil {
+		t.Fatalf("seeding: %v", err)
+	}
+
+	service := NewEnvironmentVariableService(db)
+	bus := commands.NewBus(db)
+	if err := service.RegisterCommands(bus); err != nil {
+		t.Fatalf("registering commands: %v", err)
+	}
+
+	if err := service.DeleteVariable(1); err != nil {
+		t.Fatalf("deleting variable: %v", err)
+	}
+
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM environment_variables WHERE id = 1").Scan(&count); err != nil {
+		t.Fatalf("counting variables: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected variable deleted")
+	}
+
+	if _, err := bus.Undo(); err != nil {
+		t.Fatalf("undoing delete: %v", err)
+	}
+
+	var value string
+	if err := db.QueryRow("SELECT value FROM environment_variables WHERE id = 1").Scan(&value); err != nil {
+		t.Fatalf("reading restored variable: %v", err)
+	}
+	if value != "secret-1" {
+		t.Errorf("expected restored variable value, got %q", value)
+	}
+}

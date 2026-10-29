@@ -67,6 +67,12 @@ export class RequestApiService {
     return RequestService.RequestService.GetRequest(id);
   }
 
+  /** Targeted summary fetch for the store sync; skips ids that no longer exist. */
+  async getSummariesByIds(ids: number[]): Promise<HttpRequestSummary[]> {
+    const result = await RequestService.RequestService.GetRequestSummariesByIDs(ids);
+    return result ?? [];
+  }
+
   async loadAll(): Promise<void> {
     const all = await RequestService.RequestService.GetAllRequestSummaries();
     this.requests.set(all ?? []);
