@@ -52,8 +52,10 @@ backend. It serves three purposes:
 - UI state (selection, open tabs, scroll) is **restored as a side effect** of
   undo results using the entry's entity references. It never goes on the stack.
 - Secrets safety: mementos may hold previous environment-variable values, but
-  they live only in backend memory — never persisted, logged, or shipped in
-  change events (events carry IDs; the frontend refetches).
+  they are never logged or shipped in change events (events carry IDs; the
+  frontend refetches). They persist only inside the app's own `undo_history`
+  table (see below) — the same local-DB threat model as the live table — and
+  are bounded by the stack caps.
 
 ## Mutation classification
 
@@ -97,8 +99,43 @@ registry for automation). The per-service mutation methods on the existing
 Wails services become thin dispatchers over the same command names during
 migration and are deprecated once the frontend is fully converted.
 
+## Crash-safe persistence (Phase 4)
+
+In-memory stacks survive view reloads but not app crashes. Since a committed
+mutation without its undo entry is unrecoverable (the accidental project
+delete), history is persisted in **one table**, same JSON-snapshot pattern as
+`binned_requests.snapshot_json`:
+
+```sql
+CREATE TABLE undo_history (
+	seq           INTEGER PRIMARY KEY,   -- execution order
+	command_name  TEXT NOT NULL,
+	label         TEXT NOT NULL,
+	coalesce_key  TEXT NOT NULL DEFAULT '',
+	memento_json  TEXT NOT NULL,          -- before/after row images
+	created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	state         TEXT NOT NULL CHECK(state IN ('undo', 'redo'))
+);
+```
+
+- **The history row is written in the SAME transaction as the mutation.**
+  A crash can never separate a committed change from its undo entry: either
+  the project delete and its restore memento land together, or neither lands.
+  This single rule is what makes the crash scenario safe.
+- Undo/redo apply their memento and flip `state` in one transaction — a crash
+  mid-undo leaves no half-state.
+- A new undoable command deletes all `redo` rows and appends the next `seq`;
+  the redo fork is discarded exactly as in memory. Invariant: every `redo`
+  row's seq is above every `undo` row's.
+- Coalescing updates the newest row in place; entry/byte caps evict oldest
+  rows; startup rebuilds both stacks by reading the (capped, small) table.
+- Memento maps are keyed by column name, so old entries tolerate later schema
+  migrations (extra/missing columns are simply not restored).
+
+Cost: every undoable command also writes its memento to disk — bounded by the
+caps, and the bin already writes comparable snapshots today.
+
 ## Non-goals for v1
 
 - No transport for external callers (CLI/HTTP/agent) — contract only.
-- No persistent undo across app restarts.
 - No multi-user concerns, no time travel beyond redo.
