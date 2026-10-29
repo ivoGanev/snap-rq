@@ -57,6 +57,33 @@ backend. It serves three purposes:
   table (see below) — the same local-DB threat model as the live table — and
   are bounded by the stack caps.
 
+## Unwind correctness rules
+
+Memento restore is only safe under these rules; they are part of the
+framework contract, not implementation details:
+
+- **LIFO only.** Stack discipline is load-bearing: nothing outside later
+  entries can reference a memented row, so reverse-order unwind is always
+  referentially safe. The public interface therefore exposes only
+  Undo/Redo — never "undo entry #N" — including for future AI callers.
+- **Diff-based restore.** Undoing an update restores only the columns that
+  differ between its Before/After images, so interleaved non-undoable
+  writes to other columns (a send updating `status_code`/`response_id`)
+  are never clobbered.
+- **Column ownership.** Undoable commands never write columns owned by
+  non-undoable paths (`status_code`, `response_id` belong to the send
+  flow); the two write families must not overlap on any column.
+- **AUTOINCREMENT everywhere.** Every memented table keeps AUTOINCREMENT;
+  plain `max(id)+1` reuse could silently rewire an old entry onto a new row.
+- **Reference-based purge.** Explicitly permanent operations (permanently
+  emptying the bin) purge stack entries whose mementos reference the
+  destroyed rows — undo must never resurrect something the user
+  deliberately obliterated.
+- **Loud failures.** UNIQUE conflicts or schema-migration damage make a
+  restore fail its transaction; the entry is skipped with a visible
+  notice, never partially applied. Persisted history (Phase 4) widens
+  exposure to this and relies on the same containment.
+
 ## Mutation classification
 
 **Undoable** — create/delete/rename/edit/duplicate of: requests, collections,
