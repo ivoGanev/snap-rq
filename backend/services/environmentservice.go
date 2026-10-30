@@ -2,19 +2,17 @@ package services
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
-	"snap-rq/backend/commands"
 	"snap-rq/backend/models"
 )
 
-// EnvironmentService provides CRUD operations for environments.
+// EnvironmentService provides CRUD operations for environments. Deleting
+// an environment runs through the command history; see commands.go in
+// this package.
 type EnvironmentService struct {
-	db      *sql.DB
-	history *commands.History
+	db *sql.DB
 }
 
 // NewEnvironmentService returns an EnvironmentService backed by the given database.
@@ -107,46 +105,4 @@ func (s *EnvironmentService) UpdateEnvironment(env models.Environment) (models.E
 	}
 
 	return env, nil
-}
-
-// DeleteEnvironment removes an environment and all of its variables by ID.
-// It refuses to delete the default environment for a project. When a command
-// bus is attached the delete dispatches through the environment.delete
-// command so it is undoable; the direct path remains for bus-less callers
-// such as tests.
-func (s *EnvironmentService) DeleteEnvironment(id int64) error {
-	if s.history != nil {
-		payload, err := json.Marshal(map[string]int64{"id": id})
-		if err != nil {
-			return err
-		}
-		_, err = s.history.Run(EnvironmentDeleteCommandName, payload)
-		return err
-	}
-
-	tx, err := s.db.Begin()
-	if err != nil {
-		return fmt.Errorf("beginning transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	var name string
-	err = tx.QueryRow(`SELECT name FROM environments WHERE id = ?`, id).Scan(&name)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return fmt.Errorf("environment not found")
-		}
-		return fmt.Errorf("loading environment: %w", err)
-	}
-
-	if strings.EqualFold(name, "Default") {
-		return fmt.Errorf("cannot delete the default environment")
-	}
-
-	_, err = tx.Exec(`DELETE FROM environments WHERE id = ?`, id)
-	if err != nil {
-		return fmt.Errorf("deleting environment: %w", err)
-	}
-
-	return tx.Commit()
 }

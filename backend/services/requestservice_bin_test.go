@@ -2,6 +2,8 @@ package services
 
 import (
 	"database/sql"
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	_ "modernc.org/sqlite"
@@ -200,8 +202,6 @@ func TestDeleteRequestBinsRequest(t *testing.T) {
 	defer db.Close()
 	runMigrations(t, db)
 
-	svc := NewRequestService(db)
-
 	res, err := db.Exec("INSERT INTO profiles (name) VALUES (?)", "p")
 	if err != nil {
 		t.Fatalf("insert profile: %v", err)
@@ -227,8 +227,9 @@ func TestDeleteRequestBinsRequest(t *testing.T) {
 	}
 	requestID, _ := res.LastInsertId()
 
-	if err := svc.DeleteRequest(requestID); err != nil {
-		t.Fatalf("DeleteRequest failed: %v", err)
+	history := newCommandTestHistory(t, db)
+	if _, err := history.Run(RequestDeleteCommandName, json.RawMessage(fmt.Sprintf(`{"id":%d}`, requestID))); err != nil {
+		t.Fatalf("deleting request failed: %v", err)
 	}
 
 	var count int
@@ -250,8 +251,6 @@ func TestBulkDeleteRequestsBinsRequests(t *testing.T) {
 	db := newTestDB(t)
 	defer db.Close()
 	runMigrations(t, db)
-
-	svc := NewRequestService(db)
 
 	res, err := db.Exec("INSERT INTO profiles (name) VALUES (?)", "p")
 	if err != nil {
@@ -282,8 +281,13 @@ func TestBulkDeleteRequestsBinsRequests(t *testing.T) {
 		ids = append(ids, id)
 	}
 
-	if err := svc.BulkDeleteRequests(ids); err != nil {
-		t.Fatalf("BulkDeleteRequests failed: %v", err)
+	history := newCommandTestHistory(t, db)
+	bulkPayload, err := json.Marshal(map[string][]int64{"ids": ids})
+	if err != nil {
+		t.Fatalf("encoding ids: %v", err)
+	}
+	if _, err := history.Run(RequestDeleteBulkCommandName, bulkPayload); err != nil {
+		t.Fatalf("deleting requests failed: %v", err)
 	}
 
 	var count int

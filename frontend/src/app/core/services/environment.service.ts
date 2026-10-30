@@ -1,11 +1,14 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import * as EnvironmentService from '../../../../bindings/snap-rq/backend/services';
 import type { Environment } from '../../../../bindings/snap-rq/backend/models';
+import { CommandApiService } from './command.service';
 
 export type { Environment };
 
 @Injectable({ providedIn: 'root' })
 export class EnvironmentApiService {
+  private readonly commands = inject(CommandApiService);
+
   readonly environments = signal<Environment[]>([]);
 
   async loadForProject(projectId: number): Promise<void> {
@@ -28,7 +31,6 @@ export class EnvironmentApiService {
   }
 
   async delete(id: number): Promise<void> {
-    await EnvironmentService.EnvironmentService.DeleteEnvironment(id);
-    this.environments.update(list => list.filter(e => e.id !== id));
+    await this.commands.execute('environment.delete', { id });
   }
 }

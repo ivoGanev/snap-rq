@@ -2,12 +2,42 @@ package services
 
 import (
 	"database/sql"
+	"encoding/json"
 	"testing"
 
 	"snap-rq/backend/commands"
-
-	_ "modernc.org/sqlite"
 )
+
+// newCommandTestHistory registers the full command list against a fresh
+// history, the way the app does at startup, so tests can run mutations the
+// way the app does: by command name.
+func newCommandTestHistory(t *testing.T, db *sql.DB) *commands.History {
+	t.Helper()
+	history := commands.NewHistory(db)
+	err := RegisterCommands(history,
+		NewRequestService(db),
+		NewFavouriteService(db),
+		NewEnvironmentService(db),
+		NewEnvironmentVariableService(db),
+	)
+	if err != nil {
+		t.Fatalf("registering commands: %v", err)
+	}
+	return history
+}
+
+func runCommand(t *testing.T, history *commands.History, name string, payload any) any {
+	t.Helper()
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("encoding payload: %v", err)
+	}
+	out, err := history.Run(name, raw)
+	if err != nil {
+		t.Fatalf("running %s: %v", name, err)
+	}
+	return out
+}
 
 // createEnvironmentTables adds the environments tables the shared test
 // schema lacks, mirroring production including the FK cascade.
@@ -49,9 +79,10 @@ func createFavouriteAppearanceTable(t *testing.T, db *sql.DB) {
 	}
 }
 
-func TestDeleteRequestViaBusIsUndoable(t *testing.T) {
+func TestDeleteRequestViaHistoryIsUndoable(t *testing.T) {
 	db := newTestDB(t)
 	runMigrations(t, db)
+	history := newCommandTestHistory(t, db)
 
 	if _, err := db.Exec(`
 		INSERT INTO profiles (name) VALUES ('p');
@@ -67,16 +98,7 @@ func TestDeleteRequestViaBusIsUndoable(t *testing.T) {
 		t.Fatalf("seeding: %v", err)
 	}
 
-	service := NewRequestService(db)
-	bus := commands.NewHistory(db)
-	if err := service.RegisterCommands(bus); err != nil {
-		t.Fatalf("registering commands: %v", err)
-	}
-
-	// Delete through the dispatcher (what the frontend calls).
-	if err := service.DeleteRequest(1); err != nil {
-		t.Fatalf("deleting request: %v", err)
-	}
+	runCommand(t, history, RequestDeleteCommandName, map[string]int64{"id": 1})
 
 	var count int
 	if err := db.QueryRow("SELECT COUNT(*) FROM http_requests").Scan(&count); err != nil {
@@ -93,7 +115,7 @@ func TestDeleteRequestViaBusIsUndoable(t *testing.T) {
 		t.Fatalf("expected one binned request, got %d", binCount)
 	}
 
-	if _, err := bus.Undo(); err != nil {
+	if _, err := history.Undo(); err != nil {
 		t.Fatalf("undoing delete: %v", err)
 	}
 
@@ -124,10 +146,11 @@ func TestDeleteRequestViaBusIsUndoable(t *testing.T) {
 	}
 }
 
-func TestDeleteFavouriteCollectionViaBusIsUndoable(t *testing.T) {
+func TestDeleteFavouriteCollectionViaHistoryIsUndoable(t *testing.T) {
 	db := newTestDB(t)
 	runMigrations(t, db)
 	createFavouriteAppearanceTable(t, db)
+	history := newCommandTestHistory(t, db)
 
 	if _, err := db.Exec(`
 		INSERT INTO profiles (name) VALUES ('p');
@@ -141,15 +164,7 @@ func TestDeleteFavouriteCollectionViaBusIsUndoable(t *testing.T) {
 		t.Fatalf("seeding: %v", err)
 	}
 
-	service := NewFavouriteService(db)
-	bus := commands.NewHistory(db)
-	if err := service.RegisterCommands(bus); err != nil {
-		t.Fatalf("registering commands: %v", err)
-	}
-
-	if err := service.DeleteFavouriteCollection(1); err != nil {
-		t.Fatalf("deleting favourite collection: %v", err)
-	}
+	runCommand(t, history, FavouriteDeleteCollectionCommandName, map[string]int64{"id": 1})
 
 	var count int
 	if err := db.QueryRow("SELECT COUNT(*) FROM favourite_collections").Scan(&count); err != nil {
@@ -159,7 +174,7 @@ func TestDeleteFavouriteCollectionViaBusIsUndoable(t *testing.T) {
 		t.Fatalf("expected favourite collection deleted")
 	}
 
-	if _, err := bus.Undo(); err != nil {
+	if _, err := history.Undo(); err != nil {
 		t.Fatalf("undoing delete: %v", err)
 	}
 
@@ -175,10 +190,11 @@ func TestDeleteFavouriteCollectionViaBusIsUndoable(t *testing.T) {
 	}
 }
 
-func TestDeleteEnvironmentViaBusIsUndoable(t *testing.T) {
+func TestDeleteEnvironmentViaHistoryIsUndoable(t *testing.T) {
 	db := newTestDB(t)
 	runMigrations(t, db)
 	createEnvironmentTables(t, db)
+	history := newCommandTestHistory(t, db)
 
 	if _, err := db.Exec(`
 		INSERT INTO profiles (name) VALUES ('p');
@@ -190,20 +206,12 @@ func TestDeleteEnvironmentViaBusIsUndoable(t *testing.T) {
 		t.Fatalf("seeding: %v", err)
 	}
 
-	service := NewEnvironmentService(db)
-	bus := commands.NewHistory(db)
-	if err := service.RegisterCommands(bus); err != nil {
-		t.Fatalf("registering commands: %v", err)
-	}
-
 	// The default environment is still refused through the command path.
-	if err := service.DeleteEnvironment(1); err == nil {
+	if _, err := history.Run(EnvironmentDeleteCommandName, json.RawMessage(`{"id":1}`)); err == nil {
 		t.Fatalf("expected default environment delete to be refused")
 	}
 
-	if err := service.DeleteEnvironment(2); err != nil {
-		t.Fatalf("deleting environment: %v", err)
-	}
+	runCommand(t, history, EnvironmentDeleteCommandName, map[string]int64{"id": 2})
 
 	var count int
 	if err := db.QueryRow("SELECT COUNT(*) FROM environments WHERE id = 2").Scan(&count); err != nil {
@@ -213,7 +221,7 @@ func TestDeleteEnvironmentViaBusIsUndoable(t *testing.T) {
 		t.Fatalf("expected environment deleted")
 	}
 
-	if _, err := bus.Undo(); err != nil {
+	if _, err := history.Undo(); err != nil {
 		t.Fatalf("undoing delete: %v", err)
 	}
 
@@ -230,10 +238,11 @@ func TestDeleteEnvironmentViaBusIsUndoable(t *testing.T) {
 	}
 }
 
-func TestDeleteVariableViaBusIsUndoable(t *testing.T) {
+func TestDeleteVariableViaHistoryIsUndoable(t *testing.T) {
 	db := newTestDB(t)
 	runMigrations(t, db)
 	createEnvironmentTables(t, db)
+	history := newCommandTestHistory(t, db)
 
 	if _, err := db.Exec(`
 		INSERT INTO profiles (name) VALUES ('p');
@@ -245,15 +254,7 @@ func TestDeleteVariableViaBusIsUndoable(t *testing.T) {
 		t.Fatalf("seeding: %v", err)
 	}
 
-	service := NewEnvironmentVariableService(db)
-	bus := commands.NewHistory(db)
-	if err := service.RegisterCommands(bus); err != nil {
-		t.Fatalf("registering commands: %v", err)
-	}
-
-	if err := service.DeleteVariable(1); err != nil {
-		t.Fatalf("deleting variable: %v", err)
-	}
+	runCommand(t, history, EnvironmentVariableDeleteCommandName, map[string]int64{"id": 1})
 
 	var count int
 	if err := db.QueryRow("SELECT COUNT(*) FROM environment_variables WHERE id = 1").Scan(&count); err != nil {
@@ -263,7 +264,7 @@ func TestDeleteVariableViaBusIsUndoable(t *testing.T) {
 		t.Fatalf("expected variable deleted")
 	}
 
-	if _, err := bus.Undo(); err != nil {
+	if _, err := history.Undo(); err != nil {
 		t.Fatalf("undoing delete: %v", err)
 	}
 
@@ -273,5 +274,54 @@ func TestDeleteVariableViaBusIsUndoable(t *testing.T) {
 	}
 	if value != "secret-1" {
 		t.Errorf("expected restored variable value, got %q", value)
+	}
+}
+
+func TestPermanentDeleteForgetsUndoSteps(t *testing.T) {
+	db := newTestDB(t)
+	runMigrations(t, db)
+
+	// The permanent delete goes through the same service instance whose
+	// commands were registered, the way the app wires it.
+	requests := NewRequestService(db)
+	history := commands.NewHistory(db)
+	err := RegisterCommands(history,
+		requests, NewFavouriteService(db), NewEnvironmentService(db), NewEnvironmentVariableService(db))
+	if err != nil {
+		t.Fatalf("registering commands: %v", err)
+	}
+
+	if _, err := db.Exec(`
+		INSERT INTO profiles (name) VALUES ('p');
+		INSERT INTO projects (profile_id) VALUES (1);
+		INSERT INTO collections (project_id, name) VALUES (1, 'col');
+		INSERT INTO http_requests (collection_id, name, url, method) VALUES (1, 'victim', 'http://x', 'GET');
+	`); err != nil {
+		t.Fatalf("seeding: %v", err)
+	}
+
+	// Delete a request, then permanently destroy the bin row.
+	runCommand(t, history, RequestDeleteCommandName, map[string]int64{"id": 1})
+	if _, err := history.Undo(); err != nil {
+		t.Fatalf("undoing delete: %v", err)
+	}
+	runCommand(t, history, RequestDeleteCommandName, map[string]int64{"id": 1})
+
+	var binID int64
+	if err := db.QueryRow("SELECT id FROM binned_requests").Scan(&binID); err != nil {
+		t.Fatalf("reading bin row: %v", err)
+	}
+	if err := requests.PermanentlyDeleteBinnedRequests([]int64{binID}); err != nil {
+		t.Fatalf("permanently deleting: %v", err)
+	}
+
+	// The delete step and its redo step are gone: undo must never bring
+	// back something the user meant to destroy.
+	status := history.Status()
+	if status.UndoSteps != 0 {
+		t.Errorf("expected no undo steps left, got %d", status.UndoSteps)
+	}
+	if _, err := history.Redo(); err == nil {
+		t.Errorf("expected redo to be impossible")
 	}
 }

@@ -1,14 +1,19 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import * as FavouriteService from '../../../../bindings/snap-rq/backend/services';
 import type { FavouriteCollection, FavouriteItem, FavouriteAppearance, HttpRequestSummary } from '../../../../bindings/snap-rq/backend/models';
+import { CommandApiService } from './command.service';
 
 export type { FavouriteCollection, FavouriteItem, FavouriteAppearance };
 
 /**
  * Angular wrapper around the Wails-generated FavouriteService bindings.
+ * Deleting a collection runs as a command through the history, so it is
+ * undoable; everything else calls the bindings directly.
  */
 @Injectable({ providedIn: 'root' })
 export class FavouriteApiService {
+  private readonly commands = inject(CommandApiService);
+
   readonly collections = signal<FavouriteCollection[]>([]);
   /** Favourite collection contents are displayed as list items (summary view). */
   readonly requests = signal<HttpRequestSummary[]>([]);
@@ -54,7 +59,7 @@ export class FavouriteApiService {
   }
 
   async deleteCollection(id: number): Promise<void> {
-    await FavouriteService.FavouriteService.DeleteFavouriteCollection(id);
+    await this.commands.execute('favourite_collection.delete', { id });
     this.collections.update(list => list.filter(c => c.id !== id));
   }
 

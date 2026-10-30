@@ -3,7 +3,6 @@ package services
 import (
 	"crypto/tls"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,15 +10,18 @@ import (
 	"strings"
 	"time"
 
-	"snap-rq/backend/commands"
 	"snap-rq/backend/models"
 )
 
 // RequestService provides CRUD operations for saved HTTP requests.
+// Mutations that exist as commands (update, delete) run through the
+// command history; see commands.go in this package.
 type RequestService struct {
 	db       *sql.DB
 	settings *SettingsService
-	history  *commands.History
+	// forgetUndo is set when commands are registered; permanently deleting
+	// binned requests uses it to drop the undo steps that involve them.
+	forgetUndo func(table string, ids ...int64)
 }
 
 // NewRequestService returns a RequestService backed by the given database.
@@ -477,41 +479,6 @@ func (s *RequestService) GetRequestSummariesForProject(projectID int64) ([]model
 	return requests, nil
 }
 
-// UpdateRequest updates an existing HTTP request. When a command bus is
-// attached the update dispatches through the request.update command (same
-// result shape, plus undo history); the direct path remains for bus-less
-// callers such as tests.
-func (s *RequestService) UpdateRequest(req models.HttpRequest) (models.HttpRequest, error) {
-	if s.history != nil {
-		payload, err := json.Marshal(req)
-		if err != nil {
-			return models.HttpRequest{}, fmt.Errorf("encoding request payload: %w", err)
-		}
-		out, err := s.history.Run(RequestUpdateCommandName, payload)
-		if err != nil {
-			return models.HttpRequest{}, err
-		}
-		updated, ok := out.(models.HttpRequest)
-		if !ok {
-			return models.HttpRequest{}, fmt.Errorf("unexpected result from %s", RequestUpdateCommandName)
-		}
-		return updated, nil
-	}
-
-	if req.ID == 0 {
-		return models.HttpRequest{}, fmt.Errorf("request id is required")
-	}
-	if req.CollectionID == 0 {
-		return models.HttpRequest{}, fmt.Errorf("collection id is required")
-	}
-
-	if err := s.execUpdateRequest(s.db, req); err != nil {
-		return models.HttpRequest{}, err
-	}
-
-	return s.GetRequest(req.ID)
-}
-
 // GetRequestSummariesByIDs returns lightweight projections of the given
 // requests, in input order. Used by the frontend's targeted store sync
 // after commands, so a single undo does not reload every summary.
@@ -796,37 +763,6 @@ func (s *RequestService) bulkUpdateStringField(ids []int64, column string, value
 	}
 
 	return updated, nil
-}
-
-// DeleteRequest moves an HTTP request to the trash bin. When a command bus
-// is attached the delete dispatches through the request.delete command so it
-// is undoable; the direct path remains for bus-less callers such as tests.
-func (s *RequestService) DeleteRequest(id int64) error {
-	if s.history != nil {
-		payload, err := json.Marshal(map[string]int64{"id": id})
-		if err != nil {
-			return err
-		}
-		_, err = s.history.Run(RequestDeleteCommandName, payload)
-		return err
-	}
-	_, err := s.BinRequest(id)
-	return err
-}
-
-// BulkDeleteRequests moves multiple HTTP requests to the trash bin. When a
-// command bus is attached the whole batch is one undoable command.
-func (s *RequestService) BulkDeleteRequests(ids []int64) error {
-	if s.history != nil {
-		payload, err := json.Marshal(map[string][]int64{"ids": ids})
-		if err != nil {
-			return err
-		}
-		_, err = s.history.Run(RequestDeleteBulkCommandName, payload)
-		return err
-	}
-	_, err := s.BinRequests(ids)
-	return err
 }
 
 // RequestToCurl converts an HttpRequest into an equivalent curl command string.
@@ -1525,9 +1461,9 @@ func (s *RequestService) PermanentlyDeleteBinnedRequests(binIDs []int64) error {
 		return fmt.Errorf("committing permanent delete: %w", err)
 	}
 
-	if s.history != nil {
-		s.history.ForgetRows("binned_requests", binIDs...)
-		s.history.ForgetRows("http_requests", originalIDs...)
+	if s.forgetUndo != nil {
+		s.forgetUndo("binned_requests", binIDs...)
+		s.forgetUndo("http_requests", originalIDs...)
 	}
 	return nil
 }

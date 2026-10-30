@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"testing"
 
 	"snap-rq/backend/models"
@@ -52,11 +53,20 @@ func TestUserSortOrderAppendAndReorder(t *testing.T) {
 	}
 
 	// Moving a request to another collection appends it to the target order.
-	moved, err := rs.UpdateRequest(models.HttpRequest{
+	history := newCommandTestHistory(t, db)
+	movePayload, err := json.Marshal(models.HttpRequest{
 		ID: ids[0], CollectionID: 11, Name: "alpha", URL: "http://x", Method: "GET",
 	})
 	if err != nil {
+		t.Fatalf("encoding move payload: %v", err)
+	}
+	movedOut, err := history.Run(RequestUpdateCommandName, movePayload)
+	if err != nil {
 		t.Fatalf("moving request: %v", err)
+	}
+	moved, ok := movedOut.(models.HttpRequest)
+	if !ok {
+		t.Fatalf("expected an HttpRequest back, got %T", movedOut)
 	}
 	if moved.UserSortOrder != 0 {
 		t.Fatalf("moved request user_sort_order = %d, want 0", moved.UserSortOrder)

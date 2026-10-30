@@ -44,7 +44,7 @@
               <span class="undo-entry-state">{{ step.state }}</span>
               <span class="undo-entry-at">{{ step.at }}</span>
             </div>
-            <div class="undo-entry-tables">{{ formatTables(step) }}</div>
+            <div class="undo-entry-tables">{{ step.rows }}</div>
             @if (step.state === 'undo') {
               <button class="undo-entry-rewind" type="button" (click)="rewindTo(step)">
                 Rewind here

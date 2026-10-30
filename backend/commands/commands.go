@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -33,10 +35,6 @@ type Command struct {
 	// Undoable is false for changes we cannot take back: a request that
 	// was sent, or history that must never be rewritten (responses).
 	Undoable bool
-	// MergeKey groups quick repeats into one undo step: renaming the same
-	// request five times in a row should be one "Rename", not five.
-	// Return "" for commands that never merge. nil means never.
-	MergeKey func(input json.RawMessage) string
 	// Apply does the work. Use tx for SQL and rec to say which rows to
 	// save copies of. The return value goes back to the caller unchanged.
 	Apply func(tx *sql.Tx, rec *Recorder, input json.RawMessage) (any, error)
@@ -177,15 +175,33 @@ func (r *Recorder) saveAfterCopies() error {
 	return nil
 }
 
+// rowsKey names the rows being watched, e.g. "http_requests:42". Two runs
+// of the same command with the same rowsKey are the same edit repeated —
+// that is how quick repeats are recognised as one undo step.
+func (r *Recorder) rowsKey() string {
+	parts := make([]string, 0, 16)
+	for _, table := range r.tables {
+		ids := make([]int64, 0, len(r.reread[table]))
+		for id := range r.reread[table] {
+			ids = append(ids, id)
+		}
+		sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+		for _, id := range ids {
+			parts = append(parts, table+":"+strconv.FormatInt(id, 10))
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
 // step gathers everything the recorder saw into one undo step. Rows are
 // listed parents-first, in the order their tables were mentioned.
-func (r *Recorder) step(cmd *Command, mergeKey string) *UndoStep {
+func (r *Recorder) step(cmd *Command) *UndoStep {
 	step := &UndoStep{
-		Command:  cmd.Name,
-		Label:    cmd.Label,
-		When:     time.Now(),
-		MergeKey: mergeKey,
-		Touched:  r.touched,
+		Command: cmd.Name,
+		Label:   cmd.Label,
+		When:    time.Now(),
+		Touched: r.touched,
+		rowsKey: r.rowsKey(),
 	}
 	for _, table := range r.tables {
 		step.Before = append(step.Before, sortedRows(r.saved[table])...)

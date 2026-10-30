@@ -1,14 +1,19 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import * as RequestService from '../../../../bindings/snap-rq/backend/services';
 import type { HttpRequest, HttpResponse, HttpRequestSummary } from '../../../../bindings/snap-rq/backend/models';
+import { CommandApiService } from './command.service';
 
 export type { HttpRequest, HttpResponse, HttpRequestSummary };
 
 /**
  * Angular wrapper around the Wails-generated RequestService bindings.
+ * Update and delete run as commands through the history, so they are
+ * undoable; everything else calls the bindings directly.
  */
 @Injectable({ providedIn: 'root' })
 export class RequestApiService {
+  private readonly commands = inject(CommandApiService);
+
   /** Request list used by collection/all-request views (lightweight summary). */
   readonly requests = signal<HttpRequestSummary[]>([]);
   readonly responses = signal<HttpResponse[]>([]);
@@ -103,7 +108,7 @@ export class RequestApiService {
   }
 
   async update(req: HttpRequest): Promise<HttpRequest> {
-    const updated = await RequestService.RequestService.UpdateRequest(req);
+    const updated = await this.commands.execute<HttpRequest>('request.update', req);
     this.patchRequest({
       id: updated.id,
       collection_id: updated.collection_id,
@@ -150,13 +155,13 @@ export class RequestApiService {
   }
 
   async delete(id: number): Promise<void> {
-    await RequestService.RequestService.DeleteRequest(id);
+    await this.commands.execute('request.delete', { id });
     this.removeFromRequests(id);
   }
 
   async deleteMany(ids: number[]): Promise<void> {
     if (ids.length === 0) return;
-    await RequestService.RequestService.BulkDeleteRequests(ids);
+    await this.commands.execute('request.delete_bulk', { ids });
     this.removeManyFromRequests(ids);
   }
 

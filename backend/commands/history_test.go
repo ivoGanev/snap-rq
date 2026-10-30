@@ -65,15 +65,6 @@ func renameWidget() *Command {
 		Name:     "widget.rename",
 		Label:    "Rename Widget",
 		Undoable: true,
-		MergeKey: func(input json.RawMessage) string {
-			var payload struct {
-				ID int64 `json:"id"`
-			}
-			if json.Unmarshal(input, &payload) != nil || payload.ID == 0 {
-				return ""
-			}
-			return fmt.Sprintf("widget.rename:%d", payload.ID)
-		},
 		Apply: func(tx *sql.Tx, rec *Recorder, input json.RawMessage) (any, error) {
 			var payload struct {
 				ID   int64  `json:"id"`
@@ -415,28 +406,48 @@ func TestUndoListShrinksToTheLimitAndDropsTheOldest(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("registering: %v", err)
 	}
-	if _, err := db.Exec("INSERT INTO widgets (name) VALUES ('a')"); err != nil {
+	// Three different widgets, so the three colourings are three steps
+	// (quick repeats on the SAME row would merge into one).
+	if _, err := db.Exec("INSERT INTO widgets (name) VALUES ('a'), ('b'), ('c')"); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}
 
 	run(t, history, "widget.color", `{"id":1,"color":"red"}`)
-	run(t, history, "widget.color", `{"id":1,"color":"green"}`)
-	run(t, history, "widget.color", `{"id":1,"color":"blue"}`)
+	run(t, history, "widget.color", `{"id":2,"color":"green"}`)
+	run(t, history, "widget.color", `{"id":3,"color":"blue"}`)
 
 	if got := history.Status().UndoSteps; got != 2 {
 		t.Fatalf("expected the list trimmed to 2, got %d", got)
 	}
 
-	// The oldest step was dropped, so one undo lands on green, not red.
+	// The oldest step was dropped, so undoing takes widget 3's colour
+	// away; widget 1's dropped step is simply gone.
 	if _, err := history.Undo(); err != nil {
 		t.Fatalf("undoing: %v", err)
 	}
-	var color string
-	if err := db.QueryRow("SELECT color FROM widgets WHERE id = 1").Scan(&color); err != nil {
+	var color sql.NullString
+	if err := db.QueryRow("SELECT color FROM widgets WHERE id = 3").Scan(&color); err != nil {
 		t.Fatalf("reading the color: %v", err)
 	}
-	if color != "green" {
-		t.Errorf("expected green after dropping the oldest step, got %q", color)
+	if color.Valid && color.String != "" {
+		t.Errorf("expected widget 3's colour gone, got %q", color.String)
+	}
+}
+
+func TestQuickRepeatsOnDifferentRowsDoNotMerge(t *testing.T) {
+	history, db := newTestHistory(t)
+	if err := history.Register(renameWidget()); err != nil {
+		t.Fatalf("registering: %v", err)
+	}
+	if _, err := db.Exec("INSERT INTO widgets (name) VALUES ('one'), ('two')"); err != nil {
+		t.Fatalf("seeding: %v", err)
+	}
+
+	run(t, history, "widget.rename", `{"id":1,"name":"a"}`)
+	run(t, history, "widget.rename", `{"id":2,"name":"b"}`)
+
+	if got := history.Status().UndoSteps; got != 2 {
+		t.Fatalf("expected two separate steps for two different rows, got %d", got)
 	}
 }
 

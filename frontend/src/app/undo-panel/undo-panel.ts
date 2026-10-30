@@ -90,10 +90,4 @@ export class UndoPanel {
   private report(message: string): void {
     this.status.set(message);
   }
-
-  formatTables(step: StepInfo): string {
-    return Object.entries(step.tables ?? {})
-      .map(([table, ids]) => `${table}: ${ids?.length ? ids.join(', ') : '—'}`)
-      .join(' · ');
-  }
 }

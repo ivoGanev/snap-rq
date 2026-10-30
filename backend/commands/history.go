@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -98,22 +100,16 @@ func (h *History) limit() int {
 // UndoStep is one remembered change: copies of every row it touched,
 // before and after it ran.
 type UndoStep struct {
-	Command  string    // e.g. "request.delete"
-	Label    string    // e.g. "Delete Request"
-	When     time.Time // when it ran
-	MergeKey string    // non-empty when quick repeats merge into one step
-	Before   []SavedRow
-	After    []SavedRow
-	Touched  []Touched
-}
+	Command string    // e.g. "request.delete"
+	Label   string    // e.g. "Delete Request"
+	When    time.Time // when it ran
+	Before  []SavedRow
+	After   []SavedRow
+	Touched []Touched
 
-// refs groups the touched ids per entity, for the UI to restore selection.
-func (s *UndoStep) refs() map[string][]int64 {
-	refs := make(map[string][]int64, len(s.Touched))
-	for _, touched := range s.Touched {
-		refs[touched.Entity] = append(refs[touched.Entity], touched.IDs...)
-	}
-	return refs
+	// rowsKey names the rows involved; quick repeats of the same command
+	// on the same rows share it and merge into one step.
+	rowsKey string
 }
 
 // event is one Wails event waiting to be sent after the lock is released.
@@ -176,7 +172,7 @@ func (h *History) runLocked(name string, input json.RawMessage) (any, []event, e
 		return nil, nil, fmt.Errorf("committing: %w", err)
 	}
 	if cmd.Undoable {
-		h.remember(cmd, input, rec)
+		h.remember(cmd, rec)
 		h.lastAction, h.lastLabel = "run", cmd.Label
 	}
 
@@ -187,22 +183,21 @@ func (h *History) runLocked(name string, input json.RawMessage) (any, []event, e
 	return result, events, nil
 }
 
-// remember adds a finished command to the undo list, merging it into the
-// previous step when it is a quick repeat of the same edit.
-func (h *History) remember(cmd *Command, input json.RawMessage, rec *Recorder) {
-	key := ""
-	if cmd.MergeKey != nil {
-		key = cmd.MergeKey(input)
-	}
+// remember adds a finished command to the undo list. Quick repeats of the
+// same command on the same rows merge into the previous step — typing a
+// new name is many runs of request.update on one row, and that is one
+// step, not twenty.
+func (h *History) remember(cmd *Command, rec *Recorder) {
+	step := rec.step(cmd)
 
-	if key != "" && len(h.undoSteps) > 0 {
+	if len(h.undoSteps) > 0 {
 		last := h.undoSteps[len(h.undoSteps)-1]
-		if last.MergeKey == key && time.Since(last.When) < mergeWindow {
+		if last.Command == cmd.Name && last.rowsKey == step.rowsKey && time.Since(last.When) < mergeWindow {
 			// Keep the oldest copies: one undo goes back to where the
 			// typing started, not to the middle of it.
-			last.After = rec.step(cmd, key).After
+			last.After = step.After
 			last.When = time.Now()
-			last.Touched = rec.touched
+			last.Touched = step.Touched
 			return
 		}
 	}
@@ -210,7 +205,7 @@ func (h *History) remember(cmd *Command, input json.RawMessage, rec *Recorder) {
 	// A new change makes redo impossible: it happens in a world the redo
 	// steps know nothing about.
 	h.redoSteps = nil
-	h.undoSteps = append(h.undoSteps, rec.step(cmd, key))
+	h.undoSteps = append(h.undoSteps, step)
 
 	for len(h.undoSteps) > h.limit() {
 		h.undoSteps = h.undoSteps[1:]
@@ -219,9 +214,8 @@ func (h *History) remember(cmd *Command, input json.RawMessage, rec *Recorder) {
 
 // UndoResult reports what an Undo or Redo did.
 type UndoResult struct {
-	Command string             `json:"command"`
-	Label   string             `json:"label"`
-	Refs    map[string][]int64 `json:"refs"`
+	Command string `json:"command"`
+	Label   string `json:"label"`
 	// Skipped lists steps that could not be undone because their rows were
 	// destroyed for good (e.g. the trash was emptied permanently).
 	Skipped []string `json:"skipped,omitempty"`
@@ -265,7 +259,6 @@ func (h *History) undoLocked() (UndoResult, []event, error) {
 		return UndoResult{
 			Command: step.Command,
 			Label:   step.Label,
-			Refs:    step.refs(),
 			Skipped: skipped,
 		}, events, nil
 	}
@@ -303,7 +296,6 @@ func (h *History) redoLocked() (UndoResult, []event, error) {
 	return UndoResult{
 		Command: step.Command,
 		Label:   step.Label,
-		Refs:    step.refs(),
 	}, events, nil
 }
 
@@ -342,12 +334,14 @@ func (h *History) statusLocked() Status {
 
 // StepInfo describes one step for the undo inspector panel.
 type StepInfo struct {
-	Seq     int                `json:"seq"`
-	Command string             `json:"command"`
-	Label   string             `json:"label"`
-	At      string             `json:"at"`
-	State   string             `json:"state"` // "undo" or "redo"
-	Tables  map[string][]int64 `json:"tables"`
+	Seq     int    `json:"seq"`
+	Command string `json:"command"`
+	Label   string `json:"label"`
+	At      string `json:"at"`
+	State   string `json:"state"` // "undo" or "redo"
+	// Rows names the rows the step touched, e.g. "http_requests: 1, 2 ·
+	// responses: 5".
+	Rows string `json:"rows"`
 }
 
 // Steps lists every remembered step, oldest first, for the inspector panel.
@@ -367,22 +361,33 @@ func (h *History) Steps() []StepInfo {
 
 func stepInfo(step *UndoStep, seq int, state string) StepInfo {
 	// One line per table: which row ids the step touched there.
-	tables := make(map[string][]int64, len(step.Before)+len(step.After))
-	for _, row := range step.Before {
-		tables[row.Table] = append(tables[row.Table], row.ID)
-	}
-	for _, row := range step.After {
-		if !containsID(tables[row.Table], row.ID) {
-			tables[row.Table] = append(tables[row.Table], row.ID)
+	tables := []string{}
+	ids := map[string][]int64{}
+	for _, row := range append(append([]SavedRow{}, step.Before...), step.After...) {
+		if _, seen := ids[row.Table]; !seen {
+			tables = append(tables, row.Table)
+		}
+		if !containsID(ids[row.Table], row.ID) {
+			ids[row.Table] = append(ids[row.Table], row.ID)
 		}
 	}
+
+	parts := make([]string, 0, len(tables))
+	for _, table := range tables {
+		texts := make([]string, 0, len(ids[table]))
+		for _, id := range ids[table] {
+			texts = append(texts, strconv.FormatInt(id, 10))
+		}
+		parts = append(parts, table+": "+strings.Join(texts, ", "))
+	}
+
 	return StepInfo{
 		Seq:     seq,
 		Command: step.Command,
 		Label:   step.Label,
 		At:      step.When.UTC().Format("2006-01-02 15:04:05"),
 		State:   state,
-		Tables:  tables,
+		Rows:    strings.Join(parts, " · "),
 	}
 }
 

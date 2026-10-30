@@ -88,33 +88,10 @@ func changedColumns(row, counterpart SavedRow) map[string]any {
 	return changed
 }
 
-// sameValue compares two saved column values. SQLite drivers hand back
-// TEXT as string or []byte depending on the path, so those two are
-// compared by content.
+// sameValue compares two saved column values.
 func sameValue(a, b any) bool {
-	if a == nil && b == nil {
-		return true
-	}
 	if a == nil || b == nil {
-		return false
-	}
-	if text, ok := a.(string); ok {
-		if other, ok2 := b.(string); ok2 {
-			return text == other
-		}
-		if bytes, ok2 := b.([]byte); ok2 {
-			return text == string(bytes)
-		}
-		return false
-	}
-	if bytes, ok := a.([]byte); ok {
-		if other, ok2 := b.(string); ok2 {
-			return string(bytes) == other
-		}
-		if other, ok2 := b.([]byte); ok2 {
-			return string(bytes) == string(other)
-		}
-		return false
+		return a == nil && b == nil
 	}
 	return a == b
 }

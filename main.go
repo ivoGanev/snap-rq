@@ -53,15 +53,10 @@ func main() {
 	// (see specs/command-framework.md).
 	history := commands.NewHistory(db)
 	history.SetUndoLimit(settingsService.UndoHistoryLimit)
-	for _, register := range []func(*commands.History) error{
-		requestService.RegisterCommands,
-		favouriteService.RegisterCommands,
-		environmentService.RegisterCommands,
-		environmentVariableService.RegisterCommands,
-	} {
-		if err := register(history); err != nil {
-			log.Fatalf("registering commands: %v", err)
-		}
+	if err := services.RegisterCommands(history,
+		requestService, favouriteService, environmentService, environmentVariableService,
+	); err != nil {
+		log.Fatalf("registering commands: %v", err)
 	}
 
 	// Create a new Wails application by providing the necessary options.

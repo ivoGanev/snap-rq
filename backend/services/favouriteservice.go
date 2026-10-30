@@ -2,19 +2,17 @@ package services
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"strings"
 
-	"snap-rq/backend/commands"
 	"snap-rq/backend/models"
 )
 
 // FavouriteService provides CRUD operations for favourite collections and the
-// items that link HTTP requests into them.
+// items that link HTTP requests into them. Deleting a collection runs
+// through the command history; see commands.go in this package.
 type FavouriteService struct {
-	db      *sql.DB
-	history *commands.History
+	db *sql.DB
 }
 
 // NewFavouriteService returns a FavouriteService backed by the given database.
@@ -156,27 +154,6 @@ func (s *FavouriteService) UpdateFavouriteAppearance(favouriteCollectionID int64
 
 	appearance.FavouriteCollectionID = favouriteCollectionID
 	return appearance, nil
-}
-
-// DeleteFavouriteCollection removes a favourite collection and its items.
-// The actual HTTP requests are not deleted. When a command bus is attached
-// the delete dispatches through the favourite_collection.delete command so
-// it is undoable; the direct path remains for bus-less callers such as
-// tests.
-func (s *FavouriteService) DeleteFavouriteCollection(id int64) error {
-	if s.history != nil {
-		payload, err := json.Marshal(map[string]int64{"id": id})
-		if err != nil {
-			return err
-		}
-		_, err = s.history.Run(FavouriteDeleteCollectionCommandName, payload)
-		return err
-	}
-	_, err := s.db.Exec("DELETE FROM favourite_collections WHERE id = ?", id)
-	if err != nil {
-		return fmt.Errorf("deleting favourite collection: %w", err)
-	}
-	return nil
 }
 
 // AddRequestToFavouriteCollection adds a request to a favourite collection.
