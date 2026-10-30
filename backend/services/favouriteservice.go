@@ -13,8 +13,8 @@ import (
 // FavouriteService provides CRUD operations for favourite collections and the
 // items that link HTTP requests into them.
 type FavouriteService struct {
-	db  *sql.DB
-	bus *commands.Bus
+	db      *sql.DB
+	history *commands.History
 }
 
 // NewFavouriteService returns a FavouriteService backed by the given database.
@@ -164,12 +164,12 @@ func (s *FavouriteService) UpdateFavouriteAppearance(favouriteCollectionID int64
 // it is undoable; the direct path remains for bus-less callers such as
 // tests.
 func (s *FavouriteService) DeleteFavouriteCollection(id int64) error {
-	if s.bus != nil {
+	if s.history != nil {
 		payload, err := json.Marshal(map[string]int64{"id": id})
 		if err != nil {
 			return err
 		}
-		_, err = s.bus.Execute(FavouriteDeleteCollectionCommandName, payload)
+		_, err = s.history.Run(FavouriteDeleteCollectionCommandName, payload)
 		return err
 	}
 	_, err := s.db.Exec("DELETE FROM favourite_collections WHERE id = ?", id)

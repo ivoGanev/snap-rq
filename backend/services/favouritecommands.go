@@ -1,6 +1,7 @@
 package services
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,64 +10,63 @@ import (
 )
 
 // FavouriteDeleteCollectionCommandName is the public command name for
-// deleting a favourite collection (see specs/command-framework.md).
+// deleting a favourite collection.
 const FavouriteDeleteCollectionCommandName = "favourite_collection.delete"
 
-// RegisterCommands registers this service's commands on the bus and routes
-// this service's mutations through it.
-func (s *FavouriteService) RegisterCommands(bus *commands.Bus) error {
-	s.bus = bus
-	return bus.Register(s.deleteCollectionCommand())
+// RegisterCommands makes this service's commands runnable and routes its
+// mutations through the history.
+func (s *FavouriteService) RegisterCommands(history *commands.History) error {
+	s.history = history
+	return history.Register(s.deleteCollectionCommand())
 }
 
-// deleteCollectionCommand removes a favourite collection and its memberships
-// as one undoable entry. Undo restores the collection, its appearance and
-// every favourite_items row under their original ids.
+// deleteCollectionCommand removes a favourite collection together with its
+// memberships and appearance. Undo puts all of it back as it was.
 func (s *FavouriteService) deleteCollectionCommand() *commands.Command {
 	return &commands.Command{
 		Name:     FavouriteDeleteCollectionCommandName,
 		Label:    "Delete Favourite",
-		Category: commands.Undoable,
-		Handler: func(ctx *commands.Context, payload json.RawMessage) (any, error) {
-			var pl struct {
+		Undoable: true,
+		Apply: func(tx *sql.Tx, rec *commands.Recorder, input json.RawMessage) (any, error) {
+			var payload struct {
 				ID int64 `json:"id"`
 			}
-			if err := json.Unmarshal(payload, &pl); err != nil {
+			if err := json.Unmarshal(input, &payload); err != nil {
 				return nil, err
 			}
-			if pl.ID == 0 {
+			if payload.ID == 0 {
 				return nil, errors.New("favourite collection id is required")
 			}
 
-			itemIDs, err := selectIDsTx(ctx.Tx,
-				`SELECT id FROM favourite_items WHERE favourite_collection_id = ?`, pl.ID)
+			itemIDs, err := selectIDsTx(tx,
+				`SELECT id FROM favourite_items WHERE favourite_collection_id = ?`, payload.ID)
 			if err != nil {
 				return nil, fmt.Errorf("listing favourite items: %w", err)
 			}
-			appearanceIDs, err := selectIDsTx(ctx.Tx,
-				`SELECT id FROM favourite_appearances WHERE favourite_collection_id = ?`, pl.ID)
+			appearanceIDs, err := selectIDsTx(tx,
+				`SELECT id FROM favourite_appearances WHERE favourite_collection_id = ?`, payload.ID)
 			if err != nil {
 				return nil, fmt.Errorf("listing favourite appearance: %w", err)
 			}
 
-			// Parent table first: capture order becomes restore order.
-			if err := ctx.Snapshot("favourite_collections", pl.ID); err != nil {
+			// Parent table first: rows are put back in save order.
+			if err := rec.SaveRows("favourite_collections", payload.ID); err != nil {
 				return nil, err
 			}
-			if err := ctx.Snapshot("favourite_items", itemIDs...); err != nil {
+			if err := rec.SaveRows("favourite_items", itemIDs...); err != nil {
 				return nil, err
 			}
-			if err := ctx.Snapshot("favourite_appearances", appearanceIDs...); err != nil {
+			if err := rec.SaveRows("favourite_appearances", appearanceIDs...); err != nil {
 				return nil, err
 			}
 
-			if _, err := ctx.Tx.Exec(
-				`DELETE FROM favourite_collections WHERE id = ?`, pl.ID,
+			if _, err := tx.Exec(
+				`DELETE FROM favourite_collections WHERE id = ?`, payload.ID,
 			); err != nil {
 				return nil, fmt.Errorf("deleting favourite collection: %w", err)
 			}
 
-			ctx.Affected("favourite_collection", "delete", pl.ID)
+			rec.Touched("favourite_collection", "delete", payload.ID)
 			return nil, nil
 		},
 	}

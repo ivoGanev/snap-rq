@@ -1,6 +1,7 @@
 package services
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,40 +10,40 @@ import (
 )
 
 // EnvironmentVariableDeleteCommandName is the public command name for
-// deleting a single environment variable (see specs/command-framework.md).
+// deleting a single environment variable.
 const EnvironmentVariableDeleteCommandName = "environment_variable.delete"
 
-// RegisterCommands registers this service's commands on the bus and routes
-// this service's mutations through it.
-func (s *EnvironmentVariableService) RegisterCommands(bus *commands.Bus) error {
-	s.bus = bus
-	return bus.Register(s.deleteCommand())
+// RegisterCommands makes this service's commands runnable and routes its
+// mutations through the history.
+func (s *EnvironmentVariableService) RegisterCommands(history *commands.History) error {
+	s.history = history
+	return history.Register(s.deleteCommand())
 }
 
-// deleteCommand removes one variable as an undoable entry. Undo restores the
-// exact key/value row under its original id.
+// deleteCommand removes one variable. Undo puts the exact key/value row
+// back as it was.
 func (s *EnvironmentVariableService) deleteCommand() *commands.Command {
 	return &commands.Command{
 		Name:     EnvironmentVariableDeleteCommandName,
 		Label:    "Delete Variable",
-		Category: commands.Undoable,
-		Handler: func(ctx *commands.Context, payload json.RawMessage) (any, error) {
-			var pl struct {
+		Undoable: true,
+		Apply: func(tx *sql.Tx, rec *commands.Recorder, input json.RawMessage) (any, error) {
+			var payload struct {
 				ID int64 `json:"id"`
 			}
-			if err := json.Unmarshal(payload, &pl); err != nil {
+			if err := json.Unmarshal(input, &payload); err != nil {
 				return nil, err
 			}
-			if pl.ID == 0 {
+			if payload.ID == 0 {
 				return nil, errors.New("variable id is required")
 			}
 
-			if err := ctx.Snapshot("environment_variables", pl.ID); err != nil {
+			if err := rec.SaveRows("environment_variables", payload.ID); err != nil {
 				return nil, err
 			}
 
-			result, err := ctx.Tx.Exec(
-				`DELETE FROM environment_variables WHERE id = ?`, pl.ID,
+			result, err := tx.Exec(
+				`DELETE FROM environment_variables WHERE id = ?`, payload.ID,
 			)
 			if err != nil {
 				return nil, fmt.Errorf("deleting variable: %w", err)
@@ -52,7 +53,7 @@ func (s *EnvironmentVariableService) deleteCommand() *commands.Command {
 				return nil, errors.New("variable not found")
 			}
 
-			ctx.Affected("environment_variable", "delete", pl.ID)
+			rec.Touched("environment_variable", "delete", payload.ID)
 			return nil, nil
 		},
 	}

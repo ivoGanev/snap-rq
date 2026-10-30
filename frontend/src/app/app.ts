@@ -219,7 +219,7 @@ export class App implements OnInit, AfterViewInit {
       return; // let text editors run their own text-level undo
     }
     event.preventDefault();
-    if (this.commands.undoDepth() === 0) return;
+    if (this.commands.undoSteps() === 0) return;
     try {
       await this.commands.undo();
     } catch (err) {
@@ -234,7 +234,7 @@ export class App implements OnInit, AfterViewInit {
       return;
     }
     event.preventDefault();
-    if (this.commands.redoDepth() === 0) return;
+    if (this.commands.redoSteps() === 0) return;
     try {
       await this.commands.redo();
     } catch (err) {

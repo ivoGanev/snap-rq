@@ -18,8 +18,8 @@
     </div>
 
     <div class="undo-summary">
-      <span>undo: {{ commands.undoDepth() }}</span>
-      <span>redo: {{ commands.redoDepth() }}</span>
+      <span>undo: {{ commands.undoSteps() }}</span>
+      <span>redo: {{ commands.redoSteps() }}</span>
       <span>next: {{ commands.nextUndoLabel() || '—' }}</span>
     </div>
 
@@ -29,24 +29,24 @@
 
     <div class="undo-body">
       @if (ordered().length === 0 && !loading()) {
-        <div class="undo-empty">Stack is empty.</div>
+        <div class="undo-empty">Nothing to undo.</div>
       }
 
       <ul class="undo-list">
-        @for (entry of ordered(); track entry.seq) {
-          <li class="undo-entry" [class.is-redo]="entry.state === 'redo'">
+        @for (step of ordered(); track step.seq) {
+          <li class="undo-entry" [class.is-redo]="step.state === 'redo'">
             <div class="undo-entry-main">
-              <span class="undo-entry-label">{{ entry.label }}</span>
-              <span class="undo-entry-command">{{ entry.command }}</span>
+              <span class="undo-entry-label">{{ step.label }}</span>
+              <span class="undo-entry-command">{{ step.command }}</span>
             </div>
             <div class="undo-entry-meta">
-              <span class="undo-entry-seq">#{{ entry.seq }}</span>
-              <span class="undo-entry-state">{{ entry.state }}</span>
-              <span class="undo-entry-at">{{ entry.at }}</span>
+              <span class="undo-entry-seq">#{{ step.seq }}</span>
+              <span class="undo-entry-state">{{ step.state }}</span>
+              <span class="undo-entry-at">{{ step.at }}</span>
             </div>
-            <div class="undo-entry-tables">{{ formatTables(entry) }}</div>
-            @if (entry.state === 'undo') {
-              <button class="undo-entry-rewind" type="button" (click)="rewindTo(entry)">
+            <div class="undo-entry-tables">{{ formatTables(step) }}</div>
+            @if (step.state === 'undo') {
+              <button class="undo-entry-rewind" type="button" (click)="rewindTo(step)">
                 Rewind here
               </button>
             }
@@ -56,10 +56,10 @@
     </div>
 
     <div class="undo-footer">
-      <button class="undo-button" type="button" [disabled]="commands.undoDepth() === 0" (click)="undoOnce()">
+      <button class="undo-button" type="button" [disabled]="commands.undoSteps() === 0" (click)="undoOnce()">
         Undo
       </button>
-      <button class="undo-button" type="button" [disabled]="commands.redoDepth() === 0" (click)="redoOnce()">
+      <button class="undo-button" type="button" [disabled]="commands.redoSteps() === 0" (click)="redoOnce()">
         Redo
       </button>
       <button class="undo-button undo-button--ghost" type="button" (click)="refresh()">Refresh</button>

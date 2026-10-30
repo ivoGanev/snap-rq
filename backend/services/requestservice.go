@@ -19,7 +19,7 @@ import (
 type RequestService struct {
 	db       *sql.DB
 	settings *SettingsService
-	bus      *commands.Bus
+	history  *commands.History
 }
 
 // NewRequestService returns a RequestService backed by the given database.
@@ -482,12 +482,12 @@ func (s *RequestService) GetRequestSummariesForProject(projectID int64) ([]model
 // result shape, plus undo history); the direct path remains for bus-less
 // callers such as tests.
 func (s *RequestService) UpdateRequest(req models.HttpRequest) (models.HttpRequest, error) {
-	if s.bus != nil {
+	if s.history != nil {
 		payload, err := json.Marshal(req)
 		if err != nil {
 			return models.HttpRequest{}, fmt.Errorf("encoding request payload: %w", err)
 		}
-		out, err := s.bus.Execute(RequestUpdateCommandName, payload)
+		out, err := s.history.Run(RequestUpdateCommandName, payload)
 		if err != nil {
 			return models.HttpRequest{}, err
 		}
@@ -802,12 +802,12 @@ func (s *RequestService) bulkUpdateStringField(ids []int64, column string, value
 // is attached the delete dispatches through the request.delete command so it
 // is undoable; the direct path remains for bus-less callers such as tests.
 func (s *RequestService) DeleteRequest(id int64) error {
-	if s.bus != nil {
+	if s.history != nil {
 		payload, err := json.Marshal(map[string]int64{"id": id})
 		if err != nil {
 			return err
 		}
-		_, err = s.bus.Execute(RequestDeleteCommandName, payload)
+		_, err = s.history.Run(RequestDeleteCommandName, payload)
 		return err
 	}
 	_, err := s.BinRequest(id)
@@ -817,12 +817,12 @@ func (s *RequestService) DeleteRequest(id int64) error {
 // BulkDeleteRequests moves multiple HTTP requests to the trash bin. When a
 // command bus is attached the whole batch is one undoable command.
 func (s *RequestService) BulkDeleteRequests(ids []int64) error {
-	if s.bus != nil {
+	if s.history != nil {
 		payload, err := json.Marshal(map[string][]int64{"ids": ids})
 		if err != nil {
 			return err
 		}
-		_, err = s.bus.Execute(RequestDeleteBulkCommandName, payload)
+		_, err = s.history.Run(RequestDeleteBulkCommandName, payload)
 		return err
 	}
 	_, err := s.BinRequests(ids)
@@ -1525,9 +1525,9 @@ func (s *RequestService) PermanentlyDeleteBinnedRequests(binIDs []int64) error {
 		return fmt.Errorf("committing permanent delete: %w", err)
 	}
 
-	if s.bus != nil {
-		s.bus.Purge("binned_requests", binIDs...)
-		s.bus.Purge("http_requests", originalIDs...)
+	if s.history != nil {
+		s.history.ForgetRows("binned_requests", binIDs...)
+		s.history.ForgetRows("http_requests", originalIDs...)
 	}
 	return nil
 }

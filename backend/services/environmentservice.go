@@ -13,8 +13,8 @@ import (
 
 // EnvironmentService provides CRUD operations for environments.
 type EnvironmentService struct {
-	db  *sql.DB
-	bus *commands.Bus
+	db      *sql.DB
+	history *commands.History
 }
 
 // NewEnvironmentService returns an EnvironmentService backed by the given database.
@@ -115,12 +115,12 @@ func (s *EnvironmentService) UpdateEnvironment(env models.Environment) (models.E
 // command so it is undoable; the direct path remains for bus-less callers
 // such as tests.
 func (s *EnvironmentService) DeleteEnvironment(id int64) error {
-	if s.bus != nil {
+	if s.history != nil {
 		payload, err := json.Marshal(map[string]int64{"id": id})
 		if err != nil {
 			return err
 		}
-		_, err = s.bus.Execute(EnvironmentDeleteCommandName, payload)
+		_, err = s.history.Run(EnvironmentDeleteCommandName, payload)
 		return err
 	}
 

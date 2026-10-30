@@ -49,18 +49,17 @@ func main() {
 	tagService := services.NewTagService(db)
 	iconService := services.NewIconService(db)
 
-	// Command bus: the single choke point for mutations, with memento-based
-	// undo (see specs/command-framework.md). Converted so far: request
-	// update/delete, favourite collection delete, environment delete.
-	bus := commands.NewBus(db)
-	bus.SetLimitProvider(settingsService.UndoHistoryLimit)
-	for _, register := range []func(*commands.Bus) error{
+	// The command history runs every change and remembers how to undo it
+	// (see specs/command-framework.md).
+	history := commands.NewHistory(db)
+	history.SetUndoLimit(settingsService.UndoHistoryLimit)
+	for _, register := range []func(*commands.History) error{
 		requestService.RegisterCommands,
 		favouriteService.RegisterCommands,
 		environmentService.RegisterCommands,
 		environmentVariableService.RegisterCommands,
 	} {
-		if err := register(bus); err != nil {
+		if err := register(history); err != nil {
 			log.Fatalf("registering commands: %v", err)
 		}
 	}
@@ -84,7 +83,7 @@ func main() {
 			application.NewService(favouriteService),
 			application.NewService(tagService),
 			application.NewService(iconService),
-			application.NewService(services.NewCommandService(bus)),
+			application.NewService(services.NewCommandService(history)),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

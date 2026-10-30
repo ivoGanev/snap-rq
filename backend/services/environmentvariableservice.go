@@ -11,8 +11,8 @@ import (
 
 // EnvironmentVariableService provides CRUD operations for environment variables.
 type EnvironmentVariableService struct {
-	db  *sql.DB
-	bus *commands.Bus
+	db      *sql.DB
+	history *commands.History
 }
 
 // NewEnvironmentVariableService returns an EnvironmentVariableService backed by the given database.
@@ -109,12 +109,12 @@ func (s *EnvironmentVariableService) UpdateVariable(v models.EnvironmentVariable
 // it is undoable; the direct path remains for bus-less callers such as
 // tests.
 func (s *EnvironmentVariableService) DeleteVariable(id int64) error {
-	if s.bus != nil {
+	if s.history != nil {
 		payload, err := json.Marshal(map[string]int64{"id": id})
 		if err != nil {
 			return err
 		}
-		_, err = s.bus.Execute(EnvironmentVariableDeleteCommandName, payload)
+		_, err = s.history.Run(EnvironmentVariableDeleteCommandName, payload)
 		return err
 	}
 	_, err := s.db.Exec(`DELETE FROM environment_variables WHERE id = ?`, id)

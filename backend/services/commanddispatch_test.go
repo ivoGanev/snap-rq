@@ -68,7 +68,7 @@ func TestDeleteRequestViaBusIsUndoable(t *testing.T) {
 	}
 
 	service := NewRequestService(db)
-	bus := commands.NewBus(db)
+	bus := commands.NewHistory(db)
 	if err := service.RegisterCommands(bus); err != nil {
 		t.Fatalf("registering commands: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestDeleteFavouriteCollectionViaBusIsUndoable(t *testing.T) {
 	}
 
 	service := NewFavouriteService(db)
-	bus := commands.NewBus(db)
+	bus := commands.NewHistory(db)
 	if err := service.RegisterCommands(bus); err != nil {
 		t.Fatalf("registering commands: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestDeleteEnvironmentViaBusIsUndoable(t *testing.T) {
 	}
 
 	service := NewEnvironmentService(db)
-	bus := commands.NewBus(db)
+	bus := commands.NewHistory(db)
 	if err := service.RegisterCommands(bus); err != nil {
 		t.Fatalf("registering commands: %v", err)
 	}
@@ -246,7 +246,7 @@ func TestDeleteVariableViaBusIsUndoable(t *testing.T) {
 	}
 
 	service := NewEnvironmentVariableService(db)
-	bus := commands.NewBus(db)
+	bus := commands.NewHistory(db)
 	if err := service.RegisterCommands(bus); err != nil {
 		t.Fatalf("registering commands: %v", err)
 	}

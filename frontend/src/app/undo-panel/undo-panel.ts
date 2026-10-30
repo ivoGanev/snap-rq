@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { CommandApiService, type StackEntryInfo } from '../core/services/command.service';
+import { CommandApiService, type StepInfo } from '../core/services/command.service';
 
 /**
- * Development-only inspector for the undo stack: lists every live entry and
- * lets you unwind step by step (or rewind to a position, which is strictly
- * sequential LIFO undo) to see what happens.
+ * Development-only inspector for the undo list: shows every remembered
+ * step and lets you unwind step by step (or rewind to a position, which is
+ * just repeated single-step undo) to see what happens.
  */
 @Component({
   selector: 'app-undo-panel',
@@ -15,12 +15,12 @@ import { CommandApiService, type StackEntryInfo } from '../core/services/command
 export class UndoPanel {
   protected readonly commands = inject(CommandApiService);
 
-  protected readonly entries = signal<StackEntryInfo[]>([]);
+  protected readonly steps = signal<StepInfo[]>([]);
   protected readonly loading = signal(false);
   protected readonly status = signal<string | null>(null);
 
-  /** Newest first, so the next thing an Undo would hit is on top. */
-  protected readonly ordered = computed(() => [...this.entries()].reverse());
+  /** Newest first, so the step an Undo would take next is on top. */
+  protected readonly ordered = computed(() => [...this.steps()].reverse());
 
   constructor() {
     void this.refresh();
@@ -29,9 +29,9 @@ export class UndoPanel {
   async refresh(): Promise<void> {
     this.loading.set(true);
     try {
-      this.entries.set(await this.commands.stack());
+      this.steps.set(await this.commands.stack());
     } catch (err) {
-      this.status.set(`Failed to load stack: ${String(err)}`);
+      this.status.set(`Failed to load the undo list: ${String(err)}`);
     } finally {
       this.loading.set(false);
     }
@@ -40,7 +40,7 @@ export class UndoPanel {
   async undoOnce(): Promise<void> {
     try {
       const result = await this.commands.undo();
-      this.describe(result.notices?.length ? result.notices.join('; ') : `Undid ${result.label}`);
+      this.report(result.skipped?.length ? result.skipped.join('; ') : `Undid ${result.label}`);
     } catch (err) {
       this.status.set(`Undo failed: ${String(err)}`);
     }
@@ -50,7 +50,7 @@ export class UndoPanel {
   async redoOnce(): Promise<void> {
     try {
       const result = await this.commands.redo();
-      this.describe(`Redid ${result.label}`);
+      this.report(`Redid ${result.label}`);
     } catch (err) {
       this.status.set(`Redo failed: ${String(err)}`);
     }
@@ -58,15 +58,15 @@ export class UndoPanel {
   }
 
   /**
-   * Rewinds until the given entry has been undone. Repeated single-step
-   * undo keeps the LIFO discipline that makes unwinding referentially safe.
+   * Rewinds until the given step has been undone. Repeated single-step
+   * undo keeps the back-to-front order that makes unwinding safe.
    */
-  async rewindTo(target: StackEntryInfo): Promise<void> {
+  async rewindTo(target: StepInfo): Promise<void> {
     this.loading.set(true);
     try {
       for (;;) {
-        const live = this.entries().some(e => e.seq === target.seq && e.state === 'undo');
-        if (!live) {
+        const stillListed = this.steps().some(s => s.seq === target.seq && s.state === 'undo');
+        if (!stillListed) {
           break;
         }
         try {
@@ -74,9 +74,9 @@ export class UndoPanel {
         } catch {
           break;
         }
-        await this.syncEntries();
+        this.steps.set(await this.commands.stack());
       }
-      this.describe(`Rewound to before #${target.seq} ${target.label}`);
+      this.report(`Rewound to before #${target.seq} ${target.label}`);
     } finally {
       this.loading.set(false);
       await this.refresh();
@@ -87,16 +87,12 @@ export class UndoPanel {
     this.commands.closeDevPanel();
   }
 
-  private async syncEntries(): Promise<void> {
-    this.entries.set(await this.commands.stack());
-  }
-
-  private describe(message: string): void {
+  private report(message: string): void {
     this.status.set(message);
   }
 
-  formatTables(entry: StackEntryInfo): string {
-    return Object.entries(entry.tables ?? {})
+  formatTables(step: StepInfo): string {
+    return Object.entries(step.tables ?? {})
       .map(([table, ids]) => `${table}: ${ids?.length ? ids.join(', ') : '—'}`)
       .join(' · ');
   }
