@@ -1,4 +1,4 @@
-﻿package services
+package services
 
 import (
 	"database/sql"
@@ -9,7 +9,8 @@ import (
 )
 
 // FavouriteService provides CRUD operations for favourite collections and the
-// items that link HTTP requests into them.
+// items that link HTTP requests into them. Deleting a collection runs
+// through the command history; see commands.go in this package.
 type FavouriteService struct {
 	db *sql.DB
 }
@@ -155,16 +156,6 @@ func (s *FavouriteService) UpdateFavouriteAppearance(favouriteCollectionID int64
 	return appearance, nil
 }
 
-// DeleteFavouriteCollection removes a favourite collection and its items.
-// The actual HTTP requests are not deleted.
-func (s *FavouriteService) DeleteFavouriteCollection(id int64) error {
-	_, err := s.db.Exec("DELETE FROM favourite_collections WHERE id = ?", id)
-	if err != nil {
-		return fmt.Errorf("deleting favourite collection: %w", err)
-	}
-	return nil
-}
-
 // AddRequestToFavouriteCollection adds a request to a favourite collection.
 // The request is appended to the end of the collection's user order.
 func (s *FavouriteService) AddRequestToFavouriteCollection(favouriteCollectionID, httpRequestID int64) (models.FavouriteItem, error) {
@@ -263,7 +254,8 @@ func (s *FavouriteService) BulkUpdateFavouriteRequestColor(favouriteCollectionID
 }
 
 // RemoveRequestFromFavouriteCollection removes a request from a favourite collection.
-func (s *FavouriteService) RemoveRequestFromFavouriteCollection(favouriteCollectionID, httpRequestID int64) error {	_, err := s.db.Exec(
+func (s *FavouriteService) RemoveRequestFromFavouriteCollection(favouriteCollectionID, httpRequestID int64) error {
+	_, err := s.db.Exec(
 		"DELETE FROM favourite_items WHERE favourite_collection_id = ? AND http_request_id = ?",
 		favouriteCollectionID, httpRequestID,
 	)

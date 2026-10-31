@@ -1,10 +1,13 @@
 package services
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"snap-rq/backend/commands"
+	"snap-rq/backend/commands/runnables"
 	"snap-rq/backend/models"
 )
 
@@ -42,6 +45,8 @@ func TestSettingsServiceDefaultsAndUpdate(t *testing.T) {
 	}
 }
 
+// The send flow lives in the command framework now; the SSL setting it
+// honors is exercised through the request.send command.
 func TestExecuteRequestHonorsSSLValidationSetting(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -80,17 +85,30 @@ func TestExecuteRequestHonorsSSLValidationSetting(t *testing.T) {
 	}
 	requestID, _ := res.LastInsertId()
 
-	requestSvc := NewRequestService(db)
-	executeReq, err := requestSvc.GetRequest(requestID)
-	if err != nil {
-		t.Fatalf("loading request: %v", err)
+	engine := commands.NewEngineWithManifest(db, testManifest())
+	if err := engine.Register(&runnables.SendRequest{}); err != nil {
+		t.Fatalf("registering send command: %v", err)
 	}
 
-	response, err := requestSvc.ExecuteRequest(executeReq)
-	if err != nil {
-		t.Fatalf("ExecuteRequest with validation enabled failed: %v", err)
+	send := func() models.HttpResponse {
+		t.Helper()
+		// The caller supplies the full request content (the frontend
+		// interpolates environment variables before sending).
+		out, err := engine.Run("request.send", mustJSON(t, map[string]any{
+			"id": requestID, "url": server.URL, "method": "GET",
+		}))
+		if err != nil {
+			t.Fatalf("send failed: %v", err)
+		}
+		resp, ok := out.(models.HttpResponse)
+		if !ok {
+			t.Fatalf("expected an HttpResponse back, got %T", out)
+		}
+		return resp
 	}
-	if response.StatusCode != 0 {
+
+	// With validation on, the self-signed certificate fails.
+	if response := send(); response.StatusCode != 0 {
 		t.Fatalf("expected self-signed certificate to fail, got status %d", response.StatusCode)
 	}
 
@@ -99,11 +117,53 @@ func TestExecuteRequestHonorsSSLValidationSetting(t *testing.T) {
 		t.Fatalf("disabling SSL validation failed: %v", err)
 	}
 
-	response, err = requestSvc.ExecuteRequest(executeReq)
+	// With validation off, the request succeeds.
+	if response := send(); response.StatusCode != http.StatusOK {
+		t.Fatalf("expected request to succeed with validation disabled, got status %d: %s",
+			response.StatusCode, response.Body)
+	}
+}
+
+// testManifest declares the edges this test schema really has.
+func testManifest() *commands.Manifest {
+	return &commands.Manifest{
+		Tables: map[string]commands.TableRule{
+			"profiles": {Entity: "profile", Children: map[string]commands.ChildRule{
+				"projects": {},
+			}},
+			"projects": {Entity: "project", Children: map[string]commands.ChildRule{
+				"collections": {},
+			}},
+			"collections": {Entity: "collection", Children: map[string]commands.ChildRule{
+				"http_requests": {},
+			}},
+			"http_requests": {Entity: "request", Children: map[string]commands.ChildRule{
+				"responses":       {},
+				"request_tags":    {},
+				"favourite_items": {},
+				"request_usage":   {Restore: commands.NoRestore},
+			}},
+			"responses":    {Entity: "response"},
+			"request_tags": {Entity: "request_tag", Children: nil},
+			"tags": {Entity: "tag", Children: map[string]commands.ChildRule{
+				"request_tags": {},
+			}},
+			"favourite_collections": {Entity: "favourite_collection", Children: map[string]commands.ChildRule{
+				"favourite_items": {},
+			}},
+			"favourite_items": {Entity: "favourite_item"},
+			"request_usage":   {Entity: "request_usage"},
+			"binned_requests": {Entity: "bin"},
+			"app_settings":    {Entity: "settings"},
+		},
+	}
+}
+
+func mustJSON(t *testing.T, value any) []byte {
+	t.Helper()
+	raw, err := json.Marshal(value)
 	if err != nil {
-		t.Fatalf("ExecuteRequest with validation disabled failed: %v", err)
+		t.Fatalf("encoding payload: %v", err)
 	}
-	if response.StatusCode != http.StatusOK {
-		t.Fatalf("expected request to succeed with validation disabled, got status %d: %s", response.StatusCode, response.Body)
-	}
+	return raw
 }

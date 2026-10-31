@@ -13,11 +13,18 @@ import (
 const (
 	validateSSLCertificatesKey = "validate_ssl_certificates"
 	requestTimeoutSecondsKey   = "request_timeout_seconds"
+	undoHistoryLimitKey        = "undo_history_limit"
 
 	// Request timeout bounds and default, in seconds.
 	DefaultRequestTimeoutSeconds = 30
 	MinRequestTimeoutSeconds     = 1
 	MaxRequestTimeoutSeconds     = 99999
+
+	// Undo history bounds and default, in entries. The limit prevents the
+	// in-memory mementos from growing forever; older entries are evicted.
+	DefaultUndoHistoryLimit = 100
+	MinUndoHistoryLimit     = 10
+	MaxUndoHistoryLimit     = 1000
 )
 
 // SettingsService reads and writes general application settings.
@@ -44,6 +51,12 @@ func (s *SettingsService) GetSettings() (models.AppSettings, error) {
 	if settings.RequestTimeoutSeconds < MinRequestTimeoutSeconds || settings.RequestTimeoutSeconds > MaxRequestTimeoutSeconds {
 		settings.RequestTimeoutSeconds = DefaultRequestTimeoutSeconds
 	}
+	if err := s.readSetting(undoHistoryLimitKey, &settings.UndoHistoryLimit); err != nil {
+		return defaultAppSettings(), err
+	}
+	if settings.UndoHistoryLimit < MinUndoHistoryLimit || settings.UndoHistoryLimit > MaxUndoHistoryLimit {
+		settings.UndoHistoryLimit = DefaultUndoHistoryLimit
+	}
 
 	return settings, nil
 }
@@ -61,11 +74,23 @@ func (s *SettingsService) UpdateSettings(settings models.AppSettings) (models.Ap
 			MinRequestTimeoutSeconds, MaxRequestTimeoutSeconds,
 		)
 	}
+	if settings.UndoHistoryLimit == 0 {
+		settings.UndoHistoryLimit = DefaultUndoHistoryLimit
+	}
+	if settings.UndoHistoryLimit < MinUndoHistoryLimit || settings.UndoHistoryLimit > MaxUndoHistoryLimit {
+		return settings, fmt.Errorf(
+			"undo history limit must be between %d and %d",
+			MinUndoHistoryLimit, MaxUndoHistoryLimit,
+		)
+	}
 
 	if err := s.writeSetting(validateSSLCertificatesKey, settings.ValidateSSLCertificates); err != nil {
 		return settings, err
 	}
 	if err := s.writeSetting(requestTimeoutSecondsKey, settings.RequestTimeoutSeconds); err != nil {
+		return settings, err
+	}
+	if err := s.writeSetting(undoHistoryLimitKey, settings.UndoHistoryLimit); err != nil {
 		return settings, err
 	}
 
@@ -124,9 +149,20 @@ func (s *SettingsService) RequestTimeout() time.Duration {
 	return time.Duration(settings.RequestTimeoutSeconds) * time.Second
 }
 
+// UndoHistoryLimit returns the configured undo stack size cap. Errors fall
+// back to the default.
+func (s *SettingsService) UndoHistoryLimit() int {
+	settings, err := s.GetSettings()
+	if err != nil {
+		return DefaultUndoHistoryLimit
+	}
+	return settings.UndoHistoryLimit
+}
+
 func defaultAppSettings() models.AppSettings {
 	return models.AppSettings{
 		ValidateSSLCertificates: true,
 		RequestTimeoutSeconds:   DefaultRequestTimeoutSeconds,
+		UndoHistoryLimit:        DefaultUndoHistoryLimit,
 	}
 }

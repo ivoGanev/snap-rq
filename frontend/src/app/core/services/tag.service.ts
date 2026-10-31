@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import * as TagService from '../../../../bindings/snap-rq/backend/services';
-import type { Tag, TagAppearance, HttpRequestSummary } from '../../../../bindings/snap-rq/backend/models';
+import type { Tag, TagAppearance } from '../../../../bindings/snap-rq/backend/models';
+import type { HttpRequestSummary } from '../models/http';
 
 export type { Tag, TagAppearance };
 

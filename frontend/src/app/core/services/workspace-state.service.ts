@@ -46,6 +46,12 @@ export class WorkspaceStateService {
   readonly sidebarListOpen = signal(false);
   readonly multiSelectionActive = signal(false);
   readonly zenModeOpen = signal(false);
+  /**
+   * Bumped by the command store-sync after a committed command (including
+   * undo/redo replays) so data views reload their active group WITHOUT
+   * clearing selection — unlike the view-switch effect.
+   */
+  readonly dataRefresh = signal(0);
 
   readonly environmentVariables = computed(() =>
     this.envVarApi.variables().map((v) => ({ key: v.key, value: v.value })),

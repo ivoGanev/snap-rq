@@ -59,6 +59,12 @@
 
 <app-context-menu-outlet></app-context-menu-outlet>
 
+<app-toast-outlet></app-toast-outlet>
+
+@if (commands.devPanelOpen()) {
+  <app-undo-panel></app-undo-panel>
+}
+
 @if (state.zenModeOpen()) {
   <app-zen-mode></app-zen-mode>
 }
@@ -269,6 +275,23 @@
           step="1"
           [value]="settingsApi.settings().request_timeout_seconds"
           (change)="onRequestTimeoutChange($event)"
+        />
+      </label>
+      <label class="settings-option">
+        <span class="settings-option-copy">
+          <span class="settings-option-label">Undo history limit</span>
+          <span class="settings-option-help">
+            Maximum undo steps kept in memory. Between 10 and 1000 steps; default is 100.
+          </span>
+        </span>
+        <input
+          class="settings-number"
+          type="number"
+          min="10"
+          max="1000"
+          step="1"
+          [value]="settingsApi.settings().undo_history_limit"
+          (change)="onUndoLimitChange($event)"
         />
       </label>
     </div>

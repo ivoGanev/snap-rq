@@ -5,6 +5,8 @@ import (
 	"log"
 	"time"
 
+	"snap-rq/backend/commands"
+	"snap-rq/backend/commands/runnables"
 	"snap-rq/backend/database"
 	"snap-rq/backend/services"
 
@@ -37,8 +39,26 @@ func main() {
 	}
 	defer db.Close()
 
-	requestService := services.NewRequestService(db)
+	// The command framework: every operation the app can perform, invoked
+	// by name from the UI (and one day an MCP server or CLI), with undo
+	// for the operations that can be reversed. See specs/command-framework.md.
+	engine, err := commands.NewEngine(db)
+	if err != nil {
+		log.Fatalf("starting the command engine: %v", err)
+	}
+	if err := engine.Register(runnables.Catalog...); err != nil {
+		log.Fatalf("registering commands: %v", err)
+	}
+
 	settingsService := services.NewSettingsService(db)
+	engine.SetUndoLimit(settingsService.UndoHistoryLimit)
+
+	// Start validates the whole framework: the cascade manifest must match
+	// the real schema, and every undo operation must resolve.
+	if err := engine.Start(); err != nil {
+		log.Fatalf("command framework validation: %v", err)
+	}
+
 	profileService := services.NewProfileService(db)
 	projectService := services.NewProjectService(db)
 	collectionService := services.NewCollectionService(db)
@@ -52,12 +72,11 @@ func main() {
 	// Variables 'Name' and 'Description' are for application metadata.
 	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
 	// 'Bind' is a list of Go struct instances. The frontend has access to the methods of these instances.
-	// 'Mac' options tailor the application when running an macOS.
+	// 'Mac' options tailor the application when running on a macOS.
 	app := application.New(application.Options{
 		Name:        "snap-rq-wails-v3",
 		Description: "A REST API client",
 		Services: []application.Service{
-			application.NewService(requestService),
 			application.NewService(settingsService),
 			application.NewService(profileService),
 			application.NewService(projectService),
@@ -67,6 +86,7 @@ func main() {
 			application.NewService(favouriteService),
 			application.NewService(tagService),
 			application.NewService(iconService),
+			application.NewService(commands.NewCommandService(engine)),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

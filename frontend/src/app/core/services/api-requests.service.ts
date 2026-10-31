@@ -1,5 +1,4 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import * as RequestService from '../../../../bindings/snap-rq/backend/services';
 import { RequestApiService, type HttpRequest, type HttpRequestSummary } from './request.service';
 import { TagApiService } from './tag.service';
 import { FavouriteApiService } from './favourite.service';
@@ -34,13 +33,12 @@ export class ApiRequestsService {
   // ---------------------------------------------------------------------------
 
   /**
-   * Loads every request summary from SQLite into memory.
-   * Called once when the app starts. Switching groups after this only filters
-   * the map; it does not hit the database.
+   * Loads every request summary into memory. Called once when the app
+   * starts; switching groups after this only filters the map.
    */
   async loadAll(): Promise<void> {
-    const all = await RequestService.RequestService.GetAllRequestSummaries();
-    this.replaceAll(all ?? []);
+    await this.requestApi.loadAll();
+    this.replaceAll(this.requestApi.requests());
   }
 
   // ---------------------------------------------------------------------------
@@ -106,42 +104,24 @@ export class ApiRequestsService {
     return updated;
   }
 
-  async bulkUpdateBody(ids: number[], body: string, bodyType: string): Promise<HttpRequest[]> {
-    return this.applyBulkUpdate(this.requestApi.bulkUpdateBody(ids, body, bodyType));
+  async bulkUpdateBody(ids: number[], body: string, bodyType: string): Promise<void> {
+    await this.requestApi.bulkUpdateBody(ids, body, bodyType);
   }
 
-  async bulkUpdateName(ids: number[], name: string): Promise<HttpRequest[]> {
-    return this.applyBulkUpdate(this.requestApi.bulkUpdateName(ids, name));
+  async bulkUpdateName(ids: number[], name: string): Promise<void> {
+    await this.requestApi.bulkUpdateName(ids, name);
   }
 
-  async bulkUpdateUrl(ids: number[], url: string): Promise<HttpRequest[]> {
-    return this.applyBulkUpdate(this.requestApi.bulkUpdateUrl(ids, url));
+  async bulkUpdateUrl(ids: number[], url: string): Promise<void> {
+    await this.requestApi.bulkUpdateUrl(ids, url);
   }
 
-  async bulkUpdateMethod(ids: number[], method: string): Promise<HttpRequest[]> {
-    return this.applyBulkUpdate(this.requestApi.bulkUpdateMethod(ids, method));
+  async bulkUpdateMethod(ids: number[], method: string): Promise<void> {
+    await this.requestApi.bulkUpdateMethod(ids, method);
   }
 
-  async bulkUpdateHeaders(ids: number[], headers: string): Promise<HttpRequest[]> {
-    return this.applyBulkUpdate(this.requestApi.bulkUpdateHeaders(ids, headers));
-  }
-
-  private async applyBulkUpdate(pending: Promise<HttpRequest[]>): Promise<HttpRequest[]> {
-    const updated = await pending;
-    for (const req of updated) {
-      this.patch(req.id, {
-        collection_id: req.collection_id,
-        project_id: req.project_id,
-        name: req.name,
-        url: req.url,
-        method: req.method,
-        status_code: req.status_code,
-        response_id: req.response_id,
-        user_sort_order: req.user_sort_order,
-        user_color: req.user_color,
-      });
-    }
-    return updated;
+  async bulkUpdateHeaders(ids: number[], headers: string): Promise<void> {
+    await this.requestApi.bulkUpdateHeaders(ids, headers);
   }
 
   async delete(id: number): Promise<void> {
@@ -245,7 +225,8 @@ export class ApiRequestsService {
     });
   }
 
-  private removeMany(ids: number[]): void {
+  /** Drops the given requests from the store in ONE signal write. */
+  removeMany(ids: number[]): void {
     if (ids.length === 0) return;
     this.allRequests.update(map => {
       const next = { ...map };

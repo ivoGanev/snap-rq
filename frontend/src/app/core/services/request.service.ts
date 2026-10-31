@@ -1,14 +1,18 @@
-import { Injectable, signal } from '@angular/core';
-import * as RequestService from '../../../../bindings/snap-rq/backend/services';
-import type { HttpRequest, HttpResponse, HttpRequestSummary } from '../../../../bindings/snap-rq/backend/models';
+import { Injectable, inject, signal } from '@angular/core';
+import type { HttpRequest, HttpRequestSummary, HttpResponse } from '../models/http';
+import { CommandApiService } from './command.service';
 
 export type { HttpRequest, HttpResponse, HttpRequestSummary };
 
 /**
- * Angular wrapper around the Wails-generated RequestService bindings.
+ * The app's typed API for requests: every operation runs as a command
+ * through the backend engine (see specs/command-framework.md), so edits,
+ * deletes and creates are undoable and sends never block a writer.
  */
 @Injectable({ providedIn: 'root' })
 export class RequestApiService {
+  private readonly commands = inject(CommandApiService);
+
   /** Request list used by collection/all-request views (lightweight summary). */
   readonly requests = signal<HttpRequestSummary[]>([]);
   readonly responses = signal<HttpResponse[]>([]);
@@ -52,52 +56,70 @@ export class RequestApiService {
   }
 
   async create(req: Omit<HttpRequest, 'id' | 'user_sort_order' | 'user_color'>): Promise<HttpRequest> {
-    const created = await RequestService.RequestService.CreateRequest(req as HttpRequest);
+    const created = await this.commands.execute<HttpRequest>('request.create', req);
     this.addToRequests(created);
     return created;
   }
 
   async duplicate(id: number): Promise<HttpRequest> {
-    const duplicated = await RequestService.RequestService.DuplicateRequest(id);
+    const duplicated = await this.commands.execute<HttpRequest>('request.duplicate', { id });
     this.addToRequests(duplicated);
     return duplicated;
   }
 
   async get(id: number): Promise<HttpRequest> {
-    return RequestService.RequestService.GetRequest(id);
+    return this.commands.execute<HttpRequest>('request.get', { id });
+  }
+
+  /** Targeted summary fetch for the store sync; skips ids that no longer exist. */
+  async getSummariesByIds(ids: number[]): Promise<HttpRequestSummary[]> {
+    const result = await this.commands.execute<HttpRequestSummary[]>('request.list_by_ids', { ids });
+    return result ?? [];
   }
 
   async loadAll(): Promise<void> {
-    const all = await RequestService.RequestService.GetAllRequestSummaries();
+    const all = await this.commands.execute<HttpRequestSummary[]>('request.list_summaries', {});
     this.requests.set(all ?? []);
   }
 
   async loadForCollection(collectionId: number): Promise<void> {
-    const all = await RequestService.RequestService.GetRequestSummariesForCollection(collectionId);
+    const all = await this.commands.execute<HttpRequestSummary[]>(
+      'request.list_for_collection',
+      { collection_id: collectionId },
+    );
     this.requests.set(all ?? []);
   }
 
   async loadForProject(projectId: number): Promise<void> {
-    const all = await RequestService.RequestService.GetRequestSummariesForProject(projectId);
+    const all = await this.commands.execute<HttpRequestSummary[]>(
+      'request.list_for_project',
+      { project_id: projectId },
+    );
     this.requests.set(all ?? []);
   }
 
   async loadRecentRequests(projectId: number, limit = 50): Promise<HttpRequestSummary[]> {
-    const result = await RequestService.RequestService.GetRecentRequests(projectId, limit);
+    const result = await this.commands.execute<HttpRequestSummary[]>(
+      'request.list_recent',
+      { project_id: projectId, limit },
+    );
     return result ?? [];
   }
 
   async recordRequestUsage(ids: number[]): Promise<void> {
-    await RequestService.RequestService.BulkRecordRequestUsage(ids);
+    await this.commands.execute('request.record_usage', { ids });
   }
 
   /** Persists the user's custom order of requests within one collection. */
   async updateCollectionRequestOrder(collectionId: number, orderedRequestIds: number[]): Promise<void> {
-    await RequestService.RequestService.UpdateCollectionRequestOrder(collectionId, orderedRequestIds);
+    await this.commands.execute('request.update_order', {
+      collection_id: collectionId,
+      ordered_ids: orderedRequestIds,
+    });
   }
 
   async update(req: HttpRequest): Promise<HttpRequest> {
-    const updated = await RequestService.RequestService.UpdateRequest(req);
+    const updated = await this.commands.execute<HttpRequest>('request.update', req);
     this.patchRequest({
       id: updated.id,
       collection_id: updated.collection_id,
@@ -112,76 +134,91 @@ export class RequestApiService {
     return updated;
   }
 
-  async bulkUpdateBody(ids: number[], body: string, bodyType: string): Promise<HttpRequest[]> {
-    const result = await RequestService.RequestService.BulkUpdateRequestBody(ids, body, bodyType);
-    return result ?? [];
+  async bulkUpdateBody(ids: number[], body: string, bodyType: string): Promise<void> {
+    // Two quick runs of the same command on the same rows: the engine
+    // merges them into one undo step.
+    await this.commands.execute('request.bulk_set', { ids, field: 'body', value: body });
+    await this.commands.execute('request.bulk_set', { ids, field: 'body_type', value: bodyType });
   }
 
-  async bulkUpdateName(ids: number[], name: string): Promise<HttpRequest[]> {
-    const result = await RequestService.RequestService.BulkUpdateRequestName(ids, name);
-    return result ?? [];
+  async bulkUpdateName(ids: number[], name: string): Promise<void> {
+    await this.commands.execute('request.bulk_set', { ids, field: 'name', value: name });
   }
 
-  async bulkUpdateUrl(ids: number[], url: string): Promise<HttpRequest[]> {
-    const result = await RequestService.RequestService.BulkUpdateRequestUrl(ids, url);
-    return result ?? [];
+  async bulkUpdateUrl(ids: number[], url: string): Promise<void> {
+    await this.commands.execute('request.bulk_set', { ids, field: 'url', value: url });
+  }
+
+  async bulkUpdateMethod(ids: number[], method: string): Promise<void> {
+    await this.commands.execute('request.bulk_set', { ids, field: 'method', value: method });
+  }
+
+  async bulkUpdateHeaders(ids: number[], headers: string): Promise<void> {
+    await this.commands.execute('request.bulk_set', { ids, field: 'headers', value: headers });
   }
 
   /** Sets (or clears with null) the colour on many requests in one call. */
-  async bulkUpdateColor(ids: number[], color: string | null): Promise<HttpRequest[]> {
-    const result = await RequestService.RequestService.BulkUpdateRequestColor(ids, color ?? '');
-    return result ?? [];
-  }
-
-  async bulkUpdateMethod(ids: number[], method: string): Promise<HttpRequest[]> {
-    const result = await RequestService.RequestService.BulkUpdateRequestMethod(ids, method);
-    return result ?? [];
-  }
-
-  async bulkUpdateHeaders(ids: number[], headers: string): Promise<HttpRequest[]> {
-    const result = await RequestService.RequestService.BulkUpdateRequestHeaders(ids, headers);
-    return result ?? [];
+  async bulkUpdateColor(ids: number[], color: string | null): Promise<void> {
+    await this.commands.execute('request.bulk_set', { ids, field: 'color', value: color });
   }
 
   async delete(id: number): Promise<void> {
-    await RequestService.RequestService.DeleteRequest(id);
-    this.removeFromRequests(id);
+    return this.deleteMany([id]);
   }
 
   async deleteMany(ids: number[]): Promise<void> {
     if (ids.length === 0) return;
-    await RequestService.RequestService.BulkDeleteRequests(ids);
+    await this.commands.execute('request.delete', { ids });
     this.removeManyFromRequests(ids);
   }
 
   async loadResponsesForRequest(requestId: number): Promise<void> {
-    const all = await RequestService.RequestService.GetResponsesForRequest(requestId);
+    const all = await this.commands.execute<HttpResponse[]>(
+      'response.list_for_request',
+      { request_id: requestId },
+    );
     this.responses.set(all ?? []);
   }
 
   async createResponse(resp: Omit<HttpResponse, 'id'>): Promise<HttpResponse> {
-    return RequestService.RequestService.CreateResponse(resp as HttpResponse);
+    return this.commands.execute('response.save', resp);
   }
 
   async bulkSaveResponses(responses: HttpResponse[]): Promise<HttpResponse[]> {
-    const saved = await RequestService.RequestService.BulkSaveResponses(responses);
+    const saved = await this.commands.execute<HttpResponse[]>('response.save_bulk', { responses });
     return saved ?? [];
   }
 
   /** Executes the given request content; interpolation happens client-side. */
   async execute(req: HttpRequest): Promise<HttpResponse> {
-    return RequestService.RequestService.ExecuteRequest(req);
+    return this.commands.execute('request.send', req);
   }
 
   async requestToCurl(req: HttpRequest): Promise<string> {
-    return RequestService.RequestService.RequestToCurl(req);
+    return this.commands.execute('curl.render', req);
   }
 
   async curlToRequest(collectionId: number, curl: string): Promise<HttpRequest> {
-    return RequestService.RequestService.CurlToRequest(collectionId, curl);
+    return this.commands.execute('curl.parse', { collection_id: collectionId, command: curl });
   }
 
   async saveResponseToFile(responseId: number, filePath: string): Promise<void> {
-    await RequestService.RequestService.SaveResponseToFile(responseId, filePath);
+    await this.commands.execute('response.save_to_file', {
+      response_id: responseId,
+      file_path: filePath,
+    });
+  }
+
+  /**
+   * Records a send's outcome (status code, newest response id) on the
+   * request row. The send flow's owned write; user edits never touch these
+   * columns, so an undo can never clobber a send's result.
+   */
+  async updateRequestResponse(id: number, statusCode: number, responseId: number): Promise<void> {
+    await this.commands.execute('request.record_response', {
+      request_id: id,
+      status_code: statusCode,
+      response_id: responseId,
+    });
   }
 }

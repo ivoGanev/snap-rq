@@ -12,6 +12,7 @@ export class SettingsApiService {
   readonly settings = signal<AppSettings>({
     validate_ssl_certificates: true,
     request_timeout_seconds: 30,
+    undo_history_limit: 100,
   });
   readonly loaded = signal(false);
 

@@ -7,7 +7,9 @@ import (
 	"snap-rq/backend/models"
 )
 
-// EnvironmentVariableService provides CRUD operations for environment variables.
+// EnvironmentVariableService provides CRUD operations for environment
+// variables. Deleting a variable runs through the command history; see
+// commands.go in this package.
 type EnvironmentVariableService struct {
 	db *sql.DB
 }
@@ -99,13 +101,4 @@ func (s *EnvironmentVariableService) UpdateVariable(v models.EnvironmentVariable
 	}
 
 	return v, nil
-}
-
-// DeleteVariable removes a variable by ID.
-func (s *EnvironmentVariableService) DeleteVariable(id int64) error {
-	_, err := s.db.Exec(`DELETE FROM environment_variables WHERE id = ?`, id)
-	if err != nil {
-		return fmt.Errorf("deleting variable: %w", err)
-	}
-	return nil
 }

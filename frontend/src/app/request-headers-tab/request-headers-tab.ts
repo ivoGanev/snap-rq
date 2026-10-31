@@ -38,7 +38,7 @@ export class RequestHeadersTab extends RequestCodeTabBase<string> {
     return a === b;
   }
 
-  protected override saveFor(requests: HttpRequest[], value: string): Promise<HttpRequest[]> {
+  protected override saveFor(requests: HttpRequest[], value: string): Promise<void> {
     const ids = requests.map((req) => req.id);
     return this.apiRequests.bulkUpdateHeaders(ids, value);
   }

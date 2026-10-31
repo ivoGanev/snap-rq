@@ -2,7 +2,7 @@ import { Component, effect, inject, signal } from '@angular/core';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { RequestApiService } from '../core/services/request.service';
 import { ResponseViewer } from '../response-viewer/response-viewer';
-import { BinApiService, type HttpBinnedRequestSummary, type RestoreBinnedRequestInput } from '../core/services/bin.service';
+import { BinApiService, type HttpBinnedRequestSummary, type RestoreInput } from '../core/services/bin.service';
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
 
 @Component({
@@ -52,7 +52,7 @@ export class RequestPanel {
     const originalExists = collections.some(c => c.id === req.original_collection_id);
 
     if (originalExists) {
-      void this.doRestore([{ bin_id: req.id, target_collection_id: req.original_collection_id }]);
+      void this.doRestore([{ bin_id: req.id, collection_id: req.original_collection_id }]);
       return;
     }
 
@@ -67,11 +67,11 @@ export class RequestPanel {
     const req = this.state.selectedBinnedRequest();
     if (!req) return;
 
-    await this.doRestore([{ bin_id: req.id, target_collection_id: collection.id }]);
+    await this.doRestore([{ bin_id: req.id, collection_id: collection.id }]);
     this.closeRestoreCollectionModal();
   }
 
-  private async doRestore(inputs: RestoreBinnedRequestInput[]): Promise<void> {
+  private async doRestore(inputs: RestoreInput[]): Promise<void> {
     if (inputs.length === 0) return;
 
     this.state.loading.set(true);

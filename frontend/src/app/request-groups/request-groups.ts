@@ -1,4 +1,4 @@
-import { Component, effect, TemplateRef, computed, inject, signal } from '@angular/core';
+import { Component, effect, TemplateRef, computed, inject, isDevMode, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
@@ -7,6 +7,7 @@ import {
   type FavouriteCollection,
 } from '../core/services/favourite.service';
 import { RequestApiService } from '../core/services/request.service';
+import { CommandApiService } from '../core/services/command.service';
 import { SelectionStateService, groupKey } from '../core/services/selection-state.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
@@ -96,6 +97,14 @@ export class RequestGroups {
   protected readonly iconManifest = inject(IconManifestService);
   private readonly tagApi = inject(TagApiService);
   private readonly contextMenu = inject(ContextMenuService);
+  private readonly commandApi = inject(CommandApiService);
+
+  /** Development builds only: the rail shows an undo-history debug button. */
+  protected readonly devUndoVisible = isDevMode();
+
+  openUndoPanel(): void {
+    this.commandApi.openDevPanel();
+  }
 
   /**
    * Single registry of per-kind behaviour. Adding a new sidebar kind is a
