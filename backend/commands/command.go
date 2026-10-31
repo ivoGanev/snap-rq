@@ -9,7 +9,6 @@ package commands
 
 import (
 	"encoding/json"
-	"time"
 
 	"snap-rq/backend/store"
 )
@@ -57,10 +56,9 @@ type Redoer interface {
 	Redo(db store.Session, s *Step) error
 }
 
-// A command whose writes go through raw Exec (bulk statements) implements
-// Capturer so the engine can photograph the affected rows first: it maps
-// table names to the row ids its input will touch. The engine reads those
-// rows' declared columns before the command runs.
+// A command whose writes are one bulk statement implements Capturer so the
+// engine can save the current values of the rows it will touch first: it
+// maps table names to the row ids its input will change.
 type Capturer interface {
 	CaptureRows(input json.RawMessage) map[string][]int64
 }
@@ -128,41 +126,4 @@ func (s *CommandService) Stack() []StepInfo {
 // app do?".
 func (s *CommandService) ListCommands() []CommandInfo {
 	return s.engine.ListCommands()
-}
-
-// Step is what one command execution recorded: everything needed to
-// reverse it and to re-run it.
-type Step struct {
-	FunctionID string
-	Label      string
-	When       time.Time
-	Input      json.RawMessage
-
-	// What the command did, in the order it did it.
-	Created []Row    // rows it inserted (full stored rows)
-	Deleted []RowSet // cascade trees it deleted, children first
-	Updated []Update // old values of the columns it changed
-
-	// rowsKey names the rows involved; quick repeats of the same command
-	// on the same rows share it and merge into one step.
-	rowsKey string
-}
-
-// Row is one full database row as stored.
-type Row struct {
-	Table  string
-	Values map[string]any
-}
-
-// RowSet is rows captured from one table.
-type RowSet struct {
-	Table string
-	Rows  []map[string]any
-}
-
-// Update is the old value of one row's changed columns.
-type Update struct {
-	Table   string
-	ID      int64
-	Columns map[string]any
 }

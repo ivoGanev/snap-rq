@@ -147,7 +147,7 @@ func (DeleteVariable) Run(db store.Session, input json.RawMessage) (any, error) 
 		return nil, errors.New("variable id is required")
 	}
 
-	// The engine photographs the row before deleting it; a missing row is
+	// The engine saves a copy of the row before deleting it; a missing row is
 	// the command's own error to report.
 	var one int
 	if err := db.QueryRow(

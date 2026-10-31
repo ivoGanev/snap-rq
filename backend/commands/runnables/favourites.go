@@ -54,7 +54,7 @@ func (CreateFavouriteCollection) Run(db store.Session, input json.RawMessage) (a
 }
 
 // DeleteFavouriteCollection removes a favourite collection together with
-// its memberships and appearance (the cascade tree is photographed from
+// its memberships and appearance (their copies are saved from
 // the manifest). The requests themselves are not touched. Undo puts it
 // all back.
 type DeleteFavouriteCollection struct{}

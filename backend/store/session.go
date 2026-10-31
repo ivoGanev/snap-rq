@@ -1,13 +1,13 @@
 // Package store is the app's database actions: the table operations every
 // command runs through. It is plain SQL — it knows nothing about commands
-// or undo. The command engine wraps a Session to observe what happens.
+// or undo. The command engine wraps a Session to record what happens.
 package store
 
 import (
 	"database/sql"
 	"fmt"
-	"sort"
-	"strings"
+
+	"github.com/Masterminds/squirrel"
 )
 
 // Session is the database handle a command works with: raw queries for
@@ -56,19 +56,11 @@ func (s *plainSession) Exec(query string, args ...any) (sql.Result, error) {
 }
 
 func (s *plainSession) Insert(table string, values map[string]any) (int64, error) {
-	columns := sortedKeys(values)
-	placeholders := make([]string, len(columns))
-	args := make([]any, len(columns))
-	for i, column := range columns {
-		placeholders[i] = "?"
-		args[i] = values[column]
+	query, args, err := squirrel.Insert(table).SetMap(values).ToSql()
+	if err != nil {
+		return 0, fmt.Errorf("building the insert: %w", err)
 	}
-
-	result, err := s.q.Exec(
-		fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
-			table, strings.Join(columns, ", "), strings.Join(placeholders, ", ")),
-		args...,
-	)
+	result, err := s.q.Exec(query, args...)
 	if err != nil {
 		return 0, fmt.Errorf("inserting into %s: %w", table, err)
 	}
@@ -83,14 +75,11 @@ func (s *plainSession) Delete(table string, ids ...int64) error {
 	if len(ids) == 0 {
 		return nil
 	}
-	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
-	args := make([]any, len(ids))
-	for i, id := range ids {
-		args[i] = id
+	query, args, err := squirrel.Delete(table).Where(squirrel.Eq{"id": ids}).ToSql()
+	if err != nil {
+		return fmt.Errorf("building the delete: %w", err)
 	}
-	if _, err := s.q.Exec(
-		fmt.Sprintf("DELETE FROM %s WHERE id IN (%s)", table, placeholders), args...,
-	); err != nil {
+	if _, err := s.q.Exec(query, args...); err != nil {
 		return fmt.Errorf("deleting from %s: %w", table, err)
 	}
 	return nil
@@ -100,29 +89,12 @@ func (s *plainSession) Update(table string, id int64, columns map[string]any) er
 	if len(columns) == 0 {
 		return nil
 	}
-	names := sortedKeys(columns)
-	sets := make([]string, len(names))
-	args := make([]any, 0, len(names)+1)
-	for i, name := range names {
-		sets[i] = name + " = ?"
-		args = append(args, columns[name])
+	query, args, err := squirrel.Update(table).SetMap(columns).Where(squirrel.Eq{"id": id}).ToSql()
+	if err != nil {
+		return fmt.Errorf("building the update: %w", err)
 	}
-	args = append(args, id)
-
-	if _, err := s.q.Exec(
-		fmt.Sprintf("UPDATE %s SET %s WHERE id = ?", table, strings.Join(sets, ", ")),
-		args...,
-	); err != nil {
+	if _, err := s.q.Exec(query, args...); err != nil {
 		return fmt.Errorf("updating %s #%d: %w", table, id, err)
 	}
 	return nil
-}
-
-func sortedKeys(values map[string]any) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
 }

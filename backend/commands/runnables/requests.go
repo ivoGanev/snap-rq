@@ -245,7 +245,7 @@ func (UpdateRequest) Run(db store.Session, input json.RawMessage) (any, error) {
 
 // DeleteRequests bins the given requests: a trash row is written for each
 // while it still exists, then one delete removes them (the cascades take
-// their responses, tag and favourite memberships with them — photographed
+// their responses, tag and favourite memberships with them — saved
 // first, so undo puts the whole tree back). One undo step for the batch.
 type DeleteRequests struct{}
 
@@ -456,7 +456,7 @@ func (UpdateRequestOrder) Info() commands.Info {
 	}
 }
 
-// CaptureRows tells the engine to photograph the rows the bulk statement
+// CaptureRows tells the engine to save the current values of the rows the bulk statement
 // will touch, reading the declared columns (the old order values).
 func (UpdateRequestOrder) CaptureRows(input json.RawMessage) map[string][]int64 {
 	var payload struct {
@@ -502,11 +502,11 @@ func (UpdateRequestOrder) Run(db store.Session, input json.RawMessage) (any, err
 // instead of one update per row.
 func (UpdateRequestOrder) Undo(db store.Session, s *commands.Step) error {
 	query := `UPDATE http_requests SET user_sort_order = CASE id`
-	args := make([]any, 0, len(s.Updated)*2)
-	for _, update := range s.Updated {
-		order, _ := update.Columns["user_sort_order"].(int64)
+	args := make([]any, 0, len(s.ColumnChanges)*2)
+	for _, change := range s.ColumnChanges {
+		order, _ := change.OldValues["user_sort_order"].(int64)
 		query += " WHEN ? THEN ?"
-		args = append(args, update.ID, order)
+		args = append(args, change.ID, order)
 	}
 	query += " ELSE user_sort_order END"
 

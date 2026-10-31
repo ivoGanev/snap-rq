@@ -53,7 +53,7 @@ func (ListBinnedRequests) Run(db store.Session, input json.RawMessage) (any, err
 	return summaries, rows.Err()
 }
 
-// writeBinRow photographs a request into the trash while it still exists.
+// writeBinRow saves a copy of the request into the trash while it still exists.
 // The insert is observed, so undo of the delete removes the bin row too.
 func writeBinRow(db store.Session, requestID int64) error {
 	req, err := queryRequest(db, requestID)

@@ -52,7 +52,7 @@ func (u *UndoStore) Record(step *Step) {
 		last := u.undoSteps[len(u.undoSteps)-1]
 		if last.FunctionID == step.FunctionID && last.rowsKey == step.rowsKey &&
 			time.Since(last.When) < mergeWindow {
-			// Keep the oldest captures: one undo goes back to where the
+			// Keep the oldest saved rows: one undo goes back to where the
 			// typing started, not to the middle of it.
 			last.When = time.Now()
 			return
@@ -79,7 +79,7 @@ func (u *UndoStore) PopUndo() *Step {
 	return step
 }
 
-// PushBackUndo returns a step to the undo list after a failed restore.
+// PushBackUndo returns a step to the undo list after a failed reversal.
 func (u *UndoStore) PushBackUndo(step *Step) {
 	u.undoSteps = append(u.undoSteps, step)
 }
@@ -99,7 +99,7 @@ func (u *UndoStore) PopRedo() *Step {
 	return step
 }
 
-// PushBackRedo returns a step to the redo list after a failed restore.
+// PushBackRedo returns a step to the redo list after a failed reversal.
 func (u *UndoStore) PushBackRedo(step *Step) {
 	u.redoSteps = append(u.redoSteps, step)
 }
@@ -136,31 +136,22 @@ func filterSteps(steps []*Step, table string, ids map[int64]bool) []*Step {
 }
 
 func stepInvolves(step *Step, table string, ids map[int64]bool) bool {
-	for _, row := range step.Created {
+	for _, row := range step.RowsCreated {
 		if row.Table == table && ids[rowID(row.Values)] {
 			return true
 		}
 	}
-	for _, set := range step.Deleted {
-		if set.Table == table {
-			for _, values := range set.Rows {
-				if ids[rowID(values)] {
-					return true
-				}
-			}
+	for _, row := range step.RowsDeleted {
+		if row.Table == table && ids[rowID(row.Values)] {
+			return true
 		}
 	}
-	for _, update := range step.Updated {
-		if update.Table == table && ids[update.ID] {
+	for _, change := range step.ColumnChanges {
+		if change.Table == table && ids[change.ID] {
 			return true
 		}
 	}
 	return false
-}
-
-func rowID(values map[string]any) int64 {
-	id, _ := values["id"].(int64)
-	return id
 }
 
 // Status is the summary the undo menu keeps on screen.
@@ -228,16 +219,14 @@ func stepInfo(step *Step, seq int, state string) StepInfo {
 		}
 		ids[table] = append(ids[table], id)
 	}
-	for _, row := range step.Created {
+	for _, row := range step.RowsCreated {
 		add(row.Table, rowID(row.Values))
 	}
-	for _, set := range step.Deleted {
-		for _, values := range set.Rows {
-			add(set.Table, rowID(values))
-		}
+	for _, row := range step.RowsDeleted {
+		add(row.Table, rowID(row.Values))
 	}
-	for _, update := range step.Updated {
-		add(update.Table, update.ID)
+	for _, change := range step.ColumnChanges {
+		add(change.Table, change.ID)
 	}
 
 	parts := make([]string, 0, len(tables))
@@ -259,24 +248,22 @@ func stepInfo(step *Step, seq int, state string) StepInfo {
 	}
 }
 
-// rowsKey names the rows a step involved, e.g. "http_requests:42". Two
-// runs of the same command with the same rowsKey are the same edit
+// computeRowsKey names the rows a step involved, e.g. "http_requests:42".
+// Two runs of the same command with the same key are the same edit
 // repeated.
 func (s *Step) computeRowsKey() string {
 	parts := []string{}
 	add := func(table string, id int64) {
 		parts = append(parts, table+":"+strconv.FormatInt(id, 10))
 	}
-	for _, row := range s.Created {
+	for _, row := range s.RowsCreated {
 		add(row.Table, rowID(row.Values))
 	}
-	for _, set := range s.Deleted {
-		for _, values := range set.Rows {
-			add(set.Table, rowID(values))
-		}
+	for _, row := range s.RowsDeleted {
+		add(row.Table, rowID(row.Values))
 	}
-	for _, update := range s.Updated {
-		add(update.Table, update.ID)
+	for _, change := range s.ColumnChanges {
+		add(change.Table, change.ID)
 	}
 	sort.Strings(parts)
 	return strings.Join(parts, " ")

@@ -145,7 +145,7 @@ func realCascadeEdges(db *sql.DB) (map[string]map[string]string, error) {
 //  1. every declared child edge must be a real foreign key with
 //     ON DELETE CASCADE
 //  2. every real CASCADE edge must be declared — an undeclared edge means
-//     rows the engine would never photograph, so undo would silently drop
+//     rows the engine would never save copies of, so undo would silently drop
 //     them; that is a refusal to start, not a warning
 func (m *Manifest) Validate(db *sql.DB) error {
 	real, err := realCascadeEdges(db)

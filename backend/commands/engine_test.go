@@ -737,11 +737,11 @@ func (reorderWidgets) Run(db store.Session, input json.RawMessage) (any, error) 
 // Undo restores the previous order with one symmetric bulk statement.
 func (reorderWidgets) Undo(db store.Session, s *Step) error {
 	query := `UPDATE widgets SET sort_order = CASE id`
-	args := make([]any, 0, len(s.Updated)*2)
-	for _, update := range s.Updated {
-		order, _ := update.Columns["sort_order"].(int64)
+	args := make([]any, 0, len(s.ColumnChanges)*2)
+	for _, change := range s.ColumnChanges {
+		order, _ := change.OldValues["sort_order"].(int64)
 		query += " WHEN ? THEN ?"
-		args = append(args, update.ID, order)
+		args = append(args, change.ID, order)
 	}
 	query += " ELSE sort_order END"
 	_, err := db.Exec(query, args...)
