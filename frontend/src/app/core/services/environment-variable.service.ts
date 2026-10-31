@@ -1,10 +1,16 @@
 import { Injectable, inject, signal } from '@angular/core';
-import * as EnvironmentVariableService from '../../../../bindings/snap-rq/backend/services';
-import type { EnvironmentVariable } from '../../../../bindings/snap-rq/backend/models';
 import { CommandApiService } from './command.service';
 
-export type { EnvironmentVariable };
+export interface EnvironmentVariable {
+  id: number;
+  environment_id: number;
+  key: string;
+  value: string;
+}
 
+/**
+ * The app's typed API for environment variables.
+ */
 @Injectable({ providedIn: 'root' })
 export class EnvironmentVariableApiService {
   private readonly commands = inject(CommandApiService);
@@ -12,19 +18,19 @@ export class EnvironmentVariableApiService {
   readonly variables = signal<EnvironmentVariable[]>([]);
 
   async loadForEnvironment(environmentId: number): Promise<void> {
-    const all = await EnvironmentVariableService.EnvironmentVariableService.GetVariablesForEnvironment(environmentId);
+    const all = await this.commands.execute<EnvironmentVariable[]>('variable.list', { environment_id: environmentId });
     this.variables.set(all ?? []);
   }
 
   async create(variable: Omit<EnvironmentVariable, 'id'>): Promise<EnvironmentVariable> {
-    return EnvironmentVariableService.EnvironmentVariableService.CreateVariable(variable as EnvironmentVariable);
+    return this.commands.execute<EnvironmentVariable>('variable.create', variable);
   }
 
   async update(variable: EnvironmentVariable): Promise<EnvironmentVariable> {
-    return EnvironmentVariableService.EnvironmentVariableService.UpdateVariable(variable);
+    return this.commands.execute<EnvironmentVariable>('variable.update', variable);
   }
 
   async delete(id: number): Promise<void> {
-    return this.commands.execute('environment_variable.delete', { id });
+    await this.commands.execute('variable.delete', { id });
   }
 }

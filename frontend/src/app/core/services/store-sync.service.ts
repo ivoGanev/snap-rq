@@ -10,11 +10,8 @@ import { RequestApiService } from './request.service';
 
 /**
  * Keeps the in-memory stores in step with committed commands. The backend
- * emits one 'command:changed' delta per commit (including undo/redo
- * replays); this service applies them WITHOUT full reloads — the request
- * store is refreshed by id (rows that vanished are dropped, rows that exist
- * are upserted), and only view-local stores (favourite/tag/recent/bin
- * lists) trigger their scoped reload via dataRefresh.
+ * emits 'command:changed' with the command name; this service routes the
+ * refresh by the command's entity prefix (request.*, favourite.*, etc.).
  *
  * Undo/redo must feel instant: no fixed debounce, first delta flushes
  * immediately, and deltas arriving during a flush merge into the next one.
@@ -42,7 +39,7 @@ export class StoreSyncService {
   private queue(changes: CommandChange[]): void {
     if (changes.length === 0) return;
     this.pending.push(...changes);
-    if (this.flushing) return; // merges into the flush already in flight
+    if (this.flushing) return;
     void this.flush();
   }
 
@@ -60,20 +57,21 @@ export class StoreSyncService {
   }
 
   private async apply(changes: CommandChange[]): Promise<void> {
-    const entities = new Set(changes.map(c => c.entity));
+    // collect the entity prefixes (the part before the first dot)
+    const prefixes = new Set(changes.map(c => c.command.split('.')[0]));
 
     try {
-      if (entities.has('request')) {
-        await this.refreshRequests(changes.filter(c => c.entity === 'request'));
+      if (prefixes.has('request') || prefixes.has('response') || prefixes.has('bin')) {
+        await this.refreshRequests();
       }
-      if (entities.has('favourite_collection')) {
+      if (prefixes.has('favourite')) {
         const project = this.state.selectedProject();
         if (project) {
           await this.favouriteApi.loadCollectionsForProject(project.id);
         }
         this.state.dataRefresh.update(n => n + 1);
       }
-      if (entities.has('environment')) {
+      if (prefixes.has('environment')) {
         const project = this.state.selectedProject();
         if (project) {
           await this.environmentApi.loadForProject(project.id);
@@ -82,16 +80,11 @@ export class StoreSyncService {
           }
         }
       }
-      if (entities.has('variable')) {
+      if (prefixes.has('variable')) {
         const env = this.state.selectedEnvironment();
         if (env) {
           await this.envVarApi.loadForEnvironment(env.id);
         }
-      }
-      if (entities.has('bin')) {
-        // The trash view holds its own list; a scoped reload keeps it
-        // current after restores and permanent deletes.
-        this.state.dataRefresh.update(n => n + 1);
       }
     } catch (err) {
       console.error('syncing stores after command change failed', err);
@@ -99,28 +92,11 @@ export class StoreSyncService {
   }
 
   /**
-   * Existence-based refresh, so the same code covers execute, undo and redo
-   * without op inversion: every touched id is re-fetched; ids that come
-   * back are upserted, ids that vanished are dropped. Collection and all
-   * views derive from the store map and update instantly; view-local lists
-   * (favourite/tag/recent/bin) get their scoped reload.
+   * Request stores refresh by reloading the active view's data — the same
+   * thing a view switch does, without clearing selection.
    */
-  private async refreshRequests(requestChanges: CommandChange[]): Promise<void> {
-    const ids = [...new Set(requestChanges.flatMap(c => c.ids))];
-    if (ids.length > 0) {
-      const summaries = await this.requestApi.getSummariesByIds(ids);
-      const present = new Set(summaries.map(s => s.id));
-
-      for (const summary of summaries) {
-        this.apiRequests.addOrReplace(summary);
-        this.requestApi.addToRequests(summary);
-      }
-      const gone = ids.filter(id => !present.has(id));
-      if (gone.length > 0) {
-        this.apiRequests.removeMany(gone);
-        this.requestApi.removeManyFromRequests(gone);
-      }
-    }
+  private async refreshRequests(): Promise<void> {
+    await this.apiRequests.loadAll();
 
     const viewIsLocalList =
       this.state.selectedFavouriteCollection() !== null ||

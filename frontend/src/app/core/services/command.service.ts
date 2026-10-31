@@ -12,11 +12,9 @@ import { ToastService } from './toast.service';
 
 export type { CommandInfo, Status, StepInfo, UndoResult };
 
-/** Payload of the backend 'command:changed' event: ids only, never values. */
+/** Payload of the backend 'command:changed' event. */
 export interface CommandChange {
-  entity: string;
-  op: string;
-  ids: number[];
+  command: string;
 }
 
 /**
@@ -41,8 +39,8 @@ export class CommandApiService {
   constructor() {
     Events.On('command:history', ev => this.onStatus(ev.data as Status));
     Events.On('command:changed', ev => {
-      const payload = ev.data as { command: string; changes: CommandChange[] | null };
-      this.changes.next(payload.changes ?? []);
+      const payload = ev.data as CommandChange | null;
+      if (payload) this.changes.next([payload]);
     });
   }
 

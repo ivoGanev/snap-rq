@@ -1,14 +1,19 @@
-import { Injectable, signal } from '@angular/core';
-import * as Services from '../../../../bindings/snap-rq/backend/services';
-import type { AppSettings } from '../../../../bindings/snap-rq/backend/models';
+import { Injectable, inject, signal } from '@angular/core';
+import { CommandApiService } from './command.service';
 
-export type { AppSettings };
+export interface AppSettings {
+  validate_ssl_certificates: boolean;
+  request_timeout_seconds: number;
+  undo_history_limit: number;
+}
 
 /**
- * Angular wrapper around the Wails-generated SettingsService bindings.
+ * The app's typed API for settings.
  */
 @Injectable({ providedIn: 'root' })
 export class SettingsApiService {
+  private readonly commands = inject(CommandApiService);
+
   readonly settings = signal<AppSettings>({
     validate_ssl_certificates: true,
     request_timeout_seconds: 30,
@@ -18,7 +23,7 @@ export class SettingsApiService {
 
   async load(): Promise<void> {
     try {
-      this.settings.set(await Services.SettingsService.GetSettings());
+      this.settings.set(await this.commands.execute<AppSettings>('settings.get', {}));
     } catch (err) {
       console.error('Failed to load settings:', err);
     } finally {
@@ -27,7 +32,7 @@ export class SettingsApiService {
   }
 
   async update(settings: AppSettings): Promise<AppSettings> {
-    const saved = await Services.SettingsService.UpdateSettings(settings);
+    const saved = await this.commands.execute<AppSettings>('settings.update', settings);
     this.settings.set(saved);
     return saved;
   }

@@ -226,6 +226,17 @@ func migrate(db *sql.DB) error {
 			value TEXT NOT NULL
 		);
 
+		CREATE TABLE IF NOT EXISTS undo_log (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			command TEXT NOT NULL,
+			label TEXT NOT NULL,
+			input TEXT NOT NULL,
+			snapshot TEXT NOT NULL,
+			result TEXT NOT NULL,
+			created_at INTEGER NOT NULL,
+			state TEXT NOT NULL DEFAULT 'undo' CHECK(state IN ('undo', 'redo'))
+		);
+
 		INSERT OR IGNORE INTO app_settings (key, value) VALUES ('validate_ssl_certificates', 'true');
 	`, "")
 	if err != nil {
