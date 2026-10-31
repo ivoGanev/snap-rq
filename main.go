@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"snap-rq/backend/commands"
+	"snap-rq/backend/commands/runnables"
 	"snap-rq/backend/database"
 	"snap-rq/backend/services"
 
@@ -38,8 +39,26 @@ func main() {
 	}
 	defer db.Close()
 
-	requestService := services.NewRequestService(db)
+	// The command framework: every operation the app can perform, invoked
+	// by name from the UI (and one day an MCP server or CLI), with undo
+	// for the operations that can be reversed. See specs/command-framework.md.
+	engine, err := commands.NewEngine(db)
+	if err != nil {
+		log.Fatalf("starting the command engine: %v", err)
+	}
+	if err := engine.Register(runnables.Catalog...); err != nil {
+		log.Fatalf("registering commands: %v", err)
+	}
+
 	settingsService := services.NewSettingsService(db)
+	engine.SetUndoLimit(settingsService.UndoHistoryLimit)
+
+	// Start validates the whole framework: the cascade manifest must match
+	// the real schema, and every undo operation must resolve.
+	if err := engine.Start(); err != nil {
+		log.Fatalf("command framework validation: %v", err)
+	}
+
 	profileService := services.NewProfileService(db)
 	projectService := services.NewProjectService(db)
 	collectionService := services.NewCollectionService(db)
@@ -48,16 +67,6 @@ func main() {
 	favouriteService := services.NewFavouriteService(db)
 	tagService := services.NewTagService(db)
 	iconService := services.NewIconService(db)
-
-	// The command history runs every change and remembers how to undo it
-	// (see specs/command-framework.md).
-	history := commands.NewHistory(db)
-	history.SetUndoLimit(settingsService.UndoHistoryLimit)
-	if err := services.RegisterCommands(history,
-		requestService, favouriteService, environmentService, environmentVariableService,
-	); err != nil {
-		log.Fatalf("registering commands: %v", err)
-	}
 
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
@@ -68,7 +77,6 @@ func main() {
 		Name:        "snap-rq-wails-v3",
 		Description: "A REST API client",
 		Services: []application.Service{
-			application.NewService(requestService),
 			application.NewService(settingsService),
 			application.NewService(profileService),
 			application.NewService(projectService),
@@ -78,7 +86,7 @@ func main() {
 			application.NewService(favouriteService),
 			application.NewService(tagService),
 			application.NewService(iconService),
-			application.NewService(services.NewCommandService(history)),
+			application.NewService(commands.NewCommandService(engine)),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

@@ -82,11 +82,16 @@ export class StoreSyncService {
           }
         }
       }
-      if (entities.has('environment_variable')) {
+      if (entities.has('variable')) {
         const env = this.state.selectedEnvironment();
         if (env) {
           await this.envVarApi.loadForEnvironment(env.id);
         }
+      }
+      if (entities.has('bin')) {
+        // The trash view holds its own list; a scoped reload keeps it
+        // current after restores and permanent deletes.
+        this.state.dataRefresh.update(n => n + 1);
       }
     } catch (err) {
       console.error('syncing stores after command change failed', err);

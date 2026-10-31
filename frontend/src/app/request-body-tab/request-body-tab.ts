@@ -45,7 +45,7 @@ export class RequestBodyTab extends RequestCodeTabBase<BodyValue> {
     return a.body === b.body && a.bodyType === b.bodyType;
   }
 
-  protected override saveFor(requests: HttpRequest[], value: BodyValue): Promise<HttpRequest[]> {
+  protected override saveFor(requests: HttpRequest[], value: BodyValue): Promise<void> {
     const ids = requests.map((req) => req.id);
     return this.apiRequests.bulkUpdateBody(ids, value.body, value.bodyType);
   }

@@ -9,7 +9,7 @@ import { FavouriteApiService, type FavouriteCollection } from '../core/services/
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
 import { SelectionStateService, groupKey } from '../core/services/selection-state.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
-import { BinApiService, type HttpBinnedRequestSummary, type RestoreBinnedRequestInput } from '../core/services/bin.service';
+import { BinApiService, type HttpBinnedRequestSummary, type RestoreInput } from '../core/services/bin.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
 import { RequestBottomDrawer, type BottomTab } from '../request-bottom-drawer/request-bottom-drawer';
 import { RequestBodyTab } from '../request-body-tab/request-body-tab';
@@ -383,7 +383,7 @@ export class RequestsMainList {
         method: false,
         tags: false,
       };
-      if (isSelected && selectedIds.size <= 1 && cell?.requestId === req.id) {
+      if (isSelected && selectedIds.size <= 1 && cell !== null && cell.requestId === req.id) {
         isCellSelected[cell.column] = true;
       }
       const colour = requestColorInfo(req.user_color);
@@ -1476,9 +1476,9 @@ export class RequestsMainList {
     const missingOriginal = binned.some(r => !collections.some(c => c.id === r.original_collection_id));
 
     if (!missingOriginal) {
-      const inputs = binned.map(r => ({
+      const inputs: RestoreInput[] = binned.map(r => ({
         bin_id: r.id,
-        target_collection_id: r.original_collection_id,
+        collection_id: r.original_collection_id,
       }));
       void this.doRestore(inputs);
       return;
@@ -1498,11 +1498,11 @@ export class RequestsMainList {
     const binned = this.binApi.binnedRequests().filter(r => selectedIds.includes(r.id));
     const collections = this.collectionApi.collections();
 
-    const inputs = binned.map(r => {
+    const inputs: RestoreInput[] = binned.map(r => {
       const originalExists = collections.some(c => c.id === r.original_collection_id);
       return {
         bin_id: r.id,
-        target_collection_id: originalExists ? r.original_collection_id : collection.id,
+        collection_id: originalExists ? r.original_collection_id : collection.id,
       };
     });
 
@@ -1510,7 +1510,7 @@ export class RequestsMainList {
     this.closeRestoreCollectionModal();
   }
 
-  private async doRestore(inputs: RestoreBinnedRequestInput[]): Promise<void> {
+  private async doRestore(inputs: RestoreInput[]): Promise<void> {
     if (inputs.length === 0) return;
 
     this.state.loading.set(true);

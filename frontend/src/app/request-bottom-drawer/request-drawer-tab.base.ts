@@ -71,8 +71,8 @@ export abstract class RequestDrawerTabBase<T> {
   /** Returns true when two values are considered equal. */
   protected abstract valueEquals(a: T, b: T): boolean;
 
-  /** Persists `value` onto every given request and returns the saved rows. */
-  protected abstract saveFor(requests: HttpRequest[], value: T): Promise<HttpRequest[]>;
+  /** Persists `value` onto every given request. */
+  protected abstract saveFor(requests: HttpRequest[], value: T): Promise<void>;
 
   /** Called right before a (re)load, e.g. to flush pending autosaves. */
   protected beforeReload(): void {}
@@ -123,7 +123,10 @@ export abstract class RequestDrawerTabBase<T> {
     const version = this.loadVersion;
     this.saving.set(true);
     try {
-      const saved = await this.saveFor(requests, value);
+      await this.saveFor(requests, value);
+      // The bulk commands return no rows; read the saved state back so the
+      // tab (and the workspace selection) sees exactly what was stored.
+      const saved = await Promise.all(requests.map((r) => this.requestApi.get(r.id)));
       this.applySaved(saved);
       if (version === this.loadVersion) {
         this.requests.set(saved);
@@ -148,7 +151,7 @@ export abstract class RequestDrawerTabBase<T> {
     const requests = this.requests();
     if (requests.length === 0) return;
     try {
-      this.applySaved(await this.saveFor(requests, value));
+      await this.saveFor(requests, value);
     } catch (err) {
       console.error(err);
     }

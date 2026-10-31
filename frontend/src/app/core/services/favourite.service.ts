@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import * as FavouriteService from '../../../../bindings/snap-rq/backend/services';
-import type { FavouriteCollection, FavouriteItem, FavouriteAppearance, HttpRequestSummary } from '../../../../bindings/snap-rq/backend/models';
+import type { FavouriteCollection, FavouriteItem, FavouriteAppearance } from '../../../../bindings/snap-rq/backend/models';
+import type { HttpRequestSummary } from '../models/http';
 import { CommandApiService } from './command.service';
 
 export type { FavouriteCollection, FavouriteItem, FavouriteAppearance };

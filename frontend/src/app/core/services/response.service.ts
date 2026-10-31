@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
-import * as RequestService from '../../../../bindings/snap-rq/backend/services';
-import { RequestApiService, type HttpRequest, type HttpResponse } from './request.service';
+import type { HttpRequest, HttpResponse } from '../models/http';
 import type { EnvironmentContext } from '../models/environment-context';
+import { CommandApiService } from './command.service';
+import { RequestApiService } from './request.service';
 
 export type { HttpRequest, HttpResponse };
 
@@ -11,31 +12,34 @@ export interface SendRequestCallbacks {
 }
 
 /**
- * Angular abstraction around response persistence and asynchronous request
- * execution tracking. Each send creates a response record immediately so the
- * duration can be updated in the database while the request is in flight, and
- * so multiple concurrent requests are tracked independently.
+ * Response persistence and asynchronous request execution tracking, all
+ * through commands: the send is a lock-free external call, the pending
+ * response and its in-flight duration are rows updated as the send runs,
+ * and the final outcome is recorded on the request row.
  */
 @Injectable({ providedIn: 'root' })
 export class ResponseApiService {
+  private readonly commands = inject(CommandApiService);
   private readonly requestApi = inject(RequestApiService);
 
   async create(resp: Omit<HttpResponse, 'id'>): Promise<HttpResponse> {
-    return RequestService.RequestService.CreateResponse(resp as HttpResponse);
+    return this.commands.execute('response.save', resp);
   }
 
   async update(resp: HttpResponse): Promise<HttpResponse> {
-    return RequestService.RequestService.UpdateResponse(resp);
+    return this.commands.execute('response.update', resp);
   }
 
   async delete(id: number): Promise<void> {
-    await RequestService.RequestService.DeleteResponse(id);
+    // Response history is append-only and capped; removing single entries
+    // by hand is not an operation the app offers through commands yet.
+    throw new Error('deleting response history entries is not supported');
   }
 
   /**
    * Sends a request, creates a pending response record, updates its duration
-   * in the database while the request is in flight, and writes the final
-   * response data when complete. Multiple calls run independently.
+   * while the request is in flight, and writes the final response data when
+   * complete. Multiple calls run independently.
    *
    * The request is interpolated against `environment` for execution, while
    * the raw (uninterpolated) request is what gets persisted afterwards.
@@ -97,8 +101,8 @@ export class ResponseApiService {
       });
 
       // The send flow's owned write: status/response columns only. User
-      // edits (request.update) never touch these columns (column ownership),
-      // so an undo can never clobber a send's result.
+      // edits (request.update) never touch these columns, so an undo can
+      // never clobber a send's result.
       await this.requestApi.updateRequestResponse(
         req.id,
         rawResponse.status_code,
@@ -141,9 +145,9 @@ export class ResponseApiService {
   }
 
   /**
-   * Sends a batch of requests concurrently (HTTP only, no database writes) and
-   * persists every response plus request status update in a single transaction.
-   * Each request is interpolated against `environment` for execution only.
+   * Sends a batch of requests concurrently (HTTP only, no database writes
+   * during flight) and persists every response plus request status update
+   * in one command run.
    */
   async sendRequests(
     reqs: HttpRequest[],

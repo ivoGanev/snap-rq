@@ -1,0 +1,81 @@
+# The database's cascade graph: which rows die with which parent rows, and
+# what the UI calls rows of each table.
+#
+# Validated against the real schema at every boot (PRAGMA foreign_key_list);
+# the app refuses to start if this file and the database disagree.
+#
+# children: tables whose rows are removed with this table's rows.
+#   restore: false = the cascade is real (validated), but undo never
+#   re-inserts it (telemetry, logs).
+
+tables:
+  profiles:
+    entity: profile
+    children:
+      projects: {}
+
+  projects:
+    entity: project
+    children:
+      collections: {}
+      environments: {}
+      favourite_collections: {}
+      tags: {}
+
+  collections:
+    entity: collection
+    children:
+      http_requests: {}
+      collection_appearances: {}
+
+  http_requests:
+    entity: request
+    children:
+      responses: {}
+      request_tags: {}
+      favourite_items: {}
+      request_usage: { restore: false }
+
+  environments:
+    entity: environment
+    children:
+      environment_variables: {}
+
+  environment_variables:
+    entity: variable
+
+  favourite_collections:
+    entity: favourite_collection
+    children:
+      favourite_items: {}
+      favourite_appearances: {}
+
+  favourite_items:
+    entity: favourite_item
+
+  favourite_appearances:
+    entity: favourite_appearance
+
+  tags:
+    entity: tag
+    children:
+      request_tags: {}
+      tag_appearances: {}
+
+  request_tags:
+    entity: request_tag
+
+  tag_appearances:
+    entity: tag_appearance
+
+  collection_appearances:
+    entity: collection_appearance
+
+  responses:
+    entity: response
+
+  binned_requests:
+    entity: bin
+
+  app_settings:
+    entity: settings

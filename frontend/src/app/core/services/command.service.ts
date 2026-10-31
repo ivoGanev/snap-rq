@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { Events } from '@wailsio/runtime';
 import { Subject } from 'rxjs';
-import * as CommandService from '../../../../bindings/snap-rq/backend/services';
+import * as Commands from '../../../../bindings/snap-rq/backend/commands';
 import type {
   CommandInfo,
   Status,
@@ -71,25 +71,25 @@ export class CommandApiService {
 
   /** Runs a named command with a JSON-friendly payload. */
   async execute<T>(name: string, payload: object): Promise<T> {
-    const result = await CommandService.CommandService.Execute(name, JSON.stringify(payload));
+    const result = await Commands.CommandService.Execute(name, JSON.stringify(payload));
     return result.result as T;
   }
 
   async undo(): Promise<UndoResult> {
-    return CommandService.CommandService.Undo();
+    return Commands.CommandService.Undo();
   }
 
   async redo(): Promise<UndoResult> {
-    return CommandService.CommandService.Redo();
+    return Commands.CommandService.Redo();
   }
 
   async stack(): Promise<StepInfo[]> {
-    const steps = await CommandService.CommandService.Stack();
+    const steps = await Commands.CommandService.Stack();
     return steps ?? [];
   }
 
   async listCommands(): Promise<CommandInfo[]> {
-    const commands = await CommandService.CommandService.ListCommands();
+    const commands = await Commands.CommandService.ListCommands();
     return commands ?? [];
   }
 
