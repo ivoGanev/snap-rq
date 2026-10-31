@@ -15,6 +15,8 @@ export type { CommandInfo, Status, StepInfo, UndoResult };
 /** Payload of the backend 'command:changed' event. */
 export interface CommandChange {
   command: string;
+  input: string;
+  result: string;
 }
 
 /**

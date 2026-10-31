@@ -6,7 +6,6 @@ require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/adrg/xdg v0.5.3
 	github.com/wailsapp/wails/v3 v3.0.0-beta.12
-	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.57.0
 )
 

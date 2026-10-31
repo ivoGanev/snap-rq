@@ -7,14 +7,18 @@ import { EnvironmentApiService } from './environment.service';
 import { EnvironmentVariableApiService } from './environment-variable.service';
 import { FavouriteApiService } from './favourite.service';
 import { RequestApiService } from './request.service';
+import type { HttpRequestSummary } from '../models/http';
 
 /**
- * Keeps the in-memory stores in step with committed commands. The backend
- * emits 'command:changed' with the command name; this service routes the
- * refresh by the command's entity prefix (request.*, favourite.*, etc.).
+ * Keeps the in-memory stores in step with committed commands, undos and
+ * redos — with targeted refreshes, not full reloads.
  *
- * Undo/redo must feel instant: no fixed debounce, first delta flushes
- * immediately, and deltas arriving during a flush merge into the next one.
+ * The backend's 'command:changed' event carries the command name, the
+ * input it was invoked with, and the result it returned. Request ids are
+ * extracted from whichever of those has them, then `request.list_by_ids`
+ * fetches just the touched rows — ids that come back are upserted, ids
+ * that vanished are dropped. This is what keeps undo snappy: one small
+ * IPC call instead of a full `loadAll()` plus a view reload.
  */
 @Injectable({ providedIn: 'root' })
 export class StoreSyncService {
@@ -57,12 +61,11 @@ export class StoreSyncService {
   }
 
   private async apply(changes: CommandChange[]): Promise<void> {
-    // collect the entity prefixes (the part before the first dot)
     const prefixes = new Set(changes.map(c => c.command.split('.')[0]));
 
     try {
       if (prefixes.has('request') || prefixes.has('response') || prefixes.has('bin')) {
-        await this.refreshRequests();
+        await this.refreshRequests(changes);
       }
       if (prefixes.has('favourite')) {
         const project = this.state.selectedProject();
@@ -92,12 +95,44 @@ export class StoreSyncService {
   }
 
   /**
-   * Request stores refresh by reloading the active view's data — the same
-   * thing a view switch does, without clearing selection.
+   * Extracts the request ids a change touched from the input or the
+   * result, then refreshes just those rows. Covers every shape:
+   *
+   *   delete / bulk_set:  input has {ids: [...]}
+   *   update / reorder:   input has {id} or {ordered_ids: [...]}
+   *   create undo:        result has the assigned {id}
+   *   duplicate undo:     result has the copy's {id}
+   *   bin.restore undo:   result has [{id}, {id}, ...]
+   *
+   * Falls back to loadAll() only when nothing yields ids.
    */
-  private async refreshRequests(): Promise<void> {
-    await this.apiRequests.loadAll();
+  private async refreshRequests(changes: CommandChange[]): Promise<void> {
+    const ids = new Set<number>();
+    for (const change of changes) {
+      extractIds(change.input, ids);
+      extractIds(change.result, ids);
+    }
 
+    if (ids.size > 0) {
+      // Targeted: fetch just the touched rows; ids that vanished are
+      // dropped, ids that exist are upserted.
+      const summaries = await this.requestApi.getSummariesByIds([...ids]);
+      const present = new Set(summaries.map(s => s.id));
+      for (const summary of summaries) {
+        this.apiRequests.addOrReplace(summary);
+        this.requestApi.addToRequests(summary);
+      }
+      const gone = [...ids].filter(id => !present.has(id));
+      if (gone.length > 0) {
+        this.apiRequests.removeMany(gone);
+        this.requestApi.removeManyFromRequests(gone);
+      }
+    } else {
+      // No ids extracted (a command shape we don't parse): reload all.
+      await this.apiRequests.loadAll();
+    }
+
+    // View-local lists (favourite/tag/recent/bin) hold their own copies.
     const viewIsLocalList =
       this.state.selectedFavouriteCollection() !== null ||
       this.state.selectedTag() !== null ||
@@ -105,6 +140,47 @@ export class StoreSyncService {
       this.state.showingBin();
     if (viewIsLocalList) {
       this.state.dataRefresh.update(n => n + 1);
+    }
+  }
+}
+
+/**
+ * Extracts request ids from a JSON string into the given set. Handles
+ * every shape the request commands use: {ids: [...]}, {id}, {ordered_ids:
+ * [...]}, and arrays of objects with {id}.
+ */
+function extractIds(raw: string, ids: Set<number>): void {
+  if (!raw || raw === 'null' || raw === '""') return;
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return;
+  }
+  if (parsed == null) return;
+
+  // {ids: [1, 2]} — delete, bulk_set
+  if (Array.isArray(parsed.ids)) {
+    for (const id of parsed.ids) ids.add(Number(id));
+  }
+  // {id: 42} — update, create result, duplicate result
+  if (parsed.id != null && typeof parsed.id === 'number') {
+    ids.add(parsed.id);
+  }
+  // {ordered_ids: [1, 2]} — reorder
+  if (Array.isArray(parsed.ordered_ids)) {
+    for (const id of parsed.ordered_ids) ids.add(Number(id));
+  }
+  // {request_ids: [1, 2]} — favourite remove
+  if (Array.isArray(parsed.request_ids)) {
+    for (const id of parsed.request_ids) ids.add(Number(id));
+  }
+  // [{id: 1}, {id: 2}] — bin.restore result (array of restored requests)
+  if (Array.isArray(parsed)) {
+    for (const item of parsed) {
+      if (item?.id != null && typeof item.id === 'number') {
+        ids.add(item.id);
+      }
     }
   }
 }
