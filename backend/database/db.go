@@ -21,19 +21,15 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("creating data directory: %w", err)
 	}
 
-	db, err := sql.Open("sqlite", dbPath)
+	// PRAGMAs go in the DSN so every pooled connection gets them.
+	// foreign_keys(1) makes cascades fire on DELETE; journal_mode(WAL)
+	// keeps bulk writes from paying rollback-journal overhead. Setting
+	// these with db.Exec would only affect ONE pooled connection — the
+	// runner's transactions would silently miss the cascades.
+	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)", dbPath)
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
-	}
-
-	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
-		return nil, fmt.Errorf("enabling foreign keys: %w", err)
-	}
-
-	// WAL keeps bulk writes (e.g. reordering hundreds of requests) from paying
-	// rollback-journal overhead on every commit.
-	if _, err := db.Exec("PRAGMA journal_mode = WAL"); err != nil {
-		return nil, fmt.Errorf("enabling WAL journal mode: %w", err)
 	}
 
 	if err := db.Ping(); err != nil {
