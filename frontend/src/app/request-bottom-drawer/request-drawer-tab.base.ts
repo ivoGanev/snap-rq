@@ -105,7 +105,7 @@ export abstract class RequestDrawerTabBase<T> {
     }
 
     try {
-      const requests = await Promise.all([...ids].map((id) => this.requestApi.get(id)));
+      const requests = await Promise.all([...ids].map((id) => this.requestApi.getFull(id)));
       if (version !== this.loadVersion) return;
       this.setFromRequests(requests);
     } catch (err) {
@@ -126,7 +126,7 @@ export abstract class RequestDrawerTabBase<T> {
       await this.saveFor(requests, value);
       // The bulk commands return no rows; read the saved state back so the
       // tab (and the workspace selection) sees exactly what was stored.
-      const saved = await Promise.all(requests.map((r) => this.requestApi.get(r.id)));
+      const saved = await Promise.all(requests.map((r) => this.requestApi.getFull(r.id)));
       this.applySaved(saved);
       if (version === this.loadVersion) {
         this.requests.set(saved);

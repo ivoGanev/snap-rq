@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import type { HttpBinnedRequestSummary, HttpRequest } from '../models/http';
 import { CommandApiService } from './command.service';
-import { ApiRequestsService } from './api-requests.service';
+import { RequestApiService } from './request.service';
 
 export type { HttpBinnedRequestSummary };
 
@@ -18,7 +18,7 @@ export interface RestoreInput {
 @Injectable({ providedIn: 'root' })
 export class BinApiService {
   private readonly commands = inject(CommandApiService);
-  private readonly apiRequests = inject(ApiRequestsService);
+  private readonly requestApi = inject(RequestApiService);
 
   readonly binnedRequests = signal<HttpBinnedRequestSummary[]>([]);
 
@@ -45,7 +45,7 @@ export class BinApiService {
     const binIds = new Set(inputs.map(i => i.bin_id));
     this.binnedRequests.update(list => list.filter(r => !binIds.has(r.id)));
     for (const req of restored ?? []) {
-      await this.apiRequests.restoreRequest(req);
+      await this.requestApi.restoreRequest(req);
     }
     return restored ?? [];
   }

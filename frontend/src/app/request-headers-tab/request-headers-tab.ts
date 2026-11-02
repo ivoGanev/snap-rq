@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { RequestApiService, type HttpRequest } from '../core/services/request.service';
 import { FormsModule } from '@angular/forms';
-import { type HttpRequest } from '../core/services/request.service';
-import { ApiRequestsService } from '../core/services/api-requests.service';
 import { RequestHeadersEditor } from '../request-headers-editor/request-headers-editor';
 import { RequestCodeTabBase } from '../request-bottom-drawer/request-code-tab.base';
 
@@ -19,9 +18,7 @@ import { RequestCodeTabBase } from '../request-bottom-drawer/request-code-tab.ba
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RequestHeadersTab extends RequestCodeTabBase<string> {
-  private readonly apiRequests = inject(ApiRequestsService);
-
-  readonly headersTabState = this.tabState;
+    readonly headersTabState = this.tabState;
   readonly headersEditCount = this.editCount;
   readonly headersSaving = this.saving;
 
@@ -40,7 +37,7 @@ export class RequestHeadersTab extends RequestCodeTabBase<string> {
 
   protected override saveFor(requests: HttpRequest[], value: string): Promise<void> {
     const ids = requests.map((req) => req.id);
-    return this.apiRequests.bulkUpdateHeaders(ids, value);
+    return this.requestApi.bulkUpdateHeaders(ids, value);
   }
 
   protected override emptyValue(): string {

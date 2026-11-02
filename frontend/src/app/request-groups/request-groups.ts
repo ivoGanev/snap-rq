@@ -606,7 +606,7 @@ export class RequestGroups {
         this.state.selectedCollection.set(null);
         this.state.selectedRequest.set(null);
         this.state.selectedResponse.set(null);
-        this.requestApi.requests.set([]);
+        this.requestApi.allRequests.set({});
       }
     } catch (err) {
       console.error(err);

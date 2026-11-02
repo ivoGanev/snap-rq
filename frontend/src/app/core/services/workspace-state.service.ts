@@ -1,6 +1,5 @@
 import { computed, effect, Injectable, inject, signal } from '@angular/core';
 import { RequestApiService, type HttpRequest, type HttpResponse } from './request.service';
-import { ApiRequestsService } from './api-requests.service';
 import { ResponseApiService } from './response.service';
 import { FavouriteApiService, type FavouriteCollection } from './favourite.service';
 import { BinApiService, type HttpBinnedRequestSummary } from './bin.service';
@@ -22,7 +21,6 @@ import type { Environment } from './environment.service';
 @Injectable({ providedIn: 'root' })
 export class WorkspaceStateService {
   private readonly requestApi = inject(RequestApiService);
-  private readonly apiRequests = inject(ApiRequestsService);
   private readonly responseApi = inject(ResponseApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly binApi = inject(BinApiService);
@@ -134,12 +132,10 @@ export class WorkspaceStateService {
           }
         },
       }, trackUsage);
-      this.requestApi.patchRequest({
-        id: req.id,
-        status_code: resp.status_code,
+      this.requestApi.patch(req.id, { status_code: resp.status_code,
         response_id: resp.id,
-      });
-      this.apiRequests.patch(req.id, {
+       });
+      this.requestApi.patch(req.id, {
         status_code: resp.status_code,
         response_id: resp.id,
       });
@@ -172,12 +168,10 @@ export class WorkspaceStateService {
       const responses = await this.responseApi.sendRequests(reqs, this.environment(), trackUsage);
 
       for (const resp of responses) {
-        this.requestApi.patchRequest({
-          id: resp.request_id,
-          status_code: resp.status_code,
+        this.requestApi.patch(resp.request_id, { status_code: resp.status_code,
           response_id: resp.id,
-        });
-        this.apiRequests.patch(resp.request_id, {
+         });
+        this.requestApi.patch(resp.request_id, {
           status_code: resp.status_code,
           response_id: resp.id,
         });

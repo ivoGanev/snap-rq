@@ -15,7 +15,6 @@ import { EnvironmentApiService, type Environment } from './core/services/environ
 
 import { CollectionApiService } from './core/services/collection.service';
 import { RequestApiService } from './core/services/request.service';
-import { ApiRequestsService } from './core/services/api-requests.service';
 import { FavouriteApiService } from './core/services/favourite.service';
 import { SelectionStateService } from './core/services/selection-state.service';
 import { TagApiService } from './core/services/tag.service';
@@ -59,9 +58,8 @@ export class App implements OnInit, AfterViewInit {
   private readonly storeSync = inject(StoreSyncService);
   private readonly projectApi = inject(ProjectApiService);
   private readonly environmentApi = inject(EnvironmentApiService);
-  private readonly apiRequests = inject(ApiRequestsService);
-  private readonly collectionApi = inject(CollectionApiService);
   private readonly requestApi = inject(RequestApiService);
+  private readonly collectionApi = inject(CollectionApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly selectionState = inject(SelectionStateService);
   private readonly tagApi = inject(TagApiService);
@@ -320,7 +318,7 @@ export class App implements OnInit, AfterViewInit {
         this.state.selectedRequest.set(null);
         this.state.selectedResponse.set(null);
         this.collectionApi.collections.set([]);
-        this.requestApi.requests.set([]);
+        this.requestApi.allRequests.set({});
         this.favouriteApi.collections.set([]);
         this.favouriteApi.requests.set([]);
         this.tagApi.allTags.set([]);
@@ -340,7 +338,7 @@ export class App implements OnInit, AfterViewInit {
     this.state.showingAllRequests.set(true);
     this.state.selectedRequest.set(null);
     this.state.selectedResponse.set(null);
-    this.requestApi.requests.set([]);
+    this.requestApi.allRequests.set({});
     this.favouriteApi.requests.set([]);
     this.tagApi.requestTags.set({});
 
@@ -348,7 +346,7 @@ export class App implements OnInit, AfterViewInit {
     await this.favouriteApi.loadCollectionsForProject(project.id);
     await this.collectionApi.loadForProject(project.id);
     await this.tagApi.loadTagsForProject(project.id);
-    await this.apiRequests.loadAll();
+    await this.requestApi.loadAll();
   }
 
   async loadEnvironments(projectId: number): Promise<void> {
@@ -478,7 +476,7 @@ export class App implements OnInit, AfterViewInit {
           this.state.selectedRequest.set(null);
           this.state.selectedResponse.set(null);
           this.collectionApi.collections.set([]);
-          this.requestApi.requests.set([]);
+          this.requestApi.allRequests.set({});
           this.favouriteApi.collections.set([]);
           this.favouriteApi.requests.set([]);
           this.tagApi.allTags.set([]);
