@@ -457,13 +457,11 @@ export class App implements OnInit, AfterViewInit {
 
     this.state.loading.set(true);
     try {
-      const deletedRequestIds = await this.projectApi.delete(project.id);
-      for (const requestId of deletedRequestIds) {
-        this.selectionState.deleteRequest(requestId);
-      }
+      await this.projectApi.delete(project.id);
+      await this.projectApi.loadAll();
 
       if (this.state.selectedProject()?.id === project.id) {
-        const remaining = this.projects().filter((p) => p.id !== project.id);
+        const remaining = this.projects();
         if (remaining.length > 0) {
           await this.selectProject(remaining[0]);
         } else {
