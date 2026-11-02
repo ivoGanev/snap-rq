@@ -88,7 +88,11 @@ export class StoreSyncService {
       case 'environment':
         if (project) {
           await this.environmentApi.loadForProject(project.id);
-          if (!this.state.selectedEnvironment()) {
+          // The selected environment might have been deleted (or restored
+          // by undo) — reselect if it's no longer in the list.
+          const selected = this.state.selectedEnvironment();
+          const stillExists = this.environmentApi.environments().some(e => e.id === selected?.id);
+          if (!selected || !stillExists) {
             this.state.selectedEnvironment.set(this.environmentApi.environments()[0] ?? null);
           }
         }
