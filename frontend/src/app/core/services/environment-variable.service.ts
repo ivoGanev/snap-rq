@@ -1,6 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { CommandApiService, type CommandChange } from './command.service';
-import { WorkspaceStateService } from './workspace-state.service';
+import { CommandApiService } from './command.service';
 
 export interface EnvironmentVariable {
   id: number;
@@ -15,8 +14,7 @@ export interface EnvironmentVariable {
 @Injectable({ providedIn: 'root' })
 export class EnvironmentVariableApiService {
   private readonly commands = inject(CommandApiService);
-  private readonly state = inject(WorkspaceStateService);
-
+  
   readonly variables = signal<EnvironmentVariable[]>([]);
 
   async loadForEnvironment(environmentId: number): Promise<void> {
@@ -37,10 +35,4 @@ export class EnvironmentVariableApiService {
   }
 
   /** Refreshes the variable store from a command change. */
-  async sync(_change: CommandChange): Promise<void> {
-    const env = this.state.selectedEnvironment();
-    if (env) {
-      await this.loadForEnvironment(env.id);
-    }
-  }
 }

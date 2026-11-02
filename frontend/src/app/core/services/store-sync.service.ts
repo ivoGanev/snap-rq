@@ -9,8 +9,9 @@ import { WorkspaceStateService } from './workspace-state.service';
 
 /**
  * Routes command changes to the entity service that owns the affected
- * store. Each service's sync() knows its own command shapes and refreshes
- * its own signals — this class is only the routing table.
+ * store. The entity services expose their load methods; this class knows
+ * the workspace context and calls the right one — no service knows about
+ * the workspace except this router.
  */
 @Injectable({ providedIn: 'root' })
 export class StoreSyncService {
@@ -21,23 +22,11 @@ export class StoreSyncService {
   private readonly envVarApi = inject(EnvironmentVariableApiService);
   private readonly state = inject(WorkspaceStateService);
 
-  /** Entity prefix → the service that syncs it. */
-  private readonly routes: Map<string, (c: CommandChange) => Promise<void>>;
-
   private pending: CommandChange[] = [];
   private flushing = false;
   private readonly destroy = new Subject<void>();
 
   constructor() {
-    this.routes = new Map([
-      ['request',      c => this.requestApi.sync(c)],
-      ['response',     c => this.requestApi.sync(c)],
-      ['bin',          c => this.requestApi.sync(c)],
-      ['favourite',    c => this.favouriteApi.sync(c)],
-      ['environment',  c => this.environmentApi.sync(c)],
-      ['variable',     c => this.envVarApi.sync(c)],
-    ]);
-
     this.commands.change$.pipe(takeUntil(this.destroy)).subscribe(changes => {
       this.queue(changes);
     });
@@ -65,27 +54,64 @@ export class StoreSyncService {
 
   private async apply(changes: CommandChange[]): Promise<void> {
     for (const change of changes) {
-      const prefix = change.command.split('.')[0];
-      const sync = this.routes.get(prefix);
-      if (sync) {
-        try {
-          await sync(change);
-        } catch (err) {
-          console.error('syncing stores after command change failed', err);
-        }
+      try {
+        await this.route(change);
+      } catch (err) {
+        console.error('syncing stores after command change failed', err);
       }
-      // View-local lists (favourite/tag/recent/bin) hold their own copies;
-      // a data refresh keeps them in step after request-store changes.
-      if (prefix === 'request' || prefix === 'response' || prefix === 'bin') {
-        const viewIsLocalList =
-          this.state.selectedFavouriteCollection() !== null ||
-          this.state.selectedTag() !== null ||
-          this.state.showingFamousRequests() ||
-          this.state.showingBin();
-        if (viewIsLocalList) {
-          this.state.dataRefresh.update(n => n + 1);
+    }
+  }
+
+  private async route(change: CommandChange): Promise<void> {
+    const prefix = change.command.split('.')[0];
+    const project = this.state.selectedProject();
+
+    switch (prefix) {
+      case 'request':
+      case 'response':
+        await this.requestApi.sync(change);
+        this.bumpViewRefresh();
+        break;
+
+      case 'bin':
+        await this.requestApi.sync(change);
+        this.bumpViewRefresh();
+        break;
+
+      case 'favourite':
+        if (project) {
+          await this.favouriteApi.loadCollectionsForProject(project.id);
         }
-      }
+        this.state.dataRefresh.update(n => n + 1);
+        break;
+
+      case 'environment':
+        if (project) {
+          await this.environmentApi.loadForProject(project.id);
+          if (!this.state.selectedEnvironment()) {
+            this.state.selectedEnvironment.set(this.environmentApi.environments()[0] ?? null);
+          }
+        }
+        break;
+
+      case 'variable':
+        const env = this.state.selectedEnvironment();
+        if (env) {
+          await this.envVarApi.loadForEnvironment(env.id);
+        }
+        break;
+    }
+  }
+
+  /** View-local lists (favourite/tag/recent/bin) hold their own copies. */
+  private bumpViewRefresh(): void {
+    const viewIsLocalList =
+      this.state.selectedFavouriteCollection() !== null ||
+      this.state.selectedTag() !== null ||
+      this.state.showingFamousRequests() ||
+      this.state.showingBin();
+    if (viewIsLocalList) {
+      this.state.dataRefresh.update(n => n + 1);
     }
   }
 }

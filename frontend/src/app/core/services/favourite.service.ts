@@ -1,6 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { CommandApiService, type CommandChange } from './command.service';
-import { WorkspaceStateService } from './workspace-state.service';
+import { CommandApiService } from './command.service';
 import type { HttpRequestSummary } from '../models/http';
 
 export interface FavouriteAppearance {
@@ -32,8 +31,7 @@ export interface FavouriteItem {
 @Injectable({ providedIn: 'root' })
 export class FavouriteApiService {
   private readonly commands = inject(CommandApiService);
-  private readonly state = inject(WorkspaceStateService);
-
+  
   readonly collections = signal<FavouriteCollection[]>([]);
   readonly requests = signal<HttpRequestSummary[]>([]);
   readonly membership = signal<Set<number>>(new Set());
@@ -139,16 +137,4 @@ export class FavouriteApiService {
     this.requestsMembership.set({});
   }
 
-  // -----------------------------------------------------------------------
-  // Store sync
-  // -----------------------------------------------------------------------
-
-  /** Refreshes the favourite stores from a command change. */
-  async sync(_change: CommandChange): Promise<void> {
-    const project = this.state.selectedProject();
-    if (project) {
-      await this.loadCollectionsForProject(project.id);
-    }
-    this.state.dataRefresh.update(n => n + 1);
-  }
 }
