@@ -5,6 +5,7 @@ import { RequestApiService } from './request.service';
 import { FavouriteApiService } from './favourite.service';
 import { EnvironmentApiService } from './environment.service';
 import { EnvironmentVariableApiService } from './environment-variable.service';
+import { WorkspaceStateService } from './workspace-state.service';
 
 /**
  * Routes command changes to the entity service that owns the affected
@@ -18,6 +19,7 @@ export class StoreSyncService {
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly environmentApi = inject(EnvironmentApiService);
   private readonly envVarApi = inject(EnvironmentVariableApiService);
+  private readonly state = inject(WorkspaceStateService);
 
   /** Entity prefix → the service that syncs it. */
   private readonly routes: Map<string, (c: CommandChange) => Promise<void>>;
@@ -63,12 +65,25 @@ export class StoreSyncService {
 
   private async apply(changes: CommandChange[]): Promise<void> {
     for (const change of changes) {
-      const sync = this.routes.get(change.command.split('.')[0]);
+      const prefix = change.command.split('.')[0];
+      const sync = this.routes.get(prefix);
       if (sync) {
         try {
           await sync(change);
         } catch (err) {
           console.error('syncing stores after command change failed', err);
+        }
+      }
+      // View-local lists (favourite/tag/recent/bin) hold their own copies;
+      // a data refresh keeps them in step after request-store changes.
+      if (prefix === 'request' || prefix === 'response' || prefix === 'bin') {
+        const viewIsLocalList =
+          this.state.selectedFavouriteCollection() !== null ||
+          this.state.selectedTag() !== null ||
+          this.state.showingFamousRequests() ||
+          this.state.showingBin();
+        if (viewIsLocalList) {
+          this.state.dataRefresh.update(n => n + 1);
         }
       }
     }

@@ -1,7 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import type { HttpRequest, HttpRequestSummary, HttpResponse } from '../models/http';
 import { CommandApiService, type CommandChange } from './command.service';
-import { WorkspaceStateService } from './workspace-state.service';
 import { TagApiService } from './tag.service';
 import { FavouriteApiService } from './favourite.service';
 
@@ -15,7 +14,6 @@ export type { HttpRequest, HttpResponse, HttpRequestSummary };
 @Injectable({ providedIn: 'root' })
 export class RequestApiService {
   private readonly commands = inject(CommandApiService);
-  private readonly state = inject(WorkspaceStateService);
   private readonly tagApi = inject(TagApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
 
@@ -309,7 +307,6 @@ export class RequestApiService {
     const ids = this.touchedIds(change);
     if (ids.length === 0) {
       await this.loadAll();
-      this.bumpViewRefresh();
       return;
     }
 
@@ -322,19 +319,6 @@ export class RequestApiService {
     const gone = ids.filter(id => !present.has(id));
     if (gone.length > 0) {
       this.removeMany(gone);
-    }
-    this.bumpViewRefresh();
-  }
-
-  /** View-local lists (favourite/tag/recent/bin) hold their own copies. */
-  private bumpViewRefresh(): void {
-    const viewIsLocalList =
-      this.state.selectedFavouriteCollection() !== null ||
-      this.state.selectedTag() !== null ||
-      this.state.showingFamousRequests() ||
-      this.state.showingBin();
-    if (viewIsLocalList) {
-      this.state.dataRefresh.update(n => n + 1);
     }
   }
 
