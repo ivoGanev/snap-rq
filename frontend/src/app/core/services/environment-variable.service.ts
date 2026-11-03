@@ -27,7 +27,11 @@ export class EnvironmentVariableApiService {
   }
 
   async update(variable: EnvironmentVariable): Promise<EnvironmentVariable> {
-    return this.commands.execute<EnvironmentVariable>('variable.update', variable);
+    const updated = await this.commands.execute<EnvironmentVariable>('variable.update', variable);
+    // Variable edits are not undoable, so no change event fires — patch
+    // the local store here.
+    this.variables.update(list => list.map(v => (v.id === updated.id ? updated : v)));
+    return updated;
   }
 
   async delete(id: number): Promise<void> {
