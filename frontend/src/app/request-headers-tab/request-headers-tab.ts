@@ -19,7 +19,6 @@ import { RequestCodeTabBase } from '../request-bottom-drawer/request-code-tab.ba
 })
 export class RequestHeadersTab extends RequestCodeTabBase<string> {
     readonly headersTabState = this.tabState;
-  readonly headersEditCount = this.editCount;
   readonly headersSaving = this.saving;
 
   readonly headersDraft = computed(() => this.draftValue() ?? '');

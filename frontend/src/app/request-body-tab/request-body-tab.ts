@@ -25,7 +25,6 @@ interface BodyValue {
 })
 export class RequestBodyTab extends RequestCodeTabBase<BodyValue> {
     readonly bodyTabState = this.tabState;
-  readonly bodyEditCount = this.editCount;
   readonly bodySaving = this.saving;
 
   readonly bodyDraft = computed(() => this.draftValue()?.body ?? '');
