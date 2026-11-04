@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { RequestApiService, type HttpRequest } from '../core/services/request.service';
+import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
+import { type HttpRequest } from '../core/services/request.service';
 import { FormsModule } from '@angular/forms';
 import { RequestHeadersEditor } from '../request-headers-editor/request-headers-editor';
 import { RequestCodeTabBase } from '../request-bottom-drawer/request-code-tab.base';
@@ -18,7 +18,7 @@ import { RequestCodeTabBase } from '../request-bottom-drawer/request-code-tab.ba
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RequestHeadersTab extends RequestCodeTabBase<string> {
-    readonly headersTabState = this.tabState;
+  readonly headersTabState = this.tabState;
   readonly headersSaving = this.saving;
 
   readonly headersDraft = computed(() => this.draftValue() ?? '');
@@ -34,9 +34,13 @@ export class RequestHeadersTab extends RequestCodeTabBase<string> {
     return a === b;
   }
 
-  protected override saveFor(requests: HttpRequest[], value: string): Promise<void> {
+  protected override async saveFor(requests: HttpRequest[], value: string): Promise<void> {
+    if (requests.length === 1) {
+      await this.requestApi.update({ ...requests[0], request_headers: value, })
+      return
+    }
     const ids = requests.map((req) => req.id);
-    return this.requestApi.bulkUpdateHeaders(ids, value);
+    await this.requestApi.bulkUpdateHeaders(ids, value);
   }
 
   protected override emptyValue(): string {

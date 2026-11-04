@@ -41,10 +41,23 @@ export class RequestBodyTab extends RequestCodeTabBase<BodyValue> {
     return a.body === b.body && a.bodyType === b.bodyType;
   }
 
-  protected override saveFor(requests: HttpRequest[], value: BodyValue): Promise<void> {
-    const ids = requests.map((req) => req.id);
-    return this.requestApi.bulkUpdateBody(ids, value.body, value.bodyType);
+protected override async saveFor(requests: HttpRequest[], value: BodyValue): Promise<void> {
+  // A single edit is a normal request update: not undoable
+  // Only a real multi-selection edit is a bulk operation worth an undo step.
+  if (requests.length === 1) {
+    await this.requestApi.update({
+      ...requests[0],
+      body: value.body,
+      body_type: value.bodyType,
+    });
+    return;
   }
+  await this.requestApi.bulkUpdateBody(
+    requests.map((req) => req.id),
+    value.body,
+    value.bodyType,
+  );
+}
 
   protected override emptyValue(): BodyValue {
     return { body: '', bodyType: 'json' };
