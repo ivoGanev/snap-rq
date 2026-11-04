@@ -1,5 +1,4 @@
 import { Injectable, inject } from '@angular/core';
-import { Subject, takeUntil } from 'rxjs';
 import { CommandApiService, type CommandChange } from './command.service';
 import { RequestApiService } from './request.service';
 import { FavouriteApiService } from './favourite.service';
@@ -22,34 +21,10 @@ export class StoreSyncService {
   private readonly envVarApi = inject(EnvironmentVariableApiService);
   private readonly state = inject(WorkspaceStateService);
 
-  private pending: CommandChange[] = [];
-  private flushing = false;
-  private readonly destroy = new Subject<void>();
-
   constructor() {
-    this.commands.change$.pipe(takeUntil(this.destroy)).subscribe(changes => {
-      this.queue(changes);
+    this.commands.change$.subscribe(changes => {
+      void this.apply(changes);
     });
-  }
-
-  private queue(changes: CommandChange[]): void {
-    if (changes.length === 0) return;
-    this.pending.push(...changes);
-    if (this.flushing) return;
-    void this.flush();
-  }
-
-  private async flush(): Promise<void> {
-    this.flushing = true;
-    try {
-      while (this.pending.length > 0) {
-        const batch = this.pending;
-        this.pending = [];
-        await this.apply(batch);
-      }
-    } finally {
-      this.flushing = false;
-    }
   }
 
   private async apply(changes: CommandChange[]): Promise<void> {
@@ -98,12 +73,13 @@ export class StoreSyncService {
         }
         break;
 
-      case 'variable':
+      case 'variable': {
         const env = this.state.selectedEnvironment();
         if (env) {
           await this.envVarApi.loadForEnvironment(env.id);
         }
         break;
+      }
     }
   }
 
