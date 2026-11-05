@@ -52,3 +52,7 @@ func (c Create) Undo(_, result json.RawMessage) error {
 	_, err := c.tx.Exec(`DELETE FROM projects WHERE id = ?`, created.ID)
 	return err
 }
+
+func (Create) Affected(_, result json.RawMessage) []commands.Affected {
+	return []commands.Affected{{Component: "project", IDs: commands.IDsOf(result, "id")}}
+}

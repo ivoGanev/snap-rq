@@ -74,6 +74,11 @@ func (r *Runner) Register(factories ...Factory) error {
 		r.factories[info.FunctionID] = factory
 		r.infos[info.FunctionID] = info
 		_, r.undoable[info.FunctionID] = cmd.(UndoableCommand)
+		if r.undoable[info.FunctionID] {
+			if _, ok := cmd.(AffectedCommand); !ok {
+				return fmt.Errorf("command %s is undoable but does not report its affected rows", info.FunctionID)
+			}
+		}
 	}
 	return nil
 }
@@ -160,17 +165,22 @@ func (r *Runner) runWrite(name string, info Info, factory Factory, input json.Ra
 		return nil, nil, err
 	}
 
+	affected, reports := cmd.(AffectedCommand)
+	var resultRaw []byte
+	if reports || r.undoable[name] {
+		resultRaw, _ = json.Marshal(result)
+	}
+
 	var events []event
+	if reports {
+		events = append(events, event{EventChanged, changedEvent(name, affected.Affected(input, resultRaw))})
+	}
 	if r.undoable[name] {
-		resultRaw, _ := json.Marshal(result)
 		if err := r.recordUndo(tx, name, info.Label, string(input), snapshot, string(resultRaw)); err != nil {
 			return nil, nil, err
 		}
 		r.lastAction, r.lastLabel = "run", info.Label
-		events = []event{
-			{EventChanged, changedEvent(name, string(input), string(resultRaw))},
-			{EventHistory, r.status()},
-		}
+		events = append(events, event{EventHistory, r.status()})
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, nil, err
@@ -264,7 +274,7 @@ func (r *Runner) Undo() (UndoResult, error) {
 
 		r.lastAction, r.lastLabel = "undo", row.Label
 		emit([]event{
-			{EventChanged, changedEvent(row.Command, row.Input, row.Result)},
+			{EventChanged, changedEvent(row.Command, refsOf(cmd, row.Input, row.Result))},
 			{EventHistory, r.status()},
 		})
 		return UndoResult{Command: row.Command, Label: row.Label, Skipped: skipped}, nil
@@ -316,7 +326,7 @@ func (r *Runner) Redo() (UndoResult, error) {
 
 	r.lastAction, r.lastLabel = "redo", row.Label
 	emit([]event{
-		{EventChanged, changedEvent(row.Command, row.Input, row.Result)},
+		{EventChanged, changedEvent(row.Command, refsOf(cmd, row.Input, string(resultRaw)))},
 		{EventHistory, r.status()},
 	})
 	return UndoResult{Command: row.Command, Label: row.Label}, nil
@@ -413,21 +423,27 @@ func (r *Runner) ListCommands() []CommandInfo {
 	return infos
 }
 
-// CommandChanged is the payload of EventChanged: the command name plus
-// the input it was invoked with and the result it returned, so the
-// frontend can do targeted refreshes instead of full reloads.
+// CommandChanged is the payload of EventChanged: the operation plus the
+// rows it touched, so the frontend refreshes exactly those.
 type CommandChanged struct {
-	Component string `json:"component"`
-	Operation string `json:"operation"`
-	Input     string `json:"input"`
-	Result    string `json:"result"`
+	Operation string     `json:"operation"`
+	Affected  []Affected `json:"affected"`
+}
+
+// refsOf asks the command which rows it touched, from the same input and
+// result the run is logged with.
+func refsOf(cmd Command, input, result string) []Affected {
+	if affected, ok := cmd.(AffectedCommand); ok {
+		return affected.Affected([]byte(input), []byte(result))
+	}
+	return nil
 }
 
 // changedEvent splits the command name ("request.delete") into its
-// component and operation.
-func changedEvent(name, input, result string) CommandChanged {
-	component, operation, _ := strings.Cut(name, ".")
-	return CommandChanged{Component: component, Operation: operation, Input: input, Result: result}
+// operation.
+func changedEvent(name string, refs []Affected) CommandChanged {
+	_, operation, _ := strings.Cut(name, ".")
+	return CommandChanged{Operation: operation, Affected: refs}
 }
 
 // UndoResult reports what an Undo or Redo did.

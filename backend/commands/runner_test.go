@@ -74,6 +74,14 @@ func (c renameWidget) Run(input json.RawMessage) (any, error) {
 	return in.Name, err
 }
 
+func (renameWidget) Affected(input, _ json.RawMessage) []Affected {
+	var in struct {
+		ID int64 `json:"id"`
+	}
+	json.Unmarshal(input, &in)
+	return []Affected{{Component: "widget", IDs: []int64{in.ID}}}
+}
+
 func (c renameWidget) Undo(snapshot, _ json.RawMessage) error {
 	var old oldName
 	if err := json.Unmarshal(snapshot, &old); err != nil {
@@ -112,6 +120,14 @@ func (c createWidget) Run(input json.RawMessage) (any, error) {
 	return map[string]any{"id": id, "name": in.Name}, nil
 }
 
+func (createWidget) Affected(_, result json.RawMessage) []Affected {
+	var created struct {
+		ID int64 `json:"id"`
+	}
+	json.Unmarshal(result, &created)
+	return []Affected{{Component: "widget", IDs: []int64{created.ID}}}
+}
+
 func (c createWidget) Undo(_, result json.RawMessage) error {
 	var created struct {
 		ID int64 `json:"id"`
@@ -120,6 +136,19 @@ func (c createWidget) Undo(_, result json.RawMessage) error {
 	_, err := c.tx.Exec(`DELETE FROM widgets WHERE id = ?`, created.ID)
 	return err
 }
+
+// badWidget is undoable but does not report its affected rows.
+type badWidget struct{ tx *sql.Tx }
+
+func newBadWidget(tx *sql.Tx) Command { return &badWidget{tx: tx} }
+
+func (badWidget) Info() Info { return Info{FunctionID: "widget.bad", Label: "Bad Widget"} }
+
+func (badWidget) Snapshot(_ json.RawMessage) (any, error) { return nil, nil }
+
+func (badWidget) Run(_ json.RawMessage) (any, error) { return nil, nil }
+
+func (badWidget) Undo(_, _ json.RawMessage) error { return nil }
 
 func createWidgets(t *testing.T, db *sql.DB, names ...string) {
 	t.Helper()
@@ -285,6 +314,13 @@ func TestUndoLimitTrims(t *testing.T) {
 
 	if got := runner.Status().UndoSteps; got != 2 {
 		t.Fatalf("expected trimmed to 2, got %d", got)
+	}
+}
+
+func TestUndoableCommandsMustReportAffectedRows(t *testing.T) {
+	runner, _ := newTestRunner(t)
+	if err := runner.Register(newBadWidget); err == nil {
+		t.Fatal("expected registration to fail for an undoable command without Affected")
 	}
 }
 

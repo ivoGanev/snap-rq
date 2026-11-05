@@ -104,3 +104,7 @@ func (c Reorder) Undo(snapshot, _ json.RawMessage) error {
 	_, err := c.tx.Exec(query, args...)
 	return err
 }
+
+func (Reorder) Affected(input, _ json.RawMessage) []commands.Affected {
+	return []commands.Affected{{Component: "request", IDs: commands.IDsOf(input, "ordered_ids")}}
+}

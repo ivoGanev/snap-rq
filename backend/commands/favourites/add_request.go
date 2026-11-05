@@ -65,3 +65,7 @@ func (c AddRequest) Undo(_, result json.RawMessage) error {
 	_, err := c.tx.Exec(`DELETE FROM favourite_items WHERE id = ?`, created.ID)
 	return err
 }
+
+func (AddRequest) Affected(_, result json.RawMessage) []commands.Affected {
+	return []commands.Affected{{Component: "favourite", IDs: commands.IDsOf(result, "favourite_collection_id")}}
+}

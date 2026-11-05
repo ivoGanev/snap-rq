@@ -98,6 +98,10 @@ func (c RemoveRequests) Undo(snapshot, _ json.RawMessage) error {
 	return nil
 }
 
+func (RemoveRequests) Affected(input, _ json.RawMessage) []commands.Affected {
+	return []commands.Affected{{Component: "favourite", IDs: commands.IDsOf(input, "favourite_collection_id")}}
+}
+
 // placeholders and int64Args are the tiny SQL-string helpers this package
 // uses; they live here because several files share them.
 func placeholders(n int) string {

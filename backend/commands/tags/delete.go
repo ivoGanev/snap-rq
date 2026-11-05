@@ -110,3 +110,7 @@ func (c Delete) Undo(snapshot, _ json.RawMessage) error {
 	}
 	return nil
 }
+
+func (Delete) Affected(_, _ json.RawMessage) []commands.Affected {
+	return []commands.Affected{{Component: "tag"}}
+}

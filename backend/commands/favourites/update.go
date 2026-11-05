@@ -64,3 +64,7 @@ func (c Update) Undo(snapshot, _ json.RawMessage) error {
 		`UPDATE favourite_collections SET name = ? WHERE id = ?`, old.Name, old.ID)
 	return err
 }
+
+func (Update) Affected(_, result json.RawMessage) []commands.Affected {
+	return []commands.Affected{{Component: "favourite", IDs: commands.IDsOf(result, "id")}}
+}

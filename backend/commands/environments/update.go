@@ -61,3 +61,7 @@ func (c Update) Undo(snapshot, _ json.RawMessage) error {
 	_, err := c.tx.Exec(`UPDATE environments SET name = ? WHERE id = ?`, old.Name, old.ID)
 	return err
 }
+
+func (Update) Affected(input, _ json.RawMessage) []commands.Affected {
+	return []commands.Affected{{Component: "environment", IDs: commands.IDsOf(input, "id")}}
+}

@@ -1,15 +1,18 @@
 /**
- * Change-set model: the backend reports which component changed and with
- * which operation; the frontend turns that into the affected row ids and
- * fans it out to the stores.
+ * Change-set model: the backend reports which operation ran and which rows
+ * it touched; the frontend fans that out to the stores.
  */
+
+/** One kind of row a command touched. */
+export interface AffectedChange {
+  component: string; // "request"
+  ids: number[]; // [] when the store should reload its whole list
+}
 
 /** Raw payload of the backend 'command:changed' event. */
 export interface CommandChanged {
-  component: string; // "request"
   operation: string; // "delete"
-  input: string; // JSON the command was invoked with
-  result: string; // JSON the command returned
+  affected: AffectedChange[];
 }
 
 /** One affected entity: which store, which operation, which row ids. */

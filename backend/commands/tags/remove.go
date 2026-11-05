@@ -72,3 +72,7 @@ func (c Remove) Undo(snapshot, _ json.RawMessage) error {
 		link.ID, link.RequestID, link.TagID, link.UserSortOrder, link.UserColor)
 	return err
 }
+
+func (Remove) Affected(_, _ json.RawMessage) []commands.Affected {
+	return []commands.Affected{{Component: "tag"}}
+}

@@ -110,3 +110,7 @@ func (c SetColor) Undo(snapshot, _ json.RawMessage) error {
 	}
 	return nil
 }
+
+func (SetColor) Affected(_, _ json.RawMessage) []commands.Affected {
+	return []commands.Affected{{Component: "tag"}}
+}

@@ -88,3 +88,7 @@ func (c SetAppearance) Undo(snapshot, _ json.RawMessage) error {
 	}
 	return nil
 }
+
+func (SetAppearance) Affected(input, _ json.RawMessage) []commands.Affected {
+	return []commands.Affected{{Component: "collection", IDs: commands.IDsOf(input, "collection_id")}}
+}

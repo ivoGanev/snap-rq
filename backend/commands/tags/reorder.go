@@ -96,3 +96,7 @@ func (c Reorder) Undo(snapshot, _ json.RawMessage) error {
 	_, err := c.tx.Exec(query, args...)
 	return err
 }
+
+func (Reorder) Affected(_, _ json.RawMessage) []commands.Affected {
+	return []commands.Affected{{Component: "tag"}}
+}

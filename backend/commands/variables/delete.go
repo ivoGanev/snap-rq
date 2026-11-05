@@ -67,3 +67,7 @@ func (c Delete) Undo(snapshot, _ json.RawMessage) error {
 		saved.ID, saved.EnvironmentID, saved.Key, saved.Value)
 	return err
 }
+
+func (Delete) Affected(input, _ json.RawMessage) []commands.Affected {
+	return []commands.Affected{{Component: "variable", IDs: commands.IDsOf(input, "id")}}
+}

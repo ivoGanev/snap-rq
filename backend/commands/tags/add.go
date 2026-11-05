@@ -115,3 +115,7 @@ func (c Add) Undo(snapshot, _ json.RawMessage) error {
 	}
 	return nil
 }
+
+func (Add) Affected(_, result json.RawMessage) []commands.Affected {
+	return []commands.Affected{{Component: "tag", IDs: commands.IDsOf(result, "id")}}
+}

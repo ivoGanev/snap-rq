@@ -102,3 +102,7 @@ func (c SetColor) Undo(snapshot, _ json.RawMessage) error {
 	}
 	return nil
 }
+
+func (SetColor) Affected(input, _ json.RawMessage) []commands.Affected {
+	return []commands.Affected{{Component: "favourite", IDs: commands.IDsOf(input, "favourite_collection_id")}}
+}
