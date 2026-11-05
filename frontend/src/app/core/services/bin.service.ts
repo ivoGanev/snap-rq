@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import type { HttpBinnedRequestSummary, HttpRequest } from '../models/http';
 import { CommandApiService } from './command.service';
+import { ChangeBus } from './change-bus.service';
 import { RequestApiService } from './request.service';
 
 export type { HttpBinnedRequestSummary };
@@ -19,10 +20,19 @@ export interface RestoreInput {
 export class BinApiService {
   private readonly commands = inject(CommandApiService);
   private readonly requestApi = inject(RequestApiService);
+  private readonly bus = inject(ChangeBus);
+  private projectId: number | null = null;
 
   readonly binnedRequests = signal<HttpBinnedRequestSummary[]>([]);
 
+  constructor() {
+    this.bus.changesFor('bin').subscribe(() => {
+      if (this.projectId) void this.loadForProject(this.projectId);
+    });
+  }
+
   async loadForProject(projectId: number): Promise<void> {
+    this.projectId = projectId;
     const all = await this.commands.execute<HttpBinnedRequestSummary[]>(
       'bin.list',
       { project_id: projectId },

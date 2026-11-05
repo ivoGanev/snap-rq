@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { CommandApiService } from './command.service';
+import { ChangeBus } from './change-bus.service';
 
 export interface CollectionAppearance {
   id: number;
@@ -21,10 +22,19 @@ export interface Collection {
 @Injectable({ providedIn: 'root' })
 export class CollectionApiService {
   private readonly commands = inject(CommandApiService);
+  private readonly bus = inject(ChangeBus);
+  private projectId: number | null = null;
 
   readonly collections = signal<Collection[]>([]);
 
+  constructor() {
+    this.bus.changesFor('collection').subscribe(() => {
+      if (this.projectId) void this.loadForProject(this.projectId);
+    });
+  }
+
   async loadForProject(projectId: number): Promise<void> {
+    this.projectId = projectId;
     const all = await this.commands.execute<Collection[]>('collection.list', { project_id: projectId });
     this.collections.set(all ?? []);
   }
@@ -45,7 +55,9 @@ export class CollectionApiService {
     });
   }
 
-  async delete(id: number): Promise<void> {
-    await this.commands.execute('collection.delete', { id });
+  /** Deletes a collection and returns the ids of the requests that died with it. */
+  async delete(id: number): Promise<number[]> {
+    const result = await this.commands.execute<{ request_ids: number[] }>('collection.delete', { id });
+    return result?.request_ids ?? [];
   }
 }

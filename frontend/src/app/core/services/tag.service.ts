@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { CommandApiService } from './command.service';
+import { ChangeBus } from './change-bus.service';
 import type { HttpRequestSummary } from '../models/http';
 
 export interface TagAppearance {
@@ -22,11 +23,20 @@ export interface Tag {
 @Injectable({ providedIn: 'root' })
 export class TagApiService {
   private readonly commands = inject(CommandApiService);
+  private readonly bus = inject(ChangeBus);
+  private projectId: number | null = null;
 
   readonly allTags = signal<Tag[]>([]);
   readonly requestTags = signal<Record<number, string[] | undefined>>({});
 
+  constructor() {
+    this.bus.changesFor('tag').subscribe(() => {
+      if (this.projectId) void this.loadTagsForProject(this.projectId);
+    });
+  }
+
   async loadTagsForProject(projectId: number): Promise<void> {
+    this.projectId = projectId;
     const tags = await this.commands.execute<Tag[]>('tag.list', { project_id: projectId });
     this.allTags.set(tags ?? []);
   }

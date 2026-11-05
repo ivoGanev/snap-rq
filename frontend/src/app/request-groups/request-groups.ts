@@ -599,7 +599,10 @@ export class RequestGroups {
   private async deleteCollection(collection: Collection): Promise<void> {
     this.state.loading.set(true);
     try {
-      await this.collectionApi.delete(collection.id);
+      const deletedRequestIds = await this.collectionApi.delete(collection.id);
+      for (const requestId of deletedRequestIds) {
+        this.selectionState.deleteRequest(requestId);
+      }
       this.selectionState.setSelectedRequest(groupKey.collection(collection.id), null);
 
       if (this.state.selectedCollection()?.id === collection.id) {

@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { CommandApiService } from './command.service';
+import { ChangeBus } from './change-bus.service';
 
 export interface Project {
   id: number;
@@ -13,8 +14,13 @@ export interface Project {
 @Injectable({ providedIn: 'root' })
 export class ProjectApiService {
   private readonly commands = inject(CommandApiService);
+  private readonly bus = inject(ChangeBus);
 
   readonly projects = signal<Project[]>([]);
+
+  constructor() {
+    this.bus.changesFor('project').subscribe(() => void this.loadAll());
+  }
 
   async loadAll(): Promise<void> {
     const all = await this.commands.execute<Project[]>('project.list', {});

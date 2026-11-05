@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { Clipboard } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
+import { ChangeBus } from '../core/services/change-bus.service';
 import { RequestApiService, type HttpRequest, type HttpRequestSummary } from '../core/services/request.service';
 import { FavouriteApiService, type FavouriteCollection } from '../core/services/favourite.service';
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
@@ -76,6 +77,7 @@ const NAME_COLUMN_MIN_WIDTH = 120;
 export class RequestsMainList {
   protected readonly state = inject(WorkspaceStateService);
   private readonly requestApi = inject(RequestApiService);
+  private readonly changeBus = inject(ChangeBus);
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly collectionApi = inject(CollectionApiService);
   private readonly selectionState = inject(SelectionStateService);
@@ -486,7 +488,7 @@ export class RequestsMainList {
     // view-switch effect above. The initial value 0 is skipped so app start
     // does not double-load.
     effect(() => {
-      const refresh = this.state.dataRefresh();
+      const refresh = this.changeBus.revision();
       if (refresh === 0) return;
       untracked(() => {
         const version = ++this.loadVersion;

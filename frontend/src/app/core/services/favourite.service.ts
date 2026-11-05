@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { CommandApiService } from './command.service';
+import { ChangeBus } from './change-bus.service';
 import type { HttpRequestSummary } from '../models/http';
 
 export interface FavouriteAppearance {
@@ -31,13 +32,22 @@ export interface FavouriteItem {
 @Injectable({ providedIn: 'root' })
 export class FavouriteApiService {
   private readonly commands = inject(CommandApiService);
+  private readonly bus = inject(ChangeBus);
+  private projectId: number | null = null;
   
   readonly collections = signal<FavouriteCollection[]>([]);
   readonly requests = signal<HttpRequestSummary[]>([]);
   readonly membership = signal<Set<number>>(new Set());
   readonly requestsMembership = signal<Record<number, number[]>>({});
 
+  constructor() {
+    this.bus.changesFor('favourite').subscribe(() => {
+      if (this.projectId) void this.loadCollectionsForProject(this.projectId);
+    });
+  }
+
   async loadCollectionsForProject(projectId: number): Promise<void> {
+    this.projectId = projectId;
     const all = await this.commands.execute<FavouriteCollection[]>('favourite.list', { project_id: projectId });
     this.collections.set(all ?? []);
   }

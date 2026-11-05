@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -167,7 +168,7 @@ func (r *Runner) runWrite(name string, info Info, factory Factory, input json.Ra
 		}
 		r.lastAction, r.lastLabel = "run", info.Label
 		events = []event{
-			{EventChanged, CommandChanged{Command: name, Input: string(input), Result: string(resultRaw)}},
+			{EventChanged, changedEvent(name, string(input), string(resultRaw))},
 			{EventHistory, r.status()},
 		}
 	}
@@ -263,7 +264,7 @@ func (r *Runner) Undo() (UndoResult, error) {
 
 		r.lastAction, r.lastLabel = "undo", row.Label
 		emit([]event{
-			{EventChanged, CommandChanged{Command: row.Command, Input: row.Input, Result: row.Result}},
+			{EventChanged, changedEvent(row.Command, row.Input, row.Result)},
 			{EventHistory, r.status()},
 		})
 		return UndoResult{Command: row.Command, Label: row.Label, Skipped: skipped}, nil
@@ -315,7 +316,7 @@ func (r *Runner) Redo() (UndoResult, error) {
 
 	r.lastAction, r.lastLabel = "redo", row.Label
 	emit([]event{
-		{EventChanged, CommandChanged{Command: row.Command, Input: row.Input, Result: row.Result}},
+		{EventChanged, changedEvent(row.Command, row.Input, row.Result)},
 		{EventHistory, r.status()},
 	})
 	return UndoResult{Command: row.Command, Label: row.Label}, nil
@@ -416,9 +417,17 @@ func (r *Runner) ListCommands() []CommandInfo {
 // the input it was invoked with and the result it returned, so the
 // frontend can do targeted refreshes instead of full reloads.
 type CommandChanged struct {
-	Command string `json:"command"`
-	Input   string `json:"input"`
-	Result  string `json:"result"`
+	Component string `json:"component"`
+	Operation string `json:"operation"`
+	Input     string `json:"input"`
+	Result    string `json:"result"`
+}
+
+// changedEvent splits the command name ("request.delete") into its
+// component and operation.
+func changedEvent(name, input, result string) CommandChanged {
+	component, operation, _ := strings.Cut(name, ".")
+	return CommandChanged{Component: component, Operation: operation, Input: input, Result: result}
 }
 
 // UndoResult reports what an Undo or Redo did.

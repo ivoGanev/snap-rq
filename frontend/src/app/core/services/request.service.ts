@@ -1,6 +1,8 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import type { HttpRequest, HttpRequestSummary, HttpResponse } from '../models/http';
-import { CommandApiService, type CommandChange } from './command.service';
+import { CommandApiService } from './command.service';
+import { ChangeBus } from './change-bus.service';
+import type { EntityChange } from '../models/change-set';
 import { TagApiService } from './tag.service';
 import { FavouriteApiService } from './favourite.service';
 
@@ -14,6 +16,7 @@ export type { HttpRequest, HttpResponse, HttpRequestSummary };
 @Injectable({ providedIn: 'root' })
 export class RequestApiService {
   private readonly commands = inject(CommandApiService);
+  private readonly bus = inject(ChangeBus);
   private readonly tagApi = inject(TagApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
 
@@ -295,89 +298,27 @@ export class RequestApiService {
   }
 
   // -----------------------------------------------------------------------
-  // Store sync — this service knows its own command shapes
+  // Store sync — the ChangeBus tells us which request rows changed
   // -----------------------------------------------------------------------
 
-  /**
-   * Refreshes the store from a command change (run, undo or redo). Fetches
-   * just the touched rows by id and upserts/removes them; falls back to a
-   * full reload only when the ids cannot be extracted.
-   */
-  async sync(change: CommandChange): Promise<void> {
-    const ids = this.touchedIds(change);
-    if (ids.length === 0) {
-      await this.loadAll();
-      return;
-    }
+  constructor() {
+    this.bus.changesFor('request').subscribe(change => void this.applyChange(change));
+  }
 
-    const summaries = await this.getSummariesByIds(ids);
+  /**
+   * Fetches ONLY the touched rows by id and upserts/removes them. Existence
+   * decides add-vs-remove, so execute, undo and redo all take one path.
+   */
+  private async applyChange(change: EntityChange): Promise<void> {
+    const summaries = await this.getSummariesByIds(change.ids);
     const present = new Set(summaries.map(s => s.id));
 
     for (const s of summaries) {
       this.addOrReplace(s);
     }
-    const gone = ids.filter(id => !present.has(id));
+    const gone = change.ids.filter(id => !present.has(id));
     if (gone.length > 0) {
       this.removeMany(gone);
     }
   }
-
-  /**
-   * Extracts the ids this command touched, from the input or the result —
-   * each case knows exactly where its ids are.
-   */
-  private touchedIds(change: CommandChange): number[] {
-    const ids = new Set<number>();
-    switch (change.command) {
-      case 'request.delete':
-      case 'request.bulk_set':
-        collect(change.input, 'ids', ids);
-        break;
-      case 'request.update':
-        collect(change.input, 'id', ids);
-        break;
-      case 'request.create':
-        collect(change.result, 'id', ids);
-        break;
-      case 'request.duplicate':
-        collect(change.input, 'id', ids);
-        collect(change.result, 'id', ids);
-        break;
-      case 'request.update_order':
-        collect(change.input, 'ordered_ids', ids);
-        break;
-      case 'bin.restore':
-        collectArrayItems(change.result, 'id', ids);
-        break;
-      case 'bin.delete_permanently':
-        collect(change.input, 'bin_ids', ids);
-        break;
-    }
-    return [...ids];
-  }
-}
-
-/** Reads one field (a single id or an array) from a JSON string. */
-function collect(raw: string, field: string, ids: Set<number>): void {
-  if (!raw) return;
-  try {
-    const parsed = JSON.parse(raw);
-    const value = parsed?.[field];
-    if (typeof value === 'number') ids.add(value);
-    if (Array.isArray(value)) for (const id of value) ids.add(Number(id));
-  } catch { /* not JSON */ }
-}
-
-/** Reads {id} from each item of an array in a JSON string. */
-function collectArrayItems(raw: string, field: string, ids: Set<number>): void {
-  if (!raw) return;
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      for (const item of parsed) {
-        const id = item?.[field];
-        if (typeof id === 'number') ids.add(id);
-      }
-    }
-  } catch { /* not JSON */ }
 }

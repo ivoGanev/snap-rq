@@ -1,6 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { Events } from '@wailsio/runtime';
-import { Subject } from 'rxjs';
 import * as Commands from '../../../../bindings/snap-rq/backend/commands';
 import type {
   CommandInfo,
@@ -12,17 +11,10 @@ import { ToastService } from './toast.service';
 
 export type { CommandInfo, Status, StepInfo, UndoResult };
 
-/** Payload of the backend 'command:changed' event. */
-export interface CommandChange {
-  command: string;
-  input: string;
-  result: string;
-}
-
 /**
  * Angular wrapper around the Wails-generated CommandService bindings, plus
- * the undo menu state mirrored from backend events. The backend owns the
- * undo list; these signals only reflect the last 'command:history' event.
+ * the undo menu state mirrored from 'command:history'. Data changes are
+ * published on the ChangeBus, not here.
  */
 @Injectable({ providedIn: 'root' })
 export class CommandApiService {
@@ -34,16 +26,8 @@ export class CommandApiService {
   readonly nextRedoLabel = signal('');
   readonly devPanelOpen = signal(false);
 
-  /** Entity deltas from every run command (and undo/redo replays). */
-  private readonly changes = new Subject<CommandChange[]>();
-  readonly change$ = this.changes.asObservable();
-
   constructor() {
     Events.On('command:history', ev => this.onStatus(ev.data as Status));
-    Events.On('command:changed', ev => {
-      const payload = ev.data as CommandChange | null;
-      if (payload) this.changes.next([payload]);
-    });
   }
 
   private onStatus(status: Status): void {

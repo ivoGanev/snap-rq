@@ -2,6 +2,7 @@ import { effect, inject, signal, untracked } from '@angular/core';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { RequestApiService, type HttpRequest } from '../core/services/request.service';
 import { FavouriteApiService } from '../core/services/favourite.service';
+import { ChangeBus } from '../core/services/change-bus.service';
 
 export type DrawerTabState = 'idle' | 'ready' | 'mismatch' | 'unavailable';
 
@@ -22,6 +23,7 @@ export abstract class RequestDrawerTabBase<T> {
   protected readonly state = inject(WorkspaceStateService);
   protected readonly requestApi = inject(RequestApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
+  private readonly changeBus = inject(ChangeBus);
 
   /** Current lifecycle state of the tab for the active selection. */
   readonly tabState = signal<DrawerTabState>('idle');
@@ -62,6 +64,17 @@ export abstract class RequestDrawerTabBase<T> {
       if (!untracked(() => this.isStale(active))) return;
 
       void this.load(ids);
+    });
+
+    // A command (undo/redo included) changed request data. Single selection
+    // is covered by selectedRequest above; a multi-selection has no
+    // selectedRequest, so reload the drawer's own rows here.
+    effect(() => {
+      const refresh = this.changeBus.revision();
+      if (refresh === 0) return;
+      const ids = untracked(() => this.state.selectedIds());
+      if (ids.size <= 1) return;
+      untracked(() => void this.load(ids));
     });
   }
 
