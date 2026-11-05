@@ -600,6 +600,7 @@ export class RequestGroups {
     this.state.loading.set(true);
     try {
       const deletedRequestIds = await this.collectionApi.delete(collection.id);
+      this.requestApi.removeMany(deletedRequestIds);
       for (const requestId of deletedRequestIds) {
         this.selectionState.deleteRequest(requestId);
       }
@@ -609,7 +610,6 @@ export class RequestGroups {
         this.state.selectedCollection.set(null);
         this.state.selectedRequest.set(null);
         this.state.selectedResponse.set(null);
-        this.requestApi.allRequests.set({});
       }
     } catch (err) {
       console.error(err);

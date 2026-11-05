@@ -82,6 +82,6 @@ func (c Duplicate) Undo(_, result json.RawMessage) error {
 	return err
 }
 
-func (Duplicate) Affected(_, result json.RawMessage) []commands.Affected {
-	return []commands.Affected{{Component: "request", IDs: commands.IDsOf(result, "id")}}
+func (Duplicate) Changes(_, result json.RawMessage) []commands.RowChange {
+	return []commands.RowChange{{Component: "request", IDs: commands.IDsOf(result, "id")}}
 }

@@ -2,23 +2,24 @@ package commands
 
 import "encoding/json"
 
-// Affected names the rows a command touched, grouped by kind. A command
-// that writes to two tables reports two entries (a collection delete takes
-// its collection rows and its request rows).
-type Affected struct {
+// RowChange names the rows a command wrote, grouped by component. A
+// command that writes to two tables reports two entries (a request delete
+// touches request rows and trash rows).
+type RowChange struct {
 	Component string  `json:"component"`
 	IDs       []int64 `json:"ids"`
 }
 
-// AffectedCommand reports the rows a command wrote, so the frontend can
-// refresh exactly those without guessing at input/result shapes.
-type AffectedCommand interface {
-	Affected(input, result json.RawMessage) []Affected
+// ReportsChanges is implemented by undoable commands: undo and redo run
+// without a caller that could refresh the UI, so the command itself says
+// which rows it changed.
+type ReportsChanges interface {
+	Changes(input, result json.RawMessage) []RowChange
 }
 
 // IDsOf collects the numeric ids stored under the given fields. A field may
 // hold a single number or an array of numbers, and a top-level array is
-// searched object by object. Commands use it to keep Affected short.
+// searched object by object. Commands use it to keep Changes short.
 func IDsOf(raw json.RawMessage, fields ...string) []int64 {
 	if len(raw) == 0 {
 		return nil

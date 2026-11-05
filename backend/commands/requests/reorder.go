@@ -105,6 +105,6 @@ func (c Reorder) Undo(snapshot, _ json.RawMessage) error {
 	return err
 }
 
-func (Reorder) Affected(input, _ json.RawMessage) []commands.Affected {
-	return []commands.Affected{{Component: "request", IDs: commands.IDsOf(input, "ordered_ids")}}
+func (Reorder) Changes(input, _ json.RawMessage) []commands.RowChange {
+	return []commands.RowChange{{Component: "request", IDs: commands.IDsOf(input, "ordered_ids")}}
 }

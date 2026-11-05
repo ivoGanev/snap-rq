@@ -120,6 +120,6 @@ func (c Rename) Undo(snapshot, _ json.RawMessage) error {
 	return del.Undo(raw, nil)
 }
 
-func (Rename) Affected(_, result json.RawMessage) []commands.Affected {
-	return []commands.Affected{{Component: "tag", IDs: commands.IDsOf(result, "id")}}
+func (Rename) Changes(_, result json.RawMessage) []commands.RowChange {
+	return []commands.RowChange{{Component: "tag", IDs: commands.IDsOf(result, "id")}}
 }

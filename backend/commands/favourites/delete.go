@@ -127,6 +127,6 @@ func (c Delete) Undo(snapshot, _ json.RawMessage) error {
 	return nil
 }
 
-func (Delete) Affected(input, _ json.RawMessage) []commands.Affected {
-	return []commands.Affected{{Component: "favourite", IDs: commands.IDsOf(input, "id")}}
+func (Delete) Changes(input, _ json.RawMessage) []commands.RowChange {
+	return []commands.RowChange{{Component: "favourite", IDs: commands.IDsOf(input, "id")}}
 }

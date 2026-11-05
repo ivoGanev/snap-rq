@@ -74,12 +74,12 @@ func (c renameWidget) Run(input json.RawMessage) (any, error) {
 	return in.Name, err
 }
 
-func (renameWidget) Affected(input, _ json.RawMessage) []Affected {
+func (renameWidget) Changes(input, _ json.RawMessage) []RowChange {
 	var in struct {
 		ID int64 `json:"id"`
 	}
 	json.Unmarshal(input, &in)
-	return []Affected{{Component: "widget", IDs: []int64{in.ID}}}
+	return []RowChange{{Component: "widget", IDs: []int64{in.ID}}}
 }
 
 func (c renameWidget) Undo(snapshot, _ json.RawMessage) error {
@@ -120,12 +120,12 @@ func (c createWidget) Run(input json.RawMessage) (any, error) {
 	return map[string]any{"id": id, "name": in.Name}, nil
 }
 
-func (createWidget) Affected(_, result json.RawMessage) []Affected {
+func (createWidget) Changes(_, result json.RawMessage) []RowChange {
 	var created struct {
 		ID int64 `json:"id"`
 	}
 	json.Unmarshal(result, &created)
-	return []Affected{{Component: "widget", IDs: []int64{created.ID}}}
+	return []RowChange{{Component: "widget", IDs: []int64{created.ID}}}
 }
 
 func (c createWidget) Undo(_, result json.RawMessage) error {
@@ -137,7 +137,7 @@ func (c createWidget) Undo(_, result json.RawMessage) error {
 	return err
 }
 
-// badWidget is undoable but does not report its affected rows.
+// badWidget is undoable but does not report its changes.
 type badWidget struct{ tx *sql.Tx }
 
 func newBadWidget(tx *sql.Tx) Command { return &badWidget{tx: tx} }
@@ -317,10 +317,10 @@ func TestUndoLimitTrims(t *testing.T) {
 	}
 }
 
-func TestUndoableCommandsMustReportAffectedRows(t *testing.T) {
+func TestUndoableCommandsMustReportChanges(t *testing.T) {
 	runner, _ := newTestRunner(t)
 	if err := runner.Register(newBadWidget); err == nil {
-		t.Fatal("expected registration to fail for an undoable command without Affected")
+		t.Fatal("expected registration to fail for an undoable command without Changes")
 	}
 }
 

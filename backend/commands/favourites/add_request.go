@@ -66,6 +66,6 @@ func (c AddRequest) Undo(_, result json.RawMessage) error {
 	return err
 }
 
-func (AddRequest) Affected(_, result json.RawMessage) []commands.Affected {
-	return []commands.Affected{{Component: "favourite", IDs: commands.IDsOf(result, "favourite_collection_id")}}
+func (AddRequest) Changes(_, result json.RawMessage) []commands.RowChange {
+	return []commands.RowChange{{Component: "favourite", IDs: commands.IDsOf(result, "favourite_collection_id")}}
 }

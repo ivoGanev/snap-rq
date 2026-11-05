@@ -95,8 +95,8 @@ func (c Reorder) Undo(snapshot, _ json.RawMessage) error {
 	return err
 }
 
-func (Reorder) Affected(input, _ json.RawMessage) []commands.Affected {
-	return []commands.Affected{{Component: "favourite", IDs: commands.IDsOf(input, "favourite_collection_id")}}
+func (Reorder) Changes(input, _ json.RawMessage) []commands.RowChange {
+	return []commands.RowChange{{Component: "favourite", IDs: commands.IDsOf(input, "favourite_collection_id")}}
 }
 
 var _ = strings.TrimSpace

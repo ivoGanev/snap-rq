@@ -112,6 +112,6 @@ func (c BulkSet) Undo(snapshot, _ json.RawMessage) error {
 	return nil
 }
 
-func (BulkSet) Affected(input, _ json.RawMessage) []commands.Affected {
-	return []commands.Affected{{Component: "request", IDs: commands.IDsOf(input, "ids")}}
+func (BulkSet) Changes(input, _ json.RawMessage) []commands.RowChange {
+	return []commands.RowChange{{Component: "request", IDs: commands.IDsOf(input, "ids")}}
 }

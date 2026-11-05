@@ -43,13 +43,6 @@ func (c Delete) Run(input json.RawMessage) (any, error) {
 	return map[string]any{"request_ids": requestIDs}, nil
 }
 
-func (Delete) Affected(input, result json.RawMessage) []commands.Affected {
-	return []commands.Affected{
-		{Component: "collection", IDs: commands.IDsOf(input, "id")},
-		{Component: "request", IDs: commands.IDsOf(result, "request_ids")},
-	}
-}
-
 // selectRequestIDs lists the requests in a collection.
 func selectRequestIDs(tx *sql.Tx, collectionID int64) ([]int64, error) {
 	rows, err := tx.Query(`SELECT id FROM http_requests WHERE collection_id = ?`, collectionID)

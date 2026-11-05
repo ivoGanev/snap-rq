@@ -58,6 +58,7 @@ export class CollectionApiService {
   /** Deletes a collection and returns the ids of the requests that died with it. */
   async delete(id: number): Promise<number[]> {
     const result = await this.commands.execute<{ request_ids: number[] }>('collection.delete', { id });
+    this.collections.update(list => list.filter(collection => collection.id !== id));
     return result?.request_ids ?? [];
   }
 }

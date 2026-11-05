@@ -57,6 +57,6 @@ func (c Create) Undo(_, result json.RawMessage) error {
 	return err
 }
 
-func (Create) Affected(_, result json.RawMessage) []commands.Affected {
-	return []commands.Affected{{Component: "variable", IDs: commands.IDsOf(result, "id")}}
+func (Create) Changes(_, result json.RawMessage) []commands.RowChange {
+	return []commands.RowChange{{Component: "variable", IDs: commands.IDsOf(result, "id")}}
 }

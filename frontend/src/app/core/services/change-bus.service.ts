@@ -7,7 +7,7 @@ import type { CommandChanged, EntityChange } from '../models/change-set';
 /**
  * The one event stream for data changes. It listens to the backend's
  * 'command:changed' (fired for execute, undo and redo alike), converts it
- * into a change set of affected row ids, and publishes it. Stores
+ * into a change set of changed row ids, and publishes it. Stores
  * subscribe to the component they own; components read stores.
  */
 @Injectable({ providedIn: 'root' })
@@ -41,9 +41,9 @@ export class ChangeBus {
 // --------------------------------------------------------------------------
 
 function toChanges(raw: CommandChanged): EntityChange[] {
-  return (raw.affected ?? []).map(ref => ({
-    component: ref.component,
+  return (raw.changes ?? []).map(change => ({
+    component: change.component,
     operation: raw.operation,
-    ids: ref.ids ?? [],
+    ids: change.ids ?? [],
   }));
 }

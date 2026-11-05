@@ -62,6 +62,6 @@ func (c Update) Undo(snapshot, _ json.RawMessage) error {
 	return err
 }
 
-func (Update) Affected(input, _ json.RawMessage) []commands.Affected {
-	return []commands.Affected{{Component: "collection", IDs: commands.IDsOf(input, "id")}}
+func (Update) Changes(input, _ json.RawMessage) []commands.RowChange {
+	return []commands.RowChange{{Component: "collection", IDs: commands.IDsOf(input, "id")}}
 }

@@ -282,8 +282,8 @@ func (c Delete) Undo(snapshot, _ json.RawMessage) error {
 	return nil
 }
 
-func (Delete) Affected(input, _ json.RawMessage) []commands.Affected {
-	return []commands.Affected{
+func (Delete) Changes(input, _ json.RawMessage) []commands.RowChange {
+	return []commands.RowChange{
 		{Component: "request", IDs: commands.IDsOf(input, "ids")},
 		{Component: "bin"},
 	}

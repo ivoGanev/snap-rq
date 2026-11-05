@@ -73,6 +73,6 @@ func (c Remove) Undo(snapshot, _ json.RawMessage) error {
 	return err
 }
 
-func (Remove) Affected(_, _ json.RawMessage) []commands.Affected {
-	return []commands.Affected{{Component: "tag"}}
+func (Remove) Changes(_, _ json.RawMessage) []commands.RowChange {
+	return []commands.RowChange{{Component: "tag"}}
 }

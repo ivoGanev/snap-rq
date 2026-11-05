@@ -89,6 +89,6 @@ func (c SetAppearance) Undo(snapshot, _ json.RawMessage) error {
 	return nil
 }
 
-func (SetAppearance) Affected(input, _ json.RawMessage) []commands.Affected {
-	return []commands.Affected{{Component: "tag", IDs: commands.IDsOf(input, "tag_id")}}
+func (SetAppearance) Changes(input, _ json.RawMessage) []commands.RowChange {
+	return []commands.RowChange{{Component: "tag", IDs: commands.IDsOf(input, "tag_id")}}
 }
