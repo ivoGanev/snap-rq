@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -32,6 +33,10 @@ const (
 	EventChanged = "command:changed"
 	// EventHistory fires whenever the undo log changes.
 	EventHistory = "command:history"
+	// EventUpdate and EventFinish carry an observable command's progress
+	// and completion.
+	EventUpdate = "command:update"
+	EventFinish = "command:finish"
 
 	// mergeWindow is how long quick repeats of the same command keep one
 	// undo step (typing a name is many runs of request.update on one row).
@@ -39,24 +44,27 @@ const (
 )
 
 type Runner struct {
-	db        *sql.DB
-	factories map[string]Factory
-	infos     map[string]Info
-	undoable  map[string]bool
+	db          *sql.DB
+	factories   map[string]Factory
+	infos       map[string]Info
+	undoable    map[string]bool
+	observables map[string]ObservableFactory
 
 	mu         sync.Mutex
 	limit      func() int
 	lastAction string // "run", "undo" or "redo" — drives the undo toast
 	lastLabel  string
+	runSeq     int64
 }
 
 // NewRunner returns a runner for the given database.
 func NewRunner(db *sql.DB) *Runner {
 	return &Runner{
-		db:        db,
-		factories: map[string]Factory{},
-		infos:     map[string]Info{},
-		undoable:  map[string]bool{},
+		db:          db,
+		factories:   map[string]Factory{},
+		infos:       map[string]Info{},
+		undoable:    map[string]bool{},
+		observables: map[string]ObservableFactory{},
 	}
 }
 
@@ -80,6 +88,20 @@ func (r *Runner) Register(factories ...Factory) error {
 			}
 		}
 	}
+	return nil
+}
+
+// RegisterObservable makes an observable command startable by name.
+func (r *Runner) RegisterObservable(f ObservableFactory) error {
+	cmd := f(r.db)
+	info := cmd.Info()
+	if info.FunctionID == "" {
+		return errors.New("an observable command has no FunctionID")
+	}
+	if _, exists := r.observables[info.FunctionID]; exists {
+		return fmt.Errorf("observable command %s is already registered", info.FunctionID)
+	}
+	r.observables[info.FunctionID] = f
 	return nil
 }
 
@@ -136,6 +158,32 @@ func (r *Runner) Run(name string, input json.RawMessage) (any, error) {
 	r.mu.Unlock()
 	emit(events)
 	return result, err
+}
+
+// Begin starts an observable command and returns its run id immediately.
+// The command runs in its own goroutine, outside the writer lock; progress
+// and completion are emitted as command:update / command:finish events.
+func (r *Runner) Begin(name string, input json.RawMessage) (string, error) {
+	f, ok := r.observables[name]
+	if !ok {
+		return "", fmt.Errorf("unknown observable command %q", name)
+	}
+	cmd := f(r.db)
+	runID := fmt.Sprintf("run-%d", atomic.AddInt64(&r.runSeq, 1))
+	obs := Observer{
+		Update: func(data any) {
+			emit([]event{{EventUpdate, Update{RunID: runID, Command: name, Data: data}}})
+		},
+		Finish: func(result any, err error) {
+			finish := Finish{RunID: runID, Command: name, Result: result}
+			if err != nil {
+				finish.Error = err.Error()
+			}
+			emit([]event{{EventFinish, finish}})
+		},
+	}
+	go cmd.Run(input, obs)
+	return runID, nil
 }
 
 func (r *Runner) runWrite(name string, info Info, factory Factory, input json.RawMessage) (any, []event, error) {

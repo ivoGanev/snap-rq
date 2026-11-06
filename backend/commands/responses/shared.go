@@ -10,9 +10,9 @@ import (
 	"snap-rq/backend/models"
 )
 
-// insertResponse stores one response row and trims the history to the
+// InsertResponse stores one response row and trims the history to the
 // newest ten entries per request.
-func insertResponse(tx *sql.Tx, resp models.HttpResponse) (models.HttpResponse, error) {
+func InsertResponse(tx *sql.Tx, resp models.HttpResponse) (models.HttpResponse, error) {
 	if resp.CreatedAt == "" {
 		resp.CreatedAt = time.Now().UTC().Format("2006-01-02 15:04:05")
 	}

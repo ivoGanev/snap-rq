@@ -44,6 +44,39 @@ type Info struct {
 // Factory builds a command wired to the transaction it runs in.
 type Factory func(tx *sql.Tx) Command
 
+// ObservableCommand runs outside the writer lock, in parallel with other
+// runs, and reports progress through the observer. It persists its own
+// result in a short transaction.
+type ObservableCommand interface {
+	Info() Info
+	Run(input json.RawMessage, obs Observer)
+}
+
+// ObservableFactory builds an observable command on the shared database.
+type ObservableFactory func(db *sql.DB) ObservableCommand
+
+// Observer is the callback set an observable command reports through:
+// Update for progress, Finish (exactly once) for the final result.
+type Observer struct {
+	Update func(data any)
+	Finish func(result any, err error)
+}
+
+// Update is a progress event from an observable command.
+type Update struct {
+	RunID   string `json:"runId"`
+	Command string `json:"command"`
+	Data    any    `json:"data"`
+}
+
+// Finish is the completion event from an observable command.
+type Finish struct {
+	RunID   string `json:"runId"`
+	Command string `json:"command"`
+	Result  any    `json:"result,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
 // CommandService is the single Wails door to the framework: run commands
 // by name, undo, redo, and inspect the undo list.
 type CommandService struct {
@@ -72,6 +105,12 @@ func (s *CommandService) Execute(name string, payload string) (CommandExecuteRes
 		return CommandExecuteResult{}, err
 	}
 	return CommandExecuteResult{Result: raw}, nil
+}
+
+// Begin starts an observable command and returns its run id immediately.
+// Progress and completion arrive as command:update / command:finish events.
+func (s *CommandService) Begin(name string, payload string) (string, error) {
+	return s.runner.Begin(name, json.RawMessage(payload))
 }
 
 // Undo reverses the newest undoable run and reports what happened.

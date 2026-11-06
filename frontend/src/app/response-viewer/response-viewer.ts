@@ -18,6 +18,13 @@ export class ResponseViewer {
   protected readonly responses = this.requestApi.responses;
   protected readonly prettifyEnabled = signal(true);
 
+  protected readonly sendingElapsed = computed<number | null>(() => {
+    const id = this.state.selectedRequest()?.id;
+    if (id === undefined) return null;
+    const ms = this.requestApi.sending()[id];
+    return ms === undefined ? null : ms;
+  });
+
   readonly bodyLines = computed<string[]>(() => {
     const resp = this.state.selectedResponse();
     if (!resp || !resp.body || resp.body.length === 0) {

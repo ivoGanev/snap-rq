@@ -258,6 +258,7 @@ export class RequestsMainList {
       response_id: b.response_id,
       user_sort_order: 0,
       user_color: null,
+      last_used_at: 0,
     }));
   }
 
@@ -1816,14 +1817,9 @@ export class RequestsMainList {
   async sendSelectedRequest(event: Event): Promise<void> {
     if (this.state.showingBin()) return;
 
-    const selectedIds = [...this.selectedRowIds()];
-    if (selectedIds.length > 1) {
-      await this.sendMultipleRequests(selectedIds, event);
-      return;
-    }
-
     let req = this.state.selectedRequest();
     if (!req) {
+      const selectedIds = [...this.selectedRowIds()];
       const selectedId = this.selectedCell()?.requestId ?? selectedIds[0];
       if (!selectedId) return;
       try {
@@ -1834,32 +1830,7 @@ export class RequestsMainList {
       }
       this.state.selectedRequest.set(req);
     }
-    await this.state.sendRequest(req, event, !this.state.showingFamousRequests());
-  }
-
-  private async sendMultipleRequests(ids: number[], event: Event): Promise<void> {
-    try {
-      const requests = await Promise.all(ids.map((id) => this.requestApi.getFull(id)));
-      await this.state.sendRequests(requests, event, !this.state.showingFamousRequests());
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async sendRowRequest(
-    req: HttpRequestSummary | HttpBinnedRequestSummary,
-    event: Event,
-  ): Promise<void> {
-    event.stopPropagation();
-    if (this.state.showingBin()) return;
-
-    this.contextMenu.close();
-    const selected = this.selectedRowIds();
-    if (selected.size <= 1 || !selected.has(req.id)) {
-      this.selectCell(req as HttpRequestSummary, 'name');
-      this.lastClickedRowId.set(req.id);
-    }
-    await this.sendSelectedRequest(event);
+    await this.state.sendRequest(req, event);
   }
 
   onFavouriteButtonClick(): void {

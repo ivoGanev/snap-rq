@@ -238,10 +238,10 @@ func (c Delete) Undo(snapshot, _ json.RawMessage) error {
 		if _, err := c.tx.Exec(`
 			INSERT INTO http_requests (
 				id, collection_id, name, url, method, body, body_type, request_headers,
-				status_code, response_id, user_sort_order, user_color
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				status_code, response_id, user_sort_order, user_color, last_used_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			r.ID, r.CollectionID, r.Name, r.URL, r.Method, r.Body, r.BodyType, r.RequestHeaders,
-			r.StatusCode, r.ResponseID, r.UserSortOrder, r.UserColor,
+			r.StatusCode, r.ResponseID, r.UserSortOrder, r.UserColor, r.LastUsedAt,
 		); err != nil {
 			return err
 		}

@@ -59,6 +59,11 @@ export class CommandApiService {
     return result.result as T;
   }
 
+  /** Starts an observable command and returns its run id. */
+  async begin(name: string, payload: object): Promise<string> {
+    return Commands.CommandService.Begin(name, JSON.stringify(payload));
+  }
+
   async undo(): Promise<UndoResult> {
     return Commands.CommandService.Undo();
   }

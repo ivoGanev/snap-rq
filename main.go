@@ -8,6 +8,7 @@ import (
 
 	"snap-rq/backend/commands"
 	"snap-rq/backend/commands/catalog"
+	"snap-rq/backend/commands/requests"
 	"snap-rq/backend/database"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -39,6 +40,9 @@ func main() {
 	runner := commands.NewRunner(db)
 	if err := runner.Register(catalog.All...); err != nil {
 		log.Fatalf("registering commands: %v", err)
+	}
+	if err := runner.RegisterObservable(requests.NewSend); err != nil {
+		log.Fatalf("registering observable commands: %v", err)
 	}
 	runner.SetUndoLimit(func() int {
 		var limit int
