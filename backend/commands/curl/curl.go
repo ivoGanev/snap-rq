@@ -3,6 +3,7 @@ package curl
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"snap-rq/backend/models"
@@ -10,7 +11,9 @@ import (
 
 // RequestToCurl converts an HttpRequest into an equivalent curl command string.
 // The output uses --data-raw for the body and -H for headers. The method is
-// explicit when it is not GET or when a body is present.
+// explicit when it is not GET or when a body is present. When there is no body
+// and the URL has a query string, the query parameters are emitted as -G plus
+// --data-urlencode so the command stays readable.
 func RequestToCurl(req models.HttpRequest) string {
 	method := strings.ToUpper(strings.TrimSpace(req.Method))
 	if method == "" {
@@ -19,11 +22,21 @@ func RequestToCurl(req models.HttpRequest) string {
 
 	parts := []string{"curl"}
 
+	baseURL := req.URL
+	var queryArgs []string
+	if req.Body == "" {
+		if base, args, ok := splitQueryForCurl(req.URL); ok {
+			baseURL = base
+			queryArgs = args
+			parts = append(parts, "-G")
+		}
+	}
+
 	if method != http.MethodGet || req.Body != "" {
 		parts = append(parts, "-X", method)
 	}
 
-	parts = append(parts, shellQuote(req.URL))
+	parts = append(parts, shellQuote(baseURL))
 
 	for _, line := range strings.Split(req.RequestHeaders, "\n") {
 		line = strings.TrimSpace(line)
@@ -46,12 +59,52 @@ func RequestToCurl(req models.HttpRequest) string {
 		parts = append(parts, "--data-raw", shellQuote(req.Body))
 	}
 
+	for _, arg := range queryArgs {
+		parts = append(parts, "--data-urlencode", shellQuote(arg))
+	}
+
 	return strings.Join(parts, " ")
+}
+
+// splitQueryForCurl splits a URL into its base and a list of "name=value"
+// arguments (with decoded values) suitable for --data-urlencode. It reports
+// false when the URL has no query string or the query cannot be represented
+// faithfully (fragment, parameter without "=", or a name that needs encoding).
+func splitQueryForCurl(rawURL string) (string, []string, bool) {
+	base, rawQuery, found := strings.Cut(rawURL, "?")
+	if !found || rawQuery == "" || strings.Contains(rawURL, "#") {
+		return "", nil, false
+	}
+
+	var args []string
+	for _, pair := range strings.Split(rawQuery, "&") {
+		if pair == "" {
+			continue
+		}
+		name, value, hasEq := strings.Cut(pair, "=")
+		if !hasEq || name == "" {
+			return "", nil, false
+		}
+		decodedName, err := url.QueryUnescape(name)
+		if err != nil || decodedName != name {
+			return "", nil, false
+		}
+		decodedValue, err := url.QueryUnescape(value)
+		if err != nil {
+			return "", nil, false
+		}
+		args = append(args, name+"="+decodedValue)
+	}
+	if len(args) == 0 {
+		return "", nil, false
+	}
+	return base, args, true
 }
 
 // CurlToRequest parses a curl command string and returns an HttpRequest.
 // It supports -X/--request, -H/--header, -d/--data/--data-raw/--data-binary,
-// and a single positional URL. The collectionID is attached to the result.
+// --data-urlencode, -G/--get, and a single positional URL. The collectionID is
+// attached to the result.
 func CurlToRequest(collectionID int64, curl string) (models.HttpRequest, error) {
 	tokens, err := tokenize(curl)
 	if err != nil {
@@ -71,6 +124,9 @@ func CurlToRequest(collectionID int64, curl string) (models.HttpRequest, error) 
 	}
 
 	var headers []string
+	var dataParts []string
+	getMode := false
+	methodSet := false
 	i := 1
 	for i < len(tokens) {
 		tok := tokens[i]
@@ -81,18 +137,28 @@ func CurlToRequest(collectionID int64, curl string) (models.HttpRequest, error) 
 				return models.HttpRequest{}, fmt.Errorf("missing value for %s", tok)
 			}
 			req.Method = strings.ToUpper(tokens[i+1])
+			methodSet = true
 			i += 2
+		case "-G", "--get":
+			getMode = true
+			i++
 		case "-H", "--header":
 			if i+1 >= len(tokens) {
 				return models.HttpRequest{}, fmt.Errorf("missing value for %s", tok)
 			}
 			headers = append(headers, tokens[i+1])
 			i += 2
-		case "-d", "--data", "--data-raw", "--data-binary":
+		case "-d", "--data", "--data-raw", "--data-binary", "--data-ascii":
 			if i+1 >= len(tokens) {
 				return models.HttpRequest{}, fmt.Errorf("missing value for %s", tok)
 			}
-			req.Body = tokens[i+1]
+			dataParts = append(dataParts, tokens[i+1])
+			i += 2
+		case "--data-urlencode":
+			if i+1 >= len(tokens) {
+				return models.HttpRequest{}, fmt.Errorf("missing value for %s", tok)
+			}
+			dataParts = append(dataParts, urlencodeData(tokens[i+1]))
 			i += 2
 		case "--url":
 			if i+1 >= len(tokens) {
@@ -110,6 +176,7 @@ func CurlToRequest(collectionID int64, curl string) (models.HttpRequest, error) 
 			if strings.HasPrefix(tok, "-X") && len(tok) > 2 && !strings.HasPrefix(tok, "--") {
 				// Joined short flag like -XPOST.
 				req.Method = strings.ToUpper(tok[2:])
+				methodSet = true
 				i++
 			} else if strings.HasPrefix(tok, "-") {
 				// Any other flag (e.g. -s, -v, -k, --compressed, -o file) has no
@@ -129,7 +196,23 @@ func CurlToRequest(collectionID int64, curl string) (models.HttpRequest, error) 
 		return models.HttpRequest{}, fmt.Errorf("curl command is missing a URL")
 	}
 
-	if req.Body != "" && req.Method == http.MethodGet {
+	if len(dataParts) > 0 {
+		data := strings.Join(dataParts, "&")
+		if getMode {
+			sep := "?"
+			if strings.Contains(req.URL, "?") {
+				sep = "&"
+				if strings.HasSuffix(req.URL, "?") || strings.HasSuffix(req.URL, "&") {
+					sep = ""
+				}
+			}
+			req.URL += sep + data
+		} else {
+			req.Body = data
+		}
+	}
+
+	if req.Body != "" && req.Method == http.MethodGet && !methodSet {
 		req.Method = http.MethodPost
 	}
 
@@ -139,6 +222,21 @@ func CurlToRequest(collectionID int64, curl string) (models.HttpRequest, error) 
 	req.RequestHeaders = strings.Join(headers, "\n")
 
 	return req, nil
+}
+
+// urlencodeData implements curl's --data-urlencode value forms: "content",
+// "=content" and "name=content". The content part is percent-encoded.
+func urlencodeData(s string) string {
+	enc := func(v string) string {
+		return strings.ReplaceAll(url.QueryEscape(v), "+", "%20")
+	}
+	if name, content, found := strings.Cut(s, "="); found {
+		if name == "" {
+			return enc(content)
+		}
+		return name + "=" + enc(content)
+	}
+	return enc(s)
 }
 
 // shellQuote returns a single-quoted shell word, falling back to double quotes
