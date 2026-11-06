@@ -258,6 +258,7 @@ export class RequestsMainList {
       response_id: b.response_id,
       user_sort_order: 0,
       user_color: null,
+      last_used_at: 0,
     }));
   }
 

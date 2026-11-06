@@ -82,7 +82,9 @@ export class RequestApiService {
   // API wrappers — every operation runs as a command
   // -----------------------------------------------------------------------
 
-  async create(req: Omit<HttpRequest, 'id' | 'user_sort_order' | 'user_color'>): Promise<HttpRequest> {
+  async create(
+    req: Omit<HttpRequest, 'id' | 'user_sort_order' | 'user_color' | 'last_used_at'>,
+  ): Promise<HttpRequest> {
     const created = await this.commands.execute<HttpRequest>('request.create', req);
     this.addOrReplace(created);
     return created;
@@ -116,6 +118,7 @@ export class RequestApiService {
       response_id: updated.response_id,
       user_sort_order: updated.user_sort_order,
       user_color: updated.user_color,
+      last_used_at: updated.last_used_at,
     });
     return updated;
   }

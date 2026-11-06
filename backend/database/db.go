@@ -64,6 +64,10 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
+	if err := addRequestLastUsedAt(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
 	if err := ensureDefaultCollection(db); err != nil {
 		return nil, fmt.Errorf("ensuring default collection: %w", err)
 	}
@@ -107,6 +111,7 @@ func migrate(db *sql.DB) error {
 			response_id INTEGER NOT NULL DEFAULT 0,
 			user_sort_order INTEGER NOT NULL DEFAULT 0,
 			user_color TEXT,
+			last_used_at INTEGER NOT NULL DEFAULT 0,
 			FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE
 		);
 		CREATE INDEX IF NOT EXISTS idx_http_requests_collection_id ON http_requests(collection_id);
@@ -125,13 +130,6 @@ func migrate(db *sql.DB) error {
 		CREATE INDEX IF NOT EXISTS idx_responses_request_id ON responses(request_id);
 
 		DROP TABLE IF EXISTS request_frequency;
-
-		CREATE TABLE IF NOT EXISTS request_usage (
-			request_id INTEGER PRIMARY KEY,
-			last_used_at INTEGER NOT NULL,
-			FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE
-		);
-		CREATE INDEX IF NOT EXISTS idx_request_usage_last_used_at ON request_usage(last_used_at DESC);
 
 		CREATE TABLE IF NOT EXISTS environments (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -647,7 +645,52 @@ func addUserColorColumns(db *sql.DB) error {
 	return nil
 }
 
-func columnExists(db *sql.DB, table, column string) bool {	rows, err := db.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
+// addRequestLastUsedAt folds recency into the request row. Last-used time
+// used to live in request_usage; keeping it on http_requests means a delete
+// undo restores it with the rest of the row, so the Recent view recovers.
+func addRequestLastUsedAt(db *sql.DB) error {
+	if !columnExists(db, "http_requests", "last_used_at") {
+		_, err := db.Exec("ALTER TABLE http_requests ADD COLUMN last_used_at INTEGER NOT NULL DEFAULT 0")
+		if err != nil {
+			return fmt.Errorf("adding last_used_at column to http_requests: %w", err)
+		}
+	}
+
+	if tableExists(db, "request_usage") {
+		_, err := db.Exec(`
+			UPDATE http_requests
+			SET last_used_at = COALESCE(
+				(SELECT ru.last_used_at FROM request_usage ru WHERE ru.request_id = http_requests.id),
+				last_used_at)`)
+		if err != nil {
+			return fmt.Errorf("copying request_usage into http_requests: %w", err)
+		}
+		if _, err := db.Exec("DROP TABLE request_usage"); err != nil {
+			return fmt.Errorf("dropping request_usage: %w", err)
+		}
+	}
+
+	_, err := db.Exec(
+		"CREATE INDEX IF NOT EXISTS idx_http_requests_last_used_at ON http_requests(last_used_at DESC)",
+	)
+	if err != nil {
+		return fmt.Errorf("creating http_requests last_used_at index: %w", err)
+	}
+	return nil
+}
+
+func tableExists(db *sql.DB, table string) bool {
+	var count int
+	if err := db.QueryRow(
+		"SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", table,
+	).Scan(&count); err != nil {
+		return false
+	}
+	return count > 0
+}
+
+func columnExists(db *sql.DB, table, column string) bool {
+	rows, err := db.Query(fmt.Sprintf("PRAGMA table_info(%s)", table))
 	if err != nil {
 		return false
 	}

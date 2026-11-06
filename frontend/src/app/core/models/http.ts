@@ -16,6 +16,7 @@ export interface HttpRequestSummary {
   response_id: number;
   user_sort_order: number;
   user_color: string | null;
+  last_used_at: number;
 }
 
 /** A saved REST request. */
@@ -33,6 +34,7 @@ export interface HttpRequest {
   response_id: number;
   user_sort_order: number;
   user_color: string | null;
+  last_used_at: number;
 }
 
 /** A saved response (or an in-flight pending one). */

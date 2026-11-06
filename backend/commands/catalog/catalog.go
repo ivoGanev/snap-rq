@@ -34,6 +34,8 @@ var All = []commands.Factory{
 	requests.NewDuplicate,
 	requests.NewReorder,
 	requests.NewBulkSet,
+	requests.NewRecordResponse,
+	requests.NewRecordUsage,
 	requests.NewSend,
 
 	// send flow: append-only history, never undone
