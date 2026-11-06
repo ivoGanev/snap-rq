@@ -1,5 +1,8 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { Events } from '@wailsio/runtime';
+import { Subject } from 'rxjs';
 import type { HttpRequest, HttpRequestSummary, HttpResponse } from '../models/http';
+import type { EnvironmentVariableValue } from '../models/environment-context';
 import { CommandApiService } from './command.service';
 import { ChangeBus } from './change-bus.service';
 import type { EntityChange } from '../models/change-set';
@@ -33,6 +36,15 @@ export class RequestApiService {
 
   /** Response history for the selected request. */
   readonly responses = signal<HttpResponse[]>([]);
+
+  /** Elapsed ms per in-flight request id (send timers). */
+  readonly sending = signal<Record<number, number>>({});
+
+  /** Emits the saved response once per finished send. */
+  readonly finished$ = new Subject<HttpResponse>();
+
+  private readonly runToRequest = new Map<string, number>();
+  private readonly activeRuns = new Map<number, Set<string>>();
 
   get(id: number): HttpRequestSummary | undefined {
     return this.allRequests()[id];
@@ -173,10 +185,6 @@ export class RequestApiService {
     });
   }
 
-  async recordRequestUsage(ids: number[]): Promise<void> {
-    await this.commands.execute('request.record_usage', { ids });
-  }
-
   /** Brings a restored request back into the store with its memberships. */
   async restoreRequest(req: HttpRequestSummary): Promise<void> {
     this.addOrReplace(req);
@@ -190,8 +198,14 @@ export class RequestApiService {
   // Send flow
   // -----------------------------------------------------------------------
 
-  async execute(req: HttpRequest): Promise<HttpResponse> {
-    return this.commands.execute('request.send', req);
+  /** Starts a send; progress and the saved response arrive via events. */
+  async send(req: HttpRequest, variables: EnvironmentVariableValue[]): Promise<void> {
+    const runId = await this.commands.begin('request.send', { request: req, variables });
+    this.runToRequest.set(runId, req.id);
+    const runs = this.activeRuns.get(req.id) ?? new Set<string>();
+    runs.add(runId);
+    this.activeRuns.set(req.id, runs);
+    this.sending.update(s => ({ ...s, [req.id]: 0 }));
   }
 
   async loadResponsesForRequest(requestId: number): Promise<void> {
@@ -200,18 +214,6 @@ export class RequestApiService {
       { request_id: requestId },
     );
     this.responses.set(all ?? []);
-  }
-
-  async createResponse(resp: Omit<HttpResponse, 'id'>): Promise<HttpResponse> {
-    return this.commands.execute('response.save', resp);
-  }
-
-  async updateRequestResponse(id: number, statusCode: number, responseId: number): Promise<void> {
-    await this.commands.execute('request.record_response', {
-      request_id: id,
-      status_code: statusCode,
-      response_id: responseId,
-    });
   }
 
   async saveResponseToFile(responseId: number, filePath: string): Promise<void> {
@@ -301,6 +303,41 @@ export class RequestApiService {
 
   constructor() {
     this.bus.changesFor('request').subscribe(change => void this.applyChange(change));
+
+    Events.On('command:update', ev => {
+      const { runId, data } = ev.data as {
+        runId: string;
+        data?: { request_id?: number; elapsed_ms?: number };
+      };
+      const requestId = this.runToRequest.get(runId);
+      const elapsed = data?.elapsed_ms;
+      if (requestId !== undefined && elapsed !== undefined) {
+        this.sending.update(s => ({ ...s, [requestId]: elapsed }));
+      }
+    });
+
+    Events.On('command:finish', ev => {
+      const { runId, result } = ev.data as { runId: string; result?: HttpResponse };
+      const requestId = this.runToRequest.get(runId);
+      if (requestId === undefined) return;
+
+      this.runToRequest.delete(runId);
+      const runs = this.activeRuns.get(requestId);
+      runs?.delete(runId);
+      if (!runs?.size) {
+        this.activeRuns.delete(requestId);
+        this.sending.update(s => {
+          const next = { ...s };
+          delete next[requestId];
+          return next;
+        });
+      }
+
+      if (result) {
+        this.patch(requestId, { status_code: result.status_code, response_id: result.id });
+        this.finished$.next(result);
+      }
+    });
   }
 
   /**

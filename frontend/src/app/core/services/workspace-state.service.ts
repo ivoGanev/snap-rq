@@ -1,6 +1,5 @@
 import { computed, effect, Injectable, inject, signal } from '@angular/core';
 import { RequestApiService, type HttpRequest, type HttpResponse } from './request.service';
-import { ResponseApiService } from './response.service';
 import { FavouriteApiService, type FavouriteCollection } from './favourite.service';
 import { BinApiService, type HttpBinnedRequestSummary } from './bin.service';
 import { EnvironmentVariableApiService } from './environment-variable.service';
@@ -23,7 +22,6 @@ import type { Environment } from './environment.service';
 @Injectable({ providedIn: 'root' })
 export class WorkspaceStateService {
   private readonly requestApi = inject(RequestApiService);
-  private readonly responseApi = inject(ResponseApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly binApi = inject(BinApiService);
   private readonly envVarApi = inject(EnvironmentVariableApiService);
@@ -93,6 +91,13 @@ export class WorkspaceStateService {
     this.changeBus.changesFor('request').subscribe(change => {
       void this.refreshSelectedRequest(change.ids);
     });
+
+    // When a send finishes for the open request, surface its saved response.
+    this.requestApi.finished$.subscribe(resp => {
+      if (this.selectedRequest()?.id === resp.request_id) {
+        void this.loadResponses(resp.request_id);
+      }
+    });
   }
 
   private async refreshSelectedRequest(ids: number[]): Promise<void> {
@@ -146,34 +151,7 @@ export class WorkspaceStateService {
   async sendRequest(req: HttpRequest, event: Event): Promise<void> {
     event.stopPropagation();
     try {
-      const resp = await this.responseApi.sendRequest(req, this.environment(), {
-        onPending: pending => {
-          if (this.selectedRequest()?.id === req.id) {
-            this.selectedResponse.set(pending);
-          }
-        },
-        onUpdate: updated => {
-          if (this.selectedResponse()?.id === updated.id) {
-            this.selectedResponse.set(updated);
-          }
-        },
-      });
-      this.requestApi.patch(req.id, {
-        status_code: resp.status_code,
-        response_id: resp.id,
-      });
-      this.favouriteApi.requests.update(list =>
-        list.map(r =>
-          r.id === req.id
-            ? { ...r, status_code: resp.status_code, response_id: resp.id }
-            : r,
-        ),
-      );
-
-      if (this.selectedRequest()?.id === req.id) {
-        this.selectedResponse.set(resp);
-        await this.loadResponses(req.id);
-      }
+      await this.requestApi.send(req, this.environmentVariables());
     } catch (err) {
       console.error(err);
     }

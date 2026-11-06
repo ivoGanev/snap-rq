@@ -34,14 +34,9 @@ var All = []commands.Factory{
 	requests.NewDuplicate,
 	requests.NewReorder,
 	requests.NewBulkSet,
-	requests.NewRecordResponse,
-	requests.NewRecordUsage,
-	requests.NewSend,
 
-	// send flow: append-only history, never undone
+	// response history and export (the send itself is an observable command)
 	responses.NewList,
-	responses.NewSave,
-	responses.NewUpdate,
 	responses.NewSaveToFile,
 
 	// trash bin
