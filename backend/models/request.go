@@ -14,6 +14,7 @@ type HttpRequestSummary struct {
 	ResponseID    int64   `json:"response_id"`
 	UserSortOrder int     `json:"user_sort_order"`
 	UserColor     *string `json:"user_color"`
+	LastUsedAt    int64   `json:"last_used_at"`
 }
 
 // HttpRequest represents a saved REST API request.
@@ -31,4 +32,5 @@ type HttpRequest struct {
 	ResponseID     int64   `json:"response_id"`
 	UserSortOrder  int     `json:"user_sort_order"`
 	UserColor      *string `json:"user_color"`
+	LastUsedAt     int64   `json:"last_used_at"`
 }

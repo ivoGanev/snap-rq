@@ -5,6 +5,13 @@
   min-height: 0;
 }
 
+.sending-indicator {
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.8125rem;
+  color: var(--text-muted, var(--text));
+  border-bottom: 1px solid var(--glass-border);
+}
+
 .response-detail {
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) transparent;

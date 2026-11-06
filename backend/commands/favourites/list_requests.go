@@ -30,7 +30,7 @@ func (c ListRequests) Run(input json.RawMessage) (any, error) {
 	rows, err := c.tx.Query(`
 		SELECT r.id, r.collection_id, c.project_id, r.name, r.url, r.method, r.body,
 		       r.body_type, r.request_headers, r.status_code, r.response_id,
-		       fi.user_sort_order, fi.user_color
+		       fi.user_sort_order, fi.user_color, r.last_used_at
 		FROM http_requests r
 		JOIN collections c ON c.id = r.collection_id
 		JOIN favourite_items fi ON fi.http_request_id = r.id
@@ -46,7 +46,7 @@ func (c ListRequests) Run(input json.RawMessage) (any, error) {
 		var req models.HttpRequest
 		if err := rows.Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL,
 			&req.Method, &req.Body, &req.BodyType, &req.RequestHeaders, &req.StatusCode,
-			&req.ResponseID, &req.UserSortOrder, &req.UserColor); err != nil {
+			&req.ResponseID, &req.UserSortOrder, &req.UserColor, &req.LastUsedAt); err != nil {
 			return nil, fmt.Errorf("reading a favourite request: %w", err)
 		}
 		requests = append(requests, req)

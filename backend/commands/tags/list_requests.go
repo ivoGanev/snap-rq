@@ -31,7 +31,7 @@ func (c ListRequests) Run(input json.RawMessage) (any, error) {
 
 	rows, err := c.tx.Query(`
 		SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method, hr.status_code,
-		       hr.response_id, hr.user_sort_order, hr.user_color
+		       hr.response_id, hr.user_sort_order, hr.user_color, hr.last_used_at
 		FROM http_requests hr
 		JOIN collections c ON c.id = hr.collection_id
 		JOIN request_tags rt ON rt.request_id = hr.id
@@ -47,7 +47,7 @@ func (c ListRequests) Run(input json.RawMessage) (any, error) {
 	for rows.Next() {
 		var s models.HttpRequestSummary
 		if err := rows.Scan(&s.ID, &s.CollectionID, &s.ProjectID, &s.Name, &s.URL, &s.Method,
-			&s.StatusCode, &s.ResponseID, &s.UserSortOrder, &s.UserColor); err != nil {
+			&s.StatusCode, &s.ResponseID, &s.UserSortOrder, &s.UserColor, &s.LastUsedAt); err != nil {
 			return nil, err
 		}
 		summaries = append(summaries, s)
