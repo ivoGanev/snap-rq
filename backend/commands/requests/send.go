@@ -7,33 +7,101 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
 	"snap-rq/backend/commands"
+	"snap-rq/backend/commands/responses"
 	"snap-rq/backend/models"
 )
 
-// send.go — execute a request against the outside world. Read-only: it
-// writes nothing to the database (the caller persists the outcome via
-// response.save / response.update), so it runs without the writer lock —
-// a slow send never blocks a rename. Never undoable.
+// send.go — execute a request against the outside world. Observable: it
+// interpolates, times the request, does the HTTP round trip outside the
+// writer lock, and reports elapsed time until it finishes by persisting the
+// response and the request's status/recency in one short transaction.
 
-type Send struct{ tx *sql.Tx }
+type Send struct{ db *sql.DB }
 
-func NewSend(tx *sql.Tx) commands.Command { return &Send{tx: tx} }
+func NewSend(db *sql.DB) commands.ObservableCommand { return &Send{db: db} }
 
 func (Send) Info() commands.Info {
-	return commands.Info{FunctionID: "request.send", Label: "Send Request", ReadOnly: true}
+	return commands.Info{FunctionID: "request.send", Label: "Send Request"}
 }
 
-func (c Send) Run(input json.RawMessage) (any, error) {
-	var req models.HttpRequest
-	if err := json.Unmarshal(input, &req); err != nil {
-		return nil, err
+type sendVariable struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+var variablePattern = regexp.MustCompile(`\{\{\s*[a-zA-Z0-9_-]+\s*\}\}`)
+
+func (c Send) Run(input json.RawMessage, obs commands.Observer) {
+	var in struct {
+		Request   models.HttpRequest `json:"request"`
+		Variables []sendVariable     `json:"variables"`
 	}
-	if req.ID == 0 {
-		return nil, fmt.Errorf("request id is required")
+	if err := json.Unmarshal(input, &in); err != nil {
+		obs.Finish(nil, err)
+		return
+	}
+
+	values := make(map[string]string, len(in.Variables))
+	for _, v := range in.Variables {
+		values[v.Key] = v.Value
+	}
+
+	req := in.Request
+	req.URL = interpolate(req.URL, values)
+	req.Body = interpolate(req.Body, values)
+	req.RequestHeaders = interpolate(req.RequestHeaders, values)
+
+	start := time.Now()
+	done := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				obs.Update(map[string]any{"request_id": req.ID, "elapsed_ms": time.Since(start).Milliseconds()})
+			}
+		}
+	}()
+
+	result := c.doHTTP(req)
+	close(done)
+	result.DurationMs = time.Since(start).Milliseconds()
+
+	stored, err := c.persist(req.ID, result)
+	if err != nil {
+		obs.Finish(nil, err)
+		return
+	}
+	obs.Finish(stored, nil)
+}
+
+// interpolate resolves {{ key }} placeholders; unknown keys stay untouched.
+func interpolate(text string, values map[string]string) string {
+	if len(values) == 0 || !strings.Contains(text, "{{") {
+		return text
+	}
+	return variablePattern.ReplaceAllStringFunc(text, func(match string) string {
+		key := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(match, "{{"), "}}"))
+		if v, ok := values[key]; ok {
+			return v
+		}
+		return match
+	})
+}
+
+// doHTTP runs the request and returns a response; network and build errors
+// become a status-0 response body instead of a Go error.
+func (c Send) doHTTP(req models.HttpRequest) models.HttpResponse {
+	fail := func(body string) models.HttpResponse {
+		return models.HttpResponse{RequestID: req.ID, StatusCode: 0, Body: body}
 	}
 
 	method := strings.ToUpper(strings.TrimSpace(req.Method))
@@ -46,10 +114,7 @@ func (c Send) Run(input json.RawMessage) (any, error) {
 	}
 	httpReq, err := http.NewRequest(method, req.URL, bodyReader)
 	if err != nil {
-		return models.HttpResponse{
-			RequestID: req.ID, StatusCode: 0,
-			Body: fmt.Errorf("building request: %w", err).Error(),
-		}, nil
+		return fail(fmt.Sprintf("building request: %v", err))
 	}
 	for _, line := range strings.Split(req.RequestHeaders, "\n") {
 		line = strings.TrimSpace(line)
@@ -65,27 +130,17 @@ func (c Send) Run(input json.RawMessage) (any, error) {
 
 	client, err := c.httpClient()
 	if err != nil {
-		return nil, err
+		return fail(fmt.Sprintf("building client: %v", err))
 	}
-	start := time.Now()
 	httpResp, err := client.Do(httpReq)
-	duration := time.Since(start).Milliseconds()
 	if err != nil {
-		return models.HttpResponse{
-			RequestID: req.ID, StatusCode: 0,
-			Body:       fmt.Errorf("request failed: %w", err).Error(),
-			DurationMs: duration,
-		}, nil
+		return fail(fmt.Sprintf("request failed: %v", err))
 	}
 	defer httpResp.Body.Close()
 
 	respBody, err := io.ReadAll(httpResp.Body)
 	if err != nil {
-		return models.HttpResponse{
-			RequestID: req.ID, StatusCode: 0,
-			Body:       fmt.Errorf("reading response body: %w", err).Error(),
-			DurationMs: duration,
-		}, nil
+		return fail(fmt.Sprintf("reading response body: %v", err))
 	}
 
 	var respHeaders strings.Builder
@@ -99,8 +154,33 @@ func (c Send) Run(input json.RawMessage) (any, error) {
 		StatusCode: httpResp.StatusCode,
 		Headers:    strings.TrimSpace(respHeaders.String()),
 		Body:       string(respBody),
-		DurationMs: duration,
-	}, nil
+	}
+}
+
+// persist stores the response and updates the request's status and recency
+// in one short transaction.
+func (c Send) persist(reqID int64, result models.HttpResponse) (models.HttpResponse, error) {
+	tx, err := c.db.Begin()
+	if err != nil {
+		return models.HttpResponse{}, err
+	}
+	defer tx.Rollback()
+
+	stored, err := responses.InsertResponse(tx, result)
+	if err != nil {
+		return models.HttpResponse{}, err
+	}
+	if _, err := tx.Exec(`
+		UPDATE http_requests SET status_code = ?, response_id = ?, last_used_at = ?
+		WHERE id = ?`,
+		stored.StatusCode, stored.ID, time.Now().UTC().UnixNano(), reqID,
+	); err != nil {
+		return models.HttpResponse{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return models.HttpResponse{}, err
+	}
+	return stored, nil
 }
 
 // httpClient builds the client from the user's settings; certificate
@@ -108,12 +188,12 @@ func (c Send) Run(input json.RawMessage) (any, error) {
 func (c Send) httpClient() (*http.Client, error) {
 	timeoutSeconds, validateSSL := 30, true
 	var raw string
-	if err := c.tx.QueryRow(
+	if err := c.db.QueryRow(
 		`SELECT value FROM app_settings WHERE key = 'request_timeout_seconds'`,
 	).Scan(&raw); err == nil {
 		_ = json.Unmarshal([]byte(raw), &timeoutSeconds)
 	}
-	if err := c.tx.QueryRow(
+	if err := c.db.QueryRow(
 		`SELECT value FROM app_settings WHERE key = 'validate_ssl_certificates'`,
 	).Scan(&raw); err == nil {
 		_ = json.Unmarshal([]byte(raw), &validateSSL)

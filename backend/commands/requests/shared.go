@@ -12,7 +12,7 @@ import (
 // requestColumns selects one full request row, with NULL-safe text columns.
 const requestColumns = `hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method,
 	COALESCE(hr.body, ''), hr.body_type, COALESCE(hr.request_headers, ''),
-	hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color`
+	hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color, hr.last_used_at`
 
 // queryRequest loads one request, joining its project id in.
 func queryRequest(tx *sql.Tx, id int64) (models.HttpRequest, error) {
@@ -22,7 +22,7 @@ func queryRequest(tx *sql.Tx, id int64) (models.HttpRequest, error) {
 		 JOIN collections c ON c.id = hr.collection_id WHERE hr.id = ?`, id,
 	).Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method,
 		&req.Body, &req.BodyType, &req.RequestHeaders,
-		&req.StatusCode, &req.ResponseID, &req.UserSortOrder, &req.UserColor)
+		&req.StatusCode, &req.ResponseID, &req.UserSortOrder, &req.UserColor, &req.LastUsedAt)
 	if err == sql.ErrNoRows {
 		return models.HttpRequest{}, fmt.Errorf("request %d not found", id)
 	}
@@ -34,7 +34,7 @@ func queryRequest(tx *sql.Tx, id int64) (models.HttpRequest, error) {
 
 // summaryColumns selects the lightweight projection the list views use.
 const summaryColumns = `hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method,
-	hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color`
+	hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color, hr.last_used_at`
 
 // querySummaries runs a summary query with the standard FROM/JOIN prefix.
 func querySummaries(tx *sql.Tx, suffix string, args ...any) ([]models.HttpRequestSummary, error) {
@@ -51,7 +51,7 @@ func querySummaries(tx *sql.Tx, suffix string, args ...any) ([]models.HttpReques
 	for rows.Next() {
 		var s models.HttpRequestSummary
 		if err := rows.Scan(&s.ID, &s.CollectionID, &s.ProjectID, &s.Name, &s.URL, &s.Method,
-			&s.StatusCode, &s.ResponseID, &s.UserSortOrder, &s.UserColor); err != nil {
+			&s.StatusCode, &s.ResponseID, &s.UserSortOrder, &s.UserColor, &s.LastUsedAt); err != nil {
 			return nil, fmt.Errorf("reading a request summary: %w", err)
 		}
 		summaries = append(summaries, s)

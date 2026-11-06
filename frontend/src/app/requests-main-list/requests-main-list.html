@@ -345,14 +345,6 @@
       Delete permanently
     </button>
   } @else {
-    <button
-      class="context-menu-item context-menu-item--with-hint"
-      type="button"
-      (click)="sendRowRequest(req, $event)"
-    >
-      <span>Send</span>
-      <span class="context-menu-hint">Ctrl+S</span>
-    </button>
     <button class="context-menu-item" type="button" (click)="copyRequestCurl(req)">
       Copy cURL
     </button>

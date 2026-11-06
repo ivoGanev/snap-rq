@@ -220,3 +220,74 @@ func TestMigrateLegacySchemaWithoutUserSortOrder(t *testing.T) {
 		}
 	}
 }
+
+func TestMigrateRequestUsageIntoHttpRequests(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("opening in-memory db: %v", err)
+	}
+	defer db.Close()
+
+	if _, err := db.Exec(`
+		CREATE TABLE http_requests (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			collection_id INTEGER NOT NULL,
+			name TEXT NOT NULL,
+			url TEXT NOT NULL,
+			method TEXT NOT NULL,
+			body TEXT,
+			body_type TEXT NOT NULL DEFAULT 'json',
+			request_headers TEXT,
+			status_code INTEGER NOT NULL DEFAULT 0,
+			response_id INTEGER NOT NULL DEFAULT 0
+		);
+		CREATE TABLE request_usage (
+			request_id INTEGER PRIMARY KEY,
+			last_used_at INTEGER NOT NULL
+		);
+		INSERT INTO http_requests (collection_id, name, url, method) VALUES (1, 'first', 'http://a', 'GET');
+		INSERT INTO http_requests (collection_id, name, url, method) VALUES (1, 'second', 'http://b', 'GET');
+		INSERT INTO request_usage (request_id, last_used_at) VALUES (1, 1700000000000000000);
+	`); err != nil {
+		t.Fatalf("setting up legacy schema: %v", err)
+	}
+
+	if err := migrate(db); err != nil {
+		t.Fatalf("migrate failed: %v", err)
+	}
+	if err := addRequestLastUsedAt(db); err != nil {
+		t.Fatalf("addRequestLastUsedAt failed: %v", err)
+	}
+
+	if !columnExists(db, "http_requests", "last_used_at") {
+		t.Fatal("expected http_requests.last_used_at after migration")
+	}
+	if tableExists(db, "request_usage") {
+		t.Error("expected request_usage to be dropped")
+	}
+
+	var used int64
+	if err := db.QueryRow(`SELECT last_used_at FROM http_requests WHERE id = 1`).Scan(&used); err != nil {
+		t.Fatalf("reading copied last_used_at: %v", err)
+	}
+	if used != 1700000000000000000 {
+		t.Errorf("expected copied usage, got %d", used)
+	}
+	var unused int64
+	if err := db.QueryRow(`SELECT last_used_at FROM http_requests WHERE id = 2`).Scan(&unused); err != nil {
+		t.Fatalf("reading untouched last_used_at: %v", err)
+	}
+	if unused != 0 {
+		t.Errorf("expected 0 for a request with no usage, got %d", unused)
+	}
+
+	var count int
+	if err := db.QueryRow(
+		"SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'idx_http_requests_last_used_at'",
+	).Scan(&count); err != nil {
+		t.Fatalf("checking index: %v", err)
+	}
+	if count != 1 {
+		t.Error("expected the last_used_at index to exist")
+	}
+}
