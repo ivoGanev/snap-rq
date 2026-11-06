@@ -59,8 +59,10 @@
     <app-sidebar-rail
       [activeView]="activeView()"
       [disabled]="!state.selectedProject()"
+      [showDevUndo]="devUndoVisible"
       (viewSelect)="selectView($event)"
       (expand)="expandSidebar()"
+      (undoPanelOpen)="openUndoPanel()"
     />
   }
 </div>

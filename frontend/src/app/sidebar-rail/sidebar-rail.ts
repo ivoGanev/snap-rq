@@ -16,8 +16,11 @@ export class SidebarRail {
   readonly views = SIDEBAR_VIEWS;
   readonly activeView = input<SidebarViewId | null>(null);
   readonly disabled = input(false);
+  /** Development builds only: show the undo-history debug button. */
+  readonly showDevUndo = input(false);
   readonly viewSelect = output<SidebarViewId>();
   readonly expand = output<void>();
+  readonly undoPanelOpen = output<void>();
 
   onViewClick(id: SidebarViewId): void {
     this.viewSelect.emit(id);
