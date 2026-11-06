@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { RequestApiService, type HttpRequest } from '../core/services/request.service';
 import { FormsModule } from '@angular/forms';
-import { type HttpRequest } from '../core/services/request.service';
-import { ApiRequestsService } from '../core/services/api-requests.service';
 import { RequestBodyEditor } from '../request-body-editor/request-body-editor';
 import { type EditorLanguage } from '../code-editor/code-editor';
 import { RequestCodeTabBase } from '../request-bottom-drawer/request-code-tab.base';
@@ -25,10 +24,7 @@ interface BodyValue {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RequestBodyTab extends RequestCodeTabBase<BodyValue> {
-  private readonly apiRequests = inject(ApiRequestsService);
-
-  readonly bodyTabState = this.tabState;
-  readonly bodyEditCount = this.editCount;
+    readonly bodyTabState = this.tabState;
   readonly bodySaving = this.saving;
 
   readonly bodyDraft = computed(() => this.draftValue()?.body ?? '');
@@ -45,10 +41,23 @@ export class RequestBodyTab extends RequestCodeTabBase<BodyValue> {
     return a.body === b.body && a.bodyType === b.bodyType;
   }
 
-  protected override saveFor(requests: HttpRequest[], value: BodyValue): Promise<HttpRequest[]> {
-    const ids = requests.map((req) => req.id);
-    return this.apiRequests.bulkUpdateBody(ids, value.body, value.bodyType);
+protected override async saveFor(requests: HttpRequest[], value: BodyValue): Promise<void> {
+  // A single edit is a normal request update: not undoable
+  // Only a real multi-selection edit is a bulk operation worth an undo step.
+  if (requests.length === 1) {
+    await this.requestApi.update({
+      ...requests[0],
+      body: value.body,
+      body_type: value.bodyType,
+    });
+    return;
   }
+  await this.requestApi.bulkUpdateBody(
+    requests.map((req) => req.id),
+    value.body,
+    value.bodyType,
+  );
+}
 
   protected override emptyValue(): BodyValue {
     return { body: '', bodyType: 'json' };
