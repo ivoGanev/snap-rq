@@ -1,12 +1,8 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { RequestApiService, type HttpRequest, type HttpRequestSummary } from '../core/services/request.service';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
-import {
-  RequestApiService,
-  type HttpRequest,
-  type HttpRequestSummary,
-} from '../core/services/request.service';
-import { ApiRequestsService } from '../core/services/api-requests.service';
+
 import { FavouriteApiService } from '../core/services/favourite.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
 import { RequestBodyEditor } from '../request-body-editor/request-body-editor';
@@ -22,7 +18,6 @@ import { CodeEditor, type EditorLanguage } from '../code-editor/code-editor';
 export class RequestEditor {
   protected readonly state = inject(WorkspaceStateService);
   private readonly requestApi = inject(RequestApiService);
-  private readonly apiRequests = inject(ApiRequestsService);
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly tagApi = inject(TagApiService);
 
@@ -69,7 +64,7 @@ export class RequestEditor {
     this.draftRequest.set(updated);
 
     try {
-      const saved = await this.apiRequests.update({
+      const saved = await this.requestApi.update({
         ...updated,
         collection_id: draft.collection_id,
       });

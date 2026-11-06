@@ -21,19 +21,15 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("creating data directory: %w", err)
 	}
 
-	db, err := sql.Open("sqlite", dbPath)
+	// PRAGMAs go in the DSN so every pooled connection gets them.
+	// foreign_keys(1) makes cascades fire on DELETE; journal_mode(WAL)
+	// keeps bulk writes from paying rollback-journal overhead. Setting
+	// these with db.Exec would only affect ONE pooled connection — the
+	// runner's transactions would silently miss the cascades.
+	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)", dbPath)
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
-	}
-
-	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
-		return nil, fmt.Errorf("enabling foreign keys: %w", err)
-	}
-
-	// WAL keeps bulk writes (e.g. reordering hundreds of requests) from paying
-	// rollback-journal overhead on every commit.
-	if _, err := db.Exec("PRAGMA journal_mode = WAL"); err != nil {
-		return nil, fmt.Errorf("enabling WAL journal mode: %w", err)
 	}
 
 	if err := db.Ping(); err != nil {
@@ -224,6 +220,17 @@ func migrate(db *sql.DB) error {
 		CREATE TABLE IF NOT EXISTS app_settings (
 			key TEXT PRIMARY KEY,
 			value TEXT NOT NULL
+		);
+
+		CREATE TABLE IF NOT EXISTS undo_log (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			command TEXT NOT NULL,
+			label TEXT NOT NULL,
+			input TEXT NOT NULL,
+			snapshot TEXT NOT NULL,
+			result TEXT NOT NULL,
+			created_at INTEGER NOT NULL,
+			state TEXT NOT NULL DEFAULT 'undo' CHECK(state IN ('undo', 'redo'))
 		);
 
 		INSERT OR IGNORE INTO app_settings (key, value) VALUES ('validate_ssl_certificates', 'true');

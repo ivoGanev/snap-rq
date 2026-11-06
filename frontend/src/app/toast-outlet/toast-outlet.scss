@@ -1,0 +1,61 @@
+.toast {
+  position: fixed;
+  bottom: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-solid);
+  border: 1px solid var(--glass-border);
+  color: var(--text);
+  font-size: 13px;
+  z-index: 2000;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+}
+
+.toast-message {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 420px;
+}
+
+.toast-action {
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text);
+  border-radius: calc(var(--radius) * 0.6);
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toast-action:hover {
+  background: var(--hover-highlight);
+}
+
+.toast-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: calc(var(--radius) * 0.4);
+}
+
+.toast-close:hover {
+  color: var(--text);
+}
+
+/* Explicit dimensions: WebKit does not auto-shrink unsized inline SVGs. */
+.toast-close svg {
+  width: 12px;
+  height: 12px;
+}

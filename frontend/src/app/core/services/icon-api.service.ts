@@ -1,14 +1,14 @@
-import { Injectable } from '@angular/core';
-import * as IconService from '../../../../bindings/snap-rq/backend/services';
+import { Injectable, inject } from '@angular/core';
+import { CommandApiService } from './command.service';
 
-/** Angular wrapper around the Wails-generated IconService bindings. */
+/**
+ * The app's typed API for icon maintenance.
+ */
 @Injectable({ providedIn: 'root' })
 export class IconApiService {
-  /**
-   * Resets any stored icon appearance whose id is not in the current registry
-   * to the default icon. Keeps the database in sync when an id is removed.
-   */
+  private readonly commands = inject(CommandApiService);
+
   async cleanupIconReferences(validIds: string[], defaultId: string): Promise<void> {
-    await IconService.IconService.CleanupIconReferences(validIds, defaultId);
+    await this.commands.execute('icon.cleanup', { valid_ids: validIds, default_id: defaultId });
   }
 }

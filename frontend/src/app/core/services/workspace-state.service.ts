@@ -1,10 +1,11 @@
 import { computed, effect, Injectable, inject, signal } from '@angular/core';
 import { RequestApiService, type HttpRequest, type HttpResponse } from './request.service';
-import { ApiRequestsService } from './api-requests.service';
 import { ResponseApiService } from './response.service';
 import { FavouriteApiService, type FavouriteCollection } from './favourite.service';
 import { BinApiService, type HttpBinnedRequestSummary } from './bin.service';
 import { EnvironmentVariableApiService } from './environment-variable.service';
+import { EnvironmentApiService } from './environment.service';
+import { ChangeBus } from './change-bus.service';
 import { EnvironmentContext } from '../models/environment-context';
 import type { Collection } from './collection.service';
 import type { Project } from './project.service';
@@ -22,11 +23,12 @@ import type { Environment } from './environment.service';
 @Injectable({ providedIn: 'root' })
 export class WorkspaceStateService {
   private readonly requestApi = inject(RequestApiService);
-  private readonly apiRequests = inject(ApiRequestsService);
   private readonly responseApi = inject(ResponseApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly binApi = inject(BinApiService);
   private readonly envVarApi = inject(EnvironmentVariableApiService);
+  private readonly environmentApi = inject(EnvironmentApiService);
+  private readonly changeBus = inject(ChangeBus);
 
   readonly loading = signal(false);
   readonly selectedProject = signal<Project | null>(null);
@@ -65,6 +67,7 @@ export class WorkspaceStateService {
   );
 
   constructor() {
+    // Variables follow the selected environment.
     effect(() => {
       const env = this.selectedEnvironment();
       if (env) {
@@ -73,6 +76,33 @@ export class WorkspaceStateService {
         this.envVarApi.variables.set([]);
       }
     });
+
+    // If the selected environment disappears (deleted, or its project
+    // changed), fall back to the first one available.
+    effect(() => {
+      const environments = this.environmentApi.environments();
+      const selected = this.selectedEnvironment();
+      if (selected && environments.some((env) => env.id === selected.id)) {
+        return;
+      }
+      this.selectedEnvironment.set(environments[0] ?? null);
+    });
+
+    // When a command touches the open request, reload its full row (the
+    // summary refresh cannot update body/headers).
+    this.changeBus.changesFor('request').subscribe(change => {
+      void this.refreshSelectedRequest(change.ids);
+    });
+  }
+
+  private async refreshSelectedRequest(ids: number[]): Promise<void> {
+    const selected = this.selectedRequest();
+    if (!selected || !ids.includes(selected.id)) return;
+    try {
+      this.selectedRequest.set(await this.requestApi.getFull(selected.id));
+    } catch {
+      // the row is gone (deleted); the list store handles removal
+    }
   }
 
   async loadResponses(requestId: number): Promise<void> {
@@ -128,12 +158,7 @@ export class WorkspaceStateService {
           }
         },
       }, trackUsage);
-      this.requestApi.patchRequest({
-        id: req.id,
-        status_code: resp.status_code,
-        response_id: resp.id,
-      });
-      this.apiRequests.patch(req.id, {
+      this.requestApi.patch(req.id, {
         status_code: resp.status_code,
         response_id: resp.id,
       });
@@ -166,12 +191,7 @@ export class WorkspaceStateService {
       const responses = await this.responseApi.sendRequests(reqs, this.environment(), trackUsage);
 
       for (const resp of responses) {
-        this.requestApi.patchRequest({
-          id: resp.request_id,
-          status_code: resp.status_code,
-          response_id: resp.id,
-        });
-        this.apiRequests.patch(resp.request_id, {
+        this.requestApi.patch(resp.request_id, {
           status_code: resp.status_code,
           response_id: resp.id,
         });

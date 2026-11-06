@@ -12,8 +12,9 @@ import (
 
 	"github.com/adrg/xdg"
 
+	"snap-rq/backend/commands"
+	"snap-rq/backend/commands/catalog"
 	"snap-rq/backend/database"
-	"snap-rq/backend/services"
 )
 
 // query mirrors the exact SQL used by RequestService.GetAllRequestSummaries,
@@ -68,7 +69,15 @@ func main() {
 	}
 	defer db.Close()
 
-	svc := services.NewRequestService(db)
+	runner := commands.NewRunner(db)
+	if err := runner.Register(catalog.All...); err != nil {
+		fmt.Fprintf(os.Stderr, "registering commands: %v\n", err)
+		os.Exit(1)
+	}
+	listRequests := func() error {
+		_, err := runner.Run("request.list_summaries", json.RawMessage(`{}`))
+		return err
+	}
 	dbPath := appDBPath()
 
 	schema, err := getSchema(db)
@@ -90,7 +99,7 @@ func main() {
 	}
 
 	// Warmup: make sure caches, connections and the query plan are settled.
-	if _, err := svc.GetAllRequestSummaries(); err != nil {
+	if err := listRequests(); err != nil {
 		fmt.Fprintf(os.Stderr, "warmup call failed: %v\n", err)
 		os.Exit(1)
 	}
@@ -99,7 +108,7 @@ func main() {
 	overallStart := time.Now()
 	for i := 0; i < iterations; i++ {
 		start := time.Now()
-		if _, err := svc.GetAllRequestSummaries(); err != nil {
+		if err := listRequests(); err != nil {
 			fmt.Fprintf(os.Stderr, "benchmark call failed: %v\n", err)
 			os.Exit(1)
 		}
@@ -121,7 +130,7 @@ func main() {
 	report := BenchmarkReport{
 		Date:            time.Now().UTC().Format(time.RFC3339),
 		Query:           query,
-		Function:        "RequestService.GetAllRequestSummaries",
+		Function:        "request.list_summaries",
 		Iterations:      iterations,
 		TotalDuration:   total.String(),
 		AverageDuration: avg.String(),

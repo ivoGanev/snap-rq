@@ -1,16 +1,43 @@
-import { Injectable, signal } from '@angular/core';
-import * as TagService from '../../../../bindings/snap-rq/backend/services';
-import type { Tag, TagAppearance, HttpRequestSummary } from '../../../../bindings/snap-rq/backend/models';
+import { Injectable, inject, signal } from '@angular/core';
+import { CommandApiService } from './command.service';
+import { ChangeBus } from './change-bus.service';
+import type { HttpRequestSummary } from '../models/http';
 
-export type { Tag, TagAppearance };
+export interface TagAppearance {
+  id: number;
+  tag_id: number;
+  appearance_type: string;
+  appearance_value: string;
+}
 
+export interface Tag {
+  id: number;
+  project_id: number;
+  name: string;
+  appearance: TagAppearance;
+}
+
+/**
+ * The app's typed API for tags: every operation runs as a command.
+ */
 @Injectable({ providedIn: 'root' })
 export class TagApiService {
+  private readonly commands = inject(CommandApiService);
+  private readonly bus = inject(ChangeBus);
+  private projectId: number | null = null;
+
   readonly allTags = signal<Tag[]>([]);
   readonly requestTags = signal<Record<number, string[] | undefined>>({});
 
+  constructor() {
+    this.bus.changesFor('tag').subscribe(() => {
+      if (this.projectId) void this.loadTagsForProject(this.projectId);
+    });
+  }
+
   async loadTagsForProject(projectId: number): Promise<void> {
-    const tags = await TagService.TagService.GetTagsForProject(projectId);
+    this.projectId = projectId;
+    const tags = await this.commands.execute<Tag[]>('tag.list', { project_id: projectId });
     this.allTags.set(tags ?? []);
   }
 
@@ -19,9 +46,9 @@ export class TagApiService {
       this.requestTags.set({});
       return;
     }
-
-    const ids = requests.map(r => r.id);
-    const raw = await TagService.TagService.GetTagsForRequests(ids);
+    const raw = await this.commands.execute<Record<string, string[]>>('tag.list_for_requests', {
+      request_ids: requests.map(r => r.id),
+    });
     const mapped: Record<number, string[]> = {};
     for (const [key, value] of Object.entries(raw ?? {})) {
       mapped[Number(key)] = value ?? [];
@@ -30,11 +57,11 @@ export class TagApiService {
   }
 
   async addTagToRequest(requestId: number, projectId: number, tagName: string): Promise<Tag> {
-    const tag = await TagService.TagService.AddTagToRequest(requestId, projectId, tagName);
+    const tag = await this.commands.execute<Tag>('tag.add', {
+      request_id: requestId, project_id: projectId, tag_name: tagName,
+    });
     this.allTags.update(list => {
-      if (list.some(t => t.id === tag.id)) {
-        return list;
-      }
+      if (list.some(t => t.id === tag.id)) return list;
       return [...list, tag];
     });
     if (requestId !== 0) {
@@ -47,55 +74,23 @@ export class TagApiService {
   }
 
   async removeTagFromRequest(requestId: number, tagName: string): Promise<void> {
-    await TagService.TagService.RemoveTagFromRequest(requestId, tagName);
+    await this.commands.execute('tag.remove', { request_id: requestId, tag_name: tagName });
     this.requestTags.update(map => ({
       ...map,
       [requestId]: (map[requestId] ?? []).filter(t => t !== tagName),
     }));
   }
 
-  async updateAppearance(
-    tagId: number,
-    appearance: Omit<TagAppearance, 'id' | 'tag_id'>,
-  ): Promise<TagAppearance> {
-    const updated = await TagService.TagService.UpdateTagAppearance(
-      tagId,
-      { ...appearance, id: 0, tag_id: tagId } as TagAppearance,
-    );
-    this.allTags.update(list =>
-      list.map(t => (t.id === tagId ? { ...t, appearance: updated } : t)),
-    );
-    return updated;
-  }
-
   async renameTag(projectId: number, oldName: string, newName: string): Promise<Tag> {
-    const normalised = newName.trim().toLowerCase();
-    if (!normalised || normalised === oldName.toLowerCase()) {
-      throw new Error('Invalid tag name');
-    }
-
-    const oldTag = this.allTags().find((t) => t.name === oldName);
-    const tag = await TagService.TagService.AddTagToRequest(0, projectId, normalised);
-    // Preserve the original tag's appearance on the renamed tag.
-    if (oldTag && tag.id !== oldTag.id) {
-      await this.updateAppearance(tag.id, {
-        appearance_type: oldTag.appearance.appearance_type,
-        appearance_value: oldTag.appearance.appearance_value,
-      });
-    }
-    // Move all request associations from old tag to new tag.
-    const requests = await this.getRequestsForTag(projectId, oldName);
-    for (const req of requests) {
-      await TagService.TagService.AddTagToRequest(req.id, projectId, normalised);
-      await TagService.TagService.RemoveTagFromRequest(req.id, oldName);
-    }
-    await TagService.TagService.DeleteTag(projectId, oldName);
+    const tag = await this.commands.execute<Tag>('tag.rename', {
+      project_id: projectId, old_name: oldName, new_name: newName,
+    });
     await this.loadTagsForProject(projectId);
     return tag;
   }
 
   async deleteTag(projectId: number, tagName: string): Promise<void> {
-    await TagService.TagService.DeleteTag(projectId, tagName);
+    await this.commands.execute('tag.delete', { project_id: projectId, tag_name: tagName });
     this.allTags.update(list => list.filter(t => t.name !== tagName));
     this.requestTags.update(map => {
       const next: Record<number, string[] | undefined> = {};
@@ -107,16 +102,30 @@ export class TagApiService {
   }
 
   async getRequestsForTag(projectId: number, tagName: string): Promise<HttpRequestSummary[]> {
-    return ((await TagService.TagService.GetRequestsForTag(projectId, tagName)) as HttpRequestSummary[] | null) ?? [];
+    const result = await this.commands.execute<HttpRequestSummary[]>('tag.list_requests', {
+      project_id: projectId, tag_name: tagName,
+    });
+    return result ?? [];
   }
 
-  /** Persists the user's custom order of requests within one tag. */
   async updateRequestOrder(projectId: number, tagName: string, orderedRequestIds: number[]): Promise<void> {
-    await TagService.TagService.UpdateTagRequestOrder(projectId, tagName, orderedRequestIds);
+    await this.commands.execute('tag.reorder', {
+      project_id: projectId, tag_name: tagName, ordered_request_ids: orderedRequestIds,
+    });
   }
 
-  /** Sets (or clears with null) the colour on memberships of one tag. */
   async updateRequestColor(projectId: number, tagName: string, requestIds: number[], color: string | null): Promise<void> {
-    await TagService.TagService.BulkUpdateTagRequestColor(projectId, tagName, requestIds, color ?? '');
+    await this.commands.execute('tag.set_color', {
+      project_id: projectId, tag_name: tagName, request_ids: requestIds, color,
+    });
+  }
+
+  /** Updates a tag's appearance (icon or colour). */
+  async updateAppearance(tagId: number, appearance: Omit<TagAppearance, 'id' | 'tag_id'>): Promise<TagAppearance> {
+    const updated = await this.commands.execute<TagAppearance>('tag.set_appearance', {
+      tag_id: tagId, ...appearance,
+    });
+    this.allTags.update(list => list.map(t => (t.id === tagId ? { ...t, appearance: updated } : t)));
+    return updated;
   }
 }

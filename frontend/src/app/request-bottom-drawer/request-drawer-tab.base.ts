@@ -2,6 +2,7 @@ import { effect, inject, signal, untracked } from '@angular/core';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { RequestApiService, type HttpRequest } from '../core/services/request.service';
 import { FavouriteApiService } from '../core/services/favourite.service';
+import { ChangeBus } from '../core/services/change-bus.service';
 
 export type DrawerTabState = 'idle' | 'ready' | 'mismatch' | 'unavailable';
 
@@ -22,6 +23,7 @@ export abstract class RequestDrawerTabBase<T> {
   protected readonly state = inject(WorkspaceStateService);
   protected readonly requestApi = inject(RequestApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
+  private readonly changeBus = inject(ChangeBus);
 
   /** Current lifecycle state of the tab for the active selection. */
   readonly tabState = signal<DrawerTabState>('idle');
@@ -63,6 +65,17 @@ export abstract class RequestDrawerTabBase<T> {
 
       void this.load(ids);
     });
+
+    // A command (undo/redo included) changed request data. Single selection
+    // is covered by selectedRequest above; a multi-selection has no
+    // selectedRequest, so reload the drawer's own rows here.
+    effect(() => {
+      const refresh = this.changeBus.revision();
+      if (refresh === 0) return;
+      const ids = untracked(() => this.state.selectedIds());
+      if (ids.size <= 1) return;
+      untracked(() => void this.load(ids));
+    });
   }
 
   /** Extracts this tab's value from a request. */
@@ -71,8 +84,8 @@ export abstract class RequestDrawerTabBase<T> {
   /** Returns true when two values are considered equal. */
   protected abstract valueEquals(a: T, b: T): boolean;
 
-  /** Persists `value` onto every given request and returns the saved rows. */
-  protected abstract saveFor(requests: HttpRequest[], value: T): Promise<HttpRequest[]>;
+  /** Persists `value` onto every given request. */
+  protected abstract saveFor(requests: HttpRequest[], value: T): Promise<void>;
 
   /** Called right before a (re)load, e.g. to flush pending autosaves. */
   protected beforeReload(): void {}
@@ -105,7 +118,7 @@ export abstract class RequestDrawerTabBase<T> {
     }
 
     try {
-      const requests = await Promise.all([...ids].map((id) => this.requestApi.get(id)));
+      const requests = await Promise.all([...ids].map((id) => this.requestApi.getFull(id)));
       if (version !== this.loadVersion) return;
       this.setFromRequests(requests);
     } catch (err) {
@@ -123,7 +136,10 @@ export abstract class RequestDrawerTabBase<T> {
     const version = this.loadVersion;
     this.saving.set(true);
     try {
-      const saved = await this.saveFor(requests, value);
+      await this.saveFor(requests, value);
+      // The bulk commands return no rows; read the saved state back so the
+      // tab (and the workspace selection) sees exactly what was stored.
+      const saved = await Promise.all(requests.map((r) => this.requestApi.getFull(r.id)));
       this.applySaved(saved);
       if (version === this.loadVersion) {
         this.requests.set(saved);
@@ -148,7 +164,7 @@ export abstract class RequestDrawerTabBase<T> {
     const requests = this.requests();
     if (requests.length === 0) return;
     try {
-      this.applySaved(await this.saveFor(requests, value));
+      await this.saveFor(requests, value);
     } catch (err) {
       console.error(err);
     }

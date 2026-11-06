@@ -2,11 +2,13 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"log"
 	"time"
 
+	"snap-rq/backend/commands"
+	"snap-rq/backend/commands/catalog"
 	"snap-rq/backend/database"
-	"snap-rq/backend/services"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -20,15 +22,9 @@ import (
 var assets embed.FS
 
 func init() {
-	// Register a custom event whose associated data type is string.
-	// This is not required, but the binding generator will pick up registered events
-	// and provide a strongly typed JS/TS API for them.
 	application.RegisterEvent[string]("time")
 }
 
-// main function serves as the application's entry point. It initializes the application, creates a window,
-// and starts a goroutine that emits a time-based event every second. It subsequently runs the application and
-// logs any error that might occur.
 func main() {
 	// Open the local SQLite database and run migrations.
 	db, err := database.Open()
@@ -37,36 +33,31 @@ func main() {
 	}
 	defer db.Close()
 
-	requestService := services.NewRequestService(db)
-	settingsService := services.NewSettingsService(db)
-	profileService := services.NewProfileService(db)
-	projectService := services.NewProjectService(db)
-	collectionService := services.NewCollectionService(db)
-	environmentService := services.NewEnvironmentService(db)
-	environmentVariableService := services.NewEnvironmentVariableService(db)
-	favouriteService := services.NewFavouriteService(db)
-	tagService := services.NewTagService(db)
-	iconService := services.NewIconService(db)
+	// The command framework: every operation the app can perform, invoked
+	// by name, with undo for the operations that can be reversed. See
+	// specs/command-framework.md.
+	runner := commands.NewRunner(db)
+	if err := runner.Register(catalog.All...); err != nil {
+		log.Fatalf("registering commands: %v", err)
+	}
+	runner.SetUndoLimit(func() int {
+		var limit int
+		var raw string
+		if err := db.QueryRow(
+			`SELECT value FROM app_settings WHERE key = 'undo_history_limit'`).Scan(&raw); err == nil {
+			_ = jsonUnmarshal(raw, &limit)
+		}
+		if limit < 10 || limit > 1000 {
+			limit = 100
+		}
+		return limit
+	})
 
-	// Create a new Wails application by providing the necessary options.
-	// Variables 'Name' and 'Description' are for application metadata.
-	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
-	// 'Bind' is a list of Go struct instances. The frontend has access to the methods of these instances.
-	// 'Mac' options tailor the application when running an macOS.
 	app := application.New(application.Options{
 		Name:        "snap-rq-wails-v3",
 		Description: "A REST API client",
 		Services: []application.Service{
-			application.NewService(requestService),
-			application.NewService(settingsService),
-			application.NewService(profileService),
-			application.NewService(projectService),
-			application.NewService(collectionService),
-			application.NewService(environmentService),
-			application.NewService(environmentVariableService),
-			application.NewService(favouriteService),
-			application.NewService(tagService),
-			application.NewService(iconService),
+			application.NewService(commands.NewCommandService(runner)),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -76,11 +67,6 @@ func main() {
 		},
 	})
 
-	// Create a new window with the necessary options.
-	// 'Title' is the title of the window.
-	// 'Mac' options tailor the window when running on macOS.
-	// 'BackgroundColour' is the background colour of the window.
-	// 'URL' is the URL that will be loaded into the webview.
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title: "Window 1",
 		// Window sized to the golden ratio (1000 / 618 ≈ 1.618).
@@ -96,8 +82,6 @@ func main() {
 		URL:              "/",
 	})
 
-	// Create a goroutine that emits an event containing the current time every second.
-	// The frontend can listen to this event and update the UI accordingly.
 	go func() {
 		for {
 			now := time.Now().Format(time.RFC1123)
@@ -106,11 +90,11 @@ func main() {
 		}
 	}()
 
-	// Run the application. This blocks until the application has been exited.
 	err = app.Run()
-
-	// If an error occurred while running the application, log it and exit.
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+func jsonUnmarshal(raw string, dest any) error {
+	return json.Unmarshal([]byte(raw), dest)
 }

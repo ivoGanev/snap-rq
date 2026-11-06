@@ -1,9 +1,9 @@
 <div class="body-tab-head">
-  @if (bodyTabState() === 'ready' && bodyEditCount() > 1) {
-    <span class="body-tab-count">{{ bodyEditCount() }} requests</span>
+  @if (bodyTabState() === 'ready' && editCount() > 1) {
+    <span class="body-tab-count">{{ editCount() }} requests</span>
   }
   <span class="body-tab-spacer"></span>
-  @if (bodyTabState() === 'ready' && bodyEditCount() > 1) {
+  @if (bodyTabState() === 'ready' && editCount() > 1) {
     <button
       class="body-apply-button"
       type="button"
