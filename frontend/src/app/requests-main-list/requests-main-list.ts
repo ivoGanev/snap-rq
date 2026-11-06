@@ -3,13 +3,13 @@ import { FormsModule } from '@angular/forms';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { Clipboard } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
+import { ChangeBus } from '../core/services/change-bus.service';
 import { RequestApiService, type HttpRequest, type HttpRequestSummary } from '../core/services/request.service';
-import { ApiRequestsService } from '../core/services/api-requests.service';
 import { FavouriteApiService, type FavouriteCollection } from '../core/services/favourite.service';
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
 import { SelectionStateService, groupKey } from '../core/services/selection-state.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
-import { BinApiService, type HttpBinnedRequestSummary, type RestoreBinnedRequestInput } from '../core/services/bin.service';
+import { BinApiService, type HttpBinnedRequestSummary, type RestoreInput } from '../core/services/bin.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
 import { RequestBottomDrawer, type BottomTab } from '../request-bottom-drawer/request-bottom-drawer';
 import { RequestBodyTab } from '../request-body-tab/request-body-tab';
@@ -77,7 +77,7 @@ const NAME_COLUMN_MIN_WIDTH = 120;
 export class RequestsMainList {
   protected readonly state = inject(WorkspaceStateService);
   private readonly requestApi = inject(RequestApiService);
-  private readonly apiRequests = inject(ApiRequestsService);
+  private readonly changeBus = inject(ChangeBus);
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly collectionApi = inject(CollectionApiService);
   private readonly selectionState = inject(SelectionStateService);
@@ -277,7 +277,7 @@ export class RequestsMainList {
 
     const collection = this.state.selectedCollection();
     if (collection) {
-      return this.apiRequests.forCollection(collection.id);
+      return this.requestApi.forCollection(collection.id);
     }
 
     if (this.state.showingFamousRequests()) {
@@ -286,7 +286,7 @@ export class RequestsMainList {
 
     if (this.state.showingAllRequests()) {
       const projectId = this.state.selectedProject()?.id;
-      return projectId ? this.apiRequests.forProject(projectId) : [];
+      return projectId ? this.requestApi.forProject(projectId) : [];
     }
 
     return [];
@@ -383,7 +383,7 @@ export class RequestsMainList {
         method: false,
         tags: false,
       };
-      if (isSelected && selectedIds.size <= 1 && cell?.requestId === req.id) {
+      if (isSelected && selectedIds.size <= 1 && cell !== null && cell.requestId === req.id) {
         isCellSelected[cell.column] = true;
       }
       const colour = requestColorInfo(req.user_color);
@@ -483,6 +483,29 @@ export class RequestsMainList {
       this.state.multiSelectionActive.set(this.selectedRowIds().size > 1);
     });
 
+    // Command-driven data refresh (undo/redo replays included): reload the
+    // active group's data WITHOUT clearing selection or search, unlike the
+    // view-switch effect above. The initial value 0 is skipped so app start
+    // does not double-load.
+    effect(() => {
+      const refresh = this.changeBus.revision();
+      if (refresh === 0) return;
+      untracked(() => {
+        const version = ++this.loadVersion;
+        void this.loadActiveGroup(
+          version,
+          this.state.selectedCollection()?.id ?? null,
+          this.state.selectedFavouriteCollection()?.id ?? null,
+          this.state.selectedTag(),
+          this.state.showingAllRequests(),
+          this.state.showingFamousRequests(),
+          this.state.showingBin(),
+          this.state.selectedProject()?.id ?? null,
+          this.activeGroupKey(),
+        );
+      });
+    });
+
     effect(() => {
       this.methodColumnWidth();
       this.nameColumnWidth();
@@ -550,7 +573,7 @@ export class RequestsMainList {
 
       if (collectionId !== null) {
         if (version !== this.loadVersion) return;
-        const requests = this.apiRequests.forCollection(collectionId);
+        const requests = this.requestApi.forCollection(collectionId);
         await this.tagApi.loadTagsForRequests(requests);
         if (version !== this.loadVersion) return;
         this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView));
@@ -559,7 +582,7 @@ export class RequestsMainList {
 
       if (showAll && projectId !== null) {
         if (version !== this.loadVersion) return;
-        const requests = this.apiRequests.forProject(projectId);
+        const requests = this.requestApi.forProject(projectId);
         await this.tagApi.loadTagsForRequests(requests);
         if (version !== this.loadVersion) return;
         this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView));
@@ -783,7 +806,7 @@ export class RequestsMainList {
     this.state.selectedRequest.set(null);
     this.state.selectedResponse.set(null);
 
-    void this.requestApi.get(id).then(full => {
+    void this.requestApi.getFull(id).then(full => {
       if (this.selectedRowIds().has(id)) {
         this.state.selectedRequest.set(full);
       }
@@ -1143,7 +1166,7 @@ export class RequestsMainList {
     if (kind === 'collection') {
       const collection = this.state.selectedCollection();
       if (!collection) return;
-      const next = [...this.apiRequests.forCollection(collection.id)];
+      const next = [...this.requestApi.forCollection(collection.id)];
       const [moved] = next.splice(from, 1);
       if (!moved) return;
       next.splice(to, 0, moved);
@@ -1151,7 +1174,7 @@ export class RequestsMainList {
       for (const [index, req] of next.entries()) {
         orders[req.id] = index;
       }
-      this.apiRequests.applyUserSortOrders(orders);
+      this.requestApi.applyUserSortOrders(orders);
       return;
     }
 
@@ -1198,7 +1221,7 @@ export class RequestsMainList {
       console.error('persisting request order failed, reloading view', err);
       try {
         if (kind === 'collection') {
-          await this.apiRequests.loadAll();
+          await this.requestApi.loadAll();
         } else if (kind === 'favourite') {
           const favourite = this.state.selectedFavouriteCollection();
           if (favourite) await this.favouriteApi.loadRequestsForCollection(favourite.id);
@@ -1229,7 +1252,7 @@ export class RequestsMainList {
       if (kind === 'collection') {
         const colors: Record<number, string | null> = {};
         for (const id of ids) colors[id] = color;
-        this.apiRequests.applyUserColors(colors);
+        this.requestApi.applyUserColors(colors);
         await this.requestApi.bulkUpdateColor(ids, color);
       } else if (kind === 'favourite') {
         const favourite = this.state.selectedFavouriteCollection();
@@ -1253,7 +1276,7 @@ export class RequestsMainList {
       console.error('persisting request colour failed, reloading view', err);
       try {
         if (kind === 'collection') {
-          await this.apiRequests.loadAll();
+          await this.requestApi.loadAll();
         } else if (kind === 'favourite') {
           const favourite = this.state.selectedFavouriteCollection();
           if (favourite) await this.favouriteApi.loadRequestsForCollection(favourite.id);
@@ -1284,7 +1307,7 @@ export class RequestsMainList {
       if (kind === 'collection') {
         const colors: Record<number, string | null> = {};
         for (const id of ids) colors[id] = null;
-        this.apiRequests.applyUserColors(colors);
+        this.requestApi.applyUserColors(colors);
         await this.requestApi.bulkUpdateColor(ids, null);
       } else if (kind === 'favourite') {
         const favourite = this.state.selectedFavouriteCollection();
@@ -1302,7 +1325,7 @@ export class RequestsMainList {
       console.error('clearing all request colours failed, reloading view', err);
       try {
         if (kind === 'collection') {
-          await this.apiRequests.loadAll();
+          await this.requestApi.loadAll();
         } else if (kind === 'favourite') {
           const favourite = this.state.selectedFavouriteCollection();
           if (favourite) await this.favouriteApi.loadRequestsForCollection(favourite.id);
@@ -1341,7 +1364,7 @@ export class RequestsMainList {
     if (!req) return;
 
     try {
-      const full = await this.requestApi.get(req.id);
+      const full = await this.requestApi.getFull(req.id);
       const curl = await this.requestApi.requestToCurl(full);
       await Clipboard.SetText(curl);
     } catch (err) {
@@ -1361,7 +1384,7 @@ export class RequestsMainList {
     try {
       const duplicated: { originalId: number; request: HttpRequestSummary }[] = [];
       for (const original of requests) {
-        duplicated.push({ originalId: original.id, request: await this.apiRequests.duplicate(original.id) });
+        duplicated.push({ originalId: original.id, request: await this.requestApi.duplicate(original.id) });
       }
 
       const favourite = this.state.selectedFavouriteCollection();
@@ -1419,7 +1442,7 @@ export class RequestsMainList {
         }
         this.favouriteApi.requests.update(list => list.filter(r => !ids.includes(r.id)));
       } else {
-        await this.apiRequests.deleteMany(ids);
+        await this.requestApi.deleteMany(ids);
         for (const id of ids) {
           this.selectionState.deleteRequest(id);
         }
@@ -1453,9 +1476,9 @@ export class RequestsMainList {
     const missingOriginal = binned.some(r => !collections.some(c => c.id === r.original_collection_id));
 
     if (!missingOriginal) {
-      const inputs = binned.map(r => ({
+      const inputs: RestoreInput[] = binned.map(r => ({
         bin_id: r.id,
-        target_collection_id: r.original_collection_id,
+        collection_id: r.original_collection_id,
       }));
       void this.doRestore(inputs);
       return;
@@ -1475,11 +1498,11 @@ export class RequestsMainList {
     const binned = this.binApi.binnedRequests().filter(r => selectedIds.includes(r.id));
     const collections = this.collectionApi.collections();
 
-    const inputs = binned.map(r => {
+    const inputs: RestoreInput[] = binned.map(r => {
       const originalExists = collections.some(c => c.id === r.original_collection_id);
       return {
         bin_id: r.id,
-        target_collection_id: originalExists ? r.original_collection_id : collection.id,
+        collection_id: originalExists ? r.original_collection_id : collection.id,
       };
     });
 
@@ -1487,7 +1510,7 @@ export class RequestsMainList {
     this.closeRestoreCollectionModal();
   }
 
-  private async doRestore(inputs: RestoreBinnedRequestInput[]): Promise<void> {
+  private async doRestore(inputs: RestoreInput[]): Promise<void> {
     if (inputs.length === 0) return;
 
     this.state.loading.set(true);
@@ -1521,7 +1544,7 @@ export class RequestsMainList {
     this.state.loading.set(true);
     try {
       for (const req of requests) {
-        await this.apiRequests.move(req.id, collection.id, collection.project_id);
+        await this.requestApi.move(req.id, collection.id, collection.project_id);
       }
 
       this.clearSelection();
@@ -1741,7 +1764,7 @@ export class RequestsMainList {
 
     this.state.loading.set(true);
     try {
-      await this.apiRequests.create({
+      await this.requestApi.create({
         collection_id: collection.id,
         project_id: collection.project_id,
         name,
@@ -1770,7 +1793,7 @@ export class RequestsMainList {
       const projectId = this.state.selectedProject()?.id ?? 0;
       const req = await this.requestApi.curlToRequest(collectionId, curl);
       const name = this.newRequestName().trim() || req.name;
-      await this.apiRequests.create({
+      await this.requestApi.create({
         collection_id: collectionId,
         project_id: projectId,
         name,
@@ -1804,7 +1827,7 @@ export class RequestsMainList {
       const selectedId = this.selectedCell()?.requestId ?? selectedIds[0];
       if (!selectedId) return;
       try {
-        req = await this.requestApi.get(selectedId);
+        req = await this.requestApi.getFull(selectedId);
       } catch (err) {
         console.error(err);
         return;
@@ -1816,7 +1839,7 @@ export class RequestsMainList {
 
   private async sendMultipleRequests(ids: number[], event: Event): Promise<void> {
     try {
-      const requests = await Promise.all(ids.map((id) => this.requestApi.get(id)));
+      const requests = await Promise.all(ids.map((id) => this.requestApi.getFull(id)));
       await this.state.sendRequests(requests, event, !this.state.showingFamousRequests());
     } catch (err) {
       console.error(err);
@@ -2092,9 +2115,9 @@ export class RequestsMainList {
   ): Promise<void> {
     this.state.loading.set(true);
     try {
-      const full = await this.requestApi.get(req.id);
+      const full = await this.requestApi.getFull(req.id);
       const updated = { ...full, [field]: value } as HttpRequest;
-      const saved = await this.apiRequests.update(updated);
+      const saved = await this.requestApi.update(updated);
       this.patchRequestInLists(saved.id, saved);
 
       const selected = this.state.selectedRequest();
@@ -2109,7 +2132,7 @@ export class RequestsMainList {
   }
 
   private patchRequestInLists(id: number, changes: Partial<HttpRequestSummary>): void {
-    this.apiRequests.patch(id, changes);
+    this.requestApi.patch(id, changes);
 
     const patch = (list: HttpRequestSummary[]) => {
       const index = list.findIndex((r) => r.id === id);

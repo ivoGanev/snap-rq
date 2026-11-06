@@ -1,9 +1,9 @@
 <div class="headers-tab-head">
-  @if (headersTabState() === 'ready' && headersEditCount() > 1) {
-    <span class="headers-tab-count">{{ headersEditCount() }} requests</span>
+  @if (headersTabState() === 'ready' && editCount() > 1) {
+    <span class="headers-tab-count">{{ editCount() }} requests</span>
   }
   <span class="headers-tab-spacer"></span>
-  @if (headersTabState() === 'ready' && headersEditCount() > 1) {
+  @if (headersTabState() === 'ready' && editCount() > 1) {
     <button
       class="headers-apply-button"
       type="button"
