@@ -1835,13 +1835,13 @@ export class RequestsMainList {
       }
       this.state.selectedRequest.set(req);
     }
-    await this.state.sendRequest(req, event, !this.state.showingFamousRequests());
+    await this.state.sendRequest(req, event);
   }
 
   private async sendMultipleRequests(ids: number[], event: Event): Promise<void> {
     try {
       const requests = await Promise.all(ids.map((id) => this.requestApi.getFull(id)));
-      await this.state.sendRequests(requests, event, !this.state.showingFamousRequests());
+      await this.state.sendRequests(requests, event);
     } catch (err) {
       console.error(err);
     }

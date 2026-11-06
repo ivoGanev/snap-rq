@@ -143,7 +143,7 @@ export class WorkspaceStateService {
     }
   }
 
-  async sendRequest(req: HttpRequest, event: Event, trackUsage = true): Promise<void> {
+  async sendRequest(req: HttpRequest, event: Event): Promise<void> {
     event.stopPropagation();
     try {
       const resp = await this.responseApi.sendRequest(req, this.environment(), {
@@ -157,7 +157,7 @@ export class WorkspaceStateService {
             this.selectedResponse.set(updated);
           }
         },
-      }, trackUsage);
+      });
       this.requestApi.patch(req.id, {
         status_code: resp.status_code,
         response_id: resp.id,
@@ -183,12 +183,12 @@ export class WorkspaceStateService {
    * Sends multiple requests in one batch. HTTP calls run concurrently and all
    * database writes are committed together by the backend.
    */
-  async sendRequests(reqs: HttpRequest[], event: Event, trackUsage = true): Promise<void> {
+  async sendRequests(reqs: HttpRequest[], event: Event): Promise<void> {
     event.stopPropagation();
     if (reqs.length === 0) return;
 
     try {
-      const responses = await this.responseApi.sendRequests(reqs, this.environment(), trackUsage);
+      const responses = await this.responseApi.sendRequests(reqs, this.environment());
 
       for (const resp of responses) {
         this.requestApi.patch(resp.request_id, {

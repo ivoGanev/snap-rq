@@ -48,7 +48,6 @@ export class ResponseApiService {
     req: HttpRequest,
     environment: EnvironmentContext,
     callbacks?: SendRequestCallbacks,
-    trackUsage = true,
   ): Promise<HttpResponse> {
     const start = Date.now();
     const createdAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
@@ -114,12 +113,10 @@ export class ResponseApiService {
       );
       callbacks?.onUpdate?.(currentResponse);
 
-      if (trackUsage) {
-        try {
-          await this.requestApi.recordRequestUsage([req.id]);
-        } catch (err) {
-          console.error('Failed to record request usage:', err);
-        }
+      try {
+        await this.requestApi.recordRequestUsage([req.id]);
+      } catch (err) {
+        console.error('Failed to record request usage:', err);
       }
 
       return currentResponse;
@@ -152,7 +149,6 @@ export class ResponseApiService {
   async sendRequests(
     reqs: HttpRequest[],
     environment: EnvironmentContext,
-    trackUsage = true,
   ): Promise<HttpResponse[]> {
     if (reqs.length === 0) return [];
 
@@ -169,7 +165,7 @@ export class ResponseApiService {
       this.requestApi.responses.update((current) => [...saved, ...current]);
     }
 
-    if (trackUsage && saved.length > 0) {
+    if (saved.length > 0) {
       try {
         await this.requestApi.recordRequestUsage(saved.map((resp) => resp.request_id));
       } catch (err) {
