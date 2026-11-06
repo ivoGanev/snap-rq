@@ -32,7 +32,7 @@ func (c ListRecent) Run(input json.RawMessage) (any, error) {
 		in.Limit = 100
 	}
 	return querySummaries(c.tx,
-		`JOIN request_usage ru ON ru.request_id = hr.id
-		 WHERE c.project_id = ? ORDER BY ru.last_used_at DESC, hr.name ASC LIMIT ?`,
+		`WHERE c.project_id = ? AND hr.last_used_at > 0
+		 ORDER BY hr.last_used_at DESC, hr.name ASC LIMIT ?`,
 		in.ProjectID, in.Limit)
 }
