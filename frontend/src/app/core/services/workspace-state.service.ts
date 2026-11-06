@@ -179,39 +179,6 @@ export class WorkspaceStateService {
     }
   }
 
-  /**
-   * Sends multiple requests in one batch. HTTP calls run concurrently and all
-   * database writes are committed together by the backend.
-   */
-  async sendRequests(reqs: HttpRequest[], event: Event): Promise<void> {
-    event.stopPropagation();
-    if (reqs.length === 0) return;
-
-    try {
-      const responses = await this.responseApi.sendRequests(reqs, this.environment());
-
-      for (const resp of responses) {
-        this.requestApi.patch(resp.request_id, {
-          status_code: resp.status_code,
-          response_id: resp.id,
-        });
-        this.favouriteApi.requests.update(list =>
-          list.map(r =>
-            r.id === resp.request_id
-              ? { ...r, status_code: resp.status_code, response_id: resp.id }
-              : r,
-          ),
-        );
-
-        if (this.selectedRequest()?.id === resp.request_id) {
-          this.selectedResponse.set(resp);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
   openZenMode(): void {
     this.zenModeOpen.set(true);
   }

@@ -140,39 +140,4 @@ export class ResponseApiService {
       window.clearInterval(intervalId);
     }
   }
-
-  /**
-   * Sends a batch of requests concurrently (HTTP only, no database writes
-   * during flight) and persists every response plus request status update
-   * in one command run.
-   */
-  async sendRequests(
-    reqs: HttpRequest[],
-    environment: EnvironmentContext,
-  ): Promise<HttpResponse[]> {
-    if (reqs.length === 0) return [];
-
-    const createdAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
-    const raw = await Promise.all(
-      reqs.map((req) => this.requestApi.execute(environment.interpolateRequest(req))),
-    );
-    const responses = raw.map((resp) =>
-      resp.created_at ? resp : { ...resp, created_at: createdAt },
-    );
-
-    const saved = await this.requestApi.bulkSaveResponses(responses);
-    if (saved.length > 0) {
-      this.requestApi.responses.update((current) => [...saved, ...current]);
-    }
-
-    if (saved.length > 0) {
-      try {
-        await this.requestApi.recordRequestUsage(saved.map((resp) => resp.request_id));
-      } catch (err) {
-        console.error('Failed to record request usage:', err);
-      }
-    }
-
-    return saved;
-  }
 }

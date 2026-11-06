@@ -41,7 +41,6 @@ var All = []commands.Factory{
 	// send flow: append-only history, never undone
 	responses.NewList,
 	responses.NewSave,
-	responses.NewSaveBulk,
 	responses.NewUpdate,
 	responses.NewSaveToFile,
 

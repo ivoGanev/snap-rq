@@ -206,11 +206,6 @@ export class RequestApiService {
     return this.commands.execute('response.save', resp);
   }
 
-  async bulkSaveResponses(responses: HttpResponse[]): Promise<HttpResponse[]> {
-    const saved = await this.commands.execute<HttpResponse[]>('response.save_bulk', { responses });
-    return saved ?? [];
-  }
-
   async updateRequestResponse(id: number, statusCode: number, responseId: number): Promise<void> {
     await this.commands.execute('request.record_response', {
       request_id: id,
