@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -202,34 +203,33 @@ func xmlHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(sb.String()))
 }
 
-// uploadHandler echoes the fields and files of a multipart/form-data request
-// so the client's file-upload feature can be sanity tested.
-func uploadHandler(w http.ResponseWriter, r *http.Request) {
-	enableCORS(w)
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
+// uploadSummary is what the multipart upload mocks report back about the
+// request, so the client's file-upload feature can be sanity tested.
+type uploadSummary struct {
+	Fields map[string][]string `json:"fields"`
+	Files  []uploadFile        `json:"files"`
+}
+
+type uploadFile struct {
+	Field       string `json:"field"`
+	Filename    string `json:"filename"`
+	ContentType string `json:"content_type"`
+	Size        int64  `json:"size"`
+}
+
+// parseUpload reads a multipart/form-data body into an uploadSummary.
+func parseUpload(r *http.Request) (uploadSummary, error) {
+	var sum uploadSummary
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return sum, err
 	}
-
-	fields := map[string][]string{}
+	sum.Fields = map[string][]string{}
 	for name, values := range r.MultipartForm.Value {
-		fields[name] = values
+		sum.Fields[name] = values
 	}
-
-	type fileInfo struct {
-		Field       string `json:"field"`
-		Filename    string `json:"filename"`
-		ContentType string `json:"content_type"`
-		Size        int64  `json:"size"`
-	}
-	files := []fileInfo{}
 	for name, headers := range r.MultipartForm.File {
 		for _, h := range headers {
-			files = append(files, fileInfo{
+			sum.Files = append(sum.Files, uploadFile{
 				Field:       name,
 				Filename:    h.Filename,
 				ContentType: h.Header.Get("Content-Type"),
@@ -237,14 +237,89 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
+	return sum, nil
+}
 
+func writeUploadJSON(w http.ResponseWriter, sum uploadSummary) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"status": "ok",
-		"fields": fields,
-		"files":  files,
+		"fields": sum.Fields,
+		"files":  sum.Files,
 	})
+}
+
+// uploadHandler echoes the fields and files of a multipart request.
+func uploadHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	sum, err := parseUpload(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeUploadJSON(w, sum)
+}
+
+// uploadRequiredHandler rejects requests that carry no file part.
+func uploadRequiredHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	sum, err := parseUpload(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if len(sum.Files) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status":  "error",
+			"message": "a file field is required",
+		})
+		return
+	}
+	writeUploadJSON(w, sum)
+}
+
+// uploadSizeHandler rejects bodies larger than the ?max= limit (default 1 MiB).
+func uploadSizeHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	limit := int64(1024 * 1024)
+	if raw := r.URL.Query().Get("max"); raw != "" {
+		if n, err := strconv.ParseInt(raw, 10, 64); err == nil && n > 0 {
+			limit = n
+		}
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
+	sum, err := parseUpload(r)
+	if err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusRequestEntityTooLarge)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status":  "error",
+				"message": "request body too large",
+				"limit":   limit,
+			})
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeUploadJSON(w, sum)
 }
 
 func binaryHandler(w http.ResponseWriter, r *http.Request) {
@@ -349,6 +424,8 @@ func main() {
 	mux.HandleFunc("/mock/xml", xmlHandler)
 	mux.HandleFunc("/mock/binary", binaryHandler)
 	mux.HandleFunc("/mock/upload", uploadHandler)
+	mux.HandleFunc("/mock/upload/required", uploadRequiredHandler)
+	mux.HandleFunc("/mock/upload/size", uploadSizeHandler)
 
 	// Status mocks.
 	mux.HandleFunc("/mock/status/200", status200Handler)
@@ -381,7 +458,11 @@ Content-type mocks:
   GET /mock/text    -> text/plain
   GET /mock/xml     -> application/xml
   GET /mock/binary  -> application/octet-stream
-  POST /mock/upload -> echoes multipart fields and files
+
+Multipart upload mocks:
+  POST /mock/upload           -> echoes fields and files
+  POST /mock/upload/required  -> 400 unless a file is attached
+  POST /mock/upload/size?max= -> 413 over the size limit (default 1 MiB)
 
 Status mocks:
   GET /mock/status/200 -> 200 OK
