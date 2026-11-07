@@ -217,10 +217,10 @@ func (c Delete) writeBinRow(id int64) error {
 	_, err = c.tx.Exec(`
 		INSERT INTO binned_requests (
 			original_request_id, project_id, collection_id, original_collection_id, original_collection_name,
-			name, url, method, body, body_type, request_headers, status_code, response_id, snapshot_json
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			name, url, method, body, body_type, body_form, request_headers, status_code, response_id, snapshot_json
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		req.ID, req.ProjectID, req.CollectionID, req.CollectionID, collectionName,
-		req.Name, req.URL, req.Method, req.Body, normalizeBodyType(req.BodyType),
+		req.Name, req.URL, req.Method, req.Body, normalizeBodyType(req.BodyType), req.BodyForm,
 		req.RequestHeaders, req.StatusCode, 0, string(snapshotJSON),
 	)
 	return err
@@ -237,10 +237,10 @@ func (c Delete) Undo(snapshot, _ json.RawMessage) error {
 		r := one.Request
 		if _, err := c.tx.Exec(`
 			INSERT INTO http_requests (
-				id, collection_id, name, url, method, body, body_type, request_headers,
+				id, collection_id, name, url, method, body, body_type, body_form, request_headers,
 				status_code, response_id, user_sort_order, user_color, last_used_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			r.ID, r.CollectionID, r.Name, r.URL, r.Method, r.Body, r.BodyType, r.RequestHeaders,
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			r.ID, r.CollectionID, r.Name, r.URL, r.Method, r.Body, r.BodyType, r.BodyForm, r.RequestHeaders,
 			r.StatusCode, r.ResponseID, r.UserSortOrder, r.UserColor, r.LastUsedAt,
 		); err != nil {
 			return err

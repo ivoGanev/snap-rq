@@ -1,12 +1,16 @@
 package requests
 
 import (
+	"bytes"
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -71,7 +75,7 @@ func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 		}
 	}()
 
-	result := c.doHTTP(req)
+	result := c.doHTTP(req, values)
 	close(done)
 	result.DurationMs = time.Since(start).Milliseconds()
 
@@ -97,9 +101,86 @@ func interpolate(text string, values map[string]string) string {
 	})
 }
 
+// formEntry is one row of a multipart form body: a text field or a file.
+type formEntry struct {
+	Key      string `json:"key"`
+	Type     string `json:"type"` // "text" | "file"
+	Value    string `json:"value"`
+	FilePath string `json:"file_path"`
+	FileName string `json:"file_name"`
+	Enabled  bool   `json:"enabled"`
+}
+
+// buildMultipartBody assembles the wire body from the stored form rows.
+// Files are opened from their local paths at send time, never read into the
+// database. Text values are interpolated; file paths are not.
+func buildMultipartBody(raw string, values map[string]string) (io.Reader, string, error) {
+	var entries []formEntry
+	if strings.TrimSpace(raw) != "" {
+		if err := json.Unmarshal([]byte(raw), &entries); err != nil {
+			return nil, "", fmt.Errorf("parsing form body: %w", err)
+		}
+	}
+
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	for _, entry := range entries {
+		if !entry.Enabled || entry.Key == "" {
+			continue
+		}
+		if entry.Type == "file" {
+			if err := writeFilePart(writer, entry); err != nil {
+				return nil, "", err
+			}
+		} else {
+			if err := writer.WriteField(entry.Key, interpolate(entry.Value, values)); err != nil {
+				return nil, "", fmt.Errorf("writing field %s: %w", entry.Key, err)
+			}
+		}
+	}
+	if err := writer.Close(); err != nil {
+		return nil, "", err
+	}
+	return &buf, writer.FormDataContentType(), nil
+}
+
+// writeFilePart streams one file into the multipart body, keyed by the entry
+// key with the file's base name as the part filename.
+func writeFilePart(writer *multipart.Writer, entry formEntry) error {
+	filename := entry.FileName
+	if filename == "" {
+		filename = filepath.Base(entry.FilePath)
+	}
+	part, err := writer.CreateFormFile(entry.Key, filename)
+	if err != nil {
+		return fmt.Errorf("creating file part %s: %w", entry.Key, err)
+	}
+	file, err := os.Open(entry.FilePath)
+	if err != nil {
+		return fmt.Errorf("opening file %s: %w", entry.FilePath, err)
+	}
+	defer file.Close()
+	if _, err := io.Copy(part, file); err != nil {
+		return fmt.Errorf("reading file %s: %w", entry.FilePath, err)
+	}
+	return nil
+}
+
+// headerHas reports whether a request's header block already contains the
+// given header name, so auto-generated headers never clobber the user's.
+func headerHas(headers, name string) bool {
+	for _, line := range strings.Split(headers, "\n") {
+		key, _, found := strings.Cut(line, ":")
+		if found && strings.EqualFold(strings.TrimSpace(key), name) {
+			return true
+		}
+	}
+	return false
+}
+
 // doHTTP runs the request and returns a response; network and build errors
 // become a status-0 response body instead of a Go error.
-func (c Send) doHTTP(req models.HttpRequest) models.HttpResponse {
+func (c Send) doHTTP(req models.HttpRequest, values map[string]string) models.HttpResponse {
 	fail := func(body string) models.HttpResponse {
 		return models.HttpResponse{RequestID: req.ID, StatusCode: 0, Body: body}
 	}
@@ -108,13 +189,25 @@ func (c Send) doHTTP(req models.HttpRequest) models.HttpResponse {
 	if method == "" {
 		method = http.MethodGet
 	}
+
 	var bodyReader io.Reader
-	if req.Body != "" {
+	var contentType string
+	if normalizeBodyType(req.BodyType) == "form-data" {
+		reader, ct, err := buildMultipartBody(req.BodyForm, values)
+		if err != nil {
+			return fail(err.Error())
+		}
+		bodyReader, contentType = reader, ct
+	} else if req.Body != "" {
 		bodyReader = strings.NewReader(req.Body)
 	}
+
 	httpReq, err := http.NewRequest(method, req.URL, bodyReader)
 	if err != nil {
 		return fail(fmt.Sprintf("building request: %v", err))
+	}
+	if contentType != "" && !headerHas(req.RequestHeaders, "Content-Type") {
+		httpReq.Header.Set("Content-Type", contentType)
 	}
 	for _, line := range strings.Split(req.RequestHeaders, "\n") {
 		line = strings.TrimSpace(line)

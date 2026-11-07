@@ -20,10 +20,12 @@
     class="body-editor"
     [body]="bodyDraft()"
     [type]="bodyType()"
+    [bodyForm]="bodyFormDraft()"
     [variables]="environmentVariables()"
     [showLabel]="false"
     (bodyChange)="onBodyTextChange($event)"
     (typeChange)="setBodyType($event)"
+    (formChange)="onBodyFormChange($event)"
   ></app-request-body-editor>
 } @else if (bodyTabState() === 'mismatch') {
   <div class="body-message body-message--warning">
