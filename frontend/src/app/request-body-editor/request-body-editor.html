@@ -76,12 +76,14 @@
               {{ row.file_name || 'Choose file…' }}
             </button>
           } @else if (row.type === 'multiline') {
-            <textarea
+            <button
               class="form-row-multiline"
-              placeholder="value"
-              [ngModel]="row.value"
-              (ngModelChange)="setRow(i, { value: $event })"
-            ></textarea>
+              type="button"
+              (click)="openMultiline(i)"
+              [title]="row.value"
+            >
+              {{ row.value || 'Edit…' }}
+            </button>
           } @else {
             <input
               class="form-row-value"
@@ -103,5 +105,27 @@
       }
       <button class="form-row-add" type="button" (click)="addRow()">+ Add field</button>
     </div>
+
+    @if (multilineOpen()) {
+      <div class="overlay-backdrop" (click)="closeMultiline()">
+        <div class="overlay-panel multiline-panel" (click)="$event.stopPropagation()">
+          <div class="overlay-header">
+            <h3 class="overlay-title">Edit value</h3>
+            <button class="overlay-close" type="button" (click)="closeMultiline()">Cancel</button>
+          </div>
+          <div class="overlay-body">
+            <textarea
+              class="multiline-textarea"
+              [ngModel]="multilineValue()"
+              (ngModelChange)="multilineValue.set($event)"
+              placeholder="Enter value…"
+            ></textarea>
+          </div>
+          <div class="overlay-footer">
+            <button class="multiline-save" type="button" (click)="saveMultiline()">Save</button>
+          </div>
+        </div>
+      </div>
+    }
   }
 </div>

@@ -111,4 +111,30 @@ export class RequestBodyEditor {
       this.setRow(index, { type: 'file', file_path: path, file_name: basename(path), value: '' });
     }
   }
+
+  // ---- multi-line value dialog ----
+
+  readonly multilineOpen = signal(false);
+  readonly multilineIndex = signal<number | null>(null);
+  readonly multilineValue = signal('');
+
+  openMultiline(index: number): void {
+    this.multilineIndex.set(index);
+    this.multilineValue.set(this.formRows()[index]?.value ?? '');
+    this.multilineOpen.set(true);
+  }
+
+  closeMultiline(): void {
+    this.multilineOpen.set(false);
+    this.multilineIndex.set(null);
+    this.multilineValue.set('');
+  }
+
+  saveMultiline(): void {
+    const index = this.multilineIndex();
+    if (index !== null) {
+      this.setRow(index, { value: this.multilineValue() });
+    }
+    this.closeMultiline();
+  }
 }
