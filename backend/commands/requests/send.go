@@ -116,8 +116,10 @@ type formEntry struct {
 // database. Text values are interpolated; file paths are not.
 func buildMultipartBody(raw string, values map[string]string) (io.Reader, string, error) {
 	var entries []formEntry
-	if err := json.Unmarshal([]byte(raw), &entries); err != nil {
-		return nil, "", fmt.Errorf("parsing form body: %w", err)
+	if strings.TrimSpace(raw) != "" {
+		if err := json.Unmarshal([]byte(raw), &entries); err != nil {
+			return nil, "", fmt.Errorf("parsing form body: %w", err)
+		}
 	}
 
 	var buf bytes.Buffer
@@ -190,7 +192,7 @@ func (c Send) doHTTP(req models.HttpRequest, values map[string]string) models.Ht
 
 	var bodyReader io.Reader
 	var contentType string
-	if req.BodyForm != "" {
+	if normalizeBodyMode(req.BodyMode, req.BodyType, req.BodyForm) == "form-data" {
 		reader, ct, err := buildMultipartBody(req.BodyForm, values)
 		if err != nil {
 			return fail(err.Error())

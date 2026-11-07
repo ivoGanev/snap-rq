@@ -60,6 +60,10 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
+	if err := addBodyModeColumn(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
 	if err := addUserSortOrderColumns(db); err != nil {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
@@ -562,6 +566,21 @@ func addBodyFormColumn(db *sql.DB) error {
 		}
 		if _, err := db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN body_form TEXT", table)); err != nil {
 			return fmt.Errorf("adding body_form column to %s: %w", table, err)
+		}
+	}
+	return nil
+}
+
+// addBodyModeColumn stores which body editor the user last chose
+// (json, text, or form-data), independent of the form rows themselves so
+// switching modes never discards saved form data.
+func addBodyModeColumn(db *sql.DB) error {
+	for _, table := range []string{"http_requests", "binned_requests"} {
+		if columnExists(db, table, "body_mode") {
+			continue
+		}
+		if _, err := db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN body_mode TEXT", table)); err != nil {
+			return fmt.Errorf("adding body_mode column to %s: %w", table, err)
 		}
 	}
 	return nil

@@ -29,6 +29,7 @@ var bulkFields = map[string]string{
 	"body":      "body",
 	"body_type": "body_type",
 	"body_form": "body_form",
+	"body_mode": "body_mode",
 	"color":     "user_color",
 }
 

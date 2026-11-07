@@ -45,6 +45,7 @@ func (c Update) Run(input json.RawMessage) (any, error) {
 		"body":            req.Body,
 		"body_type":       normalizeBodyType(req.BodyType),
 		"body_form":       req.BodyForm,
+		"body_mode":       normalizeBodyMode(req.BodyMode, req.BodyType, req.BodyForm),
 		"request_headers": req.RequestHeaders,
 	}
 	var currentCollection int64

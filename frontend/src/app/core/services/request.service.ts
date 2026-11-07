@@ -151,6 +151,10 @@ export class RequestApiService {
     await this.commands.execute('request.bulk_set', { ids, field: 'body_form', value: bodyForm });
   }
 
+  async bulkUpdateBodyMode(ids: number[], bodyMode: string): Promise<void> {
+    await this.commands.execute('request.bulk_set', { ids, field: 'body_mode', value: bodyMode });
+  }
+
   async bulkUpdateName(ids: number[], name: string): Promise<void> {
     await this.commands.execute('request.bulk_set', { ids, field: 'name', value: name });
   }

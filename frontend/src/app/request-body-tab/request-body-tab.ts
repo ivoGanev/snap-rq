@@ -10,6 +10,15 @@ interface BodyValue {
   body: string;
   bodyType: BodyType;
   bodyForm: string;
+  bodyMode: BodyKind;
+}
+
+function deriveBodyMode(req: HttpRequest): BodyKind {
+  if (req.body_mode === 'json' || req.body_mode === 'text' || req.body_mode === 'form-data') {
+    return req.body_mode;
+  }
+  if (req.body_form) return 'form-data';
+  return req.body_type === 'text' ? 'text' : 'json';
 }
 
 /**
@@ -31,11 +40,7 @@ export class RequestBodyTab extends RequestCodeTabBase<BodyValue> {
 
   readonly bodyDraft = computed(() => this.draftValue()?.body ?? '');
   readonly bodyFormDraft = computed(() => this.draftValue()?.bodyForm ?? '');
-  readonly bodyType = computed<BodyKind>(() => {
-    const draft = this.draftValue();
-    if (draft?.bodyForm) return 'form-data';
-    return draft?.bodyType === 'text' ? 'text' : 'json';
-  });
+  readonly bodyType = computed<BodyKind>(() => this.draftValue()?.bodyMode ?? 'json');
   readonly bodyDirty = this.dirty;
   readonly bodyWipeConfirmOpen = this.wipeConfirmOpen;
   readonly bodyWipeCount = this.wipeCount;
@@ -45,11 +50,17 @@ export class RequestBodyTab extends RequestCodeTabBase<BodyValue> {
       body: req.body,
       bodyType: req.body_type === 'text' ? 'text' : 'json',
       bodyForm: req.body_form,
+      bodyMode: deriveBodyMode(req),
     };
   }
 
   protected override valueEquals(a: BodyValue, b: BodyValue): boolean {
-    return a.body === b.body && a.bodyType === b.bodyType && a.bodyForm === b.bodyForm;
+    return (
+      a.body === b.body &&
+      a.bodyType === b.bodyType &&
+      a.bodyForm === b.bodyForm &&
+      a.bodyMode === b.bodyMode
+    );
   }
 
 protected override async saveFor(requests: HttpRequest[], value: BodyValue): Promise<void> {
@@ -61,34 +72,27 @@ protected override async saveFor(requests: HttpRequest[], value: BodyValue): Pro
       body: value.body,
       body_type: value.bodyType,
       body_form: value.bodyForm,
+      body_mode: value.bodyMode,
     });
     return;
   }
-  if (value.bodyForm) {
-    await this.requestApi.bulkUpdateBodyForm(
-      requests.map((req) => req.id),
-      value.bodyForm,
-    );
-    return;
-  }
-  await this.requestApi.bulkUpdateBody(
-    requests.map((req) => req.id),
-    value.body,
-    value.bodyType,
-  );
+  const ids = requests.map((req) => req.id);
+  await this.requestApi.bulkUpdateBody(ids, value.body, value.bodyType);
+  await this.requestApi.bulkUpdateBodyForm(ids, value.bodyForm);
+  await this.requestApi.bulkUpdateBodyMode(ids, value.bodyMode);
 }
 
   protected override emptyValue(): BodyValue {
-    return { body: '', bodyType: 'json', bodyForm: '' };
+    return { body: '', bodyType: 'json', bodyForm: '', bodyMode: 'json' };
   }
 
   setBodyType(type: BodyKind): void {
     const draft = this.draftValue();
     if (!draft) return;
     if (type === 'form-data') {
-      this.updateDraft({ ...draft, bodyForm: draft.bodyForm || '[]' });
+      this.updateDraft({ ...draft, bodyMode: type, bodyForm: draft.bodyForm || '[]' });
     } else {
-      this.updateDraft({ ...draft, bodyType: type, bodyForm: '' });
+      this.updateDraft({ ...draft, bodyMode: type, bodyType: type });
     }
   }
 

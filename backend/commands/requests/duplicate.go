@@ -43,11 +43,12 @@ func (c Duplicate) Run(input json.RawMessage) (any, error) {
 		return nil, err
 	}
 	result, err := c.tx.Exec(`
-		INSERT INTO http_requests (collection_id, name, url, method, body, body_type, body_form,
+		INSERT INTO http_requests (collection_id, name, url, method, body, body_type, body_form, body_mode,
 			request_headers, user_sort_order, user_color)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		original.CollectionID, original.Name+" (copy)", original.URL, original.Method,
-		original.Body, original.BodyType, original.BodyForm, original.RequestHeaders, order, original.UserColor,
+		original.Body, original.BodyType, original.BodyForm, original.BodyMode,
+		original.RequestHeaders, order, original.UserColor,
 	)
 	if err != nil {
 		return nil, err

@@ -11,7 +11,8 @@ import (
 
 // requestColumns selects one full request row, with NULL-safe text columns.
 const requestColumns = `hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method,
-	COALESCE(hr.body, ''), hr.body_type, COALESCE(hr.body_form, ''), COALESCE(hr.request_headers, ''),
+	COALESCE(hr.body, ''), hr.body_type, COALESCE(hr.body_form, ''), COALESCE(hr.body_mode, ''),
+	COALESCE(hr.request_headers, ''),
 	hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color, hr.last_used_at`
 
 // queryRequest loads one request, joining its project id in.
@@ -21,7 +22,7 @@ func queryRequest(tx *sql.Tx, id int64) (models.HttpRequest, error) {
 		`SELECT `+requestColumns+` FROM http_requests hr
 		 JOIN collections c ON c.id = hr.collection_id WHERE hr.id = ?`, id,
 	).Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method,
-		&req.Body, &req.BodyType, &req.BodyForm, &req.RequestHeaders,
+		&req.Body, &req.BodyType, &req.BodyForm, &req.BodyMode, &req.RequestHeaders,
 		&req.StatusCode, &req.ResponseID, &req.UserSortOrder, &req.UserColor, &req.LastUsedAt)
 	if err == sql.ErrNoRows {
 		return models.HttpRequest{}, fmt.Errorf("request %d not found", id)
@@ -74,6 +75,23 @@ func nextSortOrder(tx *sql.Tx, collectionID int64) (int, error) {
 
 // normalizeBodyType guards against empty/invalid values.
 func normalizeBodyType(bodyType string) string {
+	if bodyType == "text" {
+		return "text"
+	}
+	return "json"
+}
+
+// normalizeBodyMode returns the effective body editor mode. It falls back to
+// the legacy behaviour (form rows imply form-data) for rows saved before the
+// mode was stored.
+func normalizeBodyMode(mode, bodyType, bodyForm string) string {
+	switch mode {
+	case "json", "text", "form-data":
+		return mode
+	}
+	if bodyForm != "" {
+		return "form-data"
+	}
 	if bodyType == "text" {
 		return "text"
 	}
