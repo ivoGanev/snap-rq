@@ -52,6 +52,21 @@ MOCK_ENDPOINTS = [
     ("Echo endpoint", "POST", "/echo", '{"hello":"world"}', "Content-Type: application/json"),
 ]
 
+# Multipart/form-data upload mocks. Each tuple is
+# (name, method, path, body_form, optional_headers).
+FORM_TEXT_ROW = '[{"key":"name","type":"text","value":"Ivo","file_path":"","file_name":"","enabled":true}]'
+FORM_MULTILINE_ROW = '[{"key":"description","type":"multiline","value":"line one\\nline two","file_path":"","file_name":"","enabled":true}]'
+FORM_FILE_ROW = '[{"key":"file","type":"file","value":"","file_path":"","file_name":"","enabled":true}]'
+FORM_TWO_FILE_ROWS = '[{"key":"a","type":"file","value":"","file_path":"","file_name":"","enabled":true},{"key":"b","type":"file","value":"","file_path":"","file_name":"","enabled":true}]'
+MOCK_FORM_ENDPOINTS = [
+    ("Upload - text field", "POST", "/mock/upload", FORM_TEXT_ROW, None),
+    ("Upload - multi-line text", "POST", "/mock/upload", FORM_MULTILINE_ROW, None),
+    ("Upload - file", "POST", "/mock/upload", FORM_FILE_ROW, None),
+    ("Upload - multiple files", "POST", "/mock/upload", FORM_TWO_FILE_ROWS, None),
+    ("Upload - required file", "POST", "/mock/upload/required", FORM_FILE_ROW, None),
+    ("Upload - size limit", "POST", "/mock/upload/size?max=1048576", FORM_FILE_ROW, None),
+]
+
 RANDOM_HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 RANDOM_STATUS_CODES = [200, 201, 202, 204, 400, 401, 403, 404, 409, 422, 500, 503]
 RANDOM_COLLECTION_COLORS = [
@@ -138,6 +153,8 @@ CREATE TABLE IF NOT EXISTS http_requests (
     url TEXT NOT NULL,
     method TEXT NOT NULL,
     body TEXT,
+    body_type TEXT NOT NULL DEFAULT 'json',
+    body_form TEXT,
     request_headers TEXT,
     status_code INTEGER NOT NULL DEFAULT 0,
     response_id INTEGER NOT NULL DEFAULT 0,
@@ -700,6 +717,19 @@ def create_mock_requests(conn: sqlite3.Connection, collection_id: int) -> int:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (collection_id, name, url, method, body, headers, 0, 0),
+        )
+        count += 1
+
+    for name, method, path, body_form, headers in MOCK_FORM_ENDPOINTS:
+        url = f"{MOCK_BASE_URL}{path}"
+        headers = headers if headers is not None else ""
+
+        cursor.execute(
+            """
+            INSERT INTO http_requests (collection_id, name, url, method, body, body_type, body_form, request_headers, status_code, response_id)
+            VALUES (?, ?, ?, ?, '', 'form-data', ?, ?, 0, 0)
+            """,
+            (collection_id, name, url, method, body_form, headers),
         )
         count += 1
 

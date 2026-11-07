@@ -39,11 +39,11 @@ func (c Create) Run(input json.RawMessage) (any, error) {
 		return nil, err
 	}
 	query, args, err := squirrel.Insert("http_requests").Columns(
-		"collection_id", "name", "url", "method", "body", "body_type",
+		"collection_id", "name", "url", "method", "body", "body_type", "body_form",
 		"request_headers", "user_sort_order",
 	).Values(
 		req.CollectionID, req.Name, req.URL, req.Method, req.Body,
-		normalizeBodyType(req.BodyType), req.RequestHeaders, order,
+		normalizeBodyType(req.BodyType), req.BodyForm, req.RequestHeaders, order,
 	).ToSql()
 	if err != nil {
 		return nil, err

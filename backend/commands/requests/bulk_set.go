@@ -28,6 +28,7 @@ var bulkFields = map[string]string{
 	"headers":   "request_headers",
 	"body":      "body",
 	"body_type": "body_type",
+	"body_form": "body_form",
 	"color":     "user_color",
 }
 

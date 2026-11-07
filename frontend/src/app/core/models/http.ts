@@ -29,6 +29,7 @@ export interface HttpRequest {
   method: string;
   body: string;
   body_type: string;
+  body_form: string;
   request_headers: string;
   status_code: number;
   response_id: number;
