@@ -1,13 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RequestApiService, type HttpRequest } from '../core/services/request.service';
 import { FormsModule } from '@angular/forms';
-import { RequestBodyEditor } from '../request-body-editor/request-body-editor';
-import { type EditorLanguage } from '../code-editor/code-editor';
+import { RequestBodyEditor, type BodyKind } from '../request-body-editor/request-body-editor';
 import { RequestCodeTabBase } from '../request-bottom-drawer/request-code-tab.base';
+
+type BodyType = 'json' | 'text';
 
 interface BodyValue {
   body: string;
-  bodyType: EditorLanguage;
+  bodyType: BodyType;
+  bodyForm: string;
 }
 
 /**
@@ -28,17 +30,26 @@ export class RequestBodyTab extends RequestCodeTabBase<BodyValue> {
   readonly bodySaving = this.saving;
 
   readonly bodyDraft = computed(() => this.draftValue()?.body ?? '');
-  readonly bodyType = computed<EditorLanguage>(() => this.draftValue()?.bodyType ?? 'json');
+  readonly bodyFormDraft = computed(() => this.draftValue()?.bodyForm ?? '');
+  readonly bodyType = computed<BodyKind>(() => {
+    const draft = this.draftValue();
+    if (draft?.bodyForm) return 'form-data';
+    return draft?.bodyType === 'text' ? 'text' : 'json';
+  });
   readonly bodyDirty = this.dirty;
   readonly bodyWipeConfirmOpen = this.wipeConfirmOpen;
   readonly bodyWipeCount = this.wipeCount;
 
   protected override extractValue(req: HttpRequest): BodyValue {
-    return { body: req.body, bodyType: req.body_type === 'text' ? 'text' : 'json' };
+    return {
+      body: req.body,
+      bodyType: req.body_type === 'text' ? 'text' : 'json',
+      bodyForm: req.body_form,
+    };
   }
 
   protected override valueEquals(a: BodyValue, b: BodyValue): boolean {
-    return a.body === b.body && a.bodyType === b.bodyType;
+    return a.body === b.body && a.bodyType === b.bodyType && a.bodyForm === b.bodyForm;
   }
 
 protected override async saveFor(requests: HttpRequest[], value: BodyValue): Promise<void> {
@@ -49,7 +60,15 @@ protected override async saveFor(requests: HttpRequest[], value: BodyValue): Pro
       ...requests[0],
       body: value.body,
       body_type: value.bodyType,
+      body_form: value.bodyForm,
     });
+    return;
+  }
+  if (value.bodyForm) {
+    await this.requestApi.bulkUpdateBodyForm(
+      requests.map((req) => req.id),
+      value.bodyForm,
+    );
     return;
   }
   await this.requestApi.bulkUpdateBody(
@@ -60,19 +79,29 @@ protected override async saveFor(requests: HttpRequest[], value: BodyValue): Pro
 }
 
   protected override emptyValue(): BodyValue {
-    return { body: '', bodyType: 'json' };
+    return { body: '', bodyType: 'json', bodyForm: '' };
   }
 
-  setBodyType(type: EditorLanguage): void {
+  setBodyType(type: BodyKind): void {
     const draft = this.draftValue();
     if (!draft) return;
-    this.updateDraft({ ...draft, bodyType: type });
+    if (type === 'form-data') {
+      this.updateDraft({ ...draft, bodyForm: draft.bodyForm || '[]' });
+    } else {
+      this.updateDraft({ ...draft, bodyType: type, bodyForm: '' });
+    }
   }
 
   onBodyTextChange(text: string): void {
     const draft = this.draftValue();
     if (!draft) return;
     this.updateDraft({ ...draft, body: text });
+  }
+
+  onBodyFormChange(form: string): void {
+    const draft = this.draftValue();
+    if (!draft) return;
+    this.updateDraft({ ...draft, bodyForm: form });
   }
 
   applyBodyEdits(): Promise<void> {

@@ -202,6 +202,51 @@ func xmlHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(sb.String()))
 }
 
+// uploadHandler echoes the fields and files of a multipart/form-data request
+// so the client's file-upload feature can be sanity tested.
+func uploadHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	fields := map[string][]string{}
+	for name, values := range r.MultipartForm.Value {
+		fields[name] = values
+	}
+
+	type fileInfo struct {
+		Field       string `json:"field"`
+		Filename    string `json:"filename"`
+		ContentType string `json:"content_type"`
+		Size        int64  `json:"size"`
+	}
+	files := []fileInfo{}
+	for name, headers := range r.MultipartForm.File {
+		for _, h := range headers {
+			files = append(files, fileInfo{
+				Field:       name,
+				Filename:    h.Filename,
+				ContentType: h.Header.Get("Content-Type"),
+				Size:        h.Size,
+			})
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"status": "ok",
+		"fields": fields,
+		"files":  files,
+	})
+}
+
 func binaryHandler(w http.ResponseWriter, r *http.Request) {
 	enableCORS(w)
 	w.Header().Set("Content-Type", "application/octet-stream")
@@ -303,6 +348,7 @@ func main() {
 	mux.HandleFunc("/mock/text", textHandler)
 	mux.HandleFunc("/mock/xml", xmlHandler)
 	mux.HandleFunc("/mock/binary", binaryHandler)
+	mux.HandleFunc("/mock/upload", uploadHandler)
 
 	// Status mocks.
 	mux.HandleFunc("/mock/status/200", status200Handler)
@@ -335,6 +381,7 @@ Content-type mocks:
   GET /mock/text    -> text/plain
   GET /mock/xml     -> application/xml
   GET /mock/binary  -> application/octet-stream
+  POST /mock/upload -> echoes multipart fields and files
 
 Status mocks:
   GET /mock/status/200 -> 200 OK

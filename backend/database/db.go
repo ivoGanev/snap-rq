@@ -56,6 +56,10 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
+	if err := addBodyFormColumn(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
 	if err := addUserSortOrderColumns(db); err != nil {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
@@ -543,6 +547,21 @@ func addBodyTypeColumns(db *sql.DB) error {
 		}
 		if err := backfillRequestBodyTypes(db, "binned_requests"); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// addBodyFormColumn stores the structured form rows (JSON) used to build a
+// multipart/form-data body at send time. Text and file entries, with file
+// paths, live here rather than in the raw body text.
+func addBodyFormColumn(db *sql.DB) error {
+	for _, table := range []string{"http_requests", "binned_requests"} {
+		if columnExists(db, table, "body_form") {
+			continue
+		}
+		if _, err := db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN body_form TEXT", table)); err != nil {
+			return fmt.Errorf("adding body_form column to %s: %w", table, err)
 		}
 	}
 	return nil

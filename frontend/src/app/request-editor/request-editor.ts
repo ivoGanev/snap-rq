@@ -5,9 +5,9 @@ import { WorkspaceStateService } from '../core/services/workspace-state.service'
 
 import { FavouriteApiService } from '../core/services/favourite.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
-import { RequestBodyEditor } from '../request-body-editor/request-body-editor';
+import { RequestBodyEditor, type BodyKind } from '../request-body-editor/request-body-editor';
 import { RequestHeadersEditor } from '../request-headers-editor/request-headers-editor';
-import { CodeEditor, type EditorLanguage } from '../code-editor/code-editor';
+import { CodeEditor } from '../code-editor/code-editor';
 
 @Component({
   selector: 'app-request-editor',
@@ -29,9 +29,11 @@ export class RequestEditor {
   readonly tagInputOpen = signal(false);
   readonly newTagName = signal('');
 
-  readonly bodyEditorType = computed<EditorLanguage>(() =>
-    this.draftRequest()?.body_type === 'text' ? 'text' : 'json',
-  );
+  readonly bodyEditorType = computed<BodyKind>(() => {
+    const req = this.draftRequest();
+    if (req?.body_form) return 'form-data';
+    return req?.body_type === 'text' ? 'text' : 'json';
+  });
 
   readonly tagSuggestions = computed<Tag[]>(() => {
     const query = this.newTagName().trim().toLowerCase();
@@ -87,6 +89,23 @@ export class RequestEditor {
       }
     } catch (err) {
       console.error(err);
+    }
+  }
+
+  async onBodyTypeChange(type: BodyKind): Promise<void> {
+    const draft = this.draftRequest();
+    if (!draft) return;
+
+    if (type === 'form-data') {
+      await this.updateRequestField('body_type', 'json');
+      if (!draft.body_form) {
+        await this.updateRequestField('body_form', '[]');
+      }
+    } else {
+      await this.updateRequestField('body_type', type);
+      if (draft.body_form) {
+        await this.updateRequestField('body_form', '');
+      }
     }
   }
 

@@ -1,6 +1,7 @@
 package curl
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -24,7 +25,7 @@ func RequestToCurl(req models.HttpRequest) string {
 
 	baseURL := req.URL
 	var queryArgs []string
-	if req.Body == "" {
+	if req.Body == "" && req.BodyForm == "" {
 		if base, args, ok := splitQueryForCurl(req.URL); ok {
 			baseURL = base
 			queryArgs = args
@@ -32,7 +33,7 @@ func RequestToCurl(req models.HttpRequest) string {
 		}
 	}
 
-	if method != http.MethodGet || req.Body != "" {
+	if method != http.MethodGet || req.Body != "" || req.BodyForm != "" {
 		parts = append(parts, "-X", method)
 	}
 
@@ -55,7 +56,11 @@ func RequestToCurl(req models.HttpRequest) string {
 		parts = append(parts, "-H", shellQuote(key+": "+value))
 	}
 
-	if req.Body != "" {
+	if req.BodyForm != "" {
+		for _, f := range curlFormParts(req.BodyForm) {
+			parts = append(parts, "-F", shellQuote(f))
+		}
+	} else if req.Body != "" {
 		parts = append(parts, "--data-raw", shellQuote(req.Body))
 	}
 
@@ -64,6 +69,57 @@ func RequestToCurl(req models.HttpRequest) string {
 	}
 
 	return strings.Join(parts, " ")
+}
+
+// formRow is one multipart form entry, shared between curl render and parse.
+type formRow struct {
+	Key      string `json:"key"`
+	Type     string `json:"type"` // "text" | "file"
+	Value    string `json:"value"`
+	FilePath string `json:"file_path"`
+	FileName string `json:"file_name"`
+	Enabled  bool   `json:"enabled"`
+}
+
+// curlFormParts renders the stored form rows as curl -F arguments. Files use
+// the key=@path form; text uses key=value.
+func curlFormParts(raw string) []string {
+	var entries []formRow
+	if json.Unmarshal([]byte(raw), &entries) != nil {
+		return nil
+	}
+	var parts []string
+	for _, e := range entries {
+		if !e.Enabled || e.Key == "" {
+			continue
+		}
+		if e.Type == "file" {
+			parts = append(parts, e.Key+"=@"+e.FilePath)
+		} else {
+			parts = append(parts, e.Key+"="+e.Value)
+		}
+	}
+	return parts
+}
+
+// curlFormRow parses one -F argument into a form row. "key=@file" becomes a
+// file row, everything else a text row.
+func curlFormRow(arg string) formRow {
+	row := formRow{Enabled: true}
+	if name, value, found := strings.Cut(arg, "="); found {
+		row.Key = name
+		if strings.HasPrefix(value, "@") {
+			row.Type = "file"
+			row.FilePath = strings.TrimPrefix(value, "@")
+		} else {
+			row.Type = "text"
+			row.Value = value
+		}
+	} else {
+		row.Key = arg
+		row.Type = "text"
+	}
+	return row
 }
 
 // splitQueryForCurl splits a URL into its base and a list of "name=value"
@@ -125,6 +181,7 @@ func CurlToRequest(collectionID int64, curl string) (models.HttpRequest, error) 
 
 	var headers []string
 	var dataParts []string
+	var formParts []string
 	getMode := false
 	methodSet := false
 	i := 1
@@ -159,6 +216,12 @@ func CurlToRequest(collectionID int64, curl string) (models.HttpRequest, error) 
 				return models.HttpRequest{}, fmt.Errorf("missing value for %s", tok)
 			}
 			dataParts = append(dataParts, urlencodeData(tokens[i+1]))
+			i += 2
+		case "-F", "--form":
+			if i+1 >= len(tokens) {
+				return models.HttpRequest{}, fmt.Errorf("missing value for %s", tok)
+			}
+			formParts = append(formParts, tokens[i+1])
 			i += 2
 		case "--url":
 			if i+1 >= len(tokens) {
@@ -212,7 +275,17 @@ func CurlToRequest(collectionID int64, curl string) (models.HttpRequest, error) 
 		}
 	}
 
-	if req.Body != "" && req.Method == http.MethodGet && !methodSet {
+	if len(formParts) > 0 {
+		rows := make([]formRow, 0, len(formParts))
+		for _, arg := range formParts {
+			rows = append(rows, curlFormRow(arg))
+		}
+		if raw, err := json.Marshal(rows); err == nil {
+			req.BodyForm = string(raw)
+		}
+	}
+
+	if (req.Body != "" || req.BodyForm != "") && req.Method == http.MethodGet && !methodSet {
 		req.Method = http.MethodPost
 	}
 

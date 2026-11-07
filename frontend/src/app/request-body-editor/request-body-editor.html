@@ -12,6 +12,7 @@
       >
         <option value="json">JSON</option>
         <option value="text">Text</option>
+        <option value="form-data">Form Data</option>
       </select>
       @if (type() === 'json') {
         <button
@@ -26,11 +27,73 @@
       }
     </div>
   </div>
-  <app-code-editor
-    class="code-editor-host"
-    [text]="body()"
-    [language]="type()"
-    [variables]="variables()"
-    (textChange)="onTextChange($event)"
-  ></app-code-editor>
+
+  @if (type() === 'json' || type() === 'text') {
+    <app-code-editor
+      class="code-editor-host"
+      [text]="body()"
+      [language]="codeLanguage()"
+      [variables]="variables()"
+      (textChange)="onTextChange($event)"
+    ></app-code-editor>
+  }
+
+  @if (type() === 'form-data') {
+    <div class="form-rows">
+      @for (row of formRows(); track $index; let i = $index) {
+        <div class="form-row">
+          <input
+            class="form-row-enabled"
+            type="checkbox"
+            [ngModel]="row.enabled"
+            (ngModelChange)="setRow(i, { enabled: $event })"
+            aria-label="Enabled"
+          />
+          <input
+            class="form-row-key"
+            type="text"
+            placeholder="key"
+            [ngModel]="row.key"
+            (ngModelChange)="setRow(i, { key: $event })"
+          />
+          <select
+            class="form-row-type"
+            [ngModel]="row.type"
+            (ngModelChange)="setRow(i, { type: $event })"
+            aria-label="Field type"
+          >
+            <option value="text">Text</option>
+            <option value="file">File</option>
+          </select>
+          @if (row.type === 'file') {
+            <button
+              class="form-row-file"
+              type="button"
+              (click)="pickFile(i)"
+              [title]="row.file_path"
+            >
+              {{ row.file_name || 'Choose file…' }}
+            </button>
+          } @else {
+            <input
+              class="form-row-value"
+              type="text"
+              placeholder="value"
+              [ngModel]="row.value"
+              (ngModelChange)="setRow(i, { value: $event })"
+            />
+          }
+          <button
+            class="form-row-remove"
+            type="button"
+            (click)="removeRow(i)"
+            aria-label="Remove field"
+          >
+            ×
+          </button>
+        </div>
+      }
+      <button class="form-row-add" type="button" (click)="addRow()">+ Add field</button>
+    </div>
+  }
 </div>
