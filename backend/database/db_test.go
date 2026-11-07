@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"path/filepath"
 	"testing"
 
 	_ "modernc.org/sqlite"
@@ -218,6 +219,119 @@ func TestMigrateLegacySchemaWithoutUserSortOrder(t *testing.T) {
 		if count != 1 {
 			t.Errorf("expected index %s to exist after migration", index)
 		}
+	}
+}
+
+func TestWidenBodyTypeCheckRebuildsTables(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "test.db")
+	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=foreign_keys(1)")
+	if err != nil {
+		t.Fatalf("opening db: %v", err)
+	}
+	defer db.Close()
+
+	// Legacy schema: body_type restricted to json/text, with body_form and a
+	// body_mode column carrying the previously-stored form mode.
+	if _, err := db.Exec(`
+		CREATE TABLE collections (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, name TEXT NOT NULL);
+		CREATE TABLE http_requests (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			collection_id INTEGER NOT NULL,
+			name TEXT NOT NULL,
+			url TEXT NOT NULL,
+			method TEXT NOT NULL,
+			body TEXT,
+			body_type TEXT NOT NULL DEFAULT 'json' CHECK(body_type IN ('json', 'text')),
+			request_headers TEXT,
+			status_code INTEGER NOT NULL DEFAULT 0,
+			response_id INTEGER NOT NULL DEFAULT 0,
+			user_sort_order INTEGER NOT NULL DEFAULT 0,
+			user_color TEXT,
+			last_used_at INTEGER NOT NULL DEFAULT 0,
+			body_form TEXT,
+			body_mode TEXT,
+			FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE
+		);
+		CREATE TABLE responses (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			request_id INTEGER NOT NULL,
+			headers TEXT,
+			status_code INTEGER NOT NULL DEFAULT 0,
+			body TEXT,
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			duration_ms INTEGER NOT NULL DEFAULT 0,
+			FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE
+		);
+		CREATE TABLE binned_requests (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			original_request_id INTEGER NOT NULL,
+			project_id INTEGER NOT NULL,
+			collection_id INTEGER NOT NULL DEFAULT 0,
+			original_collection_id INTEGER NOT NULL,
+			original_collection_name TEXT NOT NULL,
+			name TEXT NOT NULL,
+			url TEXT NOT NULL,
+			method TEXT NOT NULL,
+			body TEXT,
+			body_type TEXT NOT NULL DEFAULT 'json' CHECK(body_type IN ('json', 'text')),
+			request_headers TEXT,
+			status_code INTEGER NOT NULL DEFAULT 0,
+			response_id INTEGER NOT NULL DEFAULT 0,
+			deleted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			snapshot_json TEXT NOT NULL,
+			body_form TEXT,
+			body_mode TEXT
+		);
+		INSERT INTO collections (project_id, name) VALUES (1, 'c');
+		INSERT INTO http_requests (collection_id, name, url, method, body, body_type) VALUES (1, 'json req', 'http://x', 'POST', '{"a":1}', 'json');
+		INSERT INTO http_requests (collection_id, name, url, method, body_form, body_mode) VALUES (1, 'form req', 'http://x', 'POST', '[{"key":"a","type":"text","value":"1","enabled":true}]', 'form-data');
+	`); err != nil {
+		t.Fatalf("setting up legacy schema: %v", err)
+	}
+
+	if err := widenBodyTypeCheck(db); err != nil {
+		t.Fatalf("widenBodyTypeCheck failed: %v", err)
+	}
+
+	// The legacy form row is reclassified as form-data.
+	var bodyType string
+	if err := db.QueryRow("SELECT body_type FROM http_requests WHERE name = 'form req'").Scan(&bodyType); err != nil {
+		t.Fatalf("reading form req: %v", err)
+	}
+	if bodyType != "form-data" {
+		t.Errorf("expected form req body_type 'form-data', got %q", bodyType)
+	}
+
+	// The json row and its body survive the rebuild.
+	var jsonBody string
+	if err := db.QueryRow("SELECT body FROM http_requests WHERE name = 'json req'").Scan(&jsonBody); err != nil {
+		t.Fatalf("reading json req: %v", err)
+	}
+	if jsonBody != `{"a":1}` {
+		t.Errorf("expected json body preserved, got %q", jsonBody)
+	}
+
+	// body_mode is gone; form-data is now a valid body_type value.
+	if columnExists(db, "http_requests", "body_mode") {
+		t.Error("expected body_mode column to be dropped")
+	}
+	if _, err := db.Exec("UPDATE http_requests SET body_type = 'form-data' WHERE name = 'json req'"); err != nil {
+		t.Errorf("expected widened CHECK to accept form-data, got: %v", err)
+	}
+
+	// Foreign keys still cascade after the rebuild.
+	if _, err := db.Exec("INSERT INTO responses (request_id, body) VALUES (1, 'ok')"); err != nil {
+		t.Fatalf("inserting response: %v", err)
+	}
+	if _, err := db.Exec("DELETE FROM collections WHERE id = 1"); err != nil {
+		t.Fatalf("deleting collection: %v", err)
+	}
+	var respCount int
+	if err := db.QueryRow("SELECT COUNT(*) FROM responses").Scan(&respCount); err != nil {
+		t.Fatalf("counting responses: %v", err)
+	}
+	if respCount != 0 {
+		t.Errorf("expected cascade delete of responses, got %d remaining", respCount)
 	}
 }
 

@@ -192,7 +192,7 @@ func (c Send) doHTTP(req models.HttpRequest, values map[string]string) models.Ht
 
 	var bodyReader io.Reader
 	var contentType string
-	if normalizeBodyMode(req.BodyMode, req.BodyType, req.BodyForm) == "form-data" {
+	if normalizeBodyType(req.BodyType) == "form-data" {
 		reader, ct, err := buildMultipartBody(req.BodyForm, values)
 		if err != nil {
 			return fail(err.Error())

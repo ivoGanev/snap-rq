@@ -1,11 +1,13 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"snap-rq/backend/models"
 
@@ -60,7 +62,7 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
-	if err := addBodyModeColumn(db); err != nil {
+	if err := widenBodyTypeCheck(db); err != nil {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
@@ -113,7 +115,7 @@ func migrate(db *sql.DB) error {
 			url TEXT NOT NULL,
 			method TEXT NOT NULL,
 			body TEXT,
-			body_type TEXT NOT NULL DEFAULT 'json' CHECK(body_type IN ('json', 'text')),
+			body_type TEXT NOT NULL DEFAULT 'json' CHECK(body_type IN ('json', 'text', 'form-data')),
 			request_headers TEXT,
 			status_code INTEGER NOT NULL DEFAULT 0,
 			response_id INTEGER NOT NULL DEFAULT 0,
@@ -213,7 +215,7 @@ func migrate(db *sql.DB) error {
 			url TEXT NOT NULL,
 			method TEXT NOT NULL,
 			body TEXT,
-			body_type TEXT NOT NULL DEFAULT 'json' CHECK(body_type IN ('json', 'text')),
+			body_type TEXT NOT NULL DEFAULT 'json' CHECK(body_type IN ('json', 'text', 'form-data')),
 			request_headers TEXT,
 			status_code INTEGER NOT NULL DEFAULT 0,
 			response_id INTEGER NOT NULL DEFAULT 0,
@@ -571,19 +573,151 @@ func addBodyFormColumn(db *sql.DB) error {
 	return nil
 }
 
-// addBodyModeColumn stores which body editor the user last chose
-// (json, text, or form-data), independent of the form rows themselves so
-// switching modes never discards saved form data.
-func addBodyModeColumn(db *sql.DB) error {
+// widenBodyTypeCheck widens body_type to allow 'form-data'. SQLite cannot
+// alter a CHECK constraint, so tables with the old constraint are rebuilt
+// (foreign keys disabled on a dedicated connection during the swap).
+func widenBodyTypeCheck(db *sql.DB) error {
 	for _, table := range []string{"http_requests", "binned_requests"} {
-		if columnExists(db, table, "body_mode") {
+		allows, err := bodyTypeAllowsFormData(db, table)
+		if err != nil {
+			return err
+		}
+		if allows {
 			continue
 		}
-		if _, err := db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN body_mode TEXT", table)); err != nil {
-			return fmt.Errorf("adding body_mode column to %s: %w", table, err)
+		if err := rebuildBodyTypeTable(db, table); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+// bodyTypeAllowsFormData reports whether a table's stored CHECK already
+// accepts 'form-data'.
+func bodyTypeAllowsFormData(db *sql.DB, table string) (bool, error) {
+	var sqlText string
+	if err := db.QueryRow(
+		`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`, table,
+	).Scan(&sqlText); err != nil {
+		return false, err
+	}
+	return strings.Contains(sqlText, "form-data"), nil
+}
+
+// rebuildBodyTypeTable recreates one request table with the widened body_type
+// CHECK, carrying over rows and marking any that used form data as 'form-data'.
+func rebuildBodyTypeTable(db *sql.DB, table string) error {
+	hasMode := columnExists(db, table, "body_mode")
+	typeExpr := "body_type"
+	if hasMode {
+		typeExpr = "CASE WHEN body_type = 'form-data' OR body_mode = 'form-data' OR COALESCE(body_form, '') != '' THEN 'form-data' ELSE body_type END"
+	} else {
+		typeExpr = "CASE WHEN body_type = 'form-data' OR COALESCE(body_form, '') != '' THEN 'form-data' ELSE body_type END"
+	}
+
+	var newCreate, targetCols string
+	var indexes []string
+	switch table {
+	case "http_requests":
+		newCreate = `CREATE TABLE http_requests_new (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			collection_id INTEGER NOT NULL,
+			name TEXT NOT NULL,
+			url TEXT NOT NULL,
+			method TEXT NOT NULL,
+			body TEXT,
+			body_type TEXT NOT NULL DEFAULT 'json' CHECK(body_type IN ('json', 'text', 'form-data')),
+			request_headers TEXT,
+			status_code INTEGER NOT NULL DEFAULT 0,
+			response_id INTEGER NOT NULL DEFAULT 0,
+			user_sort_order INTEGER NOT NULL DEFAULT 0,
+			user_color TEXT,
+			last_used_at INTEGER NOT NULL DEFAULT 0,
+			body_form TEXT,
+			FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE
+		)`
+		targetCols = "id, collection_id, name, url, method, body, body_type, request_headers, status_code, response_id, user_sort_order, user_color, last_used_at, body_form"
+		indexes = []string{
+			"CREATE INDEX idx_http_requests_collection_id ON http_requests(collection_id)",
+			"CREATE INDEX idx_http_requests_name ON http_requests(name)",
+			"CREATE INDEX idx_http_requests_collection_sort ON http_requests(collection_id, user_sort_order)",
+			"CREATE INDEX idx_http_requests_last_used_at ON http_requests(last_used_at DESC)",
+		}
+	case "binned_requests":
+		newCreate = `CREATE TABLE binned_requests_new (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			original_request_id INTEGER NOT NULL,
+			project_id INTEGER NOT NULL,
+			collection_id INTEGER NOT NULL DEFAULT 0,
+			original_collection_id INTEGER NOT NULL,
+			original_collection_name TEXT NOT NULL,
+			name TEXT NOT NULL,
+			url TEXT NOT NULL,
+			method TEXT NOT NULL,
+			body TEXT,
+			body_type TEXT NOT NULL DEFAULT 'json' CHECK(body_type IN ('json', 'text', 'form-data')),
+			request_headers TEXT,
+			status_code INTEGER NOT NULL DEFAULT 0,
+			response_id INTEGER NOT NULL DEFAULT 0,
+			deleted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			snapshot_json TEXT NOT NULL,
+			body_form TEXT
+		)`
+		targetCols = "id, original_request_id, project_id, collection_id, original_collection_id, original_collection_name, name, url, method, body, body_type, request_headers, status_code, response_id, deleted_at, snapshot_json, body_form"
+		indexes = []string{
+			"CREATE INDEX idx_binned_requests_project_id ON binned_requests(project_id)",
+			"CREATE INDEX idx_binned_requests_deleted_at ON binned_requests(deleted_at)",
+		}
+	default:
+		return fmt.Errorf("unknown table %q", table)
+	}
+
+	srcCols := strings.Replace(targetCols, "body_type", typeExpr, 1)
+	return rebuildTable(db, table, newCreate, targetCols, srcCols, indexes)
+}
+
+// rebuildTable performs the SQLite table-rebuild dance: create the new table,
+// copy rows, drop the old table, rename, and recreate indexes.
+func rebuildTable(db *sql.DB, table, newCreate, targetCols, srcCols string, indexes []string) error {
+	ctx := context.Background()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	if _, err := conn.ExecContext(ctx, "PRAGMA foreign_keys = OFF"); err != nil {
+		return err
+	}
+	defer func() {
+		_, _ = conn.ExecContext(ctx, "PRAGMA foreign_keys = ON")
+	}()
+
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	newTable := table + "_new"
+	if _, err := tx.Exec(newCreate); err != nil {
+		return fmt.Errorf("creating new %s: %w", table, err)
+	}
+	if _, err := tx.Exec(fmt.Sprintf("INSERT INTO %s (%s) SELECT %s FROM %s", newTable, targetCols, srcCols, table)); err != nil {
+		return fmt.Errorf("copying %s: %w", table, err)
+	}
+	if _, err := tx.Exec(fmt.Sprintf("DROP TABLE %s", table)); err != nil {
+		return fmt.Errorf("dropping old %s: %w", table, err)
+	}
+	if _, err := tx.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", newTable, table)); err != nil {
+		return fmt.Errorf("renaming %s: %w", table, err)
+	}
+	for _, idx := range indexes {
+		if _, err := tx.Exec(idx); err != nil {
+			return fmt.Errorf("recreating index on %s: %w", table, err)
+		}
+	}
+	return tx.Commit()
 }
 
 // backfillRequestBodyTypes marks existing rows as plain text when their body is

@@ -42,7 +42,6 @@ type savedBinRow struct {
 	Body                   string `json:"body"`
 	BodyType               string `json:"body_type"`
 	BodyForm               string `json:"body_form"`
-	BodyMode               string `json:"body_mode"`
 	RequestHeaders         string `json:"request_headers"`
 	StatusCode             int    `json:"status_code"`
 	SnapshotJSON           string `json:"snapshot_json"`
@@ -60,12 +59,12 @@ func (c Restore) Snapshot(input json.RawMessage) (any, error) {
 		err := c.tx.QueryRow(`
 			SELECT id, original_request_id, project_id, collection_id, original_collection_id,
 			       original_collection_name, name, url, method, COALESCE(body, ''), body_type,
-			       COALESCE(body_form, ''), COALESCE(body_mode, ''), COALESCE(request_headers, ''),
+			       COALESCE(body_form, ''), COALESCE(request_headers, ''),
 			       status_code, snapshot_json
 			FROM binned_requests WHERE id = ?`, item.BinID,
 		).Scan(&row.ID, &row.OriginalRequestID, &row.ProjectID, &row.CollectionID,
 			&row.OriginalCollectionID, &row.OriginalCollectionName,
-			&row.Name, &row.URL, &row.Method, &row.Body, &row.BodyType, &row.BodyForm, &row.BodyMode,
+			&row.Name, &row.URL, &row.Method, &row.Body, &row.BodyType, &row.BodyForm,
 			&row.RequestHeaders, &row.StatusCode, &row.SnapshotJSON)
 		if err != nil {
 			return nil, fmt.Errorf("loading bin row %d: %w", item.BinID, err)
@@ -108,7 +107,6 @@ func (c Restore) restoreOne(binID, targetCollectionID int64) (models.HttpRequest
 		Body           string
 		BodyType       string
 		BodyForm       string
-		BodyMode       string
 		RequestHeaders string
 		StatusCode     int
 		ResponseID     int64
@@ -116,11 +114,11 @@ func (c Restore) restoreOne(binID, targetCollectionID int64) (models.HttpRequest
 	}
 	if err := c.tx.QueryRow(`
 		SELECT project_id, name, url, method, COALESCE(body, ''), body_type,
-		       COALESCE(body_form, ''), COALESCE(body_mode, ''), COALESCE(request_headers, ''),
+		       COALESCE(body_form, ''), COALESCE(request_headers, ''),
 		       status_code, response_id, snapshot_json
 		FROM binned_requests WHERE id = ?`, binID,
 	).Scan(&binned.ProjectID, &binned.Name, &binned.URL, &binned.Method,
-		&binned.Body, &binned.BodyType, &binned.BodyForm, &binned.BodyMode, &binned.RequestHeaders,
+		&binned.Body, &binned.BodyType, &binned.BodyForm, &binned.RequestHeaders,
 		&binned.StatusCode, &binned.ResponseID, &binned.SnapshotJSON); err != nil {
 		return models.HttpRequest{}, fmt.Errorf("loading binned request: %w", err)
 	}
@@ -134,12 +132,12 @@ func (c Restore) restoreOne(binID, targetCollectionID int64) (models.HttpRequest
 	}
 
 	result, err := c.tx.Exec(`
-		INSERT INTO http_requests (collection_id, name, url, method, body, body_type, body_form, body_mode,
+		INSERT INTO http_requests (collection_id, name, url, method, body, body_type, body_form,
 			request_headers, status_code, response_id, user_sort_order)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0,
 			(SELECT COALESCE(MAX(user_sort_order), -1) + 1 FROM http_requests WHERE collection_id = ?))`,
 		targetCollectionID, binned.Name, binned.URL, binned.Method, binned.Body,
-		binned.BodyType, binned.BodyForm, binned.BodyMode, binned.RequestHeaders, binned.StatusCode, targetCollectionID)
+		binned.BodyType, binned.BodyForm, binned.RequestHeaders, binned.StatusCode, targetCollectionID)
 	if err != nil {
 		return models.HttpRequest{}, fmt.Errorf("restoring request: %w", err)
 	}
@@ -234,12 +232,11 @@ func queryRequest(tx *sql.Tx, id int64) (models.HttpRequest, error) {
 	var req models.HttpRequest
 	err := tx.QueryRow(`
 		SELECT hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method,
-		       COALESCE(hr.body, ''), hr.body_type, COALESCE(hr.body_form, ''), COALESCE(hr.body_mode, ''),
-		       COALESCE(hr.request_headers, ''),
+		       COALESCE(hr.body, ''), hr.body_type, COALESCE(hr.body_form, ''), COALESCE(hr.request_headers, ''),
 		       hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color, hr.last_used_at
 		FROM http_requests hr JOIN collections c ON c.id = hr.collection_id WHERE hr.id = ?`, id,
 	).Scan(&req.ID, &req.CollectionID, &req.ProjectID, &req.Name, &req.URL, &req.Method,
-		&req.Body, &req.BodyType, &req.BodyForm, &req.BodyMode, &req.RequestHeaders,
+		&req.Body, &req.BodyType, &req.BodyForm, &req.RequestHeaders,
 		&req.StatusCode, &req.ResponseID, &req.UserSortOrder, &req.UserColor, &req.LastUsedAt)
 	if err != nil {
 		return models.HttpRequest{}, fmt.Errorf("loading request: %w", err)
@@ -268,12 +265,12 @@ func (c Restore) Undo(snapshot, result json.RawMessage) error {
 		if _, err := c.tx.Exec(`
 			INSERT INTO binned_requests (
 				id, original_request_id, project_id, collection_id, original_collection_id,
-				original_collection_name, name, url, method, body, body_type, body_form, body_mode, request_headers,
+				original_collection_name, name, url, method, body, body_type, body_form, request_headers,
 				status_code, response_id, snapshot_json
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			row.ID, row.OriginalRequestID, row.ProjectID, row.CollectionID,
 			row.OriginalCollectionID, row.OriginalCollectionName,
-			row.Name, row.URL, row.Method, row.Body, row.BodyType, row.BodyForm, row.BodyMode, row.RequestHeaders,
+			row.Name, row.URL, row.Method, row.Body, row.BodyType, row.BodyForm, row.RequestHeaders,
 			row.StatusCode, 0, row.SnapshotJSON,
 		); err != nil {
 			return err

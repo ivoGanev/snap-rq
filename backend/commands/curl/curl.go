@@ -23,7 +23,7 @@ func RequestToCurl(req models.HttpRequest) string {
 
 	parts := []string{"curl"}
 
-	isForm := curlEffectiveMode(req) == "form-data"
+	isForm := req.BodyType == "form-data"
 
 	baseURL := req.URL
 	var queryArgs []string
@@ -71,22 +71,6 @@ func RequestToCurl(req models.HttpRequest) string {
 	}
 
 	return strings.Join(parts, " ")
-}
-
-// curlEffectiveMode resolves which body mode a request uses, falling back to
-// the legacy behaviour for rows saved before the mode was stored.
-func curlEffectiveMode(req models.HttpRequest) string {
-	switch req.BodyMode {
-	case "json", "text", "form-data":
-		return req.BodyMode
-	}
-	if req.BodyForm != "" {
-		return "form-data"
-	}
-	if req.BodyType == "text" {
-		return "text"
-	}
-	return "json"
 }
 
 // formRow is one multipart form entry, shared between curl render and parse.
@@ -300,7 +284,7 @@ func CurlToRequest(collectionID int64, curl string) (models.HttpRequest, error) 
 		}
 		if raw, err := json.Marshal(rows); err == nil {
 			req.BodyForm = string(raw)
-			req.BodyMode = "form-data"
+			req.BodyType = "form-data"
 		}
 	}
 

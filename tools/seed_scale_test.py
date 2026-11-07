@@ -155,7 +155,6 @@ CREATE TABLE IF NOT EXISTS http_requests (
     body TEXT,
     body_type TEXT NOT NULL DEFAULT 'json',
     body_form TEXT,
-    body_mode TEXT,
     request_headers TEXT,
     status_code INTEGER NOT NULL DEFAULT 0,
     response_id INTEGER NOT NULL DEFAULT 0,
@@ -727,8 +726,8 @@ def create_mock_requests(conn: sqlite3.Connection, collection_id: int) -> int:
 
         cursor.execute(
             """
-            INSERT INTO http_requests (collection_id, name, url, method, body, body_form, body_mode, request_headers, status_code, response_id)
-            VALUES (?, ?, ?, ?, '', ?, 'form-data', ?, 0, 0)
+            INSERT INTO http_requests (collection_id, name, url, method, body, body_type, body_form, request_headers, status_code, response_id)
+            VALUES (?, ?, ?, ?, '', 'form-data', ?, ?, 0, 0)
             """,
             (collection_id, name, url, method, body_form, headers),
         )

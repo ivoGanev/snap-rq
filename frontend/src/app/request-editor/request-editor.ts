@@ -30,13 +30,9 @@ export class RequestEditor {
   readonly newTagName = signal('');
 
   readonly bodyEditorType = computed<BodyKind>(() => {
-    const req = this.draftRequest();
-    if (!req) return 'json';
-    if (req.body_mode === 'form-data' || req.body_mode === 'json' || req.body_mode === 'text') {
-      return req.body_mode;
-    }
-    if (req.body_form) return 'form-data';
-    return req.body_type === 'text' ? 'text' : 'json';
+    const type = this.draftRequest()?.body_type;
+    if (type === 'form-data' || type === 'text') return type;
+    return 'json';
   });
 
   readonly tagSuggestions = computed<Tag[]>(() => {
@@ -100,15 +96,10 @@ export class RequestEditor {
     const draft = this.draftRequest();
     if (!draft) return;
 
-    if (type === 'form-data') {
-      await this.updateRequestField('body_mode', 'form-data');
-      if (!draft.body_form) {
-        await this.updateRequestField('body_form', '[]');
-      }
-    } else {
-      await this.updateRequestField('body_type', type);
-      await this.updateRequestField('body_mode', type);
-      // Keep body_form so switching back to form-data restores the saved rows.
+    await this.updateRequestField('body_type', type);
+    // Keep body_form so switching back to form-data restores the saved rows.
+    if (type === 'form-data' && !draft.body_form) {
+      await this.updateRequestField('body_form', '[]');
     }
   }
 
