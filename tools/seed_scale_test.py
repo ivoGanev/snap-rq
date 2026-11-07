@@ -55,10 +55,12 @@ MOCK_ENDPOINTS = [
 # Multipart/form-data upload mocks. Each tuple is
 # (name, method, path, body_form, optional_headers).
 FORM_TEXT_ROW = '[{"key":"name","type":"text","value":"Ivo","file_path":"","file_name":"","enabled":true}]'
+FORM_MULTILINE_ROW = '[{"key":"description","type":"multiline","value":"line one\\nline two","file_path":"","file_name":"","enabled":true}]'
 FORM_FILE_ROW = '[{"key":"file","type":"file","value":"","file_path":"","file_name":"","enabled":true}]'
 FORM_TWO_FILE_ROWS = '[{"key":"a","type":"file","value":"","file_path":"","file_name":"","enabled":true},{"key":"b","type":"file","value":"","file_path":"","file_name":"","enabled":true}]'
 MOCK_FORM_ENDPOINTS = [
     ("Upload - text field", "POST", "/mock/upload", FORM_TEXT_ROW, None),
+    ("Upload - multi-line text", "POST", "/mock/upload", FORM_MULTILINE_ROW, None),
     ("Upload - file", "POST", "/mock/upload", FORM_FILE_ROW, None),
     ("Upload - multiple files", "POST", "/mock/upload", FORM_TWO_FILE_ROWS, None),
     ("Upload - required file", "POST", "/mock/upload/required", FORM_FILE_ROW, None),

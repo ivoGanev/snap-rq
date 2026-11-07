@@ -8,7 +8,7 @@ export type BodyKind = 'json' | 'text' | 'form-data';
 /** One row of a multipart form body. */
 export interface FormBodyEntry {
   key: string;
-  type: 'text' | 'file';
+  type: 'text' | 'multiline' | 'file';
   value: string;
   file_path: string;
   file_name: string;

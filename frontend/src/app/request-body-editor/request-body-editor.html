@@ -63,6 +63,7 @@
             aria-label="Field type"
           >
             <option value="text">Text</option>
+            <option value="multiline">Multi-line text</option>
             <option value="file">File</option>
           </select>
           @if (row.type === 'file') {
@@ -74,6 +75,13 @@
             >
               {{ row.file_name || 'Choose file…' }}
             </button>
+          } @else if (row.type === 'multiline') {
+            <textarea
+              class="form-row-multiline"
+              placeholder="value"
+              [ngModel]="row.value"
+              (ngModelChange)="setRow(i, { value: $event })"
+            ></textarea>
           } @else {
             <input
               class="form-row-value"

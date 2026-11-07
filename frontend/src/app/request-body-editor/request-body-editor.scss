@@ -117,6 +117,25 @@
   flex: 1 1 auto;
 }
 
+.form-row-multiline {
+  flex: 1 1 auto;
+  min-height: 3.5rem;
+  resize: vertical;
+  padding: 4px 8px;
+  font-size: 0.8125rem;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  outline: none;
+}
+
+.form-row-multiline:focus {
+  border-color: var(--selected-border);
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
 .form-row-type {
   flex: 0 0 auto;
   padding: 4px 6px;
