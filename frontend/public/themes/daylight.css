@@ -42,6 +42,9 @@
   --syntax-boolean: #6d28d9;
   --syntax-null: #be185d;
   --syntax-punctuation: #64748b;
+  --syntax-tag: #1d4ed8;
+  --syntax-attribute: #0e7490;
+  --syntax-comment: #64748b;
 
   color-scheme: light;
 }

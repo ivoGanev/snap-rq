@@ -86,12 +86,16 @@ export function prettifyResponseBody(
 
 /**
  * Detects the syntax language of a response body so the viewer can pick the
- * right highlighter. JSON is detected by Content-Type first, then by structure.
+ * right highlighter. JSON and XML are detected by Content-Type first, then by
+ * structure.
  */
 export function detectResponseLanguage(raw: string, headers: string): SyntaxLanguage {
   const contentType = extractContentType(headers);
   if (contentType?.includes('json')) {
     return 'json';
+  }
+  if (contentType?.includes('xml')) {
+    return 'xml';
   }
 
   const trimmed = raw.trim();
@@ -104,6 +108,10 @@ export function detectResponseLanguage(raw: string, headers: string): SyntaxLang
     (trimmed.startsWith('[') && trimmed.endsWith(']'))
   ) {
     return 'json';
+  }
+
+  if (trimmed.startsWith('<?xml') || trimmed.startsWith('<')) {
+    return 'xml';
   }
 
   return 'text';

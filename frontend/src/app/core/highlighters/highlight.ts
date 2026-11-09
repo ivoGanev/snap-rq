@@ -1,10 +1,11 @@
 import { highlightJsonLine } from './json-highlighter';
+import { highlightXmlLine } from './xml-highlighter';
 
 /**
  * Languages the response body highlighter understands. `text` falls back to a
  * single plain token, leaving the body uncoloured.
  */
-export type SyntaxLanguage = 'json' | 'text';
+export type SyntaxLanguage = 'json' | 'xml' | 'text';
 
 export type SyntaxTokenType =
   | 'key'
@@ -13,6 +14,9 @@ export type SyntaxTokenType =
   | 'boolean'
   | 'null'
   | 'punctuation'
+  | 'tag'
+  | 'attribute'
+  | 'comment'
   | 'plain';
 
 export interface SyntaxToken {
@@ -31,6 +35,8 @@ export function highlightLine(line: string, language: SyntaxLanguage): SyntaxTok
   switch (language) {
     case 'json':
       return highlightJsonLine(line);
+    case 'xml':
+      return highlightXmlLine(line);
     case 'text':
       return [{ text: line, type: 'plain' }];
   }

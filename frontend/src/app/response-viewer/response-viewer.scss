@@ -255,3 +255,15 @@
 .tok-punctuation {
   color: var(--syntax-punctuation);
 }
+
+.tok-tag {
+  color: var(--syntax-tag);
+}
+
+.tok-attribute {
+  color: var(--syntax-attribute);
+}
+
+.tok-comment {
+  color: var(--syntax-comment);
+}
