@@ -63,6 +63,18 @@ html.platform-mac .titlebar-spacer {
   --scrollbar-thumb: rgba(255, 255, 255, 0.18);
   --scrollbar-thumb-hover: rgba(255, 255, 255, 0.28);
 
+  --syntax-key: #7dd3fc;
+  --syntax-string: #86efac;
+  --syntax-number: #fdba74;
+  --syntax-boolean: #c4b5fd;
+  --syntax-null: #f9a8d4;
+  --syntax-punctuation: #8b95b0;
+  --syntax-tag: #82aaff;
+  --syntax-attribute: #7dd3fc;
+  --syntax-comment: #64748b;
+  --syntax-csv-even: #cbd5e1;
+  --syntax-csv-odd: #7dd3fc;
+
   font-family: var(--font-family);
   color-scheme: dark;
   -webkit-font-smoothing: antialiased;

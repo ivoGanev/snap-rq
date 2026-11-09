@@ -62,6 +62,35 @@ function isBlankRow(row: string[]): boolean {
 }
 
 /**
+ * Computes the aligned column widths for a set of parsed rows, matching the
+ * exact widths used when prettifying. Shared so highlighting and prettifying
+ * agree on column boundaries.
+ */
+function computeWidths(rows: string[][]): number[] {
+  const columnCount = rows.length === 0 ? 0 : Math.max(...rows.map(row => row.length));
+  const widths: number[] = Array.from({ length: columnCount }, () => 0);
+
+  for (const row of rows) {
+    for (let i = 0; i < columnCount; i++) {
+      const cell = row[i] ?? '';
+      widths[i] = Math.min(MAX_COLUMN_WIDTH, Math.max(widths[i], cell.length));
+    }
+  }
+
+  return widths;
+}
+
+/**
+ * Returns the aligned column widths for a raw CSV body, or an empty array when
+ * the body has no rows. The response viewer uses these to colour alternating
+ * columns in the prettified output.
+ */
+export function csvColumnWidths(raw: string): number[] {
+  const rows = parseCsv(raw).filter(row => !isBlankRow(row));
+  return computeWidths(rows);
+}
+
+/**
  * Prettifier for CSV response bodies.
  *
  * Detects CSV either by Content-Type or by checking that the body looks like
@@ -95,15 +124,8 @@ export class CsvPrettifier extends Prettifier {
       return raw;
     }
 
-    const columnCount = Math.max(...rows.map(row => row.length));
-    const widths: number[] = Array.from({ length: columnCount }, () => 0);
-
-    for (const row of rows) {
-      for (let i = 0; i < columnCount; i++) {
-        const cell = row[i] ?? '';
-        widths[i] = Math.min(MAX_COLUMN_WIDTH, Math.max(widths[i], cell.length));
-      }
-    }
+    const widths = computeWidths(rows);
+    const columnCount = widths.length;
 
     return rows
       .map(row =>
