@@ -231,3 +231,47 @@
   -webkit-user-select: text;
   user-select: text;
 }
+
+.tok-key {
+  color: var(--syntax-key);
+}
+
+.tok-string {
+  color: var(--syntax-string);
+}
+
+.tok-number {
+  color: var(--syntax-number);
+}
+
+.tok-boolean {
+  color: var(--syntax-boolean);
+}
+
+.tok-null {
+  color: var(--syntax-null);
+}
+
+.tok-punctuation {
+  color: var(--syntax-punctuation);
+}
+
+.tok-tag {
+  color: var(--syntax-tag);
+}
+
+.tok-attribute {
+  color: var(--syntax-attribute);
+}
+
+.tok-comment {
+  color: var(--syntax-comment);
+}
+
+.tok-column-even {
+  color: var(--syntax-csv-even);
+}
+
+.tok-column-odd {
+  color: var(--syntax-csv-odd);
+}

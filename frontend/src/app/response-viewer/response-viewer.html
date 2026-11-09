@@ -78,7 +78,7 @@
           <div
             *cdkVirtualFor="let line of bodyLines(); trackBy: trackByLine"
             class="response-body-line"
-          >{{ line }}</div>
+          >@for (token of lineTokens(line); track $index) {<span [class]="tokenClass(token.type)">{{ token.text }}</span>}</div>
         </cdk-virtual-scroll-viewport>
       }
     </div>
