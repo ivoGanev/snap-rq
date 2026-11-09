@@ -37,6 +37,9 @@ MOCK_ENDPOINTS = [
     ("Plain text response", "GET", "/mock/text", None, None),
     ("XML response", "GET", "/mock/xml", None, None),
     ("Binary download", "GET", "/mock/binary", None, None),
+    # Mismatched content-type mocks
+    ("Mismatch - JSON body as XML", "GET", "/mock/mismatch/json-as-xml", None, None),
+    ("Mismatch - XML body as JSON", "GET", "/mock/mismatch/xml-as-json", None, None),
     # Status mocks
     ("200 OK", "GET", "/mock/status/200", None, None),
     ("201 Created", "GET", "/mock/status/201", None, None),
