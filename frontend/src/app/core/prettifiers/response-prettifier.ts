@@ -86,26 +86,20 @@ export function prettifyResponseBody(
 
 /**
  * Detects the syntax language of a response body so the viewer can pick the
- * right highlighter. JSON and XML are detected by Content-Type first, then by
- * structure.
+ * right highlighter.
+ *
+ * Structure is checked before Content-Type: servers frequently return a body
+ * whose declared type disagrees with its actual shape, and clients like
+ * Insomnia highlight based on the content itself. Content-Type is only used as
+ * a fallback for bodies without a strong structural signal.
  */
 export function detectResponseLanguage(raw: string, headers: string): SyntaxLanguage {
-  const contentType = extractContentType(headers);
-  if (contentType?.includes('json')) {
-    return 'json';
-  }
-  if (contentType?.includes('xml')) {
-    return 'xml';
-  }
-  if (contentType?.includes('csv')) {
-    return 'csv';
-  }
-
   const trimmed = raw.trim();
   if (trimmed.length === 0) {
     return 'text';
   }
 
+  // JSON and XML have unambiguous structural markers, so they win outright.
   if (
     (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
     (trimmed.startsWith('[') && trimmed.endsWith(']'))
@@ -117,6 +111,19 @@ export function detectResponseLanguage(raw: string, headers: string): SyntaxLang
     return 'xml';
   }
 
+  // Content-Type hint for bodies without a clear shape (e.g. scalar JSON, CSV).
+  const contentType = extractContentType(headers);
+  if (contentType?.includes('json')) {
+    return 'json';
+  }
+  if (contentType?.includes('xml')) {
+    return 'xml';
+  }
+  if (contentType?.includes('csv')) {
+    return 'csv';
+  }
+
+  // Last resort: multi-line comma-separated text.
   const lines = trimmed.split(/\r?\n/).filter(line => line.length > 0);
   if (lines.length >= 2 && lines.slice(0, 2).every(line => line.includes(','))) {
     return 'csv';
