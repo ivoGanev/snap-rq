@@ -203,6 +203,33 @@ func xmlHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(sb.String()))
 }
 
+// ---------- Mismatched content-type mocks ----------
+//
+// These serve a body whose Content-Type header deliberately disagrees with the
+// actual payload, so clients that trust the header over the body can be tested.
+
+func jsonAsXmlHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w)
+	w.Header().Set("Content-Type", "application/xml")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(`{"error":{"code":403,"message":"request rejected"},"requestId":"xoqux7hx5y32"}`))
+}
+
+func xmlAsJsonHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<root>
+  <status>ok</status>
+  <message>This body is XML but the Content-Type says JSON</message>
+  <items count="2">
+    <item id="1"><name>first</name></item>
+    <item id="2"><name>second</name></item>
+  </items>
+</root>`))
+}
+
 // uploadSummary is what the multipart upload mocks report back about the
 // request, so the client's file-upload feature can be sanity tested.
 type uploadSummary struct {
@@ -423,6 +450,8 @@ func main() {
 	mux.HandleFunc("/mock/text", textHandler)
 	mux.HandleFunc("/mock/xml", xmlHandler)
 	mux.HandleFunc("/mock/binary", binaryHandler)
+	mux.HandleFunc("/mock/mismatch/json-as-xml", jsonAsXmlHandler)
+	mux.HandleFunc("/mock/mismatch/xml-as-json", xmlAsJsonHandler)
 	mux.HandleFunc("/mock/upload", uploadHandler)
 	mux.HandleFunc("/mock/upload/required", uploadRequiredHandler)
 	mux.HandleFunc("/mock/upload/size", uploadSizeHandler)
@@ -458,6 +487,10 @@ Content-type mocks:
   GET /mock/text    -> text/plain
   GET /mock/xml     -> application/xml
   GET /mock/binary  -> application/octet-stream
+
+Mismatched content-type mocks:
+  GET /mock/mismatch/json-as-xml -> JSON body, Content-Type: application/xml
+  GET /mock/mismatch/xml-as-json -> XML body, Content-Type: application/json
 
 Multipart upload mocks:
   POST /mock/upload           -> echoes fields and files
