@@ -36,5 +36,12 @@
   --scrollbar-thumb: rgba(0, 0, 0, 0.2);
   --scrollbar-thumb-hover: rgba(0, 0, 0, 0.3);
 
+  --syntax-key: #0369a1;
+  --syntax-string: #15803d;
+  --syntax-number: #c2410c;
+  --syntax-boolean: #6d28d9;
+  --syntax-null: #be185d;
+  --syntax-punctuation: #64748b;
+
   color-scheme: light;
 }

@@ -1,6 +1,7 @@
 import { Prettifier } from './prettifier';
 import { JsonPrettifier } from './json-prettifier';
 import { CsvPrettifier } from './csv-prettifier';
+import type { SyntaxLanguage } from '../highlighters/highlight';
 
 export { Prettifier, JsonPrettifier, CsvPrettifier };
 
@@ -81,4 +82,29 @@ export function prettifyResponseBody(
   }
 
   return raw;
+}
+
+/**
+ * Detects the syntax language of a response body so the viewer can pick the
+ * right highlighter. JSON is detected by Content-Type first, then by structure.
+ */
+export function detectResponseLanguage(raw: string, headers: string): SyntaxLanguage {
+  const contentType = extractContentType(headers);
+  if (contentType?.includes('json')) {
+    return 'json';
+  }
+
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    return 'text';
+  }
+
+  if (
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+    (trimmed.startsWith('[') && trimmed.endsWith(']'))
+  ) {
+    return 'json';
+  }
+
+  return 'text';
 }

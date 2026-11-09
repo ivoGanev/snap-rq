@@ -3,7 +3,11 @@ import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } 
 import { Dialogs } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { RequestApiService, type HttpResponse } from '../core/services/request.service';
-import { prettifyResponseBody } from '../core/prettifiers/response-prettifier';
+import {
+  detectResponseLanguage,
+  prettifyResponseBody,
+} from '../core/prettifiers/response-prettifier';
+import { highlightLine, type SyntaxLanguage, type SyntaxToken } from '../core/highlighters/highlight';
 
 @Component({
   selector: 'app-response-viewer',
@@ -33,6 +37,22 @@ export class ResponseViewer {
     const formatted = prettifyResponseBody(resp.body, resp.headers, this.prettifyEnabled());
     return formatted.length > 0 ? formatted.split('\n') : [];
   });
+
+  readonly bodyLanguage = computed<SyntaxLanguage>(() => {
+    const resp = this.state.selectedResponse();
+    if (!resp || !resp.body || resp.body.length === 0) {
+      return 'text';
+    }
+    return detectResponseLanguage(resp.body, resp.headers);
+  });
+
+  lineTokens(line: string): SyntaxToken[] {
+    return highlightLine(line, this.bodyLanguage());
+  }
+
+  tokenClass(type: SyntaxToken['type']): string {
+    return type === 'plain' ? '' : `tok-${type}`;
+  }
 
   trackByLine(index: number, line: string): number {
     return index;
