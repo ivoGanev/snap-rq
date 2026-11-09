@@ -97,6 +97,9 @@ export function detectResponseLanguage(raw: string, headers: string): SyntaxLang
   if (contentType?.includes('xml')) {
     return 'xml';
   }
+  if (contentType?.includes('csv')) {
+    return 'csv';
+  }
 
   const trimmed = raw.trim();
   if (trimmed.length === 0) {
@@ -112,6 +115,11 @@ export function detectResponseLanguage(raw: string, headers: string): SyntaxLang
 
   if (trimmed.startsWith('<?xml') || trimmed.startsWith('<')) {
     return 'xml';
+  }
+
+  const lines = trimmed.split(/\r?\n/).filter(line => line.length > 0);
+  if (lines.length >= 2 && lines.slice(0, 2).every(line => line.includes(','))) {
+    return 'csv';
   }
 
   return 'text';

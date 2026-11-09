@@ -7,6 +7,7 @@ import {
   detectResponseLanguage,
   prettifyResponseBody,
 } from '../core/prettifiers/response-prettifier';
+import { csvColumnWidths } from '../core/prettifiers/csv-prettifier';
 import { highlightLine, type SyntaxLanguage, type SyntaxToken } from '../core/highlighters/highlight';
 
 @Component({
@@ -46,8 +47,16 @@ export class ResponseViewer {
     return detectResponseLanguage(resp.body, resp.headers);
   });
 
+  readonly bodyColumnWidths = computed<number[]>(() => {
+    if (this.bodyLanguage() !== 'csv' || !this.prettifyEnabled()) {
+      return [];
+    }
+    const resp = this.state.selectedResponse();
+    return resp?.body ? csvColumnWidths(resp.body) : [];
+  });
+
   lineTokens(line: string): SyntaxToken[] {
-    return highlightLine(line, this.bodyLanguage());
+    return highlightLine(line, this.bodyLanguage(), this.bodyColumnWidths());
   }
 
   tokenClass(type: SyntaxToken['type']): string {

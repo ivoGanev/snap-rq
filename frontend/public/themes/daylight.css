@@ -45,6 +45,8 @@
   --syntax-tag: #1d4ed8;
   --syntax-attribute: #0e7490;
   --syntax-comment: #64748b;
+  --syntax-csv-even: #334155;
+  --syntax-csv-odd: #0e7490;
 
   color-scheme: light;
 }

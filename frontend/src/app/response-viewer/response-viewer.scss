@@ -267,3 +267,11 @@
 .tok-comment {
   color: var(--syntax-comment);
 }
+
+.tok-column-even {
+  color: var(--syntax-csv-even);
+}
+
+.tok-column-odd {
+  color: var(--syntax-csv-odd);
+}
