@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, input, model, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { SelectOnFocusDirective } from '../core/directives/select-on-focus.directive';
 import type { Collection, CollectionAppearance } from '../core/services/collection.service';
 import type { FavouriteCollection, FavouriteAppearance } from '../core/services/favourite.service';
 import type { Tag, TagAppearance } from '../core/services/tag.service';
@@ -67,7 +68,7 @@ const FOLDER_META: Record<SidebarFolder, { title: string; emptyMessage: string }
 
 @Component({
   selector: 'app-request-group-list',
-  imports: [FormsModule],
+  imports: [FormsModule, SelectOnFocusDirective],
   templateUrl: './request-group-list.html',
   styleUrl: './request-group-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

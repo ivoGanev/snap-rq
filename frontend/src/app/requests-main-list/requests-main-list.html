@@ -268,9 +268,9 @@
         >
           @if (editingNameId() === req.id) {
             <input
-              #inlineNameInput
               class="inline-name-input"
               type="text"
+              selectOnFocus
               [ngModel]="editingNameValue()"
               (ngModelChange)="editingNameValue.set($event)"
               (mousedown)="$event.stopPropagation()"

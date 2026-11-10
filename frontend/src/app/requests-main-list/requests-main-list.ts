@@ -15,6 +15,7 @@ import { RequestBottomDrawer, type BottomTab } from '../request-bottom-drawer/re
 import { RequestBodyTab } from '../request-body-tab/request-body-tab';
 import { RequestHeadersTab } from '../request-headers-tab/request-headers-tab';
 import { CodeEditor } from '../code-editor/code-editor';
+import { SelectOnFocusDirective } from '../core/directives/select-on-focus.directive';
 import { requestColorInfo } from '../core/request-colors';
 import { USER_ORDERABLE_VIEWS, USER_COLORABLE_VIEWS, type RequestListViewKind } from './request-view-capabilities';
 
@@ -61,7 +62,7 @@ const NAME_COLUMN_MIN_WIDTH = 120;
  */
 @Component({
   selector: 'app-requests-main-list',
-  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor],
+  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, SelectOnFocusDirective],
   templateUrl: './requests-main-list.html',
   styleUrl: './requests-main-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -212,7 +213,6 @@ export class RequestsMainList {
 
   readonly editingNameId = signal<number | null>(null);
   readonly editingNameValue = signal('');
-  private readonly inlineNameInput = viewChild<ElementRef<HTMLInputElement>>('inlineNameInput');
   private readonly methodHeaderCell = viewChild<ElementRef<HTMLElement>>('methodHeaderCell');
   private readonly nameHeaderCell = viewChild<ElementRef<HTMLElement>>('nameHeaderCell');
 
@@ -1878,12 +1878,6 @@ export class RequestsMainList {
     this.contextMenu.close();
     this.editingNameId.set(req.id);
     this.editingNameValue.set(req.name);
-
-    setTimeout(() => {
-      const input = this.inlineNameInput()?.nativeElement;
-      input?.focus();
-      input?.select();
-    });
   }
 
   cancelInlineNameEdit(): void {
