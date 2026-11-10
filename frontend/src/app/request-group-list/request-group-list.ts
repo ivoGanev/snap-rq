@@ -1,15 +1,6 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  effect,
-  ElementRef,
-  inject,
-  input,
-  model,
-  output,
-  viewChild,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, model, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { SelectOnFocusDirective } from '../core/directives/select-on-focus.directive';
 import type { Collection, CollectionAppearance } from '../core/services/collection.service';
 import type { FavouriteCollection, FavouriteAppearance } from '../core/services/favourite.service';
 import type { Tag, TagAppearance } from '../core/services/tag.service';
@@ -77,30 +68,13 @@ const FOLDER_META: Record<SidebarFolder, { title: string; emptyMessage: string }
 
 @Component({
   selector: 'app-request-group-list',
-  imports: [FormsModule],
+  imports: [FormsModule, SelectOnFocusDirective],
   templateUrl: './request-group-list.html',
   styleUrl: './request-group-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RequestGroupList {
   private readonly iconManifest = inject(IconManifestService);
-
-  private readonly renameInput = viewChild<ElementRef<HTMLInputElement>>('renameInput');
-
-  constructor() {
-    effect(() => {
-      const item = this.renamingItem();
-      if (!item) return;
-      // Always start from the current name, then focus and select it so the
-      // user can type straight over it (mirrors the request-name rename).
-      this.renameValue.set(item.name);
-      setTimeout(() => {
-        const input = this.renameInput()?.nativeElement;
-        input?.focus();
-        input?.select();
-      });
-    });
-  }
 
   readonly folderFilter = input.required<SidebarFolder>();
   readonly items = input.required<SidebarItem[]>();

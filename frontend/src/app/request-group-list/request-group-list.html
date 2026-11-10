@@ -25,9 +25,9 @@
         @if (renamingItem()?.kind === item.kind && renamingItem()?.id === item.id) {
           <div class="rename-form">
             <input
-              #renameInput
               class="rename-input"
               type="text"
+              selectOnFocus
               [ngModel]="renameValue()"
               (ngModelChange)="onRenameInput($event)"
               (keydown.enter)="onRenameSubmit()"
