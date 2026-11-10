@@ -23,17 +23,21 @@
         (contextmenu)="onContextMenu(item, $event)"
       >
         @if (renamingItem()?.kind === item.kind && renamingItem()?.id === item.id) {
-          <form class="rename-form" (submit)="onRenameSubmit()">
+          <div class="rename-form">
             <input
+              #renameInput
               class="rename-input"
               type="text"
               [ngModel]="renameValue()"
               (ngModelChange)="onRenameInput($event)"
-              (keydown.escape)="onRenameCancel()"
+              (keydown.enter)="onRenameSubmit()"
+              (keydown.escape)="onRenameCancel(); $event.stopPropagation()"
               (blur)="onRenameSubmit()"
-              autofocus
+              (mousedown)="$event.stopPropagation()"
+              (click)="$event.stopPropagation()"
+              (dblclick)="$event.stopPropagation()"
             />
-          </form>
+          </div>
         } @else {
           <button
             class="item-indicator"
@@ -51,7 +55,7 @@
               </svg>
             }
           </button>
-          <span class="group-list-item-label">{{ item.name }}</span>
+          <span class="group-list-item-label" (dblclick)="onRenameStart(item)">{{ item.name }}</span>
         }
       </li>
     }

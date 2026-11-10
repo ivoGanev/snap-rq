@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, inject, input, model, output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  effect,
+  ElementRef,
+  inject,
+  input,
+  model,
+  output,
+  viewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { Collection, CollectionAppearance } from '../core/services/collection.service';
 import type { FavouriteCollection, FavouriteAppearance } from '../core/services/favourite.service';
@@ -74,6 +84,23 @@ const FOLDER_META: Record<SidebarFolder, { title: string; emptyMessage: string }
 })
 export class RequestGroupList {
   private readonly iconManifest = inject(IconManifestService);
+
+  private readonly renameInput = viewChild<ElementRef<HTMLInputElement>>('renameInput');
+
+  constructor() {
+    effect(() => {
+      const item = this.renamingItem();
+      if (!item) return;
+      // Always start from the current name, then focus and select it so the
+      // user can type straight over it (mirrors the request-name rename).
+      this.renameValue.set(item.name);
+      setTimeout(() => {
+        const input = this.renameInput()?.nativeElement;
+        input?.focus();
+        input?.select();
+      });
+    });
+  }
 
   readonly folderFilter = input.required<SidebarFolder>();
   readonly items = input.required<SidebarItem[]>();
