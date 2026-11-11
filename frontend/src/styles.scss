@@ -532,6 +532,25 @@ app-root {
   background: var(--hover-bg);
 }
 
+.context-menu-item--with-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.menu-kbd {
+  flex: 0 0 auto;
+  padding: 0 5px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--muted);
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 4px;
+}
+
 .context-menu-item--danger {
   color: var(--danger-text);
 }
