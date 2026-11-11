@@ -161,16 +161,31 @@
     Change style
   </button>
   @if (item.kind === 'favourite') {
-    <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteItem(item)">
-      Delete Favourites
+    <button
+      class="context-menu-item context-menu-item--danger context-menu-item--with-hint"
+      type="button"
+      (click)="deleteItem(item)"
+    >
+      <span>Delete Favourites</span>
+      <kbd class="menu-kbd">Del</kbd>
     </button>
   } @else if (item.kind === 'tag') {
-    <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteItem(item)">
-      Delete Tag
+    <button
+      class="context-menu-item context-menu-item--danger context-menu-item--with-hint"
+      type="button"
+      (click)="deleteItem(item)"
+    >
+      <span>Delete Tag</span>
+      <kbd class="menu-kbd">Del</kbd>
     </button>
   } @else {
-    <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteItem(item)">
-      Delete Collection
+    <button
+      class="context-menu-item context-menu-item--danger context-menu-item--with-hint"
+      type="button"
+      (click)="deleteItem(item)"
+    >
+      <span>Delete Collection</span>
+      <kbd class="menu-kbd">Del</kbd>
     </button>
   }
 </ng-template>
