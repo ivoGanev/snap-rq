@@ -16,6 +16,7 @@
   --grad-success: linear-gradient(135deg, #17c9b0 0%, #3b82f6 100%);
   --grad-alt: linear-gradient(135deg, #ff4fc3 0%, #ffd45e 160%);
   --on-accent: #ffffff;
+  --font-mono: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 
   /* Nebula glows + starfield over a deep space base. */
   --background:

@@ -36,6 +36,7 @@
   --grad-success: linear-gradient(135deg, #16a34a 0%, #0d9488 100%);
   --grad-alt: linear-gradient(135deg, #f43f5e 0%, #f59e0b 160%);
   --on-accent: #ffffff;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   --active-tint-bg: rgba(225, 29, 72, 0.12);
   --active-tint-border: rgba(225, 29, 72, 0.4);
   --success-text: #15803d;

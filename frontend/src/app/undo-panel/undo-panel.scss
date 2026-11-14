@@ -120,7 +120,7 @@
 
 .undo-entry-command {
   color: var(--muted);
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
 }
 
@@ -140,7 +140,7 @@
 .undo-entry-tables {
   grid-column: 1 / -1;
   color: var(--muted);
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
