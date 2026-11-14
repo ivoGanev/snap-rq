@@ -26,6 +26,7 @@ func (c Get) Run(_ json.RawMessage) (any, error) {
 		ValidateSSLCertificates: true,
 		RequestTimeoutSeconds:   30,
 		UndoHistoryLimit:        100,
+		UseCookieJar:            true,
 	}
 	read := func(key string, dest any) {
 		var raw string
@@ -37,6 +38,7 @@ func (c Get) Run(_ json.RawMessage) (any, error) {
 	read("validate_ssl_certificates", &s.ValidateSSLCertificates)
 	read("request_timeout_seconds", &s.RequestTimeoutSeconds)
 	read("undo_history_limit", &s.UndoHistoryLimit)
+	read("use_cookie_jar", &s.UseCookieJar)
 	if s.RequestTimeoutSeconds < 1 || s.RequestTimeoutSeconds > 99999 {
 		s.RequestTimeoutSeconds = 30
 	}

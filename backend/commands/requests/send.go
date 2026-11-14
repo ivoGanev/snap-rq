@@ -17,6 +17,7 @@ import (
 
 	"snap-rq/backend/commands"
 	"snap-rq/backend/commands/responses"
+	"snap-rq/backend/cookies"
 	"snap-rq/backend/models"
 )
 
@@ -221,7 +222,7 @@ func (c Send) doHTTP(req models.HttpRequest, values map[string]string) models.Ht
 		httpReq.Header.Set(strings.TrimSpace(key), strings.TrimSpace(value))
 	}
 
-	client, err := c.httpClient()
+	client, err := c.httpClient(req.ProjectID)
 	if err != nil {
 		return fail(fmt.Sprintf("building client: %v", err))
 	}
@@ -277,9 +278,11 @@ func (c Send) persist(reqID int64, result models.HttpResponse) (models.HttpRespo
 }
 
 // httpClient builds the client from the user's settings; certificate
-// validation is skipped only when the user explicitly disabled it.
-func (c Send) httpClient() (*http.Client, error) {
-	timeoutSeconds, validateSSL := 30, true
+// validation is skipped only when the user explicitly disabled it. Unless the
+// cookie jar is switched off, the project's jar stores the cookies servers set
+// (on every redirect hop too) and sends them back on matching requests.
+func (c Send) httpClient(projectID int64) (*http.Client, error) {
+	timeoutSeconds, validateSSL, useCookieJar := 30, true, true
 	var raw string
 	if err := c.db.QueryRow(
 		`SELECT value FROM app_settings WHERE key = 'request_timeout_seconds'`,
@@ -292,7 +295,16 @@ func (c Send) httpClient() (*http.Client, error) {
 		_ = json.Unmarshal([]byte(raw), &validateSSL)
 	}
 
+	if err := c.db.QueryRow(
+		`SELECT value FROM app_settings WHERE key = 'use_cookie_jar'`,
+	).Scan(&raw); err == nil {
+		_ = json.Unmarshal([]byte(raw), &useCookieJar)
+	}
+
 	client := &http.Client{Timeout: time.Duration(timeoutSeconds) * time.Second}
+	if useCookieJar && projectID > 0 {
+		client.Jar = cookies.New(c.db, projectID)
+	}
 	if validateSSL {
 		return client, nil
 	}

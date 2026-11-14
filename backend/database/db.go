@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"snap-rq/backend/cookies"
 	"snap-rq/backend/models"
 
 	"github.com/adrg/xdg"
@@ -79,6 +80,10 @@ func Open() (*sql.DB, error) {
 	}
 
 	if err := addRequestLastUsedAt(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
+	if err := createCookiesTable(db); err != nil {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
@@ -909,6 +914,13 @@ func addRequestLastUsedAt(db *sql.DB) error {
 		return fmt.Errorf("creating http_requests last_used_at index: %w", err)
 	}
 	return nil
+}
+
+// createCookiesTable adds the per-project cookie jar. Cookies are unique by
+// project, domain, path and name, as RFC 6265 defines their identity.
+func createCookiesTable(db *sql.DB) error {
+	_, err := db.Exec(cookies.Schema)
+	return err
 }
 
 func tableExists(db *sql.DB, table string) bool {

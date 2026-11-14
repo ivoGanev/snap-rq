@@ -6,6 +6,7 @@ import (
 	"snap-rq/backend/commands"
 	"snap-rq/backend/commands/bin"
 	"snap-rq/backend/commands/collections"
+	"snap-rq/backend/commands/cookiejar"
 	"snap-rq/backend/commands/curl"
 	"snap-rq/backend/commands/environments"
 	"snap-rq/backend/commands/favourites"
@@ -96,6 +97,12 @@ var All = []commands.Factory{
 	variables.NewCreate,
 	variables.NewUpdate,
 	variables.NewDelete,
+
+	// cookie jar
+	cookiejar.NewList,
+	cookiejar.NewSave,
+	cookiejar.NewDelete,
+	cookiejar.NewClear,
 
 	// settings and upkeep
 	settings.NewGet,
