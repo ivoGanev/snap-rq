@@ -49,6 +49,42 @@ Constraints:
 - The updater queries GitHub's "latest" release, so releases must be published
   in ascending version order.
 
+## Testing the release workflow
+
+### Locally (no GitHub)
+
+Verify the build side of the pipeline without publishing anything:
+
+```bash
+# 1. Stamp a version and inspect the diff
+node scripts/stamp-version.mjs 9.9.9
+git diff -- build/config.yml build/windows/info.json build/darwin/Info.plist build/linux/nfpm/nfpm.yaml
+git checkout -- build/   # revert
+
+# 2. Build one platform with the version injected, and confirm it's baked in
+wails3 task windows:build VERSION=9.9.9
+go version -m bin/snap-rq-wails-v3.exe | grep currentVersion
+#   build  -ldflags="... -X main.currentVersion=9.9.9 ..."
+```
+
+### Self-update, end to end
+
+1. Build a local binary pinned to an old version:
+   `wails3 task windows:build VERSION=0.0.1`
+2. Publish a test release newer than it (e.g. `v0.0.2`) using the workflow,
+   or manually with `gh release create v0.0.2 bin/...`.
+3. Run the app and trigger `App → Check for Updates…`. It should find the
+   release, download the matching asset, verify the checksum, and offer to
+   restart.
+
+### On GitHub
+
+- Trigger the **Release** workflow with a throwaway version (e.g. `0.0.1`).
+- It will create a real tag and release — delete both afterwards via
+  `gh release delete v0.0.1` and `git push origin :v0.0.1`.
+- Confirm the three matrix jobs publish their artifacts and that the release
+  carries a `SHA256SUMS` entry for each.
+
 ## Known limitations
 
 - Binaries are unsigned; SmartScreen/Gatekeeper will warn. Signing tasks exist
