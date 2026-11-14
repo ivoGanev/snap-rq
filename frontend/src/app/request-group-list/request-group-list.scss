@@ -1,3 +1,5 @@
+@use '../../styles/buttons' as btn;
+
 .group-list-header {
   flex: 0 0 auto;
   padding: 0 var(--s-3);
@@ -31,10 +33,7 @@
     filter 0.15s ease,
     opacity 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.add-button:hover:not(:disabled) {
-  filter: brightness(1.15);
+  @include btn.btn-primary;
 }
 
 .add-button:disabled {

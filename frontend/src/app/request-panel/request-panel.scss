@@ -1,3 +1,5 @@
+@use '../../styles/buttons' as btn;
+
 .tab-header {
   justify-content: flex-start;
   gap: var(--s-3);
@@ -72,10 +74,7 @@
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.restore-button:hover {
-  filter: brightness(1.15);
+  @include btn.btn-success;
 }
 
 .delete-button {
@@ -89,10 +88,7 @@
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.delete-button:hover {
-  filter: brightness(1.15);
+  @include btn.btn-danger;
 }
 
 .request-method {

@@ -1,3 +1,5 @@
+@use '../../styles/buttons' as btn;
+
 .variables-editor {
   width: min(720px, calc(100vw - 2 * var(--s-4)));
   height: min(720px, calc(100vh - 2 * var(--s-4)));
@@ -125,10 +127,7 @@
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.variable-add-button:hover {
-  filter: brightness(1.15);
+  @include btn.btn-primary;
 }
 
 .variables-table-wrapper {
@@ -254,6 +253,7 @@
     color 0.15s ease,
     background 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-ghost;
 }
 
 .variables-row:hover .row-delete {

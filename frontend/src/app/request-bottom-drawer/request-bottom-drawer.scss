@@ -1,3 +1,5 @@
+@use '../../styles/buttons' as btn;
+
 :host {
   flex: 0 0 auto;
   margin-top: auto;
@@ -65,6 +67,7 @@
     color 0.15s ease,
     background 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-ghost;
 }
 
 .bottom-drawer-close svg {

@@ -1,3 +1,5 @@
+@use '../../styles/buttons' as btn;
+
 .column-header--requests {
   position: relative;
   z-index: 50;
@@ -25,10 +27,7 @@
     filter 0.15s ease,
     opacity 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.add-request-button:hover:not(:disabled) {
-  filter: brightness(1.15);
+  @include btn.btn-primary;
 }
 
 .add-request-button:disabled {
@@ -132,10 +131,7 @@
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.send-button--top-bar:hover {
-  filter: brightness(1.15);
+  @include btn.btn-primary;
 }
 
 .favourite-button--top-bar {
@@ -177,10 +173,7 @@
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.restore-button:hover {
-  filter: brightness(1.15);
+  @include btn.btn-success;
 }
 
 .delete-button--top-bar {
@@ -194,10 +187,7 @@
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.delete-button--top-bar:hover {
-  filter: brightness(1.15);
+  @include btn.btn-danger;
 }
 
 .state-message--bin strong {
@@ -636,6 +626,7 @@
     visibility 0.15s ease,
     background 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-ghost;
 }
 
 .zen-mode-button svg {
@@ -907,8 +898,6 @@
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-danger;
 }
 
-.favourite-collection-delete:hover {
-  filter: brightness(1.15);
-}

@@ -1,3 +1,5 @@
+@use '../../styles/buttons' as btn;
+
 :host {
   display: block;
   width: 100%;
@@ -33,6 +35,7 @@
     background 0.15s ease,
     border-color 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-ghost;
 }
 
 .rail-button svg {
@@ -48,7 +51,8 @@
 .rail-button.is-active {
   color: var(--accent);
   background: var(--active-tint-bg);
-  border-color: var(--active-tint-border);
+  border-color: var(--btn-border-hover);
+  box-shadow: 0 0 14px var(--btn-glow-gold);
 }
 
 .rail-button.is-active:hover:not(:disabled) {

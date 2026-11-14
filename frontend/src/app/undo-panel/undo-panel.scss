@@ -1,3 +1,5 @@
+@use '../../styles/buttons' as btn;
+
 .undo-backdrop {
   position: fixed;
   inset: 0;
@@ -45,6 +47,7 @@
   cursor: pointer;
   padding: 4px;
   border-radius: calc(var(--radius) * 0.4);
+  @include btn.btn-ghost;
 }
 
 .undo-close:hover {
@@ -154,6 +157,7 @@
   padding: 2px 8px;
   font-size: 11px;
   cursor: pointer;
+  @include btn.btn-secondary;
 }
 
 .undo-entry-rewind:hover {
@@ -176,6 +180,7 @@
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  @include btn.btn-secondary;
 }
 
 .undo-button:disabled {

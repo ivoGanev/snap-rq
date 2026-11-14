@@ -1,3 +1,5 @@
+@use '../styles/buttons' as btn;
+
 :host {
   display: flex;
   flex-direction: column;
@@ -64,10 +66,7 @@
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.project-change-button:hover {
-  filter: brightness(1.15);
+  @include btn.btn-primary;
 }
 
 .environment-label {
@@ -100,10 +99,7 @@
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.environment-edit:hover:not(:disabled) {
-  filter: brightness(1.15);
+  @include btn.btn-primary;
 }
 
 .environment-edit:disabled {
@@ -218,6 +214,7 @@
     background 0.15s ease,
     border-color 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-ghost;
 }
 
 .footer-settings-button:hover {
@@ -288,6 +285,7 @@
     background 0.15s ease,
     border-color 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-ghost;
 }
 
 .settings-close:hover {
@@ -376,6 +374,7 @@
     background 0.15s ease,
     border-color 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-ghost;
 }
 
 .footer-theme-button:hover {
@@ -518,10 +517,7 @@
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.project-delete-button:hover {
-  filter: brightness(1.15);
+  @include btn.btn-danger;
 }
 
 .project-editor-footer {

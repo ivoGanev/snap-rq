@@ -53,6 +53,19 @@
   --scrollbar-thumb-grad: linear-gradient(180deg, #ffd45e 0%, #f5a623 100%);
   --scrollbar-thumb-grad-hover: linear-gradient(180deg, #ffe58f 0%, #ffbf3c 100%);
 
+  --btn-glow: rgba(255, 79, 195, 0.35);
+  --btn-glow-strong: rgba(255, 79, 195, 0.6);
+  --btn-glow-success: rgba(23, 201, 176, 0.35);
+  --btn-glow-success-strong: rgba(23, 201, 176, 0.6);
+  --btn-glow-danger: rgba(255, 70, 120, 0.4);
+  --btn-glow-danger-strong: rgba(255, 70, 120, 0.65);
+  --btn-glow-gold: rgba(255, 212, 94, 0.28);
+  --btn-highlight: rgba(255, 255, 255, 0.3);
+  --btn-edge: rgba(255, 212, 94, 0.4);
+  --btn-border-hover: rgba(255, 212, 94, 0.75);
+  --btn-ghost-ring: rgba(255, 212, 94, 0.4);
+  --btn-focus: #3be8ff;
+
   --method-get-bg: rgba(59, 232, 255, 0.18);
   --method-get-fg: #7df0ff;
   --method-post-bg: rgba(107, 242, 210, 0.18);

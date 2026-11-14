@@ -1,3 +1,5 @@
+@use '../../styles/buttons' as btn;
+
 :host {
   flex: 1 1 auto;
   display: flex;
@@ -104,6 +106,7 @@
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-secondary;
 }
 
 .download-response-button:hover {
@@ -130,6 +133,7 @@
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-secondary;
 }
 
 .prettify-toggle:hover {

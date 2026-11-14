@@ -1,3 +1,5 @@
+@use '../../styles/buttons' as btn;
+
 :host {
   flex: 1 1 auto;
   display: flex;
@@ -37,10 +39,7 @@
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.headers-apply-button:hover:not(:disabled) {
-  filter: brightness(1.15);
+  @include btn.btn-primary;
 }
 
 .headers-apply-button:disabled {
@@ -87,10 +86,7 @@
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.headers-wipe-button:hover:not(:disabled) {
-  filter: brightness(1.15);
+  @include btn.btn-danger;
 }
 
 .headers-wipe-button:disabled {

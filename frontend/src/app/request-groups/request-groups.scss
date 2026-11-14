@@ -1,3 +1,5 @@
+@use '../../styles/buttons' as btn;
+
 :host {
   position: relative;
 }
@@ -58,6 +60,7 @@ app-sidebar-rail {
     background 0.15s ease,
     border-color 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-secondary;
 }
 
 .nav-toggle {
@@ -78,6 +81,7 @@ app-sidebar-rail {
     color 0.15s ease,
     background 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-ghost;
 }
 
 .nav-toggle svg {
@@ -203,6 +207,7 @@ app-sidebar-rail {
     color 0.15s ease,
     background 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-secondary;
 }
 
 .overlay-close:hover {
@@ -265,10 +270,7 @@ app-sidebar-rail {
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.variable-add:hover {
-  filter: brightness(1.15);
+  @include btn.btn-primary;
 }
 
 .context-menu-backdrop {
