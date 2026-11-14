@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WML } from '@wailsio/runtime';
+import { UpdaterService } from '../../bindings/snap-rq';
 import { WorkspaceStateService } from './core/services/workspace-state.service';
 import { ProjectApiService, type Project } from './core/services/project.service';
 import { EnvironmentApiService, type Environment } from './core/services/environment.service';
@@ -151,6 +152,12 @@ export class App implements OnInit, AfterViewInit {
 
   closeSettings(): void {
     this.settingsOpen.set(false);
+  }
+
+  checkForUpdates(): void {
+    UpdaterService.CheckForUpdates().catch((err) => {
+      console.error('Update check failed:', err);
+    });
   }
 
   async onSslValidationChange(event: Event): Promise<void> {

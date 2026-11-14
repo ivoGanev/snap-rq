@@ -296,6 +296,13 @@
           (change)="onUndoLimitChange($event)"
         />
       </label>
+      <button
+        class="settings-updates-button"
+        type="button"
+        (click)="checkForUpdates()"
+      >
+        Check for updates
+      </button>
     </div>
   </div>
 }

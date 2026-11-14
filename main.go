@@ -1,17 +1,22 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"log"
+	"runtime"
 	"time"
 
 	"snap-rq/backend/commands"
 	"snap-rq/backend/commands/catalog"
 	"snap-rq/backend/commands/requests"
 	"snap-rq/backend/database"
+	"snap-rq/backend/selfupdate"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/updater"
+	"github.com/wailsapp/wails/v3/pkg/updater/providers/github"
 )
 
 // Wails uses Go's `embed` package to embed the frontend files into the binary.
@@ -21,6 +26,16 @@ import (
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+// currentVersion is the version of the running binary, compared against the
+// GitHub release tag by the updater. It is injected at build time via
+// `-ldflags "-X main.currentVersion=<version>"`. Local builds keep this valid
+// SemVer default so the updater initialises, and treats them as older than any release.
+var currentVersion = "0.0.0-dev"
+
+// updaterRepository is the GitHub repository (owner/repo) that publishes
+// releases for the self-updater.
+const updaterRepository = "ivoGanev/snap-rq"
 
 func init() {
 	application.RegisterEvent[string]("time")
@@ -57,11 +72,14 @@ func main() {
 		return limit
 	})
 
+	updaterService := &UpdaterService{}
+
 	app := application.New(application.Options{
 		Name:        "snap-rq-wails-v3",
 		Description: "A REST API client",
 		Services: []application.Service{
 			application.NewService(commands.NewCommandService(runner)),
+			application.NewService(updaterService),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -70,6 +88,12 @@ func main() {
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
 	})
+
+	updaterService.app = app
+
+	if err := configureUpdater(app); err != nil {
+		log.Fatalf("configuring updater: %v", err)
+	}
 
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title: "Window 1",
@@ -101,4 +125,53 @@ func main() {
 }
 func jsonUnmarshal(raw string, dest any) error {
 	return json.Unmarshal([]byte(raw), dest)
+}
+
+// UpdaterService exposes the self-updater to the frontend. The native
+// application menu is deliberately avoided because its Win32 menu bar causes a
+// WebView2 mouse-input bug on Windows (a dismissed dropdown leaves the web UI
+// stuck with the left button held).
+type UpdaterService struct {
+	app *application.App
+}
+
+// CheckForUpdates opens the framework's update window and runs the full
+// check/download flow in the background.
+func (s *UpdaterService) CheckForUpdates() {
+	if s.app == nil {
+		log.Printf("update check requested before app was ready")
+		return
+	}
+	go func() {
+		if err := s.app.Updater.CheckAndInstall(context.Background()); err != nil {
+			log.Printf("update check failed: %v", err)
+		}
+	}()
+}
+
+// configureUpdater wires the in-app self-updater to GitHub Releases.
+func configureUpdater(app *application.App) error {
+	gh, err := github.New(github.Config{
+		Repository:    updaterRepository,
+		ChecksumAsset: "SHA256SUMS",
+		AssetMatcher:  matchUpdateAsset,
+	})
+	if err != nil {
+		return err
+	}
+	return app.Updater.Init(updater.Config{
+		CurrentVersion: currentVersion,
+		Providers:      []updater.Provider{gh},
+	})
+}
+
+// matchUpdateAsset picks the release asset the updater installs: the raw
+// executable (or macOS .zip), never an installer or distro package.
+func matchUpdateAsset(_ updater.CheckRequest, assets []github.ReleaseAsset) int {
+	for i, a := range assets {
+		if selfupdate.IsUpdateAsset(a.Name, runtime.GOOS, runtime.GOARCH) {
+			return i
+		}
+	}
+	return -1
 }

@@ -1,13 +1,13 @@
 [Desktop Entry]
 Version=1.0
-Name=My Product
-Comment=A snap-rq-wails-v3 application
+Name=SnapRQ
+Comment=A REST API client
 # The Exec line includes %u to pass the URL to the application
-Exec=/usr/local/bin/snap-rq-wails-v3.exe %u
+Exec=/usr/local/bin/snap-rq-wails-v3 %u
 Terminal=false
 Type=Application
-Icon=snap-rq-wails-v3.exe
+Icon=snap-rq-wails-v3
 Categories=Utility;
-StartupWMClass=snap-rq-wails-v3.exe
+StartupWMClass=snap-rq-wails-v3
 
  
