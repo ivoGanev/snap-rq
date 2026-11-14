@@ -11,6 +11,8 @@ import { SelectionStateService, groupKey } from '../core/services/selection-stat
 import { TagApiService, type Tag } from '../core/services/tag.service';
 import { BinApiService, type HttpBinnedRequestSummary, type RestoreInput } from '../core/services/bin.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
+import { ConfirmService } from '../core/services/confirm.service';
+import { isEditableTarget } from '../core/dom/editable-target';
 import { RequestBottomDrawer, type BottomTab } from '../request-bottom-drawer/request-bottom-drawer';
 import { RequestBodyTab } from '../request-body-tab/request-body-tab';
 import { RequestHeadersTab } from '../request-headers-tab/request-headers-tab';
@@ -84,6 +86,7 @@ export class RequestsMainList {
   private readonly selectionState = inject(SelectionStateService);
   private readonly tagApi = inject(TagApiService);
   private readonly binApi = inject(BinApiService);
+  private readonly confirm = inject(ConfirmService);
   private readonly contextMenu = inject(ContextMenuService);
 
   @ViewChild(CdkVirtualScrollViewport, { static: false })
@@ -643,7 +646,37 @@ export class RequestsMainList {
       event.preventDefault();
       if (this.state.showingBin()) return;
       void this.sendSelectedRequest(event);
+      return;
     }
+
+    if (event.key === 'Delete') {
+      if (isEditableTarget(event.target) || this.isBusyDialogOpen()) return;
+      if (this.selectedRowIds().size === 0) return;
+      event.preventDefault();
+      if (this.state.showingBin()) {
+        void this.requestPermanentDelete();
+      } else {
+        void this.deleteSelectedRequests();
+      }
+    }
+  }
+
+  /** True while any dialog/overlay is open, so global Delete does not act behind it. */
+  private isBusyDialogOpen(): boolean {
+    return (
+      this.confirm.active() !== null ||
+      this.contextMenu.isOpen() ||
+      this.editingNameId() !== null ||
+      this.editModalOpen() ||
+      this.methodModalOpen() ||
+      this.tagsModalOpen() ||
+      this.favouritesModalOpen() ||
+      this.moveCollectionModalOpen() ||
+      this.bulkTagModalOpen() ||
+      this.bulkFavouritesModalOpen() ||
+      this.restoreCollectionModalOpen() ||
+      this.newRequestPopupOpen()
+    );
   }
 
   onEscapePressed(): void {
@@ -1416,6 +1449,25 @@ export class RequestsMainList {
     } finally {
       this.state.loading.set(false);
     }
+  }
+
+  /** Asks for confirmation, then permanently deletes the selected bin items. */
+  async requestPermanentDelete(): Promise<void> {
+    const ids = [...this.selectedRowIds()];
+    if (ids.length === 0) return;
+
+    const confirmed = await this.confirm.ask({
+      title: 'Delete permanently?',
+      message:
+        ids.length === 1
+          ? 'This request will be permanently deleted. This cannot be undone.'
+          : `These ${ids.length} requests will be permanently deleted. This cannot be undone.`,
+      confirmLabel: 'Delete permanently',
+      danger: true,
+    });
+    if (!confirmed) return;
+
+    await this.deleteSelectedRequests();
   }
 
   async deleteSelectedRequests(): Promise<void> {

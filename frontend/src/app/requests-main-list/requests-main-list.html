@@ -79,7 +79,7 @@
         <button
           class="delete-button delete-button--top-bar"
           type="button"
-          (click)="deleteSelectedRequests()"
+          (click)="requestPermanentDelete()"
           [attr.aria-label]="
             selectedRowIds().size === 1
               ? 'Delete selected request permanently'
@@ -341,8 +341,13 @@
     <button class="context-menu-item" type="button" (click)="openRestoreCollectionPicker()">
       Restore
     </button>
-    <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteSelectedRequests()">
-      Delete permanently
+    <button
+      class="context-menu-item context-menu-item--danger context-menu-item--with-hint"
+      type="button"
+      (click)="requestPermanentDelete()"
+    >
+      <span>Delete permanently</span>
+      <kbd class="menu-kbd">Del</kbd>
     </button>
   } @else {
     <button class="context-menu-item" type="button" (click)="copyRequestCurl(req)">
@@ -361,8 +366,13 @@
     <button class="context-menu-item" type="button" (click)="duplicateSelectedRequest()">
       Duplicate
     </button>
-    <button class="context-menu-item context-menu-item--danger" type="button" (click)="deleteSelectedRequests()">
-      {{ state.selectedFavouriteCollection() ? 'Remove from favourites' : 'Move to Trash' }}
+    <button
+      class="context-menu-item context-menu-item--danger context-menu-item--with-hint"
+      type="button"
+      (click)="deleteSelectedRequests()"
+    >
+      <span>{{ state.selectedFavouriteCollection() ? 'Remove from favourites' : 'Move to Trash' }}</span>
+      <kbd class="menu-kbd">Del</kbd>
     </button>
   }
 </ng-template>

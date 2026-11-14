@@ -30,6 +30,7 @@ import { VariablesEditor } from './variables-editor/variables-editor';
 import { ZenMode } from './zen-mode/zen-mode';
 import { ContextMenuOutlet } from './context-menu-outlet/context-menu-outlet';
 import { ToastOutlet } from './toast-outlet/toast-outlet';
+import { ConfirmOutlet } from './confirm-outlet/confirm-outlet';
 import { UndoPanel } from './undo-panel/undo-panel';
 
 @Component({
@@ -43,6 +44,7 @@ import { UndoPanel } from './undo-panel/undo-panel';
     ZenMode,
     ContextMenuOutlet,
     ToastOutlet,
+    ConfirmOutlet,
     UndoPanel,
   ],
   templateUrl: './app.html',

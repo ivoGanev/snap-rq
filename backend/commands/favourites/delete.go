@@ -45,7 +45,7 @@ func (c Delete) Snapshot(input json.RawMessage) (any, error) {
 		return nil, err
 	}
 
-	saved := savedFavourite{}
+	saved := savedFavourite{Appearance: &models.FavouriteAppearance{}}
 	err := c.tx.QueryRow(`
 		SELECT fc.id, fc.project_id, fc.name, fc.created_at,
 		       COALESCE(fa.appearance_type, 'icon'), COALESCE(fa.appearance_value, 'default')
