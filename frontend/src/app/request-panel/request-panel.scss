@@ -65,7 +65,7 @@
 }
 
 .restore-button {
-  padding: 8px 18px;
+  padding: var(--btn-pad-md);
   font-size: 0.875rem;
   font-weight: 700;
   color: var(--on-accent);
@@ -79,7 +79,7 @@
 }
 
 .delete-button {
-  padding: 8px 18px;
+  padding: var(--btn-pad-md);
   font-size: 0.875rem;
   font-weight: 700;
   color: var(--on-accent);

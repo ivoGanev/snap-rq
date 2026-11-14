@@ -30,7 +30,7 @@
 }
 
 .headers-apply-button {
-  padding: 5px 16px;
+  padding: var(--btn-pad-md);
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--on-accent);
@@ -77,7 +77,7 @@
 }
 
 .headers-wipe-button {
-  padding: 6px 16px;
+  padding: var(--btn-pad-md);
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--on-accent);

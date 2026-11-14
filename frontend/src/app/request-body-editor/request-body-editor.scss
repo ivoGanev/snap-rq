@@ -39,7 +39,7 @@
 }
 
 .body-type-select {
-  padding: 3px 8px;
+  padding: var(--select-pad);
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--text);
@@ -57,7 +57,7 @@
 }
 
 .body-format-button {
-  padding: 3px 10px;
+  padding: var(--btn-pad-sm);
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--text);

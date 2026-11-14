@@ -29,7 +29,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 10px;
+  padding: var(--btn-pad-sm);
   border: 1px solid var(--glass-border);
   border-radius: 999px;
   background: var(--glass);
@@ -144,7 +144,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 10px;
+  padding: var(--btn-pad-sm);
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--text);

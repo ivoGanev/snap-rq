@@ -204,6 +204,10 @@ html.platform-mac .titlebar-spacer {
   --syntax-csv-odd: #7df0ff;
 
   /* Shared layout rhythm so panels, headers and lists line up. */
+  --btn-pad-sm: 5px 12px;
+  --btn-pad-md: 8px 18px;
+  --chip-pad: 3px 10px;
+  --select-pad: 5px 12px;
   --panel-pad-y: var(--s-3);
   --panel-pad-x: var(--s-4);
   --panel-gap: var(--s-3);
@@ -388,7 +392,7 @@ app-root {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 8px;
+  padding: var(--chip-pad);
   border-radius: 999px;
   background: var(--glass-strong);
   color: var(--text);

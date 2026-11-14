@@ -176,7 +176,7 @@
   background: var(--glass-strong);
   color: var(--text);
   border-radius: calc(var(--radius) * 0.6);
-  padding: 5px 14px;
+  padding: var(--btn-pad-sm);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;

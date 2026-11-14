@@ -107,7 +107,7 @@
 }
 
 .zen-send-button {
-  padding: 6px 18px;
+  padding: var(--btn-pad-md);
   font-size: 0.875rem;
   font-weight: 800;
   letter-spacing: 0.03em;
