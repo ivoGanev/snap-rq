@@ -45,30 +45,30 @@
 
 .rail-button:hover:not(:disabled) {
   color: var(--text);
-  background: var(--hover-highlight);
+  background: transparent;
   box-shadow: 0 0 12px var(--btn-glow-gold);
 }
 
 .rail-button.is-active {
   color: var(--accent);
-  background: var(--active-tint-bg);
+  background: transparent;
   box-shadow: inset 3px 0 0 var(--accent-3, var(--accent)), 0 0 14px var(--btn-glow-gold);
 }
 
 .rail-button.is-active:hover:not(:disabled) {
   color: var(--accent);
-  background: var(--active-tint-bg);
+  background: transparent;
   box-shadow: inset 3px 0 0 var(--accent-3, var(--accent)), 0 0 14px var(--btn-glow-gold);
 }
 
 .rail-button--trash.is-active {
   color: var(--danger-text);
-  background: var(--selected-bg);
+  background: transparent;
 }
 
 .rail-button--trash.is-active:hover:not(:disabled) {
   color: var(--danger-text);
-  background: var(--selected-bg);
+  background: transparent;
 }
 
 .rail-button:disabled {

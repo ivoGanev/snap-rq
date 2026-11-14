@@ -52,7 +52,7 @@ app-sidebar-rail {
   text-align: left;
   color: var(--text);
   white-space: nowrap;
-  background: var(--glass);
+  background: transparent;
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
@@ -91,21 +91,21 @@ app-sidebar-rail {
 
 .nav-toggle:hover:not(:disabled) {
   color: var(--text);
-  background: var(--hover-highlight);
+  background: transparent;
   box-shadow: 0 0 12px var(--btn-glow-gold);
 }
 
 .nav-button:hover:not(:disabled) {
-  background: var(--hover-highlight);
+  background: transparent;
 }
 
 .nav-button.is-active {
-  background: var(--active-tint-bg);
+  background: transparent;
   box-shadow: inset 3px 0 0 var(--accent-3, var(--accent)), 0 0 14px var(--btn-glow-gold);
 }
 
 .nav-button.is-active:hover:not(:disabled) {
-  background: var(--active-tint-bg);
+  background: transparent;
   box-shadow: inset 3px 0 0 var(--accent-3, var(--accent)), 0 0 14px var(--btn-glow-gold);
 }
 
@@ -139,11 +139,11 @@ app-sidebar-rail {
 }
 
 .nav-button--trash.is-active {
-  background: var(--selected-bg);
+  background: transparent;
 }
 
 .nav-button--trash.is-active:hover:not(:disabled) {
-  background: var(--selected-bg);
+  background: transparent;
 }
 
 .nav-button--trash.is-active .nav-button__icon {
