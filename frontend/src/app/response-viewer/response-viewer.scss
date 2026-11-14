@@ -220,7 +220,7 @@
   flex: 1 1 auto;
   min-height: 0;
   margin: 0;
-  padding: var(--s-2);
+  padding: var(--s-3);
   background: var(--input-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
@@ -247,12 +247,19 @@
   min-height: 0;
 }
 
+.response-body-viewport {
+  // The virtual-scroll content is absolutely positioned, so padding on the
+  // viewport itself would not reach it; pad the lines instead.
+  padding: 0;
+}
+
 .response-body-viewport .cdk-virtual-scroll-content-wrapper {
   min-width: 100%;
 }
 
 .response-body-line {
   white-space: pre;
+  padding: 0 var(--s-3);
   min-height: 20px;
   line-height: 20px;
   font-family: inherit;
