@@ -93,6 +93,8 @@ func main() {
 		Width:      1000,
 		Height:     618,
 		StartState: application.WindowStateMaximised,
+		// Show the application menu (App → Check for Updates…) in the window.
+		UseApplicationMenu: true,
 		Mac: application.MacWindow{
 			InvisibleTitleBarHeight: 50,
 			Backdrop:                application.MacBackdropTranslucent,
