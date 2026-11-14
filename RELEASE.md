@@ -1,70 +1,59 @@
-# Releasing snap-rq
+# Release process
 
-Releases are created manually with one button, and installed apps update
-themselves automatically.
-
-## How it works (the short version)
-
-1. You click a button and type a version number (e.g. `1.2.3`).
-2. GitHub builds the app for Windows, macOS, and Linux.
-3. The artifacts are attached to a new GitHub Release tagged `v1.2.3`.
-4. Running apps see the new tag, download their matching file, verify it,
-   swap themselves, and restart.
+Releases are driven by a manual GitHub Actions workflow. Each release tags a
+SemVer version, builds distributables for all three platforms, and publishes
+them to a GitHub Release that the in-app updater consumes.
 
 ## Triggering a release
 
-1. Go to the repo on GitHub → **Actions** tab.
-2. Select the **Release** workflow on the left.
-3. Click **Run workflow**.
-4. Enter the version (without a leading `v`, e.g. `1.2.3`) and run it.
+Run the **Release** workflow from the **Actions** tab and provide the target
+version (SemVer, no `v` prefix, e.g. `1.2.3`). The workflow tags, builds, and
+publishes automatically — no manual `git tag` or asset uploads.
 
-That's it. No tagging, no manual uploads.
+## Pipeline
 
-## What the pipeline does
+For the given version the workflow:
 
-For the version you enter, it:
+1. Stamps the version into all build metadata (`build/config.yml`,
+   `build/windows/info.json`, `build/darwin/Info.plist`,
+   `build/linux/nfpm/nfpm.yaml`) via `scripts/stamp-version.mjs`.
+2. Compiles the version into the binary via
+   `-ldflags "-X main.currentVersion=<version>"` (threaded through the
+   platform Taskfiles' `VERSION` var).
+3. Builds three artifacts in a matrix:
 
-- Stamps the version into the build metadata (`build/config.yml`,
-  `build/windows/info.json`, `build/darwin/Info.plist`, `build/linux/nfpm/nfpm.yaml`).
-- Compiles the version into the binary (`-ldflags -X main.currentVersion=...`).
-- Builds three artifacts in parallel:
+   | Platform | Artifacts |
+   |----------|-----------|
+   | Windows  | raw `-windows-amd64.exe` (updater) + `-windows-amd64-setup.exe` (NSIS installer) |
+   | macOS    | `-darwin-universal.zip` (`.app`, updater) + `-darwin-universal.dmg` |
+   | Linux    | raw `-linux-amd64` (updater) + `.AppImage`, `.deb`, `.rpm` |
 
-| Platform | Artifacts |
-|----------|-----------|
-| Windows  | `...-windows-amd64.exe` (self-update) + `...-windows-amd64-setup.exe` (installer) |
-| macOS    | `...-darwin-universal.zip` (self-update) + `...-darwin-universal.dmg` |
-| Linux    | `...-linux-amd64` (self-update) + `.AppImage`, `.deb`, `.rpm` |
+4. Emits a `SHA256SUMS` sidecar covering every artifact.
+5. Creates the GitHub Release at tag `v<version>` with `--generate-notes` and
+   attaches the artifacts and checksums.
 
-- Generates a `SHA256SUMS` file next to the artifacts (used to verify downloads).
-- Creates the tagged GitHub Release (`v1.2.3`) and attaches everything.
+## Self-update
 
-## How self-updating works
+The app embeds its version at build time (`main.currentVersion`) and compares
+it against the release tag on `App → Check for Updates…` via
+`app.Updater` (Wails v3 `pkg/updater`, GitHub Releases provider). If the tag
+is strictly greater under SemVer, it downloads the asset matching the running
+OS/architecture, verifies the SHA-256 digest against `SHA256SUMS`, swaps the
+binary, and restarts.
 
-Every release is compared against the version baked into the running app at
-build time.
+Constraints:
 
-- The app knows its own version (set during the build).
-- On "App → Check for Updates…", it asks GitHub for the latest release and
-  compares the tag with its own version using SemVer.
-- If the tag is **higher**, it downloads the artifact that matches the
-  running OS/architecture, verifies its SHA-256 checksum, swaps the binary,
-  and restarts.
+- Versions must be valid SemVer.
+- Asset filenames must contain the OS and architecture so the default matcher
+  resolves them (`windows`/`darwin`/`linux`, `amd64`/`arm64`/`386`).
+- The updater queries GitHub's "latest" release, so releases must be published
+  in ascending version order.
 
-The rules that make this work:
+## Known limitations
 
-- Versions must be valid SemVer (`1.2.3`, not `release-1.2`).
-- Release assets must contain the OS and architecture in the filename
-  (`windows`, `darwin`, `linux`, `amd64`, `arm64`, …).
-- Releases must be published in ascending version order — the updater
-  compares against GitHub's "latest" release, so a patch published after a
-  newer major would be ignored.
-
-## Notes / current limitations
-
-- Binaries are **not code-signed yet**. Windows SmartScreen and macOS
-  Gatekeeper will warn users. The signing tasks exist in the Taskfiles for
-  when certificates are added.
-- macOS/Linux packaging follows the Wails task names but the exact artifact
-  filenames should be confirmed on the first CI run.
-- `build/linux/nfpm/nfpm.yaml` still has placeholder metadata ("My Company",
-  `snap-rq-wails-v3.exe`). Clean it up before the first public release.
+- Binaries are unsigned; SmartScreen/Gatekeeper will warn. Signing tasks exist
+  in the platform Taskfiles for when certificates are provisioned.
+- macOS/Linux packaging uses the stock Wails task names; confirm exact output
+  filenames on the first run.
+- `build/linux/nfpm/nfpm.yaml` still carries template metadata (vendor, name)
+  and should be corrected before the first public release.
