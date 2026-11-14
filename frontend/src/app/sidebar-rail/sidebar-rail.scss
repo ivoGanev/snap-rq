@@ -27,7 +27,7 @@
   padding: 0;
   color: var(--muted);
   background: transparent;
-  border: 1px solid transparent;
+  border: none;
   border-radius: var(--radius);
   cursor: pointer;
   transition:
@@ -46,31 +46,29 @@
 .rail-button:hover:not(:disabled) {
   color: var(--text);
   background: var(--hover-highlight);
+  box-shadow: 0 0 12px var(--btn-glow-gold);
 }
 
 .rail-button.is-active {
   color: var(--accent);
   background: var(--active-tint-bg);
-  border-color: var(--btn-border-hover);
-  box-shadow: 0 0 14px var(--btn-glow-gold);
+  box-shadow: inset 3px 0 0 var(--accent-3, var(--accent)), 0 0 14px var(--btn-glow-gold);
 }
 
 .rail-button.is-active:hover:not(:disabled) {
   color: var(--accent);
   background: var(--active-tint-bg);
-  border-color: var(--active-tint-border);
+  box-shadow: inset 3px 0 0 var(--accent-3, var(--accent)), 0 0 14px var(--btn-glow-gold);
 }
 
 .rail-button--trash.is-active {
   color: var(--danger-text);
   background: var(--selected-bg);
-  border-color: var(--selected-border);
 }
 
 .rail-button--trash.is-active:hover:not(:disabled) {
   color: var(--danger-text);
   background: var(--selected-bg);
-  border-color: var(--selected-border);
 }
 
 .rail-button:disabled {

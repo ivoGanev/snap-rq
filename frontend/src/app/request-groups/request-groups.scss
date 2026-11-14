@@ -53,7 +53,7 @@ app-sidebar-rail {
   color: var(--text);
   white-space: nowrap;
   background: var(--glass);
-  border: 1px solid var(--glass-border);
+  border: none;
   border-radius: var(--radius);
   cursor: pointer;
   transition:
@@ -74,7 +74,7 @@ app-sidebar-rail {
   padding: 0;
   color: var(--muted);
   background: transparent;
-  border: 1px solid transparent;
+  border: none;
   border-radius: var(--radius);
   cursor: pointer;
   transition:
@@ -89,24 +89,24 @@ app-sidebar-rail {
   height: 18px;
 }
 
-.nav-toggle:hover {
+.nav-toggle:hover:not(:disabled) {
   color: var(--text);
   background: var(--hover-highlight);
+  box-shadow: 0 0 12px var(--btn-glow-gold);
 }
 
 .nav-button:hover:not(:disabled) {
   background: var(--hover-highlight);
-  border-color: var(--hover-highlight);
 }
 
 .nav-button.is-active {
   background: var(--active-tint-bg);
-  border-color: var(--active-tint-border);
+  box-shadow: inset 3px 0 0 var(--accent-3, var(--accent)), 0 0 14px var(--btn-glow-gold);
 }
 
 .nav-button.is-active:hover:not(:disabled) {
   background: var(--active-tint-bg);
-  border-color: var(--active-tint-border);
+  box-shadow: inset 3px 0 0 var(--accent-3, var(--accent)), 0 0 14px var(--btn-glow-gold);
 }
 
 .nav-button:disabled {
@@ -140,12 +140,10 @@ app-sidebar-rail {
 
 .nav-button--trash.is-active {
   background: var(--selected-bg);
-  border-color: var(--selected-border);
 }
 
 .nav-button--trash.is-active:hover:not(:disabled) {
   background: var(--selected-bg);
-  border-color: var(--selected-border);
 }
 
 .nav-button--trash.is-active .nav-button__icon {
