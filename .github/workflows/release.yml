@@ -1,0 +1,141 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (SemVer, without leading "v"), e.g. 1.2.3'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  APP_VERSION: ${{ github.event.inputs.version }}
+  GO_VERSION: '1.25.3'
+  NODE_VERSION: '22'
+  WAILS_VERSION: v3.0.0-beta.12
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-amd64
+            os: windows-latest
+          - name: darwin-universal
+            os: macos-latest
+          - name: linux-amd64
+            os: ubuntu-24.04
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev fuse libfuse2 wget
+
+      - name: Install NSIS (Windows installer)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: choco install nsis -y --no-progress
+
+      - name: Install Wails CLI
+        shell: bash
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+
+      - name: Stamp version
+        shell: bash
+        run: node scripts/stamp-version.mjs "${APP_VERSION}"
+
+      - name: Build and package (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          wails3 task windows:package VERSION="${APP_VERSION}"
+          mkdir -p release
+          cp "bin/${APP_NAME}.exe" "release/${APP_NAME}-windows-amd64.exe"
+          cp "build/windows/nsis/${APP_NAME}-installer.exe" "release/${APP_NAME}-windows-amd64-setup.exe"
+        env:
+          APP_NAME: snap-rq-wails-v3
+
+      - name: Build and package (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          wails3 task darwin:package:universal VERSION="${APP_VERSION}"
+          cd bin
+          zip -r "${APP_NAME}-darwin-universal.zip" "${APP_NAME}.app"
+          cd ..
+          wails3 task darwin:create:dmg
+          mkdir -p release
+          cp "bin/${APP_NAME}-darwin-universal.zip" "release/"
+          cp bin/*.dmg "release/${APP_NAME}-darwin-universal.dmg"
+        env:
+          APP_NAME: snap-rq-wails-v3
+
+      - name: Build and package (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          wails3 task linux:package VERSION="${APP_VERSION}"
+          mkdir -p release
+          cp "bin/${APP_NAME}" "release/${APP_NAME}-linux-amd64"
+          cp "bin/${APP_NAME}"*.AppImage "release/${APP_NAME}-linux-amd64.AppImage"
+          cp "bin/${APP_NAME}"*.deb "release/${APP_NAME}-linux-amd64.deb"
+          cp "bin/${APP_NAME}"*.rpm "release/${APP_NAME}-linux-amd64.rpm"
+        env:
+          APP_NAME: snap-rq-wails-v3
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: release/
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd release
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "v${APP_VERSION}" \
+            --title "v${APP_VERSION}" \
+            --generate-notes \
+            release/*
