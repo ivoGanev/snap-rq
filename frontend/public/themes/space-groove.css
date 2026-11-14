@@ -29,6 +29,7 @@
     linear-gradient(160deg, #1b0a3d 0%, #0b0519 55%, #08031a 100%);
 
   --surface: rgba(20, 9, 48, 0.62);
+  --menu-bg: #1a0c3d;
   --surface-solid: rgba(16, 7, 40, 0.985);
   --input-bg: rgba(7, 2, 22, 0.55);
   --row-even-bg: rgba(190, 150, 255, 0.03);

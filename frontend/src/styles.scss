@@ -130,6 +130,7 @@ html.platform-mac .titlebar-spacer {
     linear-gradient(160deg, #1b0a3d 0%, #0b0519 55%, #08031a 100%);
 
   --surface: rgba(20, 9, 48, 0.62);
+  --menu-bg: #1a0c3d;
   --surface-solid: rgba(16, 7, 40, 0.985);
   --input-bg: rgba(7, 2, 22, 0.55);
   --row-even-bg: rgba(190, 150, 255, 0.03);
@@ -260,6 +261,71 @@ textarea {
 
 *::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* Dropdowns. Native popups ignore most CSS, so style what they honour
+   everywhere, then fully theme the popup where the browser supports
+   customizable selects (Chromium / WebView2). */
+select {
+  accent-color: var(--accent);
+}
+
+select option,
+select optgroup {
+  background-color: var(--menu-bg);
+  color: var(--text);
+}
+
+@supports (appearance: base-select) {
+  select,
+  select::picker(select) {
+    appearance: base-select;
+  }
+
+  select::picker-icon {
+    color: var(--accent-3, var(--accent));
+    transition: rotate 0.2s ease;
+  }
+
+  select:open::picker-icon {
+    rotate: 180deg;
+  }
+
+  select::picker(select) {
+    min-width: anchor-size(width);
+    margin-top: 4px;
+    padding: var(--s-1);
+    color: var(--text);
+    background: var(--menu-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    box-shadow: 0 16px 40px var(--shadow);
+  }
+
+  select option {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    padding: 7px var(--s-2);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.12s ease;
+  }
+
+  select option:hover,
+  select option:focus-visible {
+    background: var(--hover-highlight);
+    outline: none;
+  }
+
+  select option:checked {
+    background: var(--selected-bg);
+    font-weight: 600;
+  }
+
+  select option::checkmark {
+    color: var(--accent-3, var(--accent));
+  }
 }
 
 html {
