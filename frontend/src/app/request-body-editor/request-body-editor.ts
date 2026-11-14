@@ -54,6 +54,8 @@ export class RequestBodyEditor {
   readonly bodyForm = input<string>('');
   readonly variables = input<EditorVariable[]>([]);
   readonly showLabel = input<boolean>(true);
+  // Draw the code editor inside the same bordered box as the other fields.
+  readonly framed = input<boolean>(false);
 
   readonly bodyChange = output<string>();
   readonly typeChange = output<BodyKind>();

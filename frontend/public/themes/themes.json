@@ -1,17 +1,26 @@
 [
   {
-    "id": "neon-night",
-    "name": "Neon Night",
-    "css": "/themes/neon-night.css",
+    "id": "space-groove",
+    "name": "Space Groove",
+    "css": "/themes/space-groove.css",
     "iconSet": {
       "features": {
-        "collections": { "pack": "standard", "version": 1 },
-        "favourites": { "pack": "standard", "version": 1 },
-        "tags": { "pack": "standard", "version": 1 }
+        "collections": {
+          "pack": "standard",
+          "version": 1
+        },
+        "favourites": {
+          "pack": "standard",
+          "version": 1
+        },
+        "tags": {
+          "pack": "standard",
+          "version": 1
+        }
       }
     },
-    "fontFamily": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
-    "preview": "#06070f"
+    "fontFamily": "'Space Grotesk', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+    "preview": "linear-gradient(135deg, #1b0a3d 0%, #ff4fc3 55%, #3be8ff 100%)"
   },
   {
     "id": "daylight",
@@ -19,9 +28,18 @@
     "css": "/themes/daylight.css",
     "iconSet": {
       "features": {
-        "collections": { "pack": "standard", "version": 1 },
-        "favourites": { "pack": "standard", "version": 1 },
-        "tags": { "pack": "standard", "version": 1 }
+        "collections": {
+          "pack": "standard",
+          "version": 1
+        },
+        "favourites": {
+          "pack": "standard",
+          "version": 1
+        },
+        "tags": {
+          "pack": "standard",
+          "version": 1
+        }
       }
     },
     "fontFamily": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",

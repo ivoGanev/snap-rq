@@ -1,3 +1,5 @@
+@use '../styles/buttons' as btn;
+
 :host {
   display: flex;
   flex-direction: column;
@@ -40,6 +42,7 @@
 }
 
 .project-label {
+  font-family: var(--font-display);
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--muted);
@@ -54,23 +57,21 @@
 }
 
 .project-change-button {
-  padding: 5px 12px;
+  padding: var(--btn-pad-md);
   font-size: 0.75rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--on-accent);
   background: var(--grad);
   border: none;
   border-radius: 6px;
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.project-change-button:hover {
-  filter: brightness(1.15);
+  @include btn.btn-primary;
 }
 
 .environment-label {
+  font-family: var(--font-display);
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--muted);
@@ -80,7 +81,7 @@
 
 .environment-select {
   min-width: 140px;
-  padding: 5px var(--s-2);
+  padding: var(--select-pad);
   background: var(--input-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
@@ -93,17 +94,14 @@
   padding: 5px 12px;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--on-accent);
   background: var(--grad);
   border: none;
   border-radius: 6px;
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.environment-edit:hover:not(:disabled) {
-  filter: brightness(1.15);
+  @include btn.btn-primary;
 }
 
 .environment-edit:disabled {
@@ -205,7 +203,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 8px;
+  padding: var(--btn-pad-sm);
   color: var(--muted);
   font-size: 12.5px;
   font-weight: 600;
@@ -218,6 +216,7 @@
     background 0.15s ease,
     border-color 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-ghost;
 }
 
 .footer-settings-button:hover {
@@ -264,6 +263,7 @@
 }
 
 .settings-title {
+  font-family: var(--font-display);
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -288,6 +288,7 @@
     background 0.15s ease,
     border-color 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-ghost;
 }
 
 .settings-close:hover {
@@ -363,7 +364,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 8px;
+  padding: var(--btn-pad-sm);
   color: var(--muted);
   font-size: 12.5px;
   font-weight: 600;
@@ -376,6 +377,7 @@
     background 0.15s ease,
     border-color 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-ghost;
 }
 
 .footer-theme-button:hover {
@@ -508,20 +510,17 @@
 
 .project-delete-button {
   flex: 0 0 auto;
-  padding: var(--s-1) var(--s-2);
+  padding: var(--btn-pad-sm);
   font-size: 0.75rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--on-accent);
   background: var(--danger-solid);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.project-delete-button:hover {
-  filter: brightness(1.15);
+  @include btn.btn-danger;
 }
 
 .project-editor-footer {

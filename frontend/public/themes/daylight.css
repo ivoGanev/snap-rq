@@ -15,6 +15,7 @@
 
   --background: var(--ink);
   --surface: rgba(255, 255, 255, 0.72);
+  --menu-bg: #ffffff;
   --surface-solid: rgba(255, 255, 255, 0.98);
   --input-bg: rgba(0, 0, 0, 0.04);
   --row-even-bg: rgba(0, 0, 0, 0.02);
@@ -31,6 +32,51 @@
   --error-text: #be123c;
   --shadow: rgba(0, 0, 0, 0.12);
   --backdrop: rgba(0, 0, 0, 0.25);
+
+  --accent-3: #b45309;
+  --grad-success: linear-gradient(135deg, #16a34a 0%, #0d9488 100%);
+  --grad-alt: linear-gradient(135deg, #f43f5e 0%, #f59e0b 160%);
+  --on-accent: #ffffff;
+  --font-display: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --active-tint-bg: rgba(225, 29, 72, 0.12);
+  --active-tint-border: rgba(225, 29, 72, 0.4);
+  --success-text: #15803d;
+  --scrollbar-thumb-grad: linear-gradient(180deg, #f43f5e 0%, #db2777 100%);
+  --scrollbar-thumb-grad-hover: linear-gradient(180deg, #e11d48 0%, #be185d 100%);
+  --btn-glow: rgba(225, 29, 72, 0.22);
+  --btn-glow-strong: rgba(225, 29, 72, 0.35);
+  --btn-glow-success: rgba(22, 163, 74, 0.25);
+  --btn-glow-success-strong: rgba(22, 163, 74, 0.38);
+  --btn-glow-danger: rgba(225, 29, 72, 0.25);
+  --btn-glow-danger-strong: rgba(225, 29, 72, 0.4);
+  --btn-glow-gold: rgba(225, 29, 72, 0.14);
+  --btn-highlight: rgba(255, 255, 255, 0.35);
+  --btn-edge: rgba(0, 0, 0, 0.08);
+  --btn-border-hover: rgba(225, 29, 72, 0.5);
+  --btn-ghost-ring: rgba(225, 29, 72, 0.3);
+  --btn-focus: #2563eb;
+
+  /* Request colour slots (stored by name in the database; each theme picks the colour). */
+  --label-primary: #db2777;
+  --label-secondary: #0891b2;
+  --label-tertiary: #d97706;
+  --label-quaternary: #059669;
+  --label-quinary: #7c3aed;
+  --label-senary: #dc2626;
+
+  --status-2xx: #15803d;
+  --status-3xx: #b45309;
+  --status-4xx: #dc2626;
+  --status-5xx: #be185d;
+  --method-get-bg: rgba(37, 99, 235, 0.12);
+  --method-get-fg: #1d4ed8;
+  --method-post-bg: rgba(22, 163, 74, 0.14);
+  --method-post-fg: #15803d;
+  --method-put-bg: rgba(202, 138, 4, 0.16);
+  --method-put-fg: #854d0e;
+  --method-patch-bg: rgba(147, 51, 234, 0.14);
+  --method-patch-fg: #7e22ce;
 
   --scrollbar-track: rgba(0, 0, 0, 0.05);
   --scrollbar-thumb: rgba(0, 0, 0, 0.2);

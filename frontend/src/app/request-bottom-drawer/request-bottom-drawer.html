@@ -95,15 +95,15 @@
             <line x1="18" y1="6" x2="6" y2="18" />
           </svg>
         </button>
-        @for (color of colors; track color.hex) {
+        @for (color of colors; track color.slot) {
           <button
             class="color-dot"
-            [class.is-active]="activeColor() === color.hex"
+            [class.is-active]="activeColor() === color.slot"
             type="button"
-            [style.background-color]="color.hex"
-            [title]="activeColor() === color.hex ? color.label + ' (click to clear)' : color.label"
+            [style.--dot-color]="color.cssVar"
+            [title]="activeColor() === color.slot ? color.label + ' (click to clear)' : color.label"
             [attr.aria-label]="color.label"
-            (click)="onColorClick(color.hex)"
+            (click)="onColorClick(color.slot)"
           ></button>
         }
       </div>

@@ -1,3 +1,5 @@
+@use '../../styles/buttons' as btn;
+
 :host {
   position: relative;
 }
@@ -50,14 +52,15 @@ app-sidebar-rail {
   text-align: left;
   color: var(--text);
   white-space: nowrap;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
+  background: transparent;
+  border: none;
   border-radius: var(--radius);
   cursor: pointer;
   transition:
     background 0.15s ease,
     border-color 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-secondary;
 }
 
 .nav-toggle {
@@ -69,15 +72,16 @@ app-sidebar-rail {
   height: 40px;
   margin: 0 var(--s-2);
   padding: 0;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--accent-3, var(--accent)) 80%, transparent);
   background: transparent;
-  border: 1px solid transparent;
+  border: none;
   border-radius: var(--radius);
   cursor: pointer;
   transition:
     color 0.15s ease,
     background 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-ghost;
 }
 
 .nav-toggle svg {
@@ -85,24 +89,49 @@ app-sidebar-rail {
   height: 18px;
 }
 
-.nav-toggle:hover {
-  color: var(--text);
-  background: var(--hover-highlight);
+.nav-toggle:hover:not(:disabled) {
+  color: var(--accent-3, var(--accent));
+  background: transparent;
+  box-shadow: none;
 }
 
 .nav-button:hover:not(:disabled) {
-  background: var(--hover-highlight);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: transparent;
+  box-shadow: none;
 }
 
 .nav-button.is-active {
-  background: rgba(99, 102, 241, 0.25);
-  border-color: rgba(99, 102, 241, 0.5);
+  background: transparent;
+  box-shadow: none;
 }
 
 .nav-button.is-active:hover:not(:disabled) {
-  background: rgba(99, 102, 241, 0.25);
-  border-color: rgba(99, 102, 241, 0.5);
+  background: transparent;
+  box-shadow: none;
+}
+
+// Mouse clicks must not draw a ring; keyboard focus shows the hover bar.
+.nav-button,
+.nav-button:focus,
+.nav-button:focus-visible,
+.nav-button:active,
+.nav-toggle,
+.nav-toggle:focus,
+.nav-toggle:focus-visible,
+.nav-toggle:active {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nav-button:active:not(:disabled),
+.nav-toggle:active:not(:disabled) {
+  transform: none;
+  border: none;
+}
+
+.nav-button:focus-visible,
+.nav-toggle:focus-visible {
+  box-shadow: none;
 }
 
 .nav-button:disabled {
@@ -116,7 +145,7 @@ app-sidebar-rail {
   justify-content: center;
   width: 18px;
   height: 18px;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--accent-3, var(--accent)) 80%, transparent);
   flex: 0 0 auto;
 }
 
@@ -125,8 +154,12 @@ app-sidebar-rail {
   height: 18px;
 }
 
+.nav-button:hover:not(:disabled) .nav-button__icon {
+  color: var(--accent-3, var(--accent));
+}
+
 .nav-button.is-active .nav-button__icon {
-  color: var(--accent);
+  color: var(--accent-3, var(--accent));
 }
 
 .nav-button__label {
@@ -135,17 +168,15 @@ app-sidebar-rail {
 }
 
 .nav-button--trash.is-active {
-  background: var(--selected-bg);
-  border-color: var(--selected-border);
+  background: transparent;
 }
 
 .nav-button--trash.is-active:hover:not(:disabled) {
-  background: var(--selected-bg);
-  border-color: var(--selected-border);
+  background: transparent;
 }
 
 .nav-button--trash.is-active .nav-button__icon {
-  color: var(--danger-text);
+  color: var(--accent-3, var(--accent));
 }
 
 .sidebar-divider {
@@ -170,7 +201,7 @@ app-sidebar-rail {
   background: var(--surface-solid);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 16px 40px var(--shadow);
   overflow: hidden;
 }
 
@@ -184,6 +215,7 @@ app-sidebar-rail {
 }
 
 .overlay-title {
+  font-family: var(--font-display);
   margin: 0;
   font-size: 1rem;
   font-weight: 700;
@@ -203,6 +235,7 @@ app-sidebar-rail {
     color 0.15s ease,
     background 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-secondary;
 }
 
 .overlay-close:hover {
@@ -232,6 +265,7 @@ app-sidebar-rail {
 }
 
 .edit-label {
+  font-family: var(--font-display);
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--muted);
@@ -258,17 +292,14 @@ app-sidebar-rail {
   padding: 8px 16px;
   font-size: 0.8125rem;
   font-weight: 700;
-  color: #fff;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: var(--on-accent);
+  background: var(--grad);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.variable-add:hover {
-  filter: brightness(1.15);
+  @include btn.btn-primary;
 }
 
 .context-menu-backdrop {
@@ -283,7 +314,7 @@ app-sidebar-rail {
   background: var(--surface-solid);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 16px 40px var(--shadow);
   overflow: hidden;
 }
 
@@ -385,7 +416,7 @@ app-sidebar-rail {
 
 .appearance-swatch.is-selected {
   border-color: var(--text);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 0 2px var(--hover-highlight);
 }
 
 .appearance-swatch--icon {
@@ -429,4 +460,61 @@ app-sidebar-rail {
 
 .new-collection-popup .overlay-body {
   gap: var(--s-3);
+}
+
+// Straight gold bar (a real element, so it is not curved by the rounded corners).
+.nav-button {
+  position: relative;
+}
+
+.nav-button::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent-3, var(--accent));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.nav-button:hover:not(:disabled)::before,
+.nav-button:focus-visible::before {
+  opacity: 0.45;
+}
+
+.nav-button.is-active::before,
+.nav-button.is-active:hover:not(:disabled)::before {
+  opacity: 1;
+}
+
+// Straight gold bar (a real element, so it is not curved by the rounded corners).
+.nav-toggle {
+  position: relative;
+}
+
+.nav-toggle::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent-3, var(--accent));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.nav-toggle:hover:not(:disabled)::before,
+.nav-toggle:focus-visible::before {
+  opacity: 0.45;
+}
+
+.nav-toggle.is-active::before {
+  opacity: 1;
 }

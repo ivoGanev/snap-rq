@@ -78,7 +78,7 @@ class VariableWidget extends WidgetType {
     chip.title = this.isMissing ? 'not defined' : this.formatHint(this.value);
     chip.tabIndex = -1;
     if (this.isMissing) {
-      chip.style.background = 'rgba(239, 68, 68, 0.8)';
+      chip.style.background = 'var(--danger-solid)';
     }
     chip.addEventListener('mousedown', (event) => event.preventDefault());
     chip.addEventListener('focus', (event) => (event.target as HTMLElement).blur());
@@ -224,6 +224,11 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
     if (!el) return;
 
     this.charWidth = this.measureCharWidth(el);
+    // The editor font loads lazily; measure again from the editor content
+    // once it is available so the caret fallback position is accurate.
+    void document.fonts.ready.then(() => {
+      this.charWidth = this.measureCharWidth(this.view?.contentDOM ?? el);
+    });
 
     this.view = new EditorView({
       parent: el,
@@ -427,8 +432,7 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
         '&': {
           color: 'var(--text)',
           backgroundColor: 'transparent',
-          fontFamily:
-            "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+          fontFamily: 'var(--font-mono)',
           fontSize: '0.8125rem',
           lineHeight: '1.5',
           height: '100%',
@@ -480,7 +484,7 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
           margin: '0 1px',
           font: 'inherit',
           fontWeight: '700',
-          color: '#fff',
+          color: 'var(--on-accent)',
           background: 'var(--grad)',
           border: 'none',
           borderRadius: '4px',

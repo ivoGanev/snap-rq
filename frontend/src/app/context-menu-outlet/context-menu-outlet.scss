@@ -6,7 +6,7 @@
   background: var(--surface-solid);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 16px 40px var(--shadow);
 }
 
 .context-menu-panel .context-menu {

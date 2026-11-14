@@ -1,3 +1,5 @@
+@use '../../styles/buttons' as btn;
+
 :host {
   flex: 1 1 auto;
   display: flex;
@@ -18,10 +20,11 @@
   flex-direction: column;
   align-items: flex-start;
   gap: var(--s-1);
-  padding: 0 var(--s-3) var(--s-2) 6px;
+  padding: var(--s-1) var(--s-3) var(--s-2);
 }
 
 .body-editor-label {
+  font-family: var(--font-display);
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -36,7 +39,7 @@
 }
 
 .body-type-select {
-  padding: 3px 8px;
+  padding: var(--select-pad);
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--text);
@@ -54,7 +57,7 @@
 }
 
 .body-format-button {
-  padding: 3px 10px;
+  padding: var(--select-pad);
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--text);
@@ -66,6 +69,7 @@
     background 0.15s ease,
     border-color 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-secondary;
 }
 
 .body-format-button:hover {
@@ -160,16 +164,13 @@
   padding: var(--s-2) var(--s-4);
   font-size: 0.875rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--on-accent);
   background: var(--grad);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
   transition: filter 0.15s ease;
-}
-
-.multiline-save:hover {
-  filter: brightness(1.15);
+  @include btn.btn-primary;
 }
 
 .form-row-type {
@@ -227,4 +228,33 @@
   border: 1px solid var(--glass-border);
   border-radius: 6px;
   cursor: pointer;
+  @include btn.btn-secondary;
+}
+
+// Framed: match the Name / URL fields (border, fill, focus ring) and the
+// small muted label above them.
+.is-framed .code-editor-host {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  overflow: hidden;
+}
+
+.is-framed .code-editor-host:focus-within {
+  border-color: var(--focus-border);
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.is-framed .body-mode-row {
+  padding: 0 0 var(--s-2);
+}
+
+.is-framed .body-editor-label {
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.is-framed .form-rows {
+  padding: 0;
 }
