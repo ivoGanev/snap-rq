@@ -419,7 +419,6 @@
 
 .request-method.is-cell-selected {
   transform: scale(1.18);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--accent-3, var(--accent)) 40%, transparent);
 }
 
 @keyframes method-wiggle {

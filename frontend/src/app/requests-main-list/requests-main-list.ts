@@ -1971,8 +1971,10 @@ export class RequestsMainList {
     event: MouseEvent,
     template: TemplateRef<{ $implicit: HttpRequestSummary | HttpBinnedRequestSummary }>,
   ): void {
-    if (this.state.showingBin()) return;
+    // Modifier clicks keep their multi-select meaning.
+    if (this.state.showingBin() || event.ctrlKey || event.metaKey || event.shiftKey) return;
     event.stopPropagation();
+    this.selectCell(req as HttpRequestSummary, 'method');
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     const menuHeight = this.httpMethods.length * 38 + 8;
     const y = rect.bottom + 6 + menuHeight > window.innerHeight ? rect.top - menuHeight - 6 : rect.bottom + 6;
