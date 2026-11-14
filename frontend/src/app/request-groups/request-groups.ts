@@ -12,6 +12,8 @@ import { SelectionStateService, groupKey } from '../core/services/selection-stat
 import { TagApiService, type Tag } from '../core/services/tag.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
 import { IconManifestService } from '../core/services/icon-manifest.service';
+import { ConfirmService } from '../core/services/confirm.service';
+import { isEditableTarget } from '../core/dom/editable-target';
 import {
   FOLDER_FOR_KIND,
   RequestGroupList,
@@ -86,6 +88,7 @@ const COLLECTION_COLOR_PALETTE: string[] = [
     class: 'sidebar sidebar-left',
     'aria-label': 'Request groups',
     '(window:keydown.escape)': 'onEscapePressed()',
+    '(window:keydown)': 'onWindowKeydown($event)',
   },
 })
 export class RequestGroups {
@@ -98,6 +101,7 @@ export class RequestGroups {
   private readonly tagApi = inject(TagApiService);
   private readonly contextMenu = inject(ContextMenuService);
   private readonly commandApi = inject(CommandApiService);
+  private readonly confirm = inject(ConfirmService);
 
   /** Development builds only: the rail shows an undo-history debug button. */
   protected readonly devUndoVisible = isDevMode();
@@ -294,6 +298,41 @@ export class RequestGroups {
     return tag ? sidebarTagKey(tag) : null;
   });
 
+  /** The selected sidebar entity (collection/favourite/tag), if any. */
+  protected readonly selectedSidebarItem = computed<SidebarItem | null>(() => {
+    const collection = this.state.selectedCollection();
+    if (collection) {
+      return {
+        kind: 'collection',
+        id: collection.id,
+        name: collection.name,
+        appearance: collection.appearance,
+        data: collection,
+      };
+    }
+
+    const favourite = this.state.selectedFavouriteCollection();
+    if (favourite) {
+      return {
+        kind: 'favourite',
+        id: favourite.id,
+        name: favourite.name,
+        appearance: favourite.appearance,
+        data: favourite,
+      };
+    }
+
+    const tagName = this.state.selectedTag();
+    if (tagName) {
+      const tag = this.allTags().find((t) => t.name === tagName);
+      if (tag) {
+        return { kind: 'tag', id: tag.id, name: tag.name, appearance: tag.appearance, data: tag };
+      }
+    }
+
+    return null;
+  });
+
   constructor() {
     effect(() => {
       this.state.sidebarListOpen.set(this.folderFilter() !== null);
@@ -325,6 +364,30 @@ export class RequestGroups {
       this.cancelRename();
       return;
     }
+  }
+
+  /** Delete key: removes the selected sidebar entity (with confirmation). */
+  onWindowKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Delete') return;
+    if (this.confirm.active() || isEditableTarget(event.target)) return;
+    // The request list owns Delete whenever it has a row selection.
+    if (this.state.selectedIds().size > 0) return;
+    if (
+      this.contextMenu.isOpen() ||
+      this.renamingItem() ||
+      this.appearancePopupOpen() ||
+      this.newCollectionPopupOpen() ||
+      this.newFavouritePopupOpen() ||
+      this.newTagPopupOpen()
+    ) {
+      return;
+    }
+
+    const item = this.selectedSidebarItem();
+    if (!item) return;
+
+    event.preventDefault();
+    void this.deleteItem(item);
   }
 
   // ---------- Selection ----------
@@ -589,10 +652,31 @@ export class RequestGroups {
   async deleteItem(item: SidebarItem): Promise<void> {
     this.contextMenu.close();
 
+    const noun =
+      item.kind === 'collection' ? 'collection' : item.kind === 'favourite' ? 'favourites' : 'tag';
+    const confirmed = await this.confirm.ask({
+      title: `Delete ${noun}?`,
+      message: this.deleteItemMessage(item),
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!confirmed) return;
+
     try {
       await this.removeItem(item);
     } catch (err) {
       console.error(err);
+    }
+  }
+
+  private deleteItemMessage(item: SidebarItem): string {
+    switch (item.kind) {
+      case 'collection':
+        return `This will delete "${item.name}" and all requests inside it. This cannot be undone.`;
+      case 'favourite':
+        return `This will delete the favourites group "${item.name}". The requests themselves are not affected.`;
+      case 'tag':
+        return `This will delete the tag "${item.name}". The requests themselves are not affected.`;
     }
   }
 

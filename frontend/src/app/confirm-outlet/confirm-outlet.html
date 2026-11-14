@@ -1,0 +1,26 @@
+@if (confirm.active(); as c) {
+  <div class="overlay-backdrop" (click)="confirm.respond(false)">
+    <div class="overlay-panel confirm-popup" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">{{ c.title }}</h3>
+        <button class="overlay-close" type="button" (click)="confirm.respond(false)">
+          {{ c.cancelLabel || 'Cancel' }}
+        </button>
+      </div>
+
+      <div class="overlay-body">
+        <p class="delete-confirm-message">{{ c.message }}</p>
+      </div>
+
+      <div class="overlay-footer">
+        <button
+          [class]="c.danger === false ? 'variable-add' : 'overlay-delete'"
+          type="button"
+          (click)="confirm.respond(true)"
+        >
+          {{ c.confirmLabel || 'Confirm' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
