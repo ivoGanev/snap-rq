@@ -71,12 +71,12 @@
 
 // No fill: hover is a soft gold glow, selection is a gold side bar + glow.
 .group-list-item:hover {
-  box-shadow: 0 0 12px var(--btn-glow-gold);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent-3, var(--accent)) 45%, transparent);
 }
 
 .group-list-item.is-selected {
   font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--accent-3, var(--accent)), 0 0 14px var(--btn-glow-gold);
+  box-shadow: inset 3px 0 0 var(--accent-3, var(--accent));
 }
 
 .group-list-item-label {

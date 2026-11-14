@@ -92,21 +92,22 @@ app-sidebar-rail {
 .nav-toggle:hover:not(:disabled) {
   color: var(--text);
   background: transparent;
-  box-shadow: 0 0 12px var(--btn-glow-gold);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent-3, var(--accent)) 45%, transparent);
 }
 
 .nav-button:hover:not(:disabled) {
   background: transparent;
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent-3, var(--accent)) 45%, transparent);
 }
 
 .nav-button.is-active {
   background: transparent;
-  box-shadow: inset 3px 0 0 var(--accent-3, var(--accent)), 0 0 14px var(--btn-glow-gold);
+  box-shadow: inset 3px 0 0 var(--accent-3, var(--accent));
 }
 
 .nav-button.is-active:hover:not(:disabled) {
   background: transparent;
-  box-shadow: inset 3px 0 0 var(--accent-3, var(--accent)), 0 0 14px var(--btn-glow-gold);
+  box-shadow: inset 3px 0 0 var(--accent-3, var(--accent));
 }
 
 .nav-button:disabled {
