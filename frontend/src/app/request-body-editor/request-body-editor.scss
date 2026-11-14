@@ -57,7 +57,7 @@
 }
 
 .body-format-button {
-  padding: var(--btn-pad-sm);
+  padding: var(--select-pad);
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--text);
@@ -229,4 +229,32 @@
   border-radius: 6px;
   cursor: pointer;
   @include btn.btn-secondary;
+}
+
+// Framed: match the Name / URL fields (border, fill, focus ring) and the
+// small muted label above them.
+.is-framed .code-editor-host {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  overflow: hidden;
+}
+
+.is-framed .code-editor-host:focus-within {
+  border-color: var(--focus-border);
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.is-framed .body-mode-row {
+  padding: 0 0 var(--s-2);
+}
+
+.is-framed .body-editor-label {
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.is-framed .form-rows {
+  padding: 0;
 }

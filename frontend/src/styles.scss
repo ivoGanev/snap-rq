@@ -207,7 +207,7 @@ html.platform-mac .titlebar-spacer {
   --btn-pad-sm: 5px 12px;
   --btn-pad-md: 8px 18px;
   --chip-pad: 3px 10px;
-  --select-pad: 5px 12px;
+  --select-pad: 8px 14px;
   --panel-pad-y: var(--s-3);
   --panel-pad-x: var(--s-4);
   --panel-gap: var(--s-3);
@@ -286,6 +286,10 @@ select optgroup {
     appearance: base-select;
   }
 
+  select {
+    gap: 10px;
+  }
+
   select::picker-icon {
     color: var(--accent-3, var(--accent));
     transition: rotate 0.2s ease;
@@ -310,7 +314,7 @@ select optgroup {
     display: flex;
     align-items: center;
     gap: var(--s-1);
-    padding: 7px var(--s-2);
+    padding: 9px 14px;
     border-radius: 6px;
     cursor: pointer;
     transition: background 0.12s ease;
