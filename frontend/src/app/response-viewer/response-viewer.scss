@@ -85,22 +85,53 @@
   margin-bottom: var(--s-2);
 }
 
-.response-status {
-  font-size: 0.875rem;
+.status-badge {
+  --status-color: var(--status-2xx);
+
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px 5px 10px;
+  font-family: var(--font-display);
+  font-size: 1rem;
   font-weight: 700;
-  color: var(--status-2xx);
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--status-color);
+  background: color-mix(in srgb, var(--status-color) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--status-color) 55%, transparent);
+  border-radius: 999px;
+  box-shadow:
+    0 0 14px color-mix(in srgb, var(--status-color) 32%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--status-color) 10%, transparent);
 }
 
-.response-status[data-status='3xx'] {
-  color: var(--status-3xx);
+.status-badge[data-status='3xx'] {
+  --status-color: var(--status-3xx);
 }
 
-.response-status[data-status='4xx'] {
-  color: var(--status-4xx);
+.status-badge[data-status='4xx'] {
+  --status-color: var(--status-4xx);
 }
 
-.response-status[data-status='5xx'] {
-  color: var(--status-5xx);
+.status-badge[data-status='5xx'] {
+  --status-color: var(--status-5xx);
+}
+
+.status-badge-icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
+.status-badge-code {
+  font-variant-numeric: tabular-nums;
+}
+
+.status-badge-text {
+  font-weight: 600;
+  opacity: 0.9;
 }
 
 .response-duration {
