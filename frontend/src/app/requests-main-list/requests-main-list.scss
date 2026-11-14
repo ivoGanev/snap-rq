@@ -121,8 +121,9 @@
 }
 
 .send-button--top-bar {
-  padding: 10px 28px;
-  font-size: 0.9375rem;
+  min-height: 44px;
+  padding: 12px 36px;
+  font-size: 1.0625rem;
   font-weight: 700;
   color: var(--on-accent);
   background: var(--grad);
@@ -132,34 +133,6 @@
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
   @include btn.btn-primary;
-}
-
-.favourite-button--top-bar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 36px;
-  padding: 0;
-  color: var(--danger-text);
-  background: var(--hover-highlight);
-  border: none;
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition:
-    color 0.15s ease,
-    background 0.15s ease;
-  --wails-draggable: no-drag;
-}
-
-.favourite-button--top-bar svg {
-  width: 18px;
-  height: 18px;
-}
-
-.favourite-button--top-bar:hover {
-  color: var(--danger-text);
-  background: var(--hover-highlight);
 }
 
 .restore-button {
