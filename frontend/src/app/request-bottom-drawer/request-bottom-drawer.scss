@@ -143,24 +143,33 @@
 
 .color-dot {
   flex: 0 0 auto;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   padding: 0;
+  background: var(--dot-color);
   border: 2px solid transparent;
   border-radius: 50%;
   cursor: pointer;
   transition:
-    transform 0.1s ease,
-    border-color 0.15s ease;
+    transform 0.12s ease,
+    border-color 0.15s ease,
+    box-shadow 0.2s ease;
   --wails-draggable: no-drag;
 }
 
 .color-dot:hover {
-  transform: scale(1.15);
+  transform: scale(1.18);
+  box-shadow: 0 0 10px var(--dot-color);
+}
+
+.color-dot:focus-visible {
+  outline: 2px solid var(--btn-focus);
+  outline-offset: 2px;
 }
 
 .color-dot.is-active {
-  border-color: var(--text);
+  border-color: var(--accent-3, var(--text));
+  box-shadow: 0 0 0 2px var(--surface-solid), 0 0 12px var(--dot-color);
 }
 
 .color-dot--clear {

@@ -74,6 +74,10 @@ func Open() (*sql.DB, error) {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
+	if err := migrateUserColorsToSlots(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
 	if err := addRequestLastUsedAt(db); err != nil {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
@@ -815,6 +819,62 @@ func addUserColorColumns(db *sql.DB) error {
 		}
 	}
 	return nil
+}
+
+// migrateUserColorsToSlots rewrites the hex colours stored before colour slots
+// existed (user_color used to hold the picked pastel's hex) into theme
+// independent slot names, in the three tables that carry a colour and in the
+// undo history, whose stored payloads would otherwise write a hex back on
+// undo. It is idempotent: values that are already slots, and hex values it
+// has no slot for, are left untouched.
+func migrateUserColorsToSlots(db *sql.DB) error {
+	// Look up the schema before the transaction opens: it holds a
+	// connection, and a second one would not see an in-memory database.
+	var tables []string
+	for _, table := range []string{"http_requests", "favourite_items", "request_tags"} {
+		if tableExists(db, table) && columnExists(db, table, "user_color") {
+			tables = append(tables, table)
+		}
+	}
+	hasUndoLog := tableExists(db, "undo_log")
+
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("starting colour slot migration: %w", err)
+	}
+	defer tx.Rollback()
+
+	for _, hex := range models.LegacyColorHexes() {
+		slot, _ := models.LegacyColorSlot(hex)
+
+		for _, table := range tables {
+			if _, err := tx.Exec(
+				fmt.Sprintf("UPDATE %s SET user_color = ? WHERE lower(user_color) = ?", table),
+				slot, hex,
+			); err != nil {
+				return fmt.Errorf("migrating %s colours to slots: %w", table, err)
+			}
+		}
+
+		if !hasUndoLog {
+			continue
+		}
+		// Payloads are JSON, so a colour appears as a quoted string. The
+		// UI only ever wrote the upper-case form, but match both.
+		for _, variant := range []string{hex, strings.ToUpper(hex)} {
+			needle, replacement := `"`+variant+`"`, `"`+slot+`"`
+			for _, column := range []string{"input", "snapshot", "result"} {
+				if _, err := tx.Exec(
+					fmt.Sprintf("UPDATE undo_log SET %[1]s = replace(%[1]s, ?, ?) WHERE instr(%[1]s, ?) > 0", column),
+					needle, replacement, needle,
+				); err != nil {
+					return fmt.Errorf("migrating undo_log %s colours to slots: %w", column, err)
+				}
+			}
+		}
+	}
+
+	return tx.Commit()
 }
 
 // addRequestLastUsedAt folds recency into the request row. Last-used time

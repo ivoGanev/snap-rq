@@ -35,8 +35,8 @@ interface RowState {
   /** URL with environment variables resolved, for display only. */
   displayUrl: string;
   /** User colour (hex) for this row in the current view, or null. */
-  colorHex: string | null;
-  /** Row background tint matching colorHex, or null. */
+  colorVar: string | null;
+  /** Row background tint matching colorVar, or null. */
   colorTint: string | null;
 }
 
@@ -395,7 +395,7 @@ export class RequestsMainList {
         isSelected,
         isCellSelected,
         displayUrl: environment.interpolate(req.url),
-        colorHex: colour?.hex ?? null,
+        colorVar: colour?.cssVar ?? null,
         colorTint: colour?.tint ?? null,
       };
     }

@@ -95,6 +95,14 @@ html.platform-mac .titlebar-spacer {
   --btn-ghost-ring: rgba(255, 212, 94, 0.4);
   --btn-focus: #3be8ff;
 
+  /* Request colour slots (stored by name in the database; each theme picks the colour). */
+  --label-primary: #ff5ce1;
+  --label-secondary: #3be8ff;
+  --label-tertiary: #ffd45e;
+  --label-quaternary: #6bf2d2;
+  --label-quinary: #a07bff;
+  --label-senary: #ff7a7a;
+
   --method-get-bg: rgba(59, 232, 255, 0.18);
   --method-get-fg: #7df0ff;
   --method-post-bg: rgba(107, 242, 210, 0.18);

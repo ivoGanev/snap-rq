@@ -54,6 +54,14 @@
   --btn-ghost-ring: rgba(225, 29, 72, 0.3);
   --btn-focus: #2563eb;
 
+  /* Request colour slots (stored by name in the database; each theme picks the colour). */
+  --label-primary: #db2777;
+  --label-secondary: #0891b2;
+  --label-tertiary: #d97706;
+  --label-quaternary: #059669;
+  --label-quinary: #7c3aed;
+  --label-senary: #dc2626;
+
   --method-get-bg: rgba(37, 99, 235, 0.12);
   --method-get-fg: #1d4ed8;
   --method-post-bg: rgba(22, 163, 74, 0.14);
