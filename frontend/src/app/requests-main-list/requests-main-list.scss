@@ -179,7 +179,8 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 0 var(--s-3);
+  // Flush with the panel's left edge; keep breathing room on the right.
+  padding: 0 var(--s-3) 0 0;
 }
 
 .spreadsheet-wrapper.is-dragging {
@@ -200,7 +201,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: var(--s-3);
+  left: 0;
   right: var(--s-3);
   z-index: 3;
   pointer-events: none;
