@@ -72,7 +72,7 @@ app-sidebar-rail {
   height: 40px;
   margin: 0 var(--s-2);
   padding: 0;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--accent-3, var(--accent)) 80%, transparent);
   background: transparent;
   border: none;
   border-radius: var(--radius);
@@ -90,7 +90,7 @@ app-sidebar-rail {
 }
 
 .nav-toggle:hover:not(:disabled) {
-  color: var(--text);
+  color: var(--accent-3, var(--accent));
   background: transparent;
   box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent-3, var(--accent)) 45%, transparent);
 }
@@ -110,6 +110,19 @@ app-sidebar-rail {
   box-shadow: inset 3px 0 0 var(--accent-3, var(--accent));
 }
 
+// Mouse clicks must not draw a ring; keyboard focus shows the hover bar.
+.nav-button:focus,
+.nav-button:focus-visible,
+.nav-toggle:focus,
+.nav-toggle:focus-visible {
+  outline: none;
+}
+
+.nav-button:focus-visible,
+.nav-toggle:focus-visible {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent-3, var(--accent)) 45%, transparent);
+}
+
 .nav-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -121,7 +134,7 @@ app-sidebar-rail {
   justify-content: center;
   width: 18px;
   height: 18px;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--accent-3, var(--accent)) 80%, transparent);
   flex: 0 0 auto;
 }
 
@@ -130,8 +143,12 @@ app-sidebar-rail {
   height: 18px;
 }
 
+.nav-button:hover:not(:disabled) .nav-button__icon {
+  color: var(--accent-3, var(--accent));
+}
+
 .nav-button.is-active .nav-button__icon {
-  color: var(--accent);
+  color: var(--accent-3, var(--accent));
 }
 
 .nav-button__label {

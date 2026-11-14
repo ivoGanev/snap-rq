@@ -79,6 +79,11 @@
   box-shadow: inset 3px 0 0 var(--accent-3, var(--accent));
 }
 
+.group-list-item:focus,
+.group-list-item:focus-visible {
+  outline: none;
+}
+
 .group-list-item-label {
   flex: 1 1 auto;
   min-width: 0;

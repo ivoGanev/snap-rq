@@ -25,7 +25,7 @@
   width: 40px;
   height: 40px;
   padding: 0;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--accent-3, var(--accent)) 80%, transparent);
   background: transparent;
   border: none;
   border-radius: var(--radius);
@@ -44,19 +44,19 @@
 }
 
 .rail-button:hover:not(:disabled) {
-  color: var(--text);
+  color: var(--accent-3, var(--accent));
   background: transparent;
   box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent-3, var(--accent)) 45%, transparent);
 }
 
 .rail-button.is-active {
-  color: var(--accent);
+  color: var(--accent-3, var(--accent));
   background: transparent;
   box-shadow: inset 3px 0 0 var(--accent-3, var(--accent));
 }
 
 .rail-button.is-active:hover:not(:disabled) {
-  color: var(--accent);
+  color: var(--accent-3, var(--accent));
   background: transparent;
   box-shadow: inset 3px 0 0 var(--accent-3, var(--accent));
 }
@@ -69,6 +69,16 @@
 .rail-button--trash.is-active:hover:not(:disabled) {
   color: var(--danger-text);
   background: transparent;
+}
+
+// Mouse clicks must not draw a ring; keyboard focus shows the hover bar.
+.rail-button:focus,
+.rail-button:focus-visible {
+  outline: none;
+}
+
+.rail-button:focus-visible {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent-3, var(--accent)) 45%, transparent);
 }
 
 .rail-button:disabled {
