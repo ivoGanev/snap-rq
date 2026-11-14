@@ -405,22 +405,20 @@
   text-overflow: ellipsis;
 }
 
-// Editable-cell cues: hover shows a soft fill, a gold underline and a pencil;
-// selection is a solid gold ring (no dashes).
+// Method badge: grows slightly on hover and when selected (no borders).
 .request-method {
   transition:
-    box-shadow 0.12s ease,
-    outline-color 0.12s ease;
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .spreadsheet-cell--method:hover .request-method {
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-3, var(--accent)) 55%, transparent);
+  transform: scale(1.12);
 }
 
 .request-method.is-cell-selected {
-  outline: 1px solid var(--accent-3, var(--accent));
-  outline-offset: 2px;
-  box-shadow: 0 0 8px color-mix(in srgb, var(--accent-3, var(--accent)) 35%, transparent);
+  transform: scale(1.12);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent-3, var(--accent)) 35%, transparent);
 }
 
 .spreadsheet-cell--action {
@@ -576,53 +574,66 @@
   color: var(--muted);
 }
 
+// Name / URL: gold underline on hover, solid gold ring when selected, and a
+// clickable pencil that enters edit mode.
 .spreadsheet-cell--name .cell-text,
 .spreadsheet-cell--url .cell-text {
   border-radius: 3px;
-  cursor: text;
   text-decoration: underline transparent;
   text-decoration-thickness: 1px;
   text-underline-offset: 4px;
-  transition:
-    background-color 0.12s ease,
-    box-shadow 0.12s ease,
-    text-decoration-color 0.12s ease;
+  transition: text-decoration-color 0.12s ease;
 }
 
 .spreadsheet-cell--name:hover .cell-text,
 .spreadsheet-cell--url:hover .cell-text {
-  background: color-mix(in srgb, var(--accent-3, var(--accent)) 10%, transparent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-3, var(--accent)) 10%, transparent);
   text-decoration-color: color-mix(in srgb, var(--accent-3, var(--accent)) 70%, transparent);
 }
 
-// Pencil that fades in after the text on hover.
-.spreadsheet-cell--name::after,
-.spreadsheet-cell--url::after {
-  content: '';
+.cell-edit-button {
   flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin: 0 0 0 4px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent-3, var(--accent));
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.12s ease,
+    background 0.12s ease;
+  --wails-draggable: no-drag;
+}
+
+.cell-edit-button::before {
+  content: '';
+  display: block;
   width: 12px;
   height: 12px;
-  margin-left: 8px;
-  background: var(--accent-3, var(--accent));
-  opacity: 0;
-  transition: opacity 0.12s ease;
-  pointer-events: none;
+  margin: auto;
+  background: currentColor;
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 20h9'/%3E%3Cpath d='M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z'/%3E%3C/svg%3E") center / contain no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 20h9'/%3E%3Cpath d='M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
-.spreadsheet-cell--name:hover::after,
-.spreadsheet-cell--url:hover::after {
+.spreadsheet-cell:hover .cell-edit-button,
+.cell-edit-button:focus-visible {
   opacity: 0.8;
 }
 
-.spreadsheet-cell--name:has(.inline-name-input)::after {
+.cell-edit-button:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--accent-3, var(--accent)) 16%, transparent);
+}
+
+.spreadsheet-cell--name:has(.inline-name-input) .cell-edit-button {
   display: none;
 }
 
 .spreadsheet-cell.is-cell-selected .cell-text {
-  background: color-mix(in srgb, var(--accent-3, var(--accent)) 14%, transparent);
   outline: 1px solid var(--accent-3, var(--accent));
   outline-offset: 2px;
   text-decoration-color: color-mix(in srgb, var(--accent-3, var(--accent)) 70%, transparent);

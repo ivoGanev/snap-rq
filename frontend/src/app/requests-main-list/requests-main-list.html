@@ -268,6 +268,15 @@
               (dblclick)="onCellDoubleClick(req, 'name')"
             >{{ req.name }}</span>
           }
+          @if (!state.showingBin()) {
+            <button
+              class="cell-edit-button"
+              type="button"
+              aria-label="Edit name"
+              (mousedown)="$event.stopPropagation()"
+              (click)="$event.stopPropagation(); onCellDoubleClick(req, 'name')"
+            ></button>
+          }
         </div>
 
         <div
@@ -280,6 +289,15 @@
             class="cell-text"
             (dblclick)="onCellDoubleClick(req, 'url')"
           >{{ rowState()[req.id]?.displayUrl ?? req.url }}</span>
+          @if (!state.showingBin()) {
+            <button
+              class="cell-edit-button"
+              type="button"
+              aria-label="Edit url"
+              (mousedown)="$event.stopPropagation()"
+              (click)="$event.stopPropagation(); onCellDoubleClick(req, 'url')"
+            ></button>
+          }
         </div>
       </div>
     </cdk-virtual-scroll-viewport>
