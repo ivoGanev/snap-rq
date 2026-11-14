@@ -45,6 +45,7 @@
     background 0.15s ease,
     border-color 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-chip;
 }
 
 .environment-chip:hover {

@@ -28,6 +28,7 @@
 
 // Solid coloured button: gradient shift, top highlight, lift and glow.
 @mixin _solid($glow, $glow-strong) {
+  font-family: var(--font-display);
   background-size: 160% 160%;
   background-position: 0% 50%;
   box-shadow:
@@ -78,6 +79,7 @@
 
 // Glass button: border and glow turn gold on hover.
 @mixin btn-secondary {
+  font-family: var(--font-display);
   cursor: pointer;
   @include _motion(
     background 0.15s ease,
@@ -122,4 +124,23 @@
 
   @include _focus-ring;
   @include _disabled;
+}
+
+// Chip / toggle: only the border and glow react, so the chip's own
+// selected-state background (often a gradient) is never overridden.
+@mixin btn-chip {
+  cursor: pointer;
+  @include _motion(
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.2s ease,
+    color 0.15s ease
+  );
+
+  &:hover:not(:disabled) {
+    border-color: var(--btn-border-hover);
+    box-shadow: 0 0 10px var(--btn-glow-gold);
+  }
+
+  @include _focus-ring;
 }

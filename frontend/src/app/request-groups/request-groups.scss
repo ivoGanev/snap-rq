@@ -188,6 +188,7 @@ app-sidebar-rail {
 }
 
 .overlay-title {
+  font-family: var(--font-display);
   margin: 0;
   font-size: 1rem;
   font-weight: 700;
@@ -237,6 +238,7 @@ app-sidebar-rail {
 }
 
 .edit-label {
+  font-family: var(--font-display);
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--muted);

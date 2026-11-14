@@ -36,6 +36,7 @@
   --grad-success: linear-gradient(135deg, #16a34a 0%, #0d9488 100%);
   --grad-alt: linear-gradient(135deg, #f43f5e 0%, #f59e0b 160%);
   --on-accent: #ffffff;
+  --font-display: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   --active-tint-bg: rgba(225, 29, 72, 0.12);
   --active-tint-border: rgba(225, 29, 72, 0.4);
@@ -63,6 +64,10 @@
   --label-quinary: #7c3aed;
   --label-senary: #dc2626;
 
+  --status-2xx: #15803d;
+  --status-3xx: #b45309;
+  --status-4xx: #dc2626;
+  --status-5xx: #be185d;
   --method-get-bg: rgba(37, 99, 235, 0.12);
   --method-get-fg: #1d4ed8;
   --method-post-bg: rgba(22, 163, 74, 0.14);

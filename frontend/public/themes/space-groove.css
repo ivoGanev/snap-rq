@@ -16,6 +16,7 @@
   --grad-success: linear-gradient(135deg, #17c9b0 0%, #3b82f6 100%);
   --grad-alt: linear-gradient(135deg, #ff4fc3 0%, #ffd45e 160%);
   --on-accent: #ffffff;
+  --font-display: 'Chakra Petch', 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 
   /* Nebula glows + starfield over a deep space base. */
@@ -75,6 +76,10 @@
   --label-quinary: #a07bff;
   --label-senary: #ff7a7a;
 
+  --status-2xx: #6bf2d2;
+  --status-3xx: #ffd45e;
+  --status-4xx: #ff7a7a;
+  --status-5xx: #ff4fa3;
   --method-get-bg: rgba(59, 232, 255, 0.18);
   --method-get-fg: #7df0ff;
   --method-post-bg: rgba(107, 242, 210, 0.18);

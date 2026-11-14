@@ -9,6 +9,7 @@ import {
 } from '../core/prettifiers/response-prettifier';
 import { csvColumnWidths } from '../core/prettifiers/csv-prettifier';
 import { highlightLine, type SyntaxLanguage, type SyntaxToken } from '../core/highlighters/highlight';
+import { httpStatusClass } from '../core/http-status';
 
 @Component({
   selector: 'app-response-viewer',
@@ -21,6 +22,7 @@ export class ResponseViewer {
   private readonly requestApi = inject(RequestApiService);
 
   protected readonly responses = this.requestApi.responses;
+  protected readonly statusClass = httpStatusClass;
   protected readonly prettifyEnabled = signal(true);
 
   protected readonly sendingElapsed = computed<number | null>(() => {

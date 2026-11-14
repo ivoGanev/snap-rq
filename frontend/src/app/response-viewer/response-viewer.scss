@@ -39,6 +39,7 @@
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-chip;
 }
 
 .response-chip:hover {
@@ -53,11 +54,19 @@
 
 .chip-status {
   font-weight: 700;
-  color: var(--success-text);
+  color: var(--status-2xx);
 }
 
-.chip-status.is-error {
-  color: var(--danger-text);
+.chip-status[data-status='3xx'] {
+  color: var(--status-3xx);
+}
+
+.chip-status[data-status='4xx'] {
+  color: var(--status-4xx);
+}
+
+.chip-status[data-status='5xx'] {
+  color: var(--status-5xx);
 }
 
 .response-detail {
@@ -79,11 +88,19 @@
 .response-status {
   font-size: 0.875rem;
   font-weight: 700;
-  color: var(--success-text);
+  color: var(--status-2xx);
 }
 
-.response-status.is-error {
-  color: var(--danger-text);
+.response-status[data-status='3xx'] {
+  color: var(--status-3xx);
+}
+
+.response-status[data-status='4xx'] {
+  color: var(--status-4xx);
+}
+
+.response-status[data-status='5xx'] {
+  color: var(--status-5xx);
 }
 
 .response-duration {
@@ -159,6 +176,7 @@
 }
 
 .section-title {
+  font-family: var(--font-display);
   margin: 0 0 0.375rem;
   font-size: 0.6875rem;
   font-weight: 700;
