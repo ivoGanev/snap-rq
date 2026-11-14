@@ -469,6 +469,9 @@ func main() {
 	mux.HandleFunc("/mock/delay", delayHandler)
 	mux.HandleFunc("/mock/empty", emptyHandler)
 
+	// Cookie jar mocks.
+	registerCookieHandlers(mux)
+
 	// Redirect root to a tiny help page.
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {

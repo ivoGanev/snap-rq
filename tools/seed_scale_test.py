@@ -53,6 +53,16 @@ MOCK_ENDPOINTS = [
     ("Empty response", "GET", "/mock/empty", None, None),
     # Echo endpoint
     ("Echo endpoint", "POST", "/echo", '{"hello":"world"}', "Content-Type: application/json"),
+    # Cookie jar mocks
+    ("Cookies - set session + persistent", "GET", "/mock/cookies/set", None, None),
+    ("Cookies - set Secure/HttpOnly/SameSite", "GET", "/mock/cookies/set-flags", None, None),
+    ("Cookies - set with Domain", "GET", "/mock/cookies/set-domain", None, None),
+    ("Cookies - set with Path", "GET", "/mock/cookies/set-path", None, None),
+    ("Cookies - echo received", "GET", "/mock/cookies/echo", None, None),
+    ("Cookies - echo (scoped path)", "GET", "/mock/cookies/path/echo", None, None),
+    ("Cookies - redirect sets cookie", "GET", "/mock/cookies/redirect", None, None),
+    ("Cookies - expire session_id", "GET", "/mock/cookies/expire?name=session_id", None, None),
+    ("Cookies - echo with manual Cookie header", "GET", "/mock/cookies/echo", None, "Cookie: manual=1"),
 ]
 
 # Multipart/form-data upload mocks. Each tuple is
@@ -681,6 +691,54 @@ def delete_edge_case_collection(conn: sqlite3.Connection, project_id: int) -> No
     print(f"Removed '{EDGE_CASE_COLLECTION_NAME}' collection.")
 
 
+COOKIE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS cookies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    domain TEXT NOT NULL,
+    host_only INTEGER NOT NULL DEFAULT 1,
+    path TEXT NOT NULL DEFAULT '/',
+    name TEXT NOT NULL,
+    value TEXT NOT NULL DEFAULT '',
+    expires_at INTEGER NOT NULL DEFAULT 0,
+    secure INTEGER NOT NULL DEFAULT 0,
+    http_only INTEGER NOT NULL DEFAULT 0,
+    same_site TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (project_id, domain, path, name),
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_cookies_project_id ON cookies(project_id);
+"""
+
+# (domain, host_only, path, name, value, ttl_seconds, secure, http_only, same_site)
+SEED_COOKIES = [
+    ("localhost", 1, "/", "seed_session", "from-seed", 0, 0, 0, ""),
+    ("localhost", 1, "/", "seed_persistent", "keep-me", 86400, 0, 0, ""),
+    ("localhost", 1, "/", "seed_secure", "tok", 86400, 1, 1, "Lax"),
+    ("example.com", 0, "/", "tracking", "xyz", 604800, 1, 0, "None"),
+]
+
+
+def seed_cookies(conn: sqlite3.Connection, project_id: int) -> None:
+    """Pre-fill the project's cookie jar so the Cookies manager has data. Idempotent."""
+    import time
+
+    conn.executescript(COOKIE_SCHEMA)
+    now = int(time.time())
+    for domain, host_only, path, name, value, ttl, secure, http_only, same_site in SEED_COOKIES:
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO cookies
+                (project_id, domain, host_only, path, name, value, expires_at, secure, http_only, same_site, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (project_id, domain, host_only, path, name, value, now + ttl if ttl else 0, secure, http_only, same_site, now),
+        )
+    conn.commit()
+    print("Seeded sample cookies into the project's cookie jar.")
+
+
 def create_mock_collection(conn: sqlite3.Connection, project_id: int) -> int:
     """Create the mock collection with a distinct appearance and return its id."""
     cursor = conn.cursor()
@@ -969,6 +1027,8 @@ def main() -> int:
     try:
         ensure_schema(conn)
         _profile_id, project_id = ensure_profile_and_project(conn)
+
+        seed_cookies(conn, project_id)
 
         existing_id = find_mock_collection(conn, project_id)
         if existing_id is not None:
