@@ -5,11 +5,11 @@
 	"info": {
 		"0000": {
 			"ProductVersion": "0.1.0",
-			"CompanyName": "My Company",
-			"FileDescription": "A snap-rq-wails-v3 application",
-			"LegalCopyright": "© 2026, My Company",
-			"ProductName": "My Product",
-			"Comments": "This is a comment"
+			"CompanyName": "Ivo Ganev",
+			"FileDescription": "A REST API client",
+			"LegalCopyright": "© 2026, Ivo Ganev",
+			"ProductName": "SnapRQ",
+			"Comments": "A REST API client"
 		}
 	}
 }

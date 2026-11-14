@@ -5,6 +5,9 @@ vars:
   BIN_DIR: "bin"
   PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+  # Application version, injected into the binary via `-ldflags -X main.currentVersion`.
+  # Override on the CLI (VERSION=1.2.3) or via the VERSION env var; defaults to "0.0.0-dev".
+  VERSION: '{{.VERSION | default "0.0.0-dev"}}'
   # Target OS for build/package/run. Defaults to the host OS, and is overridden
   # by `wails3 build GOOS=...` (or the GOOS env var) for cross-compilation. The
   # tasks below dispatch to the matching platform Taskfile via this variable.
