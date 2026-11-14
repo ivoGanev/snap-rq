@@ -19,7 +19,7 @@
         }
       }
     },
-    "fontFamily": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+    "fontFamily": "'Space Grotesk', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
     "preview": "linear-gradient(135deg, #1b0a3d 0%, #ff4fc3 55%, #3be8ff 100%)"
   },
   {

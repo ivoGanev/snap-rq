@@ -1,6 +1,14 @@
 @use 'styles/buttons' as btn;
 
 @font-face {
+  font-family: 'Space Grotesk';
+  src: url('/fonts/Space_Grotesk/SpaceGrotesk-VariableFont_wght.ttf') format('truetype');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: 'Inter';
   src: url('/Inter-Medium.ttf') format('truetype');
   font-weight: 500;
@@ -29,7 +37,7 @@ html.platform-mac .titlebar-spacer {
   --s-5: 4.236rem;
 
   /* Default theme tokens until a theme CSS file loads. */
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+  --font-family: 'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
     sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
   --ink: #0b0519;
   --text: #f4ecff;
@@ -138,6 +146,14 @@ html.platform-mac .titlebar-spacer {
 
 * {
   box-sizing: border-box;
+}
+
+/* Form controls do not inherit the page font by default; sizes stay per component. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }
 
 /* Scrollbars: WebKit pseudo-elements give the gradient thumb. The standard
