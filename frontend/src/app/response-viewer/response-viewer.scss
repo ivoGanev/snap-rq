@@ -242,15 +242,21 @@
   min-height: 120px;
 }
 
-.response-body-viewport {
-  flex: 1 1 auto;
-  min-height: 0;
+// The virtual-scroll content is absolutely positioned, so padding on the
+// viewport itself would not reach it. The frame supplies the top and bottom
+// padding and the lines supply the left and right padding.
+.response-body-frame {
+  display: flex;
+  flex-direction: column;
+  padding: var(--s-3) 0;
+  overflow: hidden;
 }
 
 .response-body-viewport {
-  // The virtual-scroll content is absolutely positioned, so padding on the
-  // viewport itself would not reach it; pad the lines instead.
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 0;
+  font: inherit;
 }
 
 .response-body-viewport .cdk-virtual-scroll-content-wrapper {

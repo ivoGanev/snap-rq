@@ -87,17 +87,19 @@
           (keydown)="onBlockKeyDown($event)"
         >No body</pre>
       } @else {
-        <cdk-virtual-scroll-viewport
-          itemSize="20"
-          class="response-block response-body response-body-viewport"
-          tabindex="0"
-          (keydown)="onBlockKeyDown($event)"
-        >
-          <div
-            *cdkVirtualFor="let line of bodyLines(); trackBy: trackByLine"
-            class="response-body-line"
-          >@for (token of lineTokens(line); track $index) {<span [class]="tokenClass(token.type)">{{ token.text }}</span>}</div>
-        </cdk-virtual-scroll-viewport>
+        <div class="response-block response-body response-body-frame">
+          <cdk-virtual-scroll-viewport
+            itemSize="20"
+            class="response-body-viewport"
+            tabindex="0"
+            (keydown)="onBlockKeyDown($event)"
+          >
+            <div
+              *cdkVirtualFor="let line of bodyLines(); trackBy: trackByLine"
+              class="response-body-line"
+            >@for (token of lineTokens(line); track $index) {<span [class]="tokenClass(token.type)">{{ token.text }}</span>}</div>
+          </cdk-virtual-scroll-viewport>
+        </div>
       }
     </div>
   </div>
