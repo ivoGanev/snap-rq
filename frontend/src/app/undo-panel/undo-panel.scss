@@ -1,7 +1,7 @@
 .undo-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -18,7 +18,7 @@
   border-radius: var(--radius);
   color: var(--text);
   font-size: 13px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 12px 40px var(--shadow);
 }
 
 .undo-header {

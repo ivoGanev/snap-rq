@@ -57,7 +57,7 @@
   padding: 5px 12px;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--on-accent);
   background: var(--grad);
   border: none;
   border-radius: 6px;
@@ -93,7 +93,7 @@
   padding: 5px 12px;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--on-accent);
   background: var(--grad);
   border: none;
   border-radius: 6px;
@@ -511,7 +511,7 @@
   padding: var(--s-1) var(--s-2);
   font-size: 0.75rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--on-accent);
   background: var(--danger-solid);
   border: none;
   border-radius: var(--radius);

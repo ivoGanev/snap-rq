@@ -108,8 +108,8 @@
   font-weight: 800;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: #fff;
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: var(--on-accent);
+  background: var(--grad-success);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;

@@ -50,7 +50,7 @@
 }
 
 .environment-chip.is-active {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: var(--grad);
   border-color: transparent;
 }
 
@@ -75,7 +75,7 @@
 }
 
 .environment-chip-delete:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--hover-highlight);
 }
 
 .environment-chip--add {
@@ -118,8 +118,8 @@
   padding: 6px 14px;
   font-size: 0.8125rem;
   font-weight: 700;
-  color: #fff;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: var(--on-accent);
+  background: var(--grad);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;

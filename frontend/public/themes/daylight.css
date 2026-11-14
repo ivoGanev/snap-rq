@@ -32,6 +32,24 @@
   --shadow: rgba(0, 0, 0, 0.12);
   --backdrop: rgba(0, 0, 0, 0.25);
 
+  --accent-3: #b45309;
+  --grad-success: linear-gradient(135deg, #16a34a 0%, #0d9488 100%);
+  --grad-alt: linear-gradient(135deg, #f43f5e 0%, #f59e0b 160%);
+  --on-accent: #ffffff;
+  --active-tint-bg: rgba(225, 29, 72, 0.12);
+  --active-tint-border: rgba(225, 29, 72, 0.4);
+  --success-text: #15803d;
+  --scrollbar-thumb-grad: linear-gradient(180deg, #f43f5e 0%, #db2777 100%);
+  --scrollbar-thumb-grad-hover: linear-gradient(180deg, #e11d48 0%, #be185d 100%);
+  --method-get-bg: rgba(37, 99, 235, 0.12);
+  --method-get-fg: #1d4ed8;
+  --method-post-bg: rgba(22, 163, 74, 0.14);
+  --method-post-fg: #15803d;
+  --method-put-bg: rgba(202, 138, 4, 0.16);
+  --method-put-fg: #854d0e;
+  --method-patch-bg: rgba(147, 51, 234, 0.14);
+  --method-patch-fg: #7e22ce;
+
   --scrollbar-track: rgba(0, 0, 0, 0.05);
   --scrollbar-thumb: rgba(0, 0, 0, 0.2);
   --scrollbar-thumb-hover: rgba(0, 0, 0, 0.3);

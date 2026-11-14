@@ -92,17 +92,17 @@ app-sidebar-rail {
 
 .nav-button:hover:not(:disabled) {
   background: var(--hover-highlight);
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: var(--hover-highlight);
 }
 
 .nav-button.is-active {
-  background: rgba(99, 102, 241, 0.25);
-  border-color: rgba(99, 102, 241, 0.5);
+  background: var(--active-tint-bg);
+  border-color: var(--active-tint-border);
 }
 
 .nav-button.is-active:hover:not(:disabled) {
-  background: rgba(99, 102, 241, 0.25);
-  border-color: rgba(99, 102, 241, 0.5);
+  background: var(--active-tint-bg);
+  border-color: var(--active-tint-border);
 }
 
 .nav-button:disabled {
@@ -170,7 +170,7 @@ app-sidebar-rail {
   background: var(--surface-solid);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 16px 40px var(--shadow);
   overflow: hidden;
 }
 
@@ -258,8 +258,8 @@ app-sidebar-rail {
   padding: 8px 16px;
   font-size: 0.8125rem;
   font-weight: 700;
-  color: #fff;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: var(--on-accent);
+  background: var(--grad);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
@@ -283,7 +283,7 @@ app-sidebar-rail {
   background: var(--surface-solid);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 16px 40px var(--shadow);
   overflow: hidden;
 }
 
@@ -385,7 +385,7 @@ app-sidebar-rail {
 
 .appearance-swatch.is-selected {
   border-color: var(--text);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 0 2px var(--hover-highlight);
 }
 
 .appearance-swatch--icon {

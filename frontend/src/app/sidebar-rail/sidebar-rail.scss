@@ -11,7 +11,7 @@
   gap: var(--s-1);
   width: 100%;
   height: 100%;
-  padding: var(--s-2) 0;
+  padding: var(--s-2) var(--s-1);
   overflow: hidden;
 }
 
@@ -47,14 +47,14 @@
 
 .rail-button.is-active {
   color: var(--accent);
-  background: rgba(99, 102, 241, 0.25);
-  border-color: rgba(99, 102, 241, 0.5);
+  background: var(--active-tint-bg);
+  border-color: var(--active-tint-border);
 }
 
 .rail-button.is-active:hover:not(:disabled) {
   color: var(--accent);
-  background: rgba(99, 102, 241, 0.25);
-  border-color: rgba(99, 102, 241, 0.5);
+  background: var(--active-tint-bg);
+  border-color: var(--active-tint-border);
 }
 
 .rail-button--trash.is-active {
