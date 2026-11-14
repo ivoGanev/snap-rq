@@ -92,35 +92,46 @@ app-sidebar-rail {
 .nav-toggle:hover:not(:disabled) {
   color: var(--accent-3, var(--accent));
   background: transparent;
-  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent-3, var(--accent)) 45%, transparent);
+  box-shadow: none;
 }
 
 .nav-button:hover:not(:disabled) {
   background: transparent;
-  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent-3, var(--accent)) 45%, transparent);
+  box-shadow: none;
 }
 
 .nav-button.is-active {
   background: transparent;
-  box-shadow: inset 3px 0 0 var(--accent-3, var(--accent));
+  box-shadow: none;
 }
 
 .nav-button.is-active:hover:not(:disabled) {
   background: transparent;
-  box-shadow: inset 3px 0 0 var(--accent-3, var(--accent));
+  box-shadow: none;
 }
 
 // Mouse clicks must not draw a ring; keyboard focus shows the hover bar.
+.nav-button,
 .nav-button:focus,
 .nav-button:focus-visible,
+.nav-button:active,
+.nav-toggle,
 .nav-toggle:focus,
-.nav-toggle:focus-visible {
-  outline: none;
+.nav-toggle:focus-visible,
+.nav-toggle:active {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nav-button:active:not(:disabled),
+.nav-toggle:active:not(:disabled) {
+  transform: none;
+  border: none;
 }
 
 .nav-button:focus-visible,
 .nav-toggle:focus-visible {
-  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent-3, var(--accent)) 45%, transparent);
+  box-shadow: none;
 }
 
 .nav-button:disabled {
@@ -165,7 +176,7 @@ app-sidebar-rail {
 }
 
 .nav-button--trash.is-active .nav-button__icon {
-  color: var(--danger-text);
+  color: var(--accent-3, var(--accent));
 }
 
 .sidebar-divider {
@@ -449,4 +460,61 @@ app-sidebar-rail {
 
 .new-collection-popup .overlay-body {
   gap: var(--s-3);
+}
+
+// Straight gold bar (a real element, so it is not curved by the rounded corners).
+.nav-button {
+  position: relative;
+}
+
+.nav-button::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent-3, var(--accent));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.nav-button:hover:not(:disabled)::before,
+.nav-button:focus-visible::before {
+  opacity: 0.45;
+}
+
+.nav-button.is-active::before,
+.nav-button.is-active:hover:not(:disabled)::before {
+  opacity: 1;
+}
+
+// Straight gold bar (a real element, so it is not curved by the rounded corners).
+.nav-toggle {
+  position: relative;
+}
+
+.nav-toggle::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent-3, var(--accent));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.nav-toggle:hover:not(:disabled)::before,
+.nav-toggle:focus-visible::before {
+  opacity: 0.45;
+}
+
+.nav-toggle.is-active::before {
+  opacity: 1;
 }

@@ -71,12 +71,12 @@
 
 // No fill: hover is a soft gold glow, selection is a gold side bar + glow.
 .group-list-item:hover {
-  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent-3, var(--accent)) 45%, transparent);
+  box-shadow: none;
 }
 
 .group-list-item.is-selected {
   font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--accent-3, var(--accent));
+  box-shadow: none;
 }
 
 .group-list-item:focus,
@@ -147,4 +147,33 @@
   padding: var(--s-2) var(--s-3);
   font-size: 0.875rem;
   color: var(--muted);
+}
+
+// Straight gold bar (a real element, so it is not curved by the rounded corners).
+.group-list-item {
+  position: relative;
+}
+
+.group-list-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent-3, var(--accent));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.group-list-item:hover:not(:disabled)::before,
+.group-list-item:focus-visible::before {
+  opacity: 0.45;
+}
+
+.group-list-item.is-selected::before,
+.group-list-item.is-selected:hover::before {
+  opacity: 1;
 }

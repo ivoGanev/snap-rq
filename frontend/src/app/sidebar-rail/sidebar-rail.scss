@@ -46,39 +46,47 @@
 .rail-button:hover:not(:disabled) {
   color: var(--accent-3, var(--accent));
   background: transparent;
-  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent-3, var(--accent)) 45%, transparent);
+  box-shadow: none;
 }
 
 .rail-button.is-active {
   color: var(--accent-3, var(--accent));
   background: transparent;
-  box-shadow: inset 3px 0 0 var(--accent-3, var(--accent));
+  box-shadow: none;
 }
 
 .rail-button.is-active:hover:not(:disabled) {
   color: var(--accent-3, var(--accent));
   background: transparent;
-  box-shadow: inset 3px 0 0 var(--accent-3, var(--accent));
+  box-shadow: none;
 }
 
 .rail-button--trash.is-active {
-  color: var(--danger-text);
+  color: var(--accent-3, var(--accent));
   background: transparent;
 }
 
 .rail-button--trash.is-active:hover:not(:disabled) {
-  color: var(--danger-text);
+  color: var(--accent-3, var(--accent));
   background: transparent;
 }
 
 // Mouse clicks must not draw a ring; keyboard focus shows the hover bar.
+.rail-button,
 .rail-button:focus,
-.rail-button:focus-visible {
-  outline: none;
+.rail-button:focus-visible,
+.rail-button:active {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rail-button:active:not(:disabled) {
+  transform: none;
+  border: none;
 }
 
 .rail-button:focus-visible {
-  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent-3, var(--accent)) 45%, transparent);
+  box-shadow: none;
 }
 
 .rail-button:disabled {
@@ -92,4 +100,34 @@
   height: 1px;
   margin: var(--s-2) 0;
   background: var(--glass-border);
+}
+
+// Straight gold bar (a real element, so it is not curved by the rounded corners).
+.rail-button {
+  position: relative;
+}
+
+.rail-button::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent-3, var(--accent));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.rail-button:hover:not(:disabled)::before,
+.rail-button:focus-visible::before {
+  opacity: 0.45;
+}
+
+.rail-button.is-active::before,
+.rail-button.is-active:hover:not(:disabled)::before,
+.rail-button--trash.is-active::before {
+  opacity: 1;
 }
