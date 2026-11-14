@@ -65,17 +65,18 @@
   margin: 0 var(--s-3);
   border-radius: var(--radius);
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: box-shadow 0.2s ease;
   --wails-draggable: no-drag;
 }
 
+// No fill: hover is a soft gold glow, selection is a gold side bar + glow.
 .group-list-item:hover {
-  background: var(--hover-bg);
+  box-shadow: 0 0 12px var(--btn-glow-gold);
 }
 
 .group-list-item.is-selected {
-  background: var(--hover-highlight);
   font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--accent-3, var(--accent)), 0 0 14px var(--btn-glow-gold);
 }
 
 .group-list-item-label {
