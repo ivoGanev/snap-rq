@@ -5,12 +5,14 @@ import (
 	"embed"
 	"encoding/json"
 	"log"
+	"runtime"
 	"time"
 
 	"snap-rq/backend/commands"
 	"snap-rq/backend/commands/catalog"
 	"snap-rq/backend/commands/requests"
 	"snap-rq/backend/database"
+	"snap-rq/backend/selfupdate"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/updater"
@@ -27,8 +29,9 @@ var assets embed.FS
 
 // currentVersion is the version of the running binary, compared against the
 // GitHub release tag by the updater. It is injected at build time via
-// `-ldflags "-X main.currentVersion=<version>"`; "dev" is the local default.
-var currentVersion = "dev"
+// `-ldflags "-X main.currentVersion=<version>"`. Local builds keep this valid
+// SemVer default so the updater initialises, and treats them as older than any release.
+var currentVersion = "0.0.0-dev"
 
 // updaterRepository is the GitHub repository (owner/repo) that publishes
 // releases for the self-updater.
@@ -151,6 +154,7 @@ func configureUpdater(app *application.App) error {
 	gh, err := github.New(github.Config{
 		Repository:    updaterRepository,
 		ChecksumAsset: "SHA256SUMS",
+		AssetMatcher:  matchUpdateAsset,
 	})
 	if err != nil {
 		return err
@@ -159,4 +163,15 @@ func configureUpdater(app *application.App) error {
 		CurrentVersion: currentVersion,
 		Providers:      []updater.Provider{gh},
 	})
+}
+
+// matchUpdateAsset picks the release asset the updater installs: the raw
+// executable (or macOS .zip), never an installer or distro package.
+func matchUpdateAsset(_ updater.CheckRequest, assets []github.ReleaseAsset) int {
+	for i, a := range assets {
+		if selfupdate.IsUpdateAsset(a.Name, runtime.GOOS, runtime.GOARCH) {
+			return i
+		}
+	}
+	return -1
 }

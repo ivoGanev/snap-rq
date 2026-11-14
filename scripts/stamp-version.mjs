@@ -11,6 +11,11 @@ if (!version) {
   console.error('usage: stamp-version.mjs <version>');
   process.exit(1);
 }
+if (!/^\d+\.\d+\.\d+$/.test(version)) {
+  // Windows version resources need exactly three numeric parts.
+  console.error(`invalid version "${version}": expected X.Y.Z`);
+  process.exit(1);
+}
 
 const targets = [
   // build/config.yml: `version: "0.0.1"`
@@ -19,6 +24,8 @@ const targets = [
   { path: 'build/windows/info.json', re: /("(?:file_version|ProductVersion)": ")[^"]*(")/g, repl: `$1${version}$2` },
   // build/linux/nfpm/nfpm.yaml: `version: "0.1.0"`
   { path: 'build/linux/nfpm/nfpm.yaml', re: /^(version: ).*$/m, repl: `$1"${version}"` },
+  // build/windows/nsis/wails_tools.nsh: `!define INFO_PRODUCTVERSION "0.1.0"` (installer metadata)
+  { path: 'build/windows/nsis/wails_tools.nsh', re: /(!define INFO_PRODUCTVERSION ")[^"]*(")/, repl: `$1${version}$2` },
   // build/darwin/Info.plist: CFBundleVersion and CFBundleShortVersionString
   { path: 'build/darwin/Info.plist', re: /(<key>CFBundleVersion<\/key>\s*<string>)[^<]*(<\/string>)/g, repl: `$1${version}$2` },
   { path: 'build/darwin/Info.plist', re: /(<key>CFBundleShortVersionString<\/key>\s*<string>)[^<]*(<\/string>)/g, repl: `$1${version}$2` },

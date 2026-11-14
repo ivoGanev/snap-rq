@@ -4,22 +4,73 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (SemVer, without leading "v"), e.g. 1.2.3'
+        description: 'Version to release (X.Y.Z, without leading "v"), e.g. 1.2.3'
         required: true
         type: string
 
 permissions:
   contents: write
 
+# One release at a time; never cancel a release that is already running.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 env:
   APP_VERSION: ${{ github.event.inputs.version }}
+  APP_NAME: snap-rq-wails-v3
   GO_VERSION: '1.25.3'
   NODE_VERSION: '22'
   WAILS_VERSION: v3.0.0-beta.12
 
 jobs:
+  validate:
+    name: Validate version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check version format, tag and ordering
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if ! [[ "${APP_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version '${APP_VERSION}' must be X.Y.Z (no 'v' prefix, no pre-release suffix)"
+            exit 1
+          fi
+          if gh release view "v${APP_VERSION}" >/dev/null 2>&1; then
+            echo "::error::Release v${APP_VERSION} already exists"
+            exit 1
+          fi
+          # The updater follows GitHub's "latest" release, so versions must only go up.
+          latest="$(gh release list --limit 1 --json tagName --jq '.[0].tagName // empty')"
+          if [ -n "${latest}" ]; then
+            highest="$(printf '%s\n%s\n' "${latest#v}" "${APP_VERSION}" | sort -V | tail -n1)"
+            if [ "${highest}" != "${APP_VERSION}" ]; then
+              echo "::error::Version ${APP_VERSION} is not higher than the latest release ${latest}"
+              exit 1
+            fi
+          fi
+
+  test:
+    name: Test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: go.sum
+
+      # The frontend is type-checked by the build jobs below (bindings are
+      # generated at build time), which must pass before anything is published.
+      - name: Go tests
+        run: go test ./backend/...
+
   build:
     name: Build (${{ matrix.name }})
+    needs: [validate, test]
     strategy:
       fail-fast: false
       matrix:
@@ -50,7 +101,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev fuse libfuse2 wget
+          sudo apt-get install -y build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev fuse libfuse2t64 wget
 
       - name: Install NSIS (Windows installer)
         if: runner.os == 'Windows'
@@ -65,44 +116,43 @@ jobs:
         shell: bash
         run: node scripts/stamp-version.mjs "${APP_VERSION}"
 
+      # The installer is per-user (INSTALL_SCOPE=user) so the in-app updater can
+      # replace the installed binary without administrator rights.
       - name: Build and package (Windows)
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          wails3 task windows:package VERSION="${APP_VERSION}"
+          wails3 task windows:package VERSION="${APP_VERSION}" INSTALL_SCOPE=user
           mkdir -p release
           cp "bin/${APP_NAME}.exe" "release/${APP_NAME}-windows-amd64.exe"
-          cp "build/windows/nsis/${APP_NAME}-installer.exe" "release/${APP_NAME}-windows-amd64-setup.exe"
-        env:
-          APP_NAME: snap-rq-wails-v3
+          cp "bin/${APP_NAME}-amd64-installer.exe" "release/${APP_NAME}-windows-amd64-setup.exe"
 
       - name: Build and package (macOS)
         if: runner.os == 'macOS'
         shell: bash
         run: |
           wails3 task darwin:package:universal VERSION="${APP_VERSION}"
-          cd bin
-          zip -r "${APP_NAME}-darwin-universal.zip" "${APP_NAME}.app"
-          cd ..
           wails3 task darwin:create:dmg
+          (cd bin && zip -r -y "${APP_NAME}-darwin-universal.zip" "${APP_NAME}.app")
           mkdir -p release
-          cp "bin/${APP_NAME}-darwin-universal.zip" "release/"
+          cp "bin/${APP_NAME}-darwin-universal.zip" release/
           cp bin/*.dmg "release/${APP_NAME}-darwin-universal.dmg"
-        env:
-          APP_NAME: snap-rq-wails-v3
 
+      # Packaging tasks are called one by one: `linux:package` also builds an
+      # Arch package that we do not publish.
       - name: Build and package (Linux)
         if: runner.os == 'Linux'
         shell: bash
+        env:
+          GIT_COMMITTER_NAME: ${{ github.actor }}
+          GIT_COMMITTER_EMAIL: ${{ github.actor }}@users.noreply.github.com
         run: |
-          wails3 task linux:package VERSION="${APP_VERSION}"
+          wails3 task linux:create:appimage linux:create:deb linux:create:rpm VERSION="${APP_VERSION}"
           mkdir -p release
           cp "bin/${APP_NAME}" "release/${APP_NAME}-linux-amd64"
-          cp "bin/${APP_NAME}"*.AppImage "release/${APP_NAME}-linux-amd64.AppImage"
-          cp "bin/${APP_NAME}"*.deb "release/${APP_NAME}-linux-amd64.deb"
-          cp "bin/${APP_NAME}"*.rpm "release/${APP_NAME}-linux-amd64.rpm"
-        env:
-          APP_NAME: snap-rq-wails-v3
+          cp bin/*.AppImage "release/${APP_NAME}-linux-amd64.AppImage"
+          cp bin/*.deb "release/${APP_NAME}-linux-amd64.deb"
+          cp bin/*.rpm "release/${APP_NAME}-linux-amd64.rpm"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -116,8 +166,6 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -130,12 +178,14 @@ jobs:
           sha256sum * > SHA256SUMS
           cat SHA256SUMS
 
+      # --target pins the tag to the commit that was built, not the default branch.
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           gh release create "v${APP_VERSION}" \
+            --target "${GITHUB_SHA}" \
             --title "v${APP_VERSION}" \
             --generate-notes \
             release/*
