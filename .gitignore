@@ -11,5 +11,9 @@ build/ios/xcode/overlay.json
 build/ios/xcode/gen/
 build/android/overlay.json
 build/android/gen/
+# Per-machine Android/Gradle build artifacts
+build/android/.gradle/
+build/android/build/
+build/android/local.properties
 *.exe
 wails_*.syso
