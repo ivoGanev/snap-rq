@@ -69,11 +69,14 @@ func main() {
 		return limit
 	})
 
+	updaterService := &UpdaterService{}
+
 	app := application.New(application.Options{
 		Name:        "snap-rq-wails-v3",
 		Description: "A REST API client",
 		Services: []application.Service{
 			application.NewService(commands.NewCommandService(runner)),
+			application.NewService(updaterService),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -82,6 +85,8 @@ func main() {
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
 	})
+
+	updaterService.app = app
 
 	if err := configureUpdater(app); err != nil {
 		log.Fatalf("configuring updater: %v", err)
@@ -93,8 +98,6 @@ func main() {
 		Width:      1000,
 		Height:     618,
 		StartState: application.WindowStateMaximised,
-		// Show the application menu (App → Check for Updates…) in the window.
-		UseApplicationMenu: true,
 		Mac: application.MacWindow{
 			InvisibleTitleBarHeight: 50,
 			Backdrop:                application.MacBackdropTranslucent,
@@ -121,8 +124,29 @@ func jsonUnmarshal(raw string, dest any) error {
 	return json.Unmarshal([]byte(raw), dest)
 }
 
-// configureUpdater wires the in-app self-updater to GitHub Releases and adds a
-// "Check for Updates…" item to the application menu.
+// UpdaterService exposes the self-updater to the frontend. The native
+// application menu is deliberately avoided because its Win32 menu bar causes a
+// WebView2 mouse-input bug on Windows (a dismissed dropdown leaves the web UI
+// stuck with the left button held).
+type UpdaterService struct {
+	app *application.App
+}
+
+// CheckForUpdates opens the framework's update window and runs the full
+// check/download flow in the background.
+func (s *UpdaterService) CheckForUpdates() {
+	if s.app == nil {
+		log.Printf("update check requested before app was ready")
+		return
+	}
+	go func() {
+		if err := s.app.Updater.CheckAndInstall(context.Background()); err != nil {
+			log.Printf("update check failed: %v", err)
+		}
+	}()
+}
+
+// configureUpdater wires the in-app self-updater to GitHub Releases.
 func configureUpdater(app *application.App) error {
 	gh, err := github.New(github.Config{
 		Repository:    updaterRepository,
@@ -131,23 +155,8 @@ func configureUpdater(app *application.App) error {
 	if err != nil {
 		return err
 	}
-	if err := app.Updater.Init(updater.Config{
+	return app.Updater.Init(updater.Config{
 		CurrentVersion: currentVersion,
 		Providers:      []updater.Provider{gh},
-	}); err != nil {
-		return err
-	}
-
-	menu := app.NewMenu()
-	appMenu := menu.AddSubmenu("App")
-	appMenu.Add("Check for Updates…").OnClick(func(*application.Context) {
-		go func() {
-			if err := app.Updater.CheckAndInstall(context.Background()); err != nil {
-				log.Printf("update check failed: %v", err)
-			}
-		}()
 	})
-	app.Menu.SetApplicationMenu(menu)
-
-	return nil
 }
