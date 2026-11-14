@@ -238,7 +238,7 @@
             class="request-method"
             [attr.data-method]="req.method"
             [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['method']"
-            (dblclick)="onCellDoubleClick(req, 'method')"
+            (dblclick)="openMethodMenu(req, $event, methodMenu)"
           >{{ req.method }}</span>
         </div>
 
@@ -519,32 +519,21 @@
   </div>
 }
 
-@if (methodModalOpen()) {
-  <div class="overlay-backdrop" (click)="closeMethodModal()">
-    <div class="overlay-panel method-modal" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Edit method</h3>
-        <button class="overlay-close" type="button" (click)="closeMethodModal()">Cancel</button>
-      </div>
-
-      <div class="overlay-body">
-        <select
-          class="edit-select"
-          [ngModel]="methodModalValue()"
-          (ngModelChange)="methodModalValue.set($event)"
-        >
-          @for (method of httpMethods; track method) {
-            <option>{{ method }}</option>
-          }
-        </select>
-      </div>
-
-      <div class="overlay-footer">
-        <button class="variable-add" type="button" (click)="saveMethodModal()">Save</button>
-      </div>
-    </div>
-  </div>
-}
+<ng-template #methodMenu let-req>
+  @for (method of httpMethods; track method) {
+    <button
+      class="context-menu-item method-menu-item"
+      [class.is-current]="method === req.method"
+      type="button"
+      (click)="chooseMethod(req, method)"
+    >
+      <span class="request-method" [attr.data-method]="method">{{ method }}</span>
+      @if (method === req.method) {
+        <span class="method-menu-check" aria-hidden="true">✓</span>
+      }
+    </button>
+  }
+</ng-template>
 
 @if (tagsModalOpen()) {
   <div class="overlay-backdrop" (click)="closeTagsModal()">

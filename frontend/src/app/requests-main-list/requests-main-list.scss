@@ -405,20 +405,60 @@
   text-overflow: ellipsis;
 }
 
-// Method badge: grows slightly on hover and when selected (no borders).
+// Method badge: a springy pop on hover / when selected (no borders).
 .request-method {
   transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
+    transform 0.35s cubic-bezier(0.34, 1.9, 0.5, 1),
+    box-shadow 0.25s ease;
 }
 
 .spreadsheet-cell--method:hover .request-method {
-  transform: scale(1.12);
+  transform: scale(1.22) rotate(-3deg);
+  animation: method-wiggle 0.45s ease-out;
 }
 
 .request-method.is-cell-selected {
-  transform: scale(1.12);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--accent-3, var(--accent)) 35%, transparent);
+  transform: scale(1.18);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent-3, var(--accent)) 40%, transparent);
+}
+
+@keyframes method-wiggle {
+  0% {
+    transform: scale(1) rotate(0);
+  }
+  40% {
+    transform: scale(1.32) rotate(-6deg);
+  }
+  65% {
+    transform: scale(1.16) rotate(4deg);
+  }
+  100% {
+    transform: scale(1.22) rotate(-3deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spreadsheet-cell--method:hover .request-method {
+    animation: none;
+    transform: scale(1.12);
+  }
+}
+
+// Method dropdown (opened from the badge).
+.method-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.method-menu-item.is-current {
+  background: var(--selected-bg);
+}
+
+.method-menu-check {
+  color: var(--accent-3, var(--accent));
+  font-weight: 700;
 }
 
 .spreadsheet-cell--action {
@@ -797,7 +837,6 @@
 }
 
 .new-request-popup,
-.method-modal,
 .tags-modal,
 .favourites-modal,
 .move-collection-modal {

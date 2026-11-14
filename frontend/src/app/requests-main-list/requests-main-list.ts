@@ -219,9 +219,6 @@ export class RequestsMainList {
   private readonly methodHeaderCell = viewChild<ElementRef<HTMLElement>>('methodHeaderCell');
   private readonly nameHeaderCell = viewChild<ElementRef<HTMLElement>>('nameHeaderCell');
 
-  readonly methodModalOpen = signal(false);
-  readonly methodModalRequest = signal<HttpRequestSummary | null>(null);
-  readonly methodModalValue = signal('GET');
 
   readonly tagsModalOpen = signal(false);
   readonly tagsModalRequest = signal<HttpRequestSummary | null>(null);
@@ -668,7 +665,6 @@ export class RequestsMainList {
       this.contextMenu.isOpen() ||
       this.editingNameId() !== null ||
       this.editModalOpen() ||
-      this.methodModalOpen() ||
       this.tagsModalOpen() ||
       this.favouritesModalOpen() ||
       this.moveCollectionModalOpen() ||
@@ -690,10 +686,6 @@ export class RequestsMainList {
     }
     if (this.editModalOpen()) {
       this.closeEditModal();
-      return;
-    }
-    if (this.methodModalOpen()) {
-      this.closeMethodModal();
       return;
     }
     if (this.tagsModalOpen()) {
@@ -1913,10 +1905,6 @@ export class RequestsMainList {
       this.startInlineNameEdit(request);
       return;
     }
-    if (column === 'method') {
-      this.openMethodModal(request);
-      return;
-    }
     if (column === 'tags') {
       this.openTagsModal(request);
       return;
@@ -1976,27 +1964,25 @@ export class RequestsMainList {
     this.closeEditModal();
   }
 
-  // ---------- Method modal ----------
+  // ---------- Method dropdown ----------
 
-  openMethodModal(req: HttpRequestSummary): void {
+  openMethodMenu(
+    req: HttpRequestSummary | HttpBinnedRequestSummary,
+    event: MouseEvent,
+    template: TemplateRef<{ $implicit: HttpRequestSummary | HttpBinnedRequestSummary }>,
+  ): void {
+    if (this.state.showingBin()) return;
+    event.stopPropagation();
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const menuHeight = this.httpMethods.length * 38 + 8;
+    const y = rect.bottom + 6 + menuHeight > window.innerHeight ? rect.top - menuHeight - 6 : rect.bottom + 6;
+    this.contextMenu.open(template, req, rect.left, Math.max(8, y));
+  }
+
+  async chooseMethod(req: HttpRequestSummary, method: string): Promise<void> {
     this.contextMenu.close();
-    this.methodModalRequest.set(req);
-    this.methodModalValue.set(req.method);
-    this.methodModalOpen.set(true);
-  }
-
-  closeMethodModal(): void {
-    this.methodModalOpen.set(false);
-    this.methodModalRequest.set(null);
-    this.methodModalValue.set('GET');
-  }
-
-  async saveMethodModal(): Promise<void> {
-    const req = this.methodModalRequest();
-    if (!req) return;
-
-    await this.updateRequestField(req, 'method', this.methodModalValue());
-    this.closeMethodModal();
+    if (method === req.method) return;
+    await this.updateRequestField(req, 'method', method);
   }
 
   // ---------- Tags modal (single request) ----------
