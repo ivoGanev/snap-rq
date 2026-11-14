@@ -73,16 +73,16 @@ func (c SetColor) Run(input json.RawMessage) (any, error) {
 		return nil, nil
 	}
 
-	var value any
-	if in.Color != nil && *in.Color != "" {
-		value = *in.Color
+	value, err := commands.ColorSlotValue(in.Color)
+	if err != nil {
+		return nil, err
 	}
 	ph := strings.TrimSuffix(strings.Repeat("?,", len(in.RequestIDs)), ",")
 	args := []any{value, in.FavouriteCollectionID}
 	for _, id := range in.RequestIDs {
 		args = append(args, id)
 	}
-	_, err := c.tx.Exec(`
+	_, err = c.tx.Exec(`
 		UPDATE favourite_items SET user_color = ?
 		WHERE favourite_collection_id = ? AND http_request_id IN (`+ph+`)`, args...)
 	return nil, err

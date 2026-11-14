@@ -45,24 +45,6 @@
           Send
         </button>
       }
-      @if (!state.showingBin()) {
-        <button
-          class="favourite-button favourite-button--top-bar"
-          type="button"
-          (click)="onFavouriteButtonClick()"
-          [attr.aria-label]="
-            selectedRowIds().size === 1
-              ? 'Manage favourites'
-              : 'Manage favourites for ' + selectedRowIds().size + ' requests'
-          "
-        >
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path
-              d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-            />
-          </svg>
-        </button>
-      }
       @if (state.showingBin()) {
         <button
           class="restore-button"
@@ -201,8 +183,8 @@
         [class.is-active-drag-row]="dragStartRowId() === req.id"
         [class.is-reorder-source]="reorderDrag()?.request?.id === req.id"
         [class.is-dropped]="dropHighlightedId() === req.id"
-        [class.has-color]="!!rowState()[req.id]?.colorHex"
-        [style.--row-color]="rowState()[req.id]?.colorHex"
+        [class.has-color]="!!rowState()[req.id]?.colorVar"
+        [style.--row-color]="rowState()[req.id]?.colorVar"
         [style.--row-tint]="rowState()[req.id]?.colorTint"
         (mousedown)="onRowMouseDown(req, $event)"
         (click)="onRowClick(req, $event, 'name')"
@@ -256,7 +238,7 @@
             class="request-method"
             [attr.data-method]="req.method"
             [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['method']"
-            (dblclick)="onCellDoubleClick(req, 'method')"
+            (click)="openMethodMenu(req, $event, methodMenu)"
           >{{ req.method }}</span>
         </div>
 
@@ -286,6 +268,15 @@
               (dblclick)="onCellDoubleClick(req, 'name')"
             >{{ req.name }}</span>
           }
+          @if (!state.showingBin()) {
+            <button
+              class="cell-edit-button"
+              type="button"
+              aria-label="Edit name"
+              (mousedown)="$event.stopPropagation()"
+              (click)="$event.stopPropagation(); onCellDoubleClick(req, 'name')"
+            ></button>
+          }
         </div>
 
         <div
@@ -298,6 +289,15 @@
             class="cell-text"
             (dblclick)="onCellDoubleClick(req, 'url')"
           >{{ rowState()[req.id]?.displayUrl ?? req.url }}</span>
+          @if (!state.showingBin()) {
+            <button
+              class="cell-edit-button"
+              type="button"
+              aria-label="Edit url"
+              (mousedown)="$event.stopPropagation()"
+              (click)="$event.stopPropagation(); onCellDoubleClick(req, 'url')"
+            ></button>
+          }
         </div>
       </div>
     </cdk-virtual-scroll-viewport>
@@ -519,32 +519,21 @@
   </div>
 }
 
-@if (methodModalOpen()) {
-  <div class="overlay-backdrop" (click)="closeMethodModal()">
-    <div class="overlay-panel method-modal" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Edit method</h3>
-        <button class="overlay-close" type="button" (click)="closeMethodModal()">Cancel</button>
-      </div>
-
-      <div class="overlay-body">
-        <select
-          class="edit-select"
-          [ngModel]="methodModalValue()"
-          (ngModelChange)="methodModalValue.set($event)"
-        >
-          @for (method of httpMethods; track method) {
-            <option>{{ method }}</option>
-          }
-        </select>
-      </div>
-
-      <div class="overlay-footer">
-        <button class="variable-add" type="button" (click)="saveMethodModal()">Save</button>
-      </div>
-    </div>
-  </div>
-}
+<ng-template #methodMenu let-req>
+  @for (method of httpMethods; track method) {
+    <button
+      class="context-menu-item method-menu-item"
+      [class.is-current]="method === req.method"
+      type="button"
+      (click)="chooseMethod(req, method)"
+    >
+      <span class="request-method" [attr.data-method]="method">{{ method }}</span>
+      @if (method === req.method) {
+        <span class="method-menu-check" aria-hidden="true">✓</span>
+      }
+    </button>
+  }
+</ng-template>
 
 @if (tagsModalOpen()) {
   <div class="overlay-backdrop" (click)="closeTagsModal()">

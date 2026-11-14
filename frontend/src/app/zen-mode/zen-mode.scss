@@ -1,3 +1,5 @@
+@use '../../styles/buttons' as btn;
+
 :host {
   position: fixed;
   inset: 0;
@@ -70,6 +72,7 @@
     filter 0.15s ease,
     background 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-ghost;
 }
 
 .zen-back:hover {
@@ -82,6 +85,7 @@
 }
 
 .zen-pane-title {
+  font-family: var(--font-display);
   margin: 0;
   font-size: 1rem;
   font-weight: 700;
@@ -103,13 +107,13 @@
 }
 
 .zen-send-button {
-  padding: 6px 18px;
+  padding: var(--btn-pad-md);
   font-size: 0.875rem;
   font-weight: 800;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: #fff;
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: var(--on-accent);
+  background: var(--grad-success);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
@@ -117,10 +121,7 @@
     filter 0.15s ease,
     transform 0.1s ease;
   --wails-draggable: no-drag;
-}
-
-.zen-send-button:hover {
-  filter: brightness(1.15);
+  @include btn.btn-success;
 }
 
 .zen-send-button:active {

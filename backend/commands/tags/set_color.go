@@ -74,14 +74,14 @@ func (c SetColor) Run(input json.RawMessage) (any, error) {
 		return nil, nil
 	}
 
+	value, err := commands.ColorSlotValue(in.Color)
+	if err != nil {
+		return nil, err
+	}
+
 	placeholders := ""
 	args := make([]any, 0, len(in.RequestIDs)+3)
-	if in.Color != nil && *in.Color != "" {
-		args = append(args, *in.Color)
-	} else {
-		args = append(args, nil)
-	}
-	args = append(args, in.ProjectID, in.TagName)
+	args = append(args, value, in.ProjectID, in.TagName)
 	for i, id := range in.RequestIDs {
 		if i > 0 {
 			placeholders += ","
@@ -89,7 +89,7 @@ func (c SetColor) Run(input json.RawMessage) (any, error) {
 		placeholders += "?"
 		args = append(args, id)
 	}
-	_, err := c.tx.Exec(`
+	_, err = c.tx.Exec(`
 		UPDATE request_tags SET user_color = ? WHERE tag_id =
 		  (SELECT id FROM tags WHERE project_id = ? AND name = ?)
 		  AND request_id IN (`+placeholders+`)`, args...)

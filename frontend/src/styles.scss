@@ -1,3 +1,77 @@
+@use 'styles/buttons' as btn;
+
+@font-face {
+  font-family: 'Space Grotesk';
+  src: url('/fonts/Space_Grotesk/SpaceGrotesk-VariableFont_wght.ttf') format('truetype');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Space Mono';
+  src: url('/fonts/Space_Mono/SpaceMono-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Space Mono';
+  src: url('/fonts/Space_Mono/SpaceMono-Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Space Mono';
+  src: url('/fonts/Space_Mono/SpaceMono-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Space Mono';
+  src: url('/fonts/Space_Mono/SpaceMono-BoldItalic.ttf') format('truetype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Chakra Petch';
+  src: url('/fonts/Chakra_Petch/ChakraPetch-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Chakra Petch';
+  src: url('/fonts/Chakra_Petch/ChakraPetch-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Chakra Petch';
+  src: url('/fonts/Chakra_Petch/ChakraPetch-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Chakra Petch';
+  src: url('/fonts/Chakra_Petch/ChakraPetch-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 @font-face {
   font-family: 'Inter';
   src: url('/Inter-Medium.ttf') format('truetype');
@@ -27,53 +101,116 @@ html.platform-mac .titlebar-spacer {
   --s-5: 4.236rem;
 
   /* Default theme tokens until a theme CSS file loads. */
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+  --font-mono: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --font-display: 'Chakra Petch', 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family: 'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
     sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
-  --ink: #06070f;
-  --text: #f4f6fb;
-  --muted: #9aa6c0;
-  --accent: #ff4d4d;
-  --accent-2: #ff2d72;
-  --glass: rgba(255, 255, 255, 0.05);
-  --glass-strong: rgba(255, 255, 255, 0.08);
-  --glass-border: rgba(255, 255, 255, 0.12);
+  --ink: #0b0519;
+  --text: #f4ecff;
+  --muted: #a99bd2;
+  --accent: #ff5ce1;
+  --accent-2: #3be8ff;
+  --accent-3: #ffd45e;
+  --glass: rgba(190, 150, 255, 0.06);
+  --glass-strong: rgba(190, 150, 255, 0.1);
+  --glass-border: rgba(190, 150, 255, 0.2);
   --radius: 11px;
-  --grad: linear-gradient(135deg, #ff5a4d 0%, #ff2d72 100%);
+  --grad: linear-gradient(135deg, #ff4fc3 0%, #9a5cff 100%);
+  --grad-success: linear-gradient(135deg, #17c9b0 0%, #3b82f6 100%);
+  --grad-alt: linear-gradient(135deg, #ff4fc3 0%, #ffd45e 160%);
+  --on-accent: #ffffff;
 
-  --background: var(--ink);
-  --surface: rgba(6, 7, 15, 0.55);
-  --surface-solid: rgba(6, 7, 15, 0.98);
-  --input-bg: rgba(0, 0, 0, 0.25);
-  --row-even-bg: rgba(255, 255, 255, 0.02);
-  --hover-bg: rgba(255, 255, 255, 0.06);
-  --hover-highlight: rgba(255, 255, 255, 0.1);
-  --active-border: rgba(255, 77, 77, 0.35);
-  --selected-bg: rgba(255, 77, 77, 0.2);
-  --selected-border: rgba(255, 77, 77, 0.55);
-  --focus-ring: rgba(255, 77, 77, 0.15);
-  --focus-border: rgba(255, 77, 77, 0.55);
-  --danger-text: #fca5a5;
-  --danger-bg: rgba(239, 68, 68, 0.2);
-  --danger-solid: rgba(239, 68, 68, 0.8);
-  --error-text: #ff7a8f;
-  --shadow: rgba(0, 0, 0, 0.5);
-  --backdrop: rgba(0, 0, 0, 0.65);
+  /* Nebula glows + starfield over a deep space base. */
+  --background:
+    radial-gradient(1px 1px at 18px 32px, rgba(255, 255, 255, 0.85), transparent 60%) 0 0 / 190px 190px,
+    radial-gradient(1px 1px at 120px 90px, rgba(59, 232, 255, 0.8), transparent 60%) 0 0 / 240px 240px,
+    radial-gradient(1.5px 1.5px at 70px 150px, rgba(255, 212, 94, 0.75), transparent 60%) 0 0 / 310px 310px,
+    radial-gradient(ellipse 60% 50% at 8% 0%, rgba(255, 79, 195, 0.22), transparent 70%),
+    radial-gradient(ellipse 55% 55% at 100% 100%, rgba(59, 232, 255, 0.14), transparent 70%),
+    linear-gradient(160deg, #1b0a3d 0%, #0b0519 55%, #08031a 100%);
 
-  --scrollbar-track: rgba(255, 255, 255, 0.04);
-  --scrollbar-thumb: rgba(255, 255, 255, 0.18);
-  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.28);
+  --surface: rgba(20, 9, 48, 0.62);
+  --menu-bg: #1a0c3d;
+  --surface-solid: rgba(16, 7, 40, 0.985);
+  --input-bg: rgba(7, 2, 22, 0.55);
+  --row-even-bg: rgba(190, 150, 255, 0.03);
+  --hover-bg: rgba(190, 150, 255, 0.09);
+  --hover-highlight: rgba(190, 150, 255, 0.16);
+  --active-border: rgba(255, 92, 225, 0.4);
+  --selected-bg: rgba(255, 92, 225, 0.2);
+  --selected-border: rgba(255, 92, 225, 0.6);
+  --focus-ring: rgba(59, 232, 255, 0.2);
+  --focus-border: rgba(59, 232, 255, 0.7);
+  --active-tint-bg: rgba(154, 92, 255, 0.28);
+  --active-tint-border: rgba(154, 92, 255, 0.6);
+  --danger-text: #ff9db6;
+  --danger-bg: rgba(255, 70, 120, 0.2);
+  --danger-solid: rgba(255, 70, 120, 0.85);
+  --error-text: #ff7fa6;
+  --success-text: #6bf2d2;
+  --shadow: rgba(4, 0, 18, 0.65);
+  --backdrop: rgba(5, 0, 20, 0.7);
 
-  --syntax-key: #7dd3fc;
-  --syntax-string: #86efac;
-  --syntax-number: #fdba74;
-  --syntax-boolean: #c4b5fd;
-  --syntax-null: #f9a8d4;
-  --syntax-punctuation: #8b95b0;
-  --syntax-tag: #82aaff;
-  --syntax-attribute: #7dd3fc;
-  --syntax-comment: #64748b;
-  --syntax-csv-even: #cbd5e1;
-  --syntax-csv-odd: #7dd3fc;
+  --scrollbar-track: rgba(190, 150, 255, 0.06);
+  --scrollbar-thumb: rgba(255, 212, 94, 0.6);
+  --scrollbar-thumb-hover: rgba(255, 224, 138, 0.85);
+  --scrollbar-thumb-grad: linear-gradient(180deg, #ffd45e 0%, #f5a623 100%);
+  --scrollbar-thumb-grad-hover: linear-gradient(180deg, #ffe58f 0%, #ffbf3c 100%);
+
+  --btn-glow: rgba(255, 79, 195, 0.35);
+  --btn-glow-strong: rgba(255, 79, 195, 0.6);
+  --btn-glow-success: rgba(23, 201, 176, 0.35);
+  --btn-glow-success-strong: rgba(23, 201, 176, 0.6);
+  --btn-glow-danger: rgba(255, 70, 120, 0.4);
+  --btn-glow-danger-strong: rgba(255, 70, 120, 0.65);
+  --btn-glow-gold: rgba(255, 212, 94, 0.28);
+  --btn-highlight: rgba(255, 255, 255, 0.3);
+  --btn-edge: rgba(255, 212, 94, 0.4);
+  --btn-border-hover: rgba(255, 212, 94, 0.75);
+  --btn-ghost-ring: rgba(255, 212, 94, 0.4);
+  --btn-focus: #3be8ff;
+
+  /* Request colour slots (stored by name in the database; each theme picks the colour). */
+  --label-primary: #ff5ce1;
+  --label-secondary: #3be8ff;
+  --label-tertiary: #ffd45e;
+  --label-quaternary: #6bf2d2;
+  --label-quinary: #a07bff;
+  --label-senary: #ff7a7a;
+
+  --status-2xx: #6bf2d2;
+  --status-3xx: #ffd45e;
+  --status-4xx: #ff7a7a;
+  --status-5xx: #ff4fa3;
+  --method-get-bg: rgba(59, 232, 255, 0.18);
+  --method-get-fg: #7df0ff;
+  --method-post-bg: rgba(107, 242, 210, 0.18);
+  --method-post-fg: #6bf2d2;
+  --method-put-bg: rgba(255, 212, 94, 0.2);
+  --method-put-fg: #ffe08a;
+  --method-patch-bg: rgba(190, 130, 255, 0.22);
+  --method-patch-fg: #d9b8ff;
+
+  --syntax-key: #7df0ff;
+  --syntax-string: #6bf2d2;
+  --syntax-number: #ffd45e;
+  --syntax-boolean: #d9b8ff;
+  --syntax-null: #ff9bd9;
+  --syntax-punctuation: #9a8cc4;
+  --syntax-tag: #a99bff;
+  --syntax-attribute: #7df0ff;
+  --syntax-comment: #7a6aa8;
+  --syntax-csv-even: #e3d6ff;
+  --syntax-csv-odd: #7df0ff;
+
+  /* Shared layout rhythm so panels, headers and lists line up. */
+  --btn-pad-sm: 5px 12px;
+  --btn-pad-md: 8px 18px;
+  --chip-pad: 3px 10px;
+  --select-pad: 8px 14px;
+  --panel-pad-y: var(--s-3);
+  --panel-pad-x: var(--s-4);
+  --panel-gap: var(--s-3);
 
   font-family: var(--font-family);
   color-scheme: dark;
@@ -84,26 +221,119 @@ html.platform-mac .titlebar-spacer {
 
 * {
   box-sizing: border-box;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* Form controls do not inherit the page font by default; sizes stay per component. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+/* Scrollbars: WebKit pseudo-elements give the gradient thumb. The standard
+   properties are only a fallback, because Chromium ignores ::-webkit-scrollbar
+   whenever scrollbar-color / scrollbar-width are set. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
 }
 
 *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 *::-webkit-scrollbar-track {
   background: var(--scrollbar-track);
+  border-radius: 999px;
 }
 
 *::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 4px;
+  background: var(--scrollbar-thumb-grad, var(--scrollbar-thumb));
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
+  background: var(--scrollbar-thumb-grad-hover, var(--scrollbar-thumb-hover));
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Dropdowns. Native popups ignore most CSS, so style what they honour
+   everywhere, then fully theme the popup where the browser supports
+   customizable selects (Chromium / WebView2). */
+select {
+  accent-color: var(--accent);
+}
+
+select option,
+select optgroup {
+  background-color: var(--menu-bg);
+  color: var(--text);
+}
+
+@supports (appearance: base-select) {
+  select,
+  select::picker(select) {
+    appearance: base-select;
+  }
+
+  select {
+    gap: 10px;
+  }
+
+  select::picker-icon {
+    color: var(--accent-3, var(--accent));
+    transition: rotate 0.2s ease;
+  }
+
+  select:open::picker-icon {
+    rotate: 180deg;
+  }
+
+  select::picker(select) {
+    min-width: anchor-size(width);
+    margin-top: 4px;
+    padding: var(--s-1);
+    color: var(--text);
+    background: var(--menu-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    box-shadow: 0 16px 40px var(--shadow);
+  }
+
+  select option {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    padding: 9px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.12s ease;
+  }
+
+  select option:hover,
+  select option:focus-visible {
+    background: var(--hover-highlight);
+    outline: none;
+  }
+
+  select option:checked {
+    background: var(--selected-bg);
+    font-weight: 600;
+  }
+
+  select option::checkmark {
+    color: var(--accent-3, var(--accent));
+  }
 }
 
 html {
@@ -166,7 +396,7 @@ app-root {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 8px;
+  padding: var(--chip-pad);
   border-radius: 999px;
   background: var(--glass-strong);
   color: var(--text);
@@ -326,6 +556,7 @@ app-root {
 }
 
 .request-count {
+  font-family: var(--font-display);
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--muted);
@@ -340,6 +571,7 @@ app-root {
 }
 
 .edit-label {
+  font-family: var(--font-display);
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -401,6 +633,7 @@ app-root {
 }
 
 .overlay-title {
+  font-family: var(--font-display);
   margin: 0;
   font-size: 1.125rem;
   font-weight: 700;
@@ -417,10 +650,7 @@ app-root {
   border-radius: var(--radius);
   cursor: pointer;
   --wails-draggable: no-drag;
-}
-
-.overlay-close:hover {
-  filter: brightness(1.15);
+  @include btn.btn-secondary;
 }
 
 .overlay-actions {
@@ -433,17 +663,14 @@ app-root {
   padding: var(--s-2) var(--s-3);
   font-size: 0.875rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--on-accent);
   background: var(--danger-solid);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.overlay-delete:hover {
-  filter: brightness(1.15);
+  @include btn.btn-danger;
 }
 
 .overlay-body {
@@ -489,12 +716,9 @@ app-root {
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-  color: #fff;
+  color: var(--on-accent);
   background: var(--grad);
-}
-
-.variable-add:hover {
-  filter: brightness(1.15);
+  @include btn.btn-primary;
 }
 
 .context-menu-backdrop {

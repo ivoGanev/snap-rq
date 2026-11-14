@@ -61,8 +61,8 @@ export class RequestBottomDrawer {
     this.activeTab.update((current) => (current?.id === tab.id ? null : tab));
   }
 
-  onColorClick(hex: string): void {
-    this.colorSelect.emit(this.activeColor() === hex ? null : hex);
+  onColorClick(slot: string): void {
+    this.colorSelect.emit(this.activeColor() === slot ? null : slot);
   }
 
   onClearColor(): void {

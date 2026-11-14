@@ -45,6 +45,7 @@
       <div class="edit-field edit-field--headers">
         <app-request-headers-editor
           class="edit-headers-editor"
+          [framed]="true"
           [headers]="draftRequest()!.request_headers"
           [variables]="environmentVariables()"
           (headersChange)="updateRequestField('request_headers', $event)"
@@ -54,6 +55,7 @@
       <div class="edit-field edit-field--body">
         <app-request-body-editor
           class="edit-body-editor"
+          [framed]="true"
           [body]="draftRequest()!.body"
           [type]="bodyEditorType()"
           [bodyForm]="draftRequest()!.body_form"

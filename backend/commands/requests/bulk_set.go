@@ -85,6 +85,14 @@ func (c BulkSet) Run(input json.RawMessage) (any, error) {
 		return nil, nil
 	}
 
+	if in.Field == "color" {
+		slot, err := bulkColorValue(in.Value)
+		if err != nil {
+			return nil, err
+		}
+		in.Value = slot
+	}
+
 	for _, id := range in.IDs {
 		if _, err := c.tx.Exec(
 			fmt.Sprintf(`UPDATE http_requests SET %s = ? WHERE id = ?`, column),
@@ -115,4 +123,17 @@ func (c BulkSet) Undo(snapshot, _ json.RawMessage) error {
 
 func (BulkSet) Changes(input, _ json.RawMessage) []commands.RowChange {
 	return []commands.RowChange{{Component: "request", IDs: commands.IDsOf(input, "ids")}}
+}
+
+// bulkColorValue validates the value of a "color" bulk edit: nil or an empty
+// string clears the colour, anything else must be a colour slot.
+func bulkColorValue(value any) (any, error) {
+	if value == nil {
+		return nil, nil
+	}
+	text, ok := value.(string)
+	if !ok {
+		return nil, fmt.Errorf("colour must be a string, got %T", value)
+	}
+	return commands.ColorSlotValue(&text)
 }

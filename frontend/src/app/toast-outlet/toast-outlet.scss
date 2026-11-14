@@ -1,3 +1,5 @@
+@use '../../styles/buttons' as btn;
+
 .toast {
   position: fixed;
   bottom: 56px;
@@ -13,7 +15,7 @@
   color: var(--text);
   font-size: 13px;
   z-index: 2000;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 6px 24px var(--shadow);
 }
 
 .toast-message {
@@ -32,6 +34,7 @@
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  @include btn.btn-secondary;
 }
 
 .toast-action:hover {
@@ -48,6 +51,7 @@
   cursor: pointer;
   padding: 2px;
   border-radius: calc(var(--radius) * 0.4);
+  @include btn.btn-ghost;
 }
 
 .toast-close:hover {

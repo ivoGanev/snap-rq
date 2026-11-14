@@ -16,6 +16,8 @@ export class RequestHeadersEditor {
   readonly headers = input<string>('');
   readonly variables = input<EditorVariable[]>([]);
   readonly showLabel = input<boolean>(true);
+  // Draw the code editor inside the same bordered box as the other fields.
+  readonly framed = input<boolean>(false);
 
   readonly headersChange = output<string>();
 }

@@ -1,20 +1,43 @@
+/**
+ * Request colour slots. The database stores only a slot name, never a
+ * colour: each theme defines what a slot looks like through the
+ * `--label-<slot>` CSS custom properties, so recolouring a theme never
+ * touches stored data. Keep this list in sync with `ColorSlots` in
+ * backend/models/colorslot.go.
+ */
+export const REQUEST_COLOR_SLOTS = [
+  'primary',
+  'secondary',
+  'tertiary',
+  'quaternary',
+  'quinary',
+  'senary',
+] as const;
+
+export type RequestColorSlot = (typeof REQUEST_COLOR_SLOTS)[number];
+
 export interface RequestColorOption {
-  /** Hex colour stored in the database. */
-  hex: string;
-  /** Low-opacity tint used for the row background. */
-  tint: string;
+  /** Slot name stored in the database. */
+  slot: RequestColorSlot;
+  /** Theme-neutral label: the slot's position, never a colour name. */
   label: string;
+  /** CSS value that resolves to the slot's colour in the active theme. */
+  cssVar: string;
 }
 
-export const REQUEST_COLORS: readonly RequestColorOption[] = [
-  { hex: '#AECBFA', tint: 'rgba(174, 203, 250, 0.18)', label: 'Pastel blue' },
-  { hex: '#B6E2C6', tint: 'rgba(182, 226, 198, 0.18)', label: 'Pastel green' },
-  { hex: '#F7E6A3', tint: 'rgba(247, 230, 163, 0.20)', label: 'Pastel yellow' },
-];
+export const REQUEST_COLORS: readonly RequestColorOption[] = REQUEST_COLOR_SLOTS.map((slot, index) => ({
+  slot,
+  label: `Color ${index + 1}`,
+  cssVar: `var(--label-${slot})`,
+}));
 
-/** Resolves a stored hex colour to its display metadata (null = no colour). */
-export function requestColorInfo(hex: string | null): { hex: string; tint: string } | null {
-  if (!hex) return null;
-  const option = REQUEST_COLORS.find((c) => c.hex.toLowerCase() === hex.toLowerCase());
-  return option ? { hex: option.hex, tint: option.tint } : { hex, tint: 'rgba(255,255,255,0.06)' };
+export function isRequestColorSlot(value: string | null): value is RequestColorSlot {
+  return value !== null && (REQUEST_COLOR_SLOTS as readonly string[]).includes(value);
+}
+
+/** Resolves a stored slot to the CSS the UI paints with (null = no colour). */
+export function requestColorInfo(slot: string | null): { cssVar: string; tint: string } | null {
+  if (!isRequestColorSlot(slot)) return null;
+  const cssVar = `var(--label-${slot})`;
+  return { cssVar, tint: `color-mix(in srgb, ${cssVar} 18%, transparent)` };
 }

@@ -405,3 +405,78 @@ func TestMigrateRequestUsageIntoHttpRequests(t *testing.T) {
 		t.Error("expected the last_used_at index to exist")
 	}
 }
+
+func TestMigrateUserColorsToSlots(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("opening in-memory db: %v", err)
+	}
+	defer db.Close()
+	// One connection, so every statement sees the same in-memory database.
+	db.SetMaxOpenConns(1)
+
+	if _, err := db.Exec(`
+		CREATE TABLE http_requests (id INTEGER PRIMARY KEY, user_color TEXT);
+		CREATE TABLE favourite_items (id INTEGER PRIMARY KEY, user_color TEXT);
+		CREATE TABLE request_tags (id INTEGER PRIMARY KEY, user_color TEXT);
+		CREATE TABLE undo_log (id INTEGER PRIMARY KEY, input TEXT, snapshot TEXT, result TEXT);
+
+		INSERT INTO http_requests (user_color) VALUES ('#AECBFA'), ('#b6e2c6'), ('#F7E6A3'), ('primary'), ('#123456'), (NULL);
+		INSERT INTO favourite_items (user_color) VALUES ('#AECBFA');
+		INSERT INTO request_tags (user_color) VALUES ('#B6E2C6');
+		INSERT INTO undo_log (input, snapshot, result) VALUES
+			('{"color":"#AECBFA"}', '[{"id":1,"user_color":"#F7E6A3"},{"id":2,"user_color":null}]', 'null');
+	`); err != nil {
+		t.Fatalf("seeding legacy colours: %v", err)
+	}
+
+	// Running twice proves the migration is idempotent.
+	for i := 0; i < 2; i++ {
+		if err := migrateUserColorsToSlots(db); err != nil {
+			t.Fatalf("migrateUserColorsToSlots run %d: %v", i+1, err)
+		}
+	}
+
+	rows, err := db.Query(`SELECT user_color FROM http_requests ORDER BY id`)
+	if err != nil {
+		t.Fatalf("reading colours: %v", err)
+	}
+	defer rows.Close()
+	var got []string
+	for rows.Next() {
+		var c sql.NullString
+		if err := rows.Scan(&c); err != nil {
+			t.Fatalf("scanning colour: %v", err)
+		}
+		got = append(got, c.String)
+	}
+	want := []string{"primary", "secondary", "tertiary", "primary", "#123456", ""}
+	if len(got) != len(want) {
+		t.Fatalf("got %d colours, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("http_requests colour %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+
+	var fav, tag, input, snapshot string
+	if err := db.QueryRow(`SELECT user_color FROM favourite_items`).Scan(&fav); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT user_color FROM request_tags`).Scan(&tag); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT input, snapshot FROM undo_log`).Scan(&input, &snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if fav != "primary" || tag != "secondary" {
+		t.Errorf("favourite/tag colours = %q/%q, want primary/secondary", fav, tag)
+	}
+	if input != `{"color":"primary"}` {
+		t.Errorf("undo_log input = %s", input)
+	}
+	if snapshot != `[{"id":1,"user_color":"tertiary"},{"id":2,"user_color":null}]` {
+		t.Errorf("undo_log snapshot = %s", snapshot)
+	}
+}

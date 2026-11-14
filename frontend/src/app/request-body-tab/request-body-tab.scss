@@ -1,3 +1,5 @@
+@use '../../styles/buttons' as btn;
+
 :host {
   flex: 1 1 auto;
   display: flex;
@@ -10,11 +12,12 @@
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  padding: 6px var(--s-3);
+  padding: var(--s-1) var(--s-3);
   padding-right: 32px;
 }
 
 .body-tab-count {
+  font-family: var(--font-display);
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--accent);
@@ -27,20 +30,17 @@
 }
 
 .body-apply-button {
-  padding: 5px 16px;
+  padding: var(--btn-pad-md);
   font-size: 0.75rem;
   font-weight: 700;
-  color: #fff;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: var(--on-accent);
+  background: var(--grad);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.body-apply-button:hover:not(:disabled) {
-  filter: brightness(1.15);
+  @include btn.btn-primary;
 }
 
 .body-apply-button:disabled {
@@ -51,7 +51,7 @@
 .body-editor {
   flex: 1 1 auto;
   min-height: 0;
-  padding: 0 var(--s-3);
+  padding: 0 var(--s-3) var(--s-3);
   box-sizing: border-box;
 }
 
@@ -77,20 +77,17 @@
 }
 
 .body-wipe-button {
-  padding: 6px 16px;
+  padding: var(--btn-pad-md);
   font-size: 0.75rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--on-accent);
   background: var(--danger-solid);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.body-wipe-button:hover:not(:disabled) {
-  filter: brightness(1.15);
+  @include btn.btn-danger;
 }
 
 .body-wipe-button:disabled {

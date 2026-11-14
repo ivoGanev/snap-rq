@@ -1,9 +1,12 @@
+@use '../../styles/buttons' as btn;
+
 .tab-header {
   justify-content: flex-start;
   gap: var(--s-3);
 }
 
 .panel-title {
+  font-family: var(--font-display);
   margin: 0;
   font-size: 1.25rem;
   font-weight: 700;
@@ -62,37 +65,31 @@
 }
 
 .restore-button {
-  padding: 8px 18px;
+  padding: var(--btn-pad-md);
   font-size: 0.875rem;
   font-weight: 700;
-  color: #fff;
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: var(--on-accent);
+  background: var(--grad-success);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.restore-button:hover {
-  filter: brightness(1.15);
+  @include btn.btn-success;
 }
 
 .delete-button {
-  padding: 8px 18px;
+  padding: var(--btn-pad-md);
   font-size: 0.875rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--on-accent);
   background: var(--danger-solid);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.delete-button:hover {
-  filter: brightness(1.15);
+  @include btn.btn-danger;
 }
 
 .request-method {
@@ -108,18 +105,18 @@
 }
 
 .request-method[data-method='GET'] {
-  background: rgba(59, 130, 246, 0.2);
-  color: #93c5fd;
+  background: var(--method-get-bg);
+  color: var(--method-get-fg);
 }
 
 .request-method[data-method='POST'] {
-  background: rgba(34, 197, 94, 0.2);
-  color: #86efac;
+  background: var(--method-post-bg);
+  color: var(--method-post-fg);
 }
 
 .request-method[data-method='PUT'] {
-  background: rgba(234, 179, 8, 0.2);
-  color: #fde047;
+  background: var(--method-put-bg);
+  color: var(--method-put-fg);
 }
 
 .request-method[data-method='DELETE'] {
@@ -128,8 +125,8 @@
 }
 
 .request-method[data-method='PATCH'] {
-  background: rgba(168, 85, 247, 0.2);
-  color: #d8b4fe;
+  background: var(--method-patch-bg);
+  color: var(--method-patch-fg);
 }
 
 .collection-list {

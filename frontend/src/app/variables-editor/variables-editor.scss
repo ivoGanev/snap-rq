@@ -1,3 +1,5 @@
+@use '../../styles/buttons' as btn;
+
 .variables-editor {
   width: min(720px, calc(100vw - 2 * var(--s-4)));
   height: min(720px, calc(100vh - 2 * var(--s-4)));
@@ -31,7 +33,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 5px 12px;
+  padding: var(--btn-pad-sm);
   font-size: 0.8125rem;
   font-weight: 700;
   color: var(--text);
@@ -43,6 +45,7 @@
     background 0.15s ease,
     border-color 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-chip;
 }
 
 .environment-chip:hover {
@@ -50,7 +53,7 @@
 }
 
 .environment-chip.is-active {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: var(--grad);
   border-color: transparent;
 }
 
@@ -75,7 +78,7 @@
 }
 
 .environment-chip-delete:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--hover-highlight);
 }
 
 .environment-chip--add {
@@ -115,20 +118,17 @@
 }
 
 .variable-add-button {
-  padding: 6px 14px;
+  padding: var(--btn-pad-md);
   font-size: 0.8125rem;
   font-weight: 700;
-  color: #fff;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: var(--on-accent);
+  background: var(--grad);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-}
-
-.variable-add-button:hover {
-  filter: brightness(1.15);
+  @include btn.btn-primary;
 }
 
 .variables-table-wrapper {
@@ -254,6 +254,7 @@
     color 0.15s ease,
     background 0.15s ease;
   --wails-draggable: no-drag;
+  @include btn.btn-ghost;
 }
 
 .variables-row:hover .row-delete {
