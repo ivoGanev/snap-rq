@@ -1,0 +1,243 @@
+@use '../../styles/buttons' as btn;
+
+.cookies-editor {
+  width: min(860px, calc(100vw - 2 * var(--s-4)));
+  height: min(720px, calc(100vh - 2 * var(--s-4)));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cookies-editor-header {
+  flex: 0 0 auto;
+}
+
+.cookies-editor-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--s-3) var(--s-4);
+  gap: var(--s-3);
+}
+
+.cookies-toolbar,
+.cookie-form-actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: var(--s-2);
+}
+
+.cookie-add-button {
+  padding: var(--btn-pad-md);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--on-accent);
+  background: var(--grad);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  --wails-draggable: no-drag;
+  @include btn.btn-primary;
+}
+
+.cookie-clear-button {
+  padding: var(--btn-pad-md);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  --wails-draggable: no-drag;
+  @include btn.btn-chip;
+}
+
+.cookie-clear-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.cookie-form {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+}
+
+.cookie-field {
+  flex: 1 1 160px;
+  min-width: 0;
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.8125rem;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  outline: none;
+}
+
+.cookie-field--short {
+  flex: 0 1 100px;
+}
+
+.cookie-field:focus {
+  border-color: var(--selected-border);
+}
+
+.cookie-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--text);
+}
+
+.cookie-error {
+  flex: 1 1 100%;
+  font-size: 0.8125rem;
+  color: var(--danger-text);
+}
+
+.cookies-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.cookies-empty {
+  padding: var(--s-4) var(--s-3);
+  text-align: center;
+  color: var(--muted);
+}
+
+.cookie-group {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.cookie-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s-2) var(--s-3);
+  background: var(--surface-solid);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.cookie-group-domain {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.cookies-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.8125rem;
+}
+
+.cookies-table th {
+  padding: var(--s-2) var(--s-3);
+  text-align: left;
+  font-weight: 700;
+  color: var(--muted);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.col-name { width: 18%; }
+.col-value { width: 30%; }
+.col-path { width: 10%; }
+.col-exp { width: 20%; }
+.col-flags { width: 16%; }
+.col-action { width: 6%; }
+
+.cookie-row:nth-child(even) {
+  background: var(--row-even-bg);
+}
+
+.cookie-row:hover {
+  background: var(--hover-bg);
+}
+
+.cookie-cell {
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--glass-border);
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cookie-cell--action {
+  text-align: center;
+}
+
+.cookie-name {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.cookie-muted {
+  color: var(--muted);
+}
+
+.cookie-input {
+  width: 100%;
+  padding: 2px 4px;
+  font-size: 0.8125rem;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  outline: none;
+}
+
+.cookie-input:focus {
+  background: var(--hover-bg);
+  border-color: var(--selected-border);
+}
+
+.cookie-badge {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 1px 6px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--muted);
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+}
+
+.row-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  --wails-draggable: no-drag;
+  @include btn.btn-ghost;
+}
+
+.row-delete:hover {
+  color: var(--danger-text);
+  background: var(--danger-bg);
+}

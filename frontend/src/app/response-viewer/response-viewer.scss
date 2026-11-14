@@ -317,3 +317,25 @@
 .tok-column-odd {
   color: var(--syntax-csv-odd);
 }
+
+.response-cookies {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.response-cookies td {
+  padding: var(--s-1) var(--s-3);
+  border-bottom: 1px solid var(--glass-border);
+  vertical-align: top;
+  word-break: break-all;
+}
+
+.response-cookie-name {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.response-cookie-attrs {
+  color: var(--muted);
+}

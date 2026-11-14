@@ -5,6 +5,7 @@ export interface AppSettings {
   validate_ssl_certificates: boolean;
   request_timeout_seconds: number;
   undo_history_limit: number;
+  use_cookie_jar: boolean;
 }
 
 /**
@@ -18,6 +19,7 @@ export class SettingsApiService {
     validate_ssl_certificates: true,
     request_timeout_seconds: 30,
     undo_history_limit: 100,
+    use_cookie_jar: true,
   });
   readonly loaded = signal(false);
 

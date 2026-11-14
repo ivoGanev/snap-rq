@@ -1,0 +1,110 @@
+<div class="overlay-backdrop" (click)="closeDialog()">
+  <div class="overlay-panel cookies-editor" (click)="$event.stopPropagation()">
+    <div class="overlay-header cookies-editor-header">
+      <h3 class="overlay-title">Cookies — {{ state.selectedProject()?.name ?? 'None' }}</h3>
+      <button class="overlay-close" type="button" (click)="closeDialog()">Close</button>
+    </div>
+
+    <div class="cookies-editor-body">
+      <div class="cookies-toolbar">
+        <button class="cookie-add-button" type="button" (click)="openAdd()">Add cookie</button>
+        <button
+          class="cookie-clear-button"
+          type="button"
+          [disabled]="cookies().length === 0"
+          (click)="clearAll()"
+        >
+          Clear all
+        </button>
+      </div>
+
+      @if (addOpen()) {
+        <form class="cookie-form" (submit)="$event.preventDefault(); submitAdd()">
+          <input class="cookie-field" name="domain" placeholder="Domain (example.com)"
+            [ngModel]="draft().domain" (ngModelChange)="setDraft('domain', $event)" />
+          <input class="cookie-field cookie-field--short" name="path" placeholder="Path"
+            [ngModel]="draft().path" (ngModelChange)="setDraft('path', $event)" />
+          <input class="cookie-field" name="name" placeholder="Name"
+            [ngModel]="draft().name" (ngModelChange)="setDraft('name', $event)" />
+          <input class="cookie-field" name="value" placeholder="Value"
+            [ngModel]="draft().value" (ngModelChange)="setDraft('value', $event)" />
+          <input class="cookie-field" name="expires" type="datetime-local"
+            title="Expiry (empty = session)"
+            [ngModel]="draft().expires" (ngModelChange)="setDraft('expires', $event)" />
+          <label class="cookie-check">
+            <input type="checkbox" name="subdomains" [ngModel]="draft().subdomains"
+              (ngModelChange)="setDraft('subdomains', $event)" /> Include subdomains
+          </label>
+          <label class="cookie-check">
+            <input type="checkbox" name="secure" [ngModel]="draft().secure"
+              (ngModelChange)="setDraft('secure', $event)" /> Secure
+          </label>
+          <label class="cookie-check">
+            <input type="checkbox" name="http_only" [ngModel]="draft().http_only"
+              (ngModelChange)="setDraft('http_only', $event)" /> HttpOnly
+          </label>
+          @if (error()) {
+            <div class="cookie-error">{{ error() }}</div>
+          }
+          <div class="cookie-form-actions">
+            <button class="cookie-add-button" type="submit">Save</button>
+            <button class="cookie-clear-button" type="button" (click)="addOpen.set(false)">Cancel</button>
+          </div>
+        </form>
+      }
+
+      <div class="cookies-list">
+        @if (groups().length === 0) {
+          <div class="cookies-empty">
+            No cookies yet. Cookies set by responses are stored here and sent with later requests.
+          </div>
+        }
+        @for (group of groups(); track group.domain) {
+          <section class="cookie-group">
+            <div class="cookie-group-header">
+              <span class="cookie-group-domain">{{ group.domain }}</span>
+              <button class="cookie-clear-button" type="button" (click)="clearDomain(group.domain)">
+                Delete domain
+              </button>
+            </div>
+            <table class="cookies-table">
+              <thead>
+                <tr>
+                  <th class="col-name">Name</th>
+                  <th class="col-value">Value</th>
+                  <th class="col-path">Path</th>
+                  <th class="col-exp">Expires</th>
+                  <th class="col-flags">Flags</th>
+                  <th class="col-action"></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (cookie of group.cookies; track cookie.id) {
+                  <tr class="cookie-row">
+                    <td class="cookie-cell cookie-name">{{ cookie.name }}</td>
+                    <td class="cookie-cell">
+                      <input class="cookie-input" [value]="cookie.value"
+                        (change)="updateValue(cookie, $any($event.target).value)" />
+                    </td>
+                    <td class="cookie-cell cookie-muted">{{ cookie.path }}</td>
+                    <td class="cookie-cell cookie-muted">{{ expiryLabel(cookie) }}</td>
+                    <td class="cookie-cell">
+                      @if (!cookie.host_only) { <span class="cookie-badge">Subdomains</span> }
+                      @if (cookie.secure) { <span class="cookie-badge">Secure</span> }
+                      @if (cookie.http_only) { <span class="cookie-badge">HttpOnly</span> }
+                      @if (cookie.same_site) { <span class="cookie-badge">{{ cookie.same_site }}</span> }
+                    </td>
+                    <td class="cookie-cell cookie-cell--action">
+                      <button class="row-delete" type="button" aria-label="Delete cookie"
+                        (click)="deleteCookie(cookie)">×</button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </section>
+        }
+      </div>
+    </div>
+  </div>
+</div>

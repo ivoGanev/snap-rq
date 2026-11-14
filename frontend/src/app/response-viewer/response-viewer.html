@@ -78,6 +78,21 @@
       >{{ state.selectedResponse()!.headers || 'No headers' }}</pre>
     </div>
 
+    @if (responseCookies().length > 0) {
+      <div class="response-section">
+        <h3 class="section-title">Cookies ({{ responseCookies().length }})</h3>
+        <table class="response-cookies">
+          @for (c of responseCookies(); track $index) {
+            <tr>
+              <td class="response-cookie-name">{{ c.name }}</td>
+              <td class="response-cookie-value">{{ c.value }}</td>
+              <td class="response-cookie-attrs">{{ c.attrs }}</td>
+            </tr>
+          }
+        </table>
+      </div>
+    }
+
     <div class="response-section response-body-section">
       <h3 class="section-title">Body</h3>
       @if (bodyLines().length === 0) {

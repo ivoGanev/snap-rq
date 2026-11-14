@@ -26,6 +26,24 @@ export class ResponseViewer {
   protected readonly statusText = httpStatusText;
   protected readonly prettifyEnabled = signal(true);
 
+  /** Set-Cookie lines of the selected response, parsed for display. */
+  protected readonly responseCookies = computed(() => {
+    const headers = this.state.selectedResponse()?.headers ?? '';
+    const out: { name: string; value: string; attrs: string }[] = [];
+    for (const line of headers.split(/\r?\n/)) {
+      const m = /^set-cookie:\s*(.*)$/i.exec(line);
+      if (!m) continue;
+      const [pair, ...rest] = m[1].split(';');
+      const eq = pair.indexOf('=');
+      out.push({
+        name: (eq < 0 ? '' : pair.slice(0, eq)).trim(),
+        value: (eq < 0 ? pair : pair.slice(eq + 1)).trim(),
+        attrs: rest.map((a) => a.trim()).filter(Boolean).join('; '),
+      });
+    }
+    return out;
+  });
+
   protected readonly sendingElapsed = computed<number | null>(() => {
     const id = this.state.selectedRequest()?.id;
     if (id === undefined) return null;
