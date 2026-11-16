@@ -25,6 +25,14 @@ func (c Update) Run(input json.RawMessage) (any, error) {
 	if err := json.Unmarshal(input, &s); err != nil {
 		return nil, err
 	}
+	// A caller that predates the cookie jar setting leaves it out; keep the
+	// stored choice then, instead of reading the missing field as "off".
+	var optional struct {
+		UseCookieJar *bool `json:"use_cookie_jar"`
+	}
+	if err := json.Unmarshal(input, &optional); err != nil {
+		return nil, err
+	}
 	if s.RequestTimeoutSeconds == 0 {
 		s.RequestTimeoutSeconds = 30
 	}
@@ -57,5 +65,22 @@ func (c Update) Run(input json.RawMessage) (any, error) {
 	if err := write("undo_history_limit", s.UndoHistoryLimit); err != nil {
 		return nil, err
 	}
+	if optional.UseCookieJar != nil {
+		if err := write("use_cookie_jar", s.UseCookieJar); err != nil {
+			return nil, err
+		}
+	} else {
+		s.UseCookieJar = c.storedUseCookieJar()
+	}
 	return s, nil
+}
+
+// storedUseCookieJar reads the saved cookie jar choice; on by default.
+func (c Update) storedUseCookieJar() bool {
+	enabled := true
+	var raw string
+	if err := c.tx.QueryRow(`SELECT value FROM app_settings WHERE key = 'use_cookie_jar'`).Scan(&raw); err == nil {
+		_ = json.Unmarshal([]byte(raw), &enabled)
+	}
+	return enabled
 }

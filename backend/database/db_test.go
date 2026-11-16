@@ -480,3 +480,24 @@ func TestMigrateUserColorsToSlots(t *testing.T) {
 		t.Errorf("undo_log snapshot = %s", snapshot)
 	}
 }
+
+func TestCreateCookiesTableIsIdempotentAndUnique(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("opening in-memory db: %v", err)
+	}
+	defer db.Close()
+
+	for i := 0; i < 2; i++ {
+		if err := createCookiesTable(db); err != nil {
+			t.Fatalf("createCookiesTable run %d: %v", i+1, err)
+		}
+	}
+	insert := `INSERT INTO cookies (project_id, domain, path, name, value) VALUES (1, 'example.com', '/', 'session', 'x')`
+	if _, err := db.Exec(insert); err != nil {
+		t.Fatalf("first insert: %v", err)
+	}
+	if _, err := db.Exec(insert); err == nil {
+		t.Errorf("expected duplicate (project, domain, path, name) to be rejected")
+	}
+}

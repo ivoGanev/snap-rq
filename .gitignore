@@ -17,3 +17,15 @@ build/android/build/
 build/android/local.properties
 *.exe
 wails_*.syso
+
+# Python bytecode, caches and virtualenvs
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+*.egg-info/

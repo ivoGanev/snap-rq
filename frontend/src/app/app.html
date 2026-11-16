@@ -24,6 +24,17 @@
 
   <span class="top-bar-separator" aria-hidden="true"></span>
 
+  <button
+    class="environment-edit"
+    type="button"
+    (click)="openCookiesOverlay()"
+    [disabled]="!state.selectedProject()"
+  >
+    Cookies ({{ cookieCount().length }})
+  </button>
+
+  <span class="top-bar-separator" aria-hidden="true"></span>
+
   <div class="project-selector">
     <span class="project-label">Project</span>
     <span class="project-name">{{ state.selectedProject()?.name ?? 'None' }}</span>
@@ -69,6 +80,10 @@
 
 @if (state.zenModeOpen()) {
   <app-zen-mode></app-zen-mode>
+}
+
+@if (cookiesOverlayOpen()) {
+  <app-cookies-editor (close)="cookiesOverlayOpen.set(false)"></app-cookies-editor>
 }
 
 @if (variablesOverlayOpen()) {
@@ -260,6 +275,20 @@
           type="checkbox"
           [checked]="settingsApi.settings().validate_ssl_certificates"
           (change)="onSslValidationChange($event)"
+        />
+      </label>
+      <label class="settings-option">
+        <span class="settings-option-copy">
+          <span class="settings-option-label">Use cookie jar</span>
+          <span class="settings-option-help">
+            Store cookies from responses per project and send them with later requests.
+          </span>
+        </span>
+        <input
+          class="settings-toggle"
+          type="checkbox"
+          [checked]="settingsApi.settings().use_cookie_jar"
+          (change)="onCookieJarChange($event)"
         />
       </label>
       <label class="settings-option">

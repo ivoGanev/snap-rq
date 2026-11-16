@@ -6,6 +6,7 @@ import {
   OnInit,
   signal,
   computed,
+  effect,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WML } from '@wailsio/runtime';
@@ -28,6 +29,8 @@ import { RequestGroups } from './request-groups/request-groups';
 import { RequestsMainList } from './requests-main-list/requests-main-list';
 import { RequestPanel } from './request-panel/request-panel';
 import { VariablesEditor } from './variables-editor/variables-editor';
+import { CookiesEditor } from './cookies-editor/cookies-editor';
+import { CookieApiService } from './core/services/cookie.service';
 import { ZenMode } from './zen-mode/zen-mode';
 import { ContextMenuOutlet } from './context-menu-outlet/context-menu-outlet';
 import { ToastOutlet } from './toast-outlet/toast-outlet';
@@ -42,6 +45,7 @@ import { UndoPanel } from './undo-panel/undo-panel';
     RequestsMainList,
     RequestPanel,
     VariablesEditor,
+    CookiesEditor,
     ZenMode,
     ContextMenuOutlet,
     ToastOutlet,
@@ -65,6 +69,7 @@ export class App implements OnInit, AfterViewInit {
   private readonly tagApi = inject(TagApiService);
   private readonly iconManifest = inject(IconManifestService);
   private readonly iconApi = inject(IconApiService);
+  private readonly cookieApi = inject(CookieApiService);
 
   protected readonly projects = this.projectApi.projects;
   protected readonly environments = this.environmentApi.environments;
@@ -83,6 +88,15 @@ export class App implements OnInit, AfterViewInit {
   });
 
   readonly variablesOverlayOpen = signal(false);
+  readonly cookiesOverlayOpen = signal(false);
+  protected readonly cookieCount = this.cookieApi.cookies;
+
+  /** Keeps the jar in step with the project; a new response may have set cookies. */
+  private readonly cookieSync = effect(() => {
+    const projectId = this.state.selectedProject()?.id ?? null;
+    this.state.selectedResponse();
+    void this.cookieApi.loadForProject(projectId);
+  });
   readonly projectEditorOpen = signal(false);
   readonly newProjectName = signal('');
   readonly projectDeleteConfirmOpen = signal(false);
@@ -122,6 +136,10 @@ export class App implements OnInit, AfterViewInit {
   onEscapePressed(): void {
     if (this.state.zenModeOpen()) {
       this.state.closeZenMode();
+      return;
+    }
+    if (this.cookiesOverlayOpen()) {
+      this.cookiesOverlayOpen.set(false);
       return;
     }
     if (this.variablesOverlayOpen()) {
@@ -383,6 +401,21 @@ export class App implements OnInit, AfterViewInit {
     const env = this.environments().find((e) => e.id === environmentId);
     if (env) {
       this.selectEnvironment(env);
+    }
+  }
+
+  openCookiesOverlay(): void {
+    void this.cookieApi.reload();
+    this.cookiesOverlayOpen.set(true);
+  }
+
+  async onCookieJarChange(event: Event): Promise<void> {
+    const checked = (event.target as HTMLInputElement).checked;
+    try {
+      await this.settingsApi.update({ ...this.settingsApi.settings(), use_cookie_jar: checked });
+    } catch (err) {
+      console.error('Failed to update settings:', err);
+      this.settingsApi.settings.update((current) => ({ ...current }));
     }
   }
 

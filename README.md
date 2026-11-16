@@ -87,6 +87,7 @@ A small standalone HTTP server for manually testing the client against different
 - Content-type mocks: `/mock/json`, `/mock/csv`, `/mock/html`, `/mock/text`, `/mock/xml`, `/mock/binary`
 - Status mocks: `/mock/status/200`, `/mock/status/201`, `/mock/status/204`, `/mock/status/400`, `/mock/status/401`, `/mock/status/404`, `/mock/status/500`
 - Special mocks: `/mock/delay?ms=2000`, `/mock/empty`
+- Cookie mocks under `/mock/cookies/`: `set`, `set-flags`, `set-domain`, `set-path`, `echo`, `path/echo`, `redirect`, `expire?name=`
 - Echo endpoint: `/echo` (preserved from the original echo service)
 
 Run it with:
