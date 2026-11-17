@@ -184,3 +184,14 @@
   font-size: 0.8125rem;
   color: var(--text);
 }
+
+.mcp-textarea {
+  padding: var(--s-2) var(--s-3);
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  resize: vertical;
+}

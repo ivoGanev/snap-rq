@@ -139,3 +139,16 @@ Backend: `backend/mcp/service.go` (`SettingsService`, registered in `main.go`). 
 ## Variables
 
 `list_environments` and `list_variables` are read tools. `list_variables` returns names only (`id`, `name`); values are dropped in Go (`tools_variables.go`), covered by a leak test. Decision: the AI may know which variables exist and use `{{name}}`, never read the value. There is no tool that returns values.
+
+## Masking secrets (on by default)
+
+Setting `mcp_mask_secrets` (absent = on) plus `mcp_mask_extra` (the user's own names). When on, everything a tool returns passes through `Server.present`, which replaces secret values with `[REDACTED]` (`mask.go`):
+
+- headers (`request_headers`, `headers`): `Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`, anything containing `token`, `secret`, `password`, …;
+- URLs: `user:pass@` passwords and sensitive query parameters;
+- bodies: string values under sensitive JSON keys (layout kept), sensitive form-encoded fields, and form-data entries (`body_form`). Plain-text bodies are not touched;
+- saved responses use the same rules.
+
+`{{variable}}` placeholders are never masked. Masking applies to output only: tools that read and write back (`move_requests`) read the real data, so stored secrets are never overwritten. As a second guard, any tool argument containing `[REDACTED]` is refused while masking is on. Turning masking off in Settings asks for confirmation.
+
+Limits: matching is by name, so a secret in an oddly named field or inside free text is not caught; add its name under "extra names".

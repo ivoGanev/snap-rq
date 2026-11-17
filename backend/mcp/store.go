@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -15,6 +16,8 @@ const (
 	keyPort      = "mcp_port"
 	keyToken     = "mcp_token"
 	keyOverrides = "mcp_tool_overrides"
+	keyMask      = "mcp_mask_secrets" // absent means on
+	keyMaskExtra = "mcp_mask_extra"
 
 	// DefaultPort is an arbitrary unprivileged port; the user can change it.
 	DefaultPort = 47821
@@ -26,6 +29,11 @@ type Config struct {
 	Enabled   bool
 	Port      int
 	Overrides map[string]bool
+
+	// MaskSecrets hides secrets in tool output; on unless switched off.
+	MaskSecrets bool
+	// MaskExtra are the user's own sensitive names.
+	MaskExtra []string
 }
 
 // Store reads and writes the MCP settings.
@@ -58,7 +66,7 @@ func (s *Store) set(key string, value any) error {
 
 // Load returns the stored configuration, with defaults for anything unset.
 func (s *Store) Load() Config {
-	cfg := Config{Port: DefaultPort, Overrides: map[string]bool{}}
+	cfg := Config{Port: DefaultPort, Overrides: map[string]bool{}, MaskSecrets: true}
 	s.get(keyEnabled, &cfg.Enabled)
 	var port int
 	if s.get(keyPort, &port) && validPort(port) {
@@ -68,6 +76,8 @@ func (s *Store) Load() Config {
 	if s.get(keyOverrides, &overrides) && overrides != nil {
 		cfg.Overrides = overrides
 	}
+	s.get(keyMask, &cfg.MaskSecrets)
+	s.get(keyMaskExtra, &cfg.MaskExtra)
 	return cfg
 }
 
@@ -130,4 +140,29 @@ func (s *Store) RotateToken() (string, error) {
 		return "", err
 	}
 	return token, nil
+}
+
+// SetMaskSecrets switches secret masking of tool output on or off.
+func (s *Store) SetMaskSecrets(on bool) error { return s.set(keyMask, on) }
+
+// SetMaskExtra stores the user's own sensitive names: trimmed, lower-cased,
+// de-duplicated, at most 100 of up to 64 characters.
+func (s *Store) SetMaskExtra(names []string) error {
+	clean := []string{}
+	seen := map[string]bool{}
+	for _, n := range names {
+		n = strings.ToLower(strings.TrimSpace(n))
+		if n == "" || seen[n] {
+			continue
+		}
+		if len(n) > 64 {
+			return fmt.Errorf("name %q is longer than 64 characters", n[:20]+"…")
+		}
+		if len(clean) == 100 {
+			return fmt.Errorf("at most 100 names")
+		}
+		seen[n] = true
+		clean = append(clean, n)
+	}
+	return s.set(keyMaskExtra, clean)
 }

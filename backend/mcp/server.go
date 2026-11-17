@@ -53,6 +53,9 @@ type Server struct {
 
 	tokenMu sync.RWMutex
 	token   string
+
+	maskMu sync.RWMutex
+	masker *Masker // nil means masking is off
 }
 
 // NewServer returns a stopped server.
@@ -63,6 +66,7 @@ func NewServer(runner Runner, store *Store, version string) *Server {
 		policy:     NewPolicy(nil),
 		version:    version,
 		registered: map[string]bool{},
+		masker:     NewMasker(nil), // on until the stored setting says otherwise
 	}
 }
 
@@ -112,6 +116,7 @@ func (s *Server) Start() (string, error) {
 	}
 	s.setToken(token)
 	s.policy.Set(cfg.Overrides)
+	s.applyMasking(cfg)
 
 	s.sdk = sdk.NewServer(&sdk.Implementation{Name: "snap-rq", Version: s.version}, nil)
 	s.registered = map[string]bool{}
@@ -172,7 +177,9 @@ func (s *Server) Reload() {
 	if s.httpSrv == nil {
 		return
 	}
-	s.policy.Set(s.store.Load().Overrides)
+	cfg := s.store.Load()
+	s.policy.Set(cfg.Overrides)
+	s.applyMasking(cfg)
 	if token := s.store.Token(); token != "" {
 		s.setToken(token)
 	}
@@ -254,7 +261,14 @@ func register[In any](s *Server, m ToolMeta, call callFunc[In]) {
 		if !s.policy.Allowed(m) {
 			return nil, nil, ErrDisabled
 		}
+		if err := s.checkInput(in); err != nil {
+			return nil, nil, err
+		}
 		out, err := call(s, in)
+		if err != nil {
+			return nil, nil, err
+		}
+		out, err = s.present(out)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -321,4 +335,50 @@ func annotationsFor(m ToolMeta) *sdk.ToolAnnotations {
 	}
 	destructive := trashingTools[m.Name]
 	return &sdk.ToolAnnotations{DestructiveHint: &destructive}
+}
+
+func (s *Server) applyMasking(cfg Config) {
+	s.maskMu.Lock()
+	defer s.maskMu.Unlock()
+	if cfg.MaskSecrets {
+		s.masker = NewMasker(cfg.MaskExtra)
+	} else {
+		s.masker = nil
+	}
+}
+
+func (s *Server) currentMasker() *Masker {
+	s.maskMu.RLock()
+	defer s.maskMu.RUnlock()
+	return s.masker
+}
+
+// present is the output boundary: what a client receives passes through here.
+// Tools themselves read real data, so write-backs are never masked.
+func (s *Server) present(out any) (any, error) {
+	m := s.currentMasker()
+	if m == nil {
+		return out, nil
+	}
+	generic, err := toGeneric(out)
+	if err != nil {
+		return nil, err
+	}
+	return m.Tree(generic), nil
+}
+
+// checkInput refuses arguments containing a masked value: a client that read
+// "[REDACTED]" must not write it back over the real secret.
+func (s *Server) checkInput(in any) error {
+	if s.currentMasker() == nil {
+		return nil
+	}
+	raw, err := json.Marshal(in)
+	if err != nil {
+		return err
+	}
+	if bytes.Contains(raw, []byte(Redacted)) {
+		return errors.New("the input contains " + Redacted + ", a masked secret; use a {{variable}} placeholder or leave that field out")
+	}
+	return nil
 }

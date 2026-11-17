@@ -1,4 +1,5 @@
 import { Component, computed, inject, OnInit, output, signal } from '@angular/core';
+import { ConfirmService } from '../core/services/confirm.service';
 import { McpApiService, type McpTool } from '../core/services/mcp.service';
 
 interface RiskGroup {
@@ -27,6 +28,7 @@ const RISK_LABELS: Record<string, string> = {
 })
 export class McpSettings implements OnInit {
   protected readonly api = inject(McpApiService);
+  private readonly confirm = inject(ConfirmService);
 
   readonly close = output<void>();
 
@@ -105,6 +107,34 @@ export class McpSettings implements OnInit {
     void this.run(async () => {
       this.token.set(await this.api.rotateToken());
     });
+  }
+
+  protected async toggleMasking(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const enabled = input.checked;
+    if (!enabled) {
+      const ok = await this.confirm.ask({
+        title: 'Show secrets to AI?',
+        message:
+          'With masking off, AI clients can read tokens, passwords and API keys stored in your request URLs, headers and bodies. Turn it off only if you trust every client you connect.',
+        confirmLabel: 'Turn off masking',
+      });
+      if (!ok) {
+        input.checked = true;
+        return;
+      }
+    }
+    await this.run(() => this.api.setMasking(enabled, this.api.masking().extra ?? []));
+    input.checked = this.api.masking().enabled;
+  }
+
+  protected saveMaskNames(event: Event): void {
+    const names = (event.target as HTMLTextAreaElement).value.split('\n');
+    void this.run(() => this.api.setMasking(this.api.masking().enabled, names));
+  }
+
+  protected maskNamesText(): string {
+    return (this.api.masking().extra ?? []).join('\n');
   }
 
   protected toggleTool(tool: McpTool, event: Event): void {

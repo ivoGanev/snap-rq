@@ -151,3 +151,31 @@ func (s *SettingsService) SetRiskEnabled(risk string, enabled bool) error {
 	s.server.Reload()
 	return nil
 }
+
+// Masking is the secret-masking setting shown in the settings.
+type Masking struct {
+	Enabled bool     `json:"enabled"`
+	Extra   []string `json:"extra"`
+}
+
+// Masking returns the masking setting.
+func (s *SettingsService) Masking() Masking {
+	cfg := s.store.Load()
+	extra := cfg.MaskExtra
+	if extra == nil {
+		extra = []string{}
+	}
+	return Masking{Enabled: cfg.MaskSecrets, Extra: extra}
+}
+
+// SetMasking stores the masking setting and applies it to the running server.
+func (s *SettingsService) SetMasking(enabled bool, extra []string) (Masking, error) {
+	if err := s.store.SetMaskExtra(extra); err != nil {
+		return Masking{}, err
+	}
+	if err := s.store.SetMaskSecrets(enabled); err != nil {
+		return Masking{}, err
+	}
+	s.server.Reload()
+	return s.Masking(), nil
+}
