@@ -11,6 +11,7 @@ import (
 	"snap-rq/backend/commands"
 	"snap-rq/backend/commands/catalog"
 	"snap-rq/backend/commands/requests"
+	"snap-rq/backend/mcp"
 	"snap-rq/backend/database"
 	"snap-rq/backend/selfupdate"
 
@@ -71,6 +72,12 @@ func main() {
 		}
 		return limit
 	})
+
+	// MCP server: opt-in, loopback only, a curated allowlist of commands
+	// run through the same runner as the UI. See docs/mcp.md.
+	mcpServer := mcp.NewServer(runner, mcp.NewStore(db), currentVersion)
+	mcpServer.StartIfEnabled()
+	defer mcpServer.Stop()
 
 	updaterService := &UpdaterService{}
 

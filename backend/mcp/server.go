@@ -1,0 +1,259 @@
+package mcp
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
+	"net"
+	"net/http"
+	"os"
+	"strconv"
+	"sync"
+	"time"
+
+	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"snap-rq/backend/commands"
+)
+
+// maxOutputBytes caps one tool result. Response bodies are stored whole and
+// can be huge; the caller should narrow the query instead of flooding the
+// model's context.
+const maxOutputBytes = 200_000
+
+// Runner is the part of commands.Runner the MCP server uses: the same door
+// the UI goes through.
+type Runner interface {
+	Run(name string, input json.RawMessage) (any, error)
+	ListCommands() []commands.CommandInfo
+}
+
+// binding connects a catalog tool to its typed input. Add registers the tool
+// on the SDK server.
+type binding struct {
+	Name string
+	Add  func(s *Server, m ToolMeta)
+}
+
+// Server is the MCP server: a loopback HTTP endpoint in front of the Runner.
+type Server struct {
+	runner  Runner
+	store   *Store
+	policy  *Policy
+	version string
+
+	mu         sync.Mutex
+	sdk        *sdk.Server
+	httpSrv    *http.Server
+	registered map[string]bool
+
+	tokenMu sync.RWMutex
+	token   string
+}
+
+// NewServer returns a stopped server.
+func NewServer(runner Runner, store *Store, version string) *Server {
+	return &Server{
+		runner:     runner,
+		store:      store,
+		policy:     NewPolicy(nil),
+		version:    version,
+		registered: map[string]bool{},
+	}
+}
+
+// StartIfEnabled starts the server when the stored setting says so, or when
+// SNAPRQ_MCP=1 is set (a dev bootstrap that stores nothing). It never fails
+// the app: problems are logged.
+func (s *Server) StartIfEnabled() {
+	devBoot := os.Getenv("SNAPRQ_MCP") == "1"
+	if !s.store.Load().Enabled && !devBoot {
+		return
+	}
+	addr, err := s.Start()
+	if err != nil {
+		log.Printf("mcp: not started: %v", err)
+		return
+	}
+	if devBoot {
+		log.Printf("mcp: listening on http://%s/mcp  token: %s", addr, s.currentToken())
+	} else {
+		log.Printf("mcp: listening on http://%s/mcp", addr)
+	}
+}
+
+// Start begins serving on 127.0.0.1 and returns the listen address.
+func (s *Server) Start() (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.httpSrv != nil {
+		return "", errors.New("already running")
+	}
+
+	var commandNames []string
+	for _, c := range s.runner.ListCommands() {
+		commandNames = append(commandNames, c.Name)
+	}
+	if err := ValidateCatalog(commandNames); err != nil {
+		return "", err
+	}
+	if err := validateBindings(); err != nil {
+		return "", err
+	}
+
+	cfg := s.store.Load()
+	token, err := s.store.EnsureToken()
+	if err != nil {
+		return "", fmt.Errorf("preparing token: %w", err)
+	}
+	s.setToken(token)
+	s.policy.Set(cfg.Overrides)
+
+	s.sdk = sdk.NewServer(&sdk.Implementation{Name: "snap-rq", Version: s.version}, nil)
+	s.registered = map[string]bool{}
+	s.syncToolsLocked()
+
+	listener, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(cfg.Port)))
+	if err != nil {
+		return "", fmt.Errorf("listening on port %d: %w", cfg.Port, err)
+	}
+	server := s.sdk
+	handler := sdk.NewStreamableHTTPHandler(func(*http.Request) *sdk.Server { return server }, nil)
+	mux := http.NewServeMux()
+	mux.Handle("/mcp", Guard(s.currentToken, handler))
+	s.httpSrv = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	go func(srv *http.Server) {
+		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("mcp: server stopped: %v", err)
+		}
+	}(s.httpSrv)
+	return listener.Addr().String(), nil
+}
+
+// Stop shuts the server down; it is safe to call when not running.
+func (s *Server) Stop() {
+	s.mu.Lock()
+	srv := s.httpSrv
+	s.httpSrv = nil
+	s.mu.Unlock()
+	if srv == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_ = srv.Shutdown(ctx)
+}
+
+// Reload re-reads the overrides and the token after a settings change: the
+// tool list follows the policy and a rotated token takes effect at once.
+func (s *Server) Reload() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.httpSrv == nil {
+		return
+	}
+	s.policy.Set(s.store.Load().Overrides)
+	if token := s.store.Token(); token != "" {
+		s.setToken(token)
+	}
+	s.syncToolsLocked()
+}
+
+// syncToolsLocked makes the SDK server's tool list match the policy. The
+// policy is also checked on every call, so a tool switched off is refused
+// even by a client that has not re-listed.
+func (s *Server) syncToolsLocked() {
+	for _, b := range bindings {
+		meta, _ := metaFor(b.Name)
+		allowed := s.policy.Allowed(meta)
+		switch {
+		case allowed && !s.registered[b.Name]:
+			b.Add(s, meta)
+			s.registered[b.Name] = true
+		case !allowed && s.registered[b.Name]:
+			s.sdk.RemoveTools(b.Name)
+			delete(s.registered, b.Name)
+		}
+	}
+}
+
+func (s *Server) currentToken() string {
+	s.tokenMu.RLock()
+	defer s.tokenMu.RUnlock()
+	return s.token
+}
+
+func (s *Server) setToken(token string) {
+	s.tokenMu.Lock()
+	s.token = token
+	s.tokenMu.Unlock()
+}
+
+// validateBindings checks that every catalog tool has a binding and the
+// other way round.
+func validateBindings() error {
+	bound := map[string]bool{}
+	for _, b := range bindings {
+		if _, ok := metaFor(b.Name); !ok {
+			return fmt.Errorf("mcp binding %q has no catalog entry", b.Name)
+		}
+		bound[b.Name] = true
+	}
+	for _, m := range Catalog {
+		if !bound[m.Name] {
+			return fmt.Errorf("mcp tool %q has no binding", m.Name)
+		}
+	}
+	return nil
+}
+
+// addTool registers a tool whose arguments are passed to its command as-is:
+// In's JSON field names are the command's input names. The policy is
+// re-checked on every call.
+func addTool[In any](s *Server, m ToolMeta) {
+	sdk.AddTool(s.sdk, &sdk.Tool{
+		Name:        m.Name,
+		Description: m.Description,
+		Annotations: annotationsFor(m.Risk),
+	}, func(_ context.Context, _ *sdk.CallToolRequest, in In) (*sdk.CallToolResult, any, error) {
+		if !s.policy.Allowed(m) {
+			return nil, nil, ErrDisabled
+		}
+		payload, err := json.Marshal(in)
+		if err != nil {
+			return nil, nil, err
+		}
+		out, err := s.runner.Run(m.Command, payload)
+		if err != nil {
+			return nil, nil, err
+		}
+		text, err := cappedJSON(out)
+		if err != nil {
+			return nil, nil, err
+		}
+		return &sdk.CallToolResult{Content: []sdk.Content{&sdk.TextContent{Text: text}}}, nil, nil
+	})
+}
+
+// cappedJSON marshals a command result, refusing results over the cap.
+func cappedJSON(out any) (string, error) {
+	raw, err := json.Marshal(out)
+	if err != nil {
+		return "", err
+	}
+	if len(raw) > maxOutputBytes {
+		return "", fmt.Errorf("result is too large (%d bytes, limit %d); narrow the query", len(raw), maxOutputBytes)
+	}
+	return string(raw), nil
+}
+
+// annotationsFor tells clients what a tool does, so they can prompt
+// accordingly. Only read-only is set in phase 1.
+func annotationsFor(r Risk) *sdk.ToolAnnotations {
+	if r == RiskRead {
+		return &sdk.ToolAnnotations{ReadOnlyHint: true}
+	}
+	return &sdk.ToolAnnotations{}
+}

@@ -29,7 +29,7 @@ func Open() (*sql.DB, error) {
 	// keeps bulk writes from paying rollback-journal overhead. Setting
 	// these with db.Exec would only affect ONE pooled connection — the
 	// runner's transactions would silently miss the cascades.
-	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)", dbPath)
+	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)", dbPath)
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
