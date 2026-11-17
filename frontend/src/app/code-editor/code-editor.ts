@@ -376,7 +376,19 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
 
   private languageExtension(isJson: boolean): Extension {
     if (!isJson) return [];
-    return [json(), linter(jsonParseLinter(), { delay: 100 })];
+    const parse = jsonParseLinter();
+    return [
+      json(),
+      linter(
+        (view) => {
+          if (view.state.doc.length === 0 || view.state.doc.toString().trim() === '') {
+            return [];
+          }
+          return parse(view);
+        },
+        { delay: 100 },
+      ),
+    ];
   }
 
   /**
