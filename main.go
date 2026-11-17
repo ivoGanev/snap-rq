@@ -75,7 +75,8 @@ func main() {
 
 	// MCP server: opt-in, loopback only, a curated allowlist of commands
 	// run through the same runner as the UI. See docs/mcp.md.
-	mcpServer := mcp.NewServer(runner, mcp.NewStore(db), currentVersion)
+	mcpStore := mcp.NewStore(db)
+	mcpServer := mcp.NewServer(runner, mcpStore, currentVersion)
 	mcpServer.StartIfEnabled()
 	defer mcpServer.Stop()
 
@@ -87,6 +88,7 @@ func main() {
 		Services: []application.Service{
 			application.NewService(commands.NewCommandService(runner)),
 			application.NewService(updaterService),
+			application.NewService(mcp.NewSettingsService(mcpServer, mcpStore)),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

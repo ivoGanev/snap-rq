@@ -123,3 +123,15 @@ claude mcp add --transport http snap-rq http://127.0.0.1:47821/mcp --header "Aut
 3. Settings UI (toggle, port, token, per-class and per-tool switches).
 4. Restricted tools (destructive, sensitive, `send_request` with `RunObservable`).
 5. stdio shim, resources, prompts.
+
+## Settings UI (phase 3)
+
+Settings → **MCP server…** opens an overlay (`frontend/src/app/mcp-settings`) with:
+
+- the enable switch (stored in `app_settings`; the server starts and stops immediately) and a status line (running URL or the start error, e.g. port in use);
+- the port (1024–65535; a running server restarts on the new port);
+- the token: hidden by default, show / copy / rotate (rotating disconnects all clients);
+- copy-paste connection snippets (Claude Code command, JSON config);
+- the tool list grouped by risk class, with a switch per class and per tool, and Reset for tools that differ from their class default.
+
+Backend: `backend/mcp/service.go` (`SettingsService`, registered in `main.go`). Class switches write a per-tool override for every tool in the class. Bindings in `frontend/bindings/snap-rq/backend/mcp` were written by hand with the same ids the generator uses; run `wails3 generate bindings -ts -i -clean=true` to replace them.

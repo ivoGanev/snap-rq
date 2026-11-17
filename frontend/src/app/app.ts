@@ -30,6 +30,7 @@ import { RequestsMainList } from './requests-main-list/requests-main-list';
 import { RequestPanel } from './request-panel/request-panel';
 import { VariablesEditor } from './variables-editor/variables-editor';
 import { CookiesEditor } from './cookies-editor/cookies-editor';
+import { McpSettings } from './mcp-settings/mcp-settings';
 import { CookieApiService } from './core/services/cookie.service';
 import { ZenMode } from './zen-mode/zen-mode';
 import { ContextMenuOutlet } from './context-menu-outlet/context-menu-outlet';
@@ -46,6 +47,7 @@ import { UndoPanel } from './undo-panel/undo-panel';
     RequestPanel,
     VariablesEditor,
     CookiesEditor,
+    McpSettings,
     ZenMode,
     ContextMenuOutlet,
     ToastOutlet,
@@ -89,6 +91,7 @@ export class App implements OnInit, AfterViewInit {
 
   readonly variablesOverlayOpen = signal(false);
   readonly cookiesOverlayOpen = signal(false);
+  readonly mcpOverlayOpen = signal(false);
   protected readonly cookieCount = this.cookieApi.cookies;
 
   /** Keeps the jar in step with the project; a new response may have set cookies. */
@@ -138,6 +141,10 @@ export class App implements OnInit, AfterViewInit {
       this.state.closeZenMode();
       return;
     }
+    if (this.mcpOverlayOpen()) {
+      this.mcpOverlayOpen.set(false);
+      return;
+    }
     if (this.cookiesOverlayOpen()) {
       this.cookiesOverlayOpen.set(false);
       return;
@@ -170,6 +177,11 @@ export class App implements OnInit, AfterViewInit {
 
   closeSettings(): void {
     this.settingsOpen.set(false);
+  }
+
+  openMcpSettings(): void {
+    this.closeSettings();
+    this.mcpOverlayOpen.set(true);
   }
 
   checkForUpdates(): void {

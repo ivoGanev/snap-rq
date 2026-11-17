@@ -1,0 +1,123 @@
+<div class="overlay-backdrop" (click)="closeDialog()">
+  <div class="overlay-panel mcp-settings" (click)="$event.stopPropagation()">
+    <div class="overlay-header">
+      <h3 class="overlay-title">MCP server</h3>
+      <button class="overlay-close" type="button" (click)="closeDialog()">Close</button>
+    </div>
+
+    <div class="mcp-body">
+      @if (error()) {
+        <div class="mcp-error">{{ error() }}</div>
+      }
+
+      <label class="mcp-row">
+        <span class="mcp-copy">
+          <span class="mcp-label">Enable MCP server</span>
+          <span class="mcp-help">
+            Lets AI clients on this computer organize your requests. Listens on 127.0.0.1 only and
+            needs the token below. SnapRQ must be running.
+          </span>
+        </span>
+        <input
+          class="mcp-check"
+          type="checkbox"
+          [checked]="api.status().enabled"
+          (change)="toggleEnabled($event)"
+        />
+      </label>
+
+      <div class="mcp-status" [class.mcp-status--on]="api.status().running">
+        @if (api.status().running) {
+          Running at {{ api.status().url }}
+        } @else if (api.status().enabled) {
+          Not running{{ api.status().error ? ': ' + api.status().error : '' }}
+        } @else {
+          Off
+        }
+      </div>
+
+      <label class="mcp-row">
+        <span class="mcp-copy">
+          <span class="mcp-label">Port</span>
+          <span class="mcp-help">1024–65535. A running server restarts on the new port.</span>
+        </span>
+        <input
+          class="mcp-number"
+          type="number"
+          min="1024"
+          max="65535"
+          [value]="api.status().port"
+          (change)="changePort($event)"
+        />
+      </label>
+
+      <section class="mcp-section">
+        <h4 class="mcp-heading">Token</h4>
+        <div class="mcp-token-row">
+          <code class="mcp-token">{{ maskedToken() }}</code>
+          <button class="mcp-button" type="button" (click)="tokenVisible.set(!tokenVisible())">
+            {{ tokenVisible() ? 'Hide' : 'Show' }}
+          </button>
+          <button class="mcp-button" type="button" (click)="copy('token', token())">
+            {{ copied() === 'token' ? 'Copied' : 'Copy' }}
+          </button>
+          <button class="mcp-button" type="button" (click)="rotate()">Rotate</button>
+        </div>
+        <span class="mcp-help">Rotating disconnects every client until it gets the new token.</span>
+      </section>
+
+      <section class="mcp-section">
+        <h4 class="mcp-heading">Connect a client</h4>
+        @for (snippet of snippets(); track snippet.label) {
+          <div class="mcp-snippet-head">
+            <span class="mcp-label">{{ snippet.label }}</span>
+            <button class="mcp-button" type="button" (click)="copy(snippet.label, snippet.text)">
+              {{ copied() === snippet.label ? 'Copied' : 'Copy' }}
+            </button>
+          </div>
+          <pre class="mcp-snippet">{{ snippet.text }}</pre>
+        }
+      </section>
+
+      <section class="mcp-section">
+        <h4 class="mcp-heading">Tools</h4>
+        <span class="mcp-help">
+          Only these tools exist for AI clients. Destructive, external and sensitive tools are not
+          offered yet.
+        </span>
+        @for (group of groups(); track group.risk) {
+          <div class="mcp-group">
+            <label class="mcp-group-head">
+              <input
+                class="mcp-check"
+                type="checkbox"
+                [checked]="group.allOn"
+                (change)="toggleRisk(group, $event)"
+              />
+              <span class="mcp-label">{{ group.label }}</span>
+            </label>
+            @for (tool of group.tools; track tool.name) {
+              <div class="mcp-tool">
+                <label class="mcp-tool-main">
+                  <input
+                    class="mcp-check"
+                    type="checkbox"
+                    [checked]="tool.enabled"
+                    (change)="toggleTool(tool, $event)"
+                  />
+                  <span class="mcp-copy">
+                    <span class="mcp-tool-name">{{ tool.name }}</span>
+                    <span class="mcp-help">{{ tool.description }}</span>
+                  </span>
+                </label>
+                @if (tool.overridden) {
+                  <button class="mcp-button" type="button" (click)="reset(tool)">Reset</button>
+                }
+              </div>
+            }
+          </div>
+        }
+      </section>
+    </div>
+  </div>
+</div>

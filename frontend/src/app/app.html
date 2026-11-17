@@ -82,6 +82,10 @@
   <app-zen-mode></app-zen-mode>
 }
 
+@if (mcpOverlayOpen()) {
+  <app-mcp-settings (close)="mcpOverlayOpen.set(false)"></app-mcp-settings>
+}
+
 @if (cookiesOverlayOpen()) {
   <app-cookies-editor (close)="cookiesOverlayOpen.set(false)"></app-cookies-editor>
 }
@@ -325,6 +329,9 @@
           (change)="onUndoLimitChange($event)"
         />
       </label>
+      <button class="settings-updates-button" type="button" (click)="openMcpSettings()">
+        MCP server…
+      </button>
       <button
         class="settings-updates-button"
         type="button"

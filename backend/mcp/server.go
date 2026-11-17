@@ -48,6 +48,7 @@ type Server struct {
 	mu         sync.Mutex
 	sdk        *sdk.Server
 	httpSrv    *http.Server
+	addr       string
 	registered map[string]bool
 
 	tokenMu sync.RWMutex
@@ -130,7 +131,22 @@ func (s *Server) Start() (string, error) {
 			log.Printf("mcp: server stopped: %v", err)
 		}
 	}(s.httpSrv)
-	return listener.Addr().String(), nil
+	s.addr = listener.Addr().String()
+	return s.addr, nil
+}
+
+// Running reports whether the server is listening.
+func (s *Server) Running() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.httpSrv != nil
+}
+
+// Addr returns the listen address, or "" when stopped.
+func (s *Server) Addr() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.addr
 }
 
 // Stop shuts the server down; it is safe to call when not running.
@@ -138,6 +154,7 @@ func (s *Server) Stop() {
 	s.mu.Lock()
 	srv := s.httpSrv
 	s.httpSrv = nil
+	s.addr = ""
 	s.mu.Unlock()
 	if srv == nil {
 		return
