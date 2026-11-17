@@ -44,5 +44,28 @@
     },
     "fontFamily": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
     "preview": "#f4f6fb"
+  },
+  {
+    "id": "neutral-dark",
+    "name": "Neutral Dark",
+    "css": "/themes/neutral-dark.css",
+    "iconSet": {
+      "features": {
+        "collections": {
+          "pack": "standard",
+          "version": 1
+        },
+        "favourites": {
+          "pack": "standard",
+          "version": 1
+        },
+        "tags": {
+          "pack": "standard",
+          "version": 1
+        }
+      }
+    },
+    "fontFamily": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+    "preview": "linear-gradient(135deg, #1b1e24 0%, #14161b 100%)"
   }
 ]
