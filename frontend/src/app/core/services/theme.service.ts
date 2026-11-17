@@ -84,5 +84,13 @@ export class ThemeService {
 
     document.documentElement.setAttribute('data-theme', theme.id);
     document.documentElement.style.fontFamily = theme.fontFamily;
+
+    // WKWebView keeps stale colours on composited layers (backdrop-filter,
+    // color-mix) after a token swap; nudge it to repaint them.
+    const body = document.body;
+    body.style.transform = 'translateZ(0)';
+    requestAnimationFrame(() => {
+      body.style.transform = '';
+    });
   }
 }
