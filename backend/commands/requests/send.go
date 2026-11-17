@@ -167,6 +167,15 @@ func writeFilePart(writer *multipart.Writer, entry formEntry) error {
 	return nil
 }
 
+// ensureScheme prepends http:// when a URL has no scheme, so requests with
+// schemeless URLs (typed by hand or imported) still send.
+func ensureScheme(u string) string {
+	if u == "" || strings.Contains(u, "://") {
+		return u
+	}
+	return "http://" + u
+}
+
 // headerHas reports whether a request's header block already contains the
 // given header name, so auto-generated headers never clobber the user's.
 func headerHas(headers, name string) bool {
@@ -190,6 +199,7 @@ func (c Send) doHTTP(req models.HttpRequest, values map[string]string) models.Ht
 	if method == "" {
 		method = http.MethodGet
 	}
+	req.URL = ensureScheme(req.URL)
 
 	var bodyReader io.Reader
 	var contentType string

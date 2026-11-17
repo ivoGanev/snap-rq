@@ -296,8 +296,19 @@ func CurlToRequest(collectionID int64, curl string) (models.HttpRequest, error) 
 		headers[i] = normalizeHeader(h)
 	}
 	req.RequestHeaders = strings.Join(headers, "\n")
+	req.URL = ensureScheme(req.URL)
 
 	return req, nil
+}
+
+// ensureScheme prepends http:// to a URL that has no scheme, so AI-generated
+// curl like "localhost/v1" is importable instead of failing with an
+// "unrecognized scheme" error.
+func ensureScheme(u string) string {
+	if u == "" || strings.Contains(u, "://") {
+		return u
+	}
+	return "http://" + u
 }
 
 // urlencodeData implements curl's --data-urlencode value forms: "content",

@@ -76,6 +76,26 @@ func TestCurlToRequestGet(t *testing.T) {
 	}
 }
 
+func TestCurlToRequestAddsSchemeToSchemelessURL(t *testing.T) {
+	req, err := CurlToRequest(1, "curl localhost/v1/items")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if req.URL != "http://localhost/v1/items" {
+		t.Errorf("expected http:// prefixed, got %s", req.URL)
+	}
+}
+
+func TestCurlToRequestKeepsExistingScheme(t *testing.T) {
+	req, err := CurlToRequest(1, "curl https://localhost/v1/items")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if req.URL != "https://localhost/v1/items" {
+		t.Errorf("expected scheme preserved, got %s", req.URL)
+	}
+}
+
 func TestCurlToRequestPostWithFlags(t *testing.T) {
 	curl := `curl -X POST -H "Content-Type: application/json" -d '{"name":"alice"}' https://example.com/api/users`
 	req, err := CurlToRequest(1, curl)
@@ -124,7 +144,7 @@ func TestCurlToRequestIgnoresUnknownFlags(t *testing.T) {
 	if req.Method != "DELETE" {
 		t.Errorf("expected DELETE, got %s", req.Method)
 	}
-	if req.URL != "localhost:8099/steer/tenant-1" {
+	if req.URL != "http://localhost:8099/steer/tenant-1" {
 		t.Errorf("expected URL, got %s", req.URL)
 	}
 }
@@ -184,7 +204,7 @@ func TestCurlToRequestGetWithDataUrlencode(t *testing.T) {
 	if req.Body != "" {
 		t.Errorf("expected empty body with -G, got %s", req.Body)
 	}
-	if !strings.HasPrefix(req.URL, "localhost:4000/analytics-api/v1/load?query=") {
+	if !strings.HasPrefix(req.URL, "http://localhost:4000/analytics-api/v1/load?query=") {
 		t.Fatalf("unexpected URL: %s", req.URL)
 	}
 	if strings.ContainsAny(req.URL, `{}" `) {
