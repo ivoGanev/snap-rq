@@ -119,6 +119,10 @@ export class RequestsMainList {
   readonly dragHasMoved = signal(false);
   readonly ignoreNextClick = signal(false);
 
+  /** True by default; colour actions set it false because their change is
+   *  applied optimistically and needs no re-scroll on the group reload. */
+  private readonly restoreScroll = signal(true);
+
   readonly sortColumn = signal<ColumnKey | null>(null);
   readonly sortDirection = signal<SortDirection>('asc');
 
@@ -613,6 +617,10 @@ export class RequestsMainList {
     untracked(() => {
       this.selectCell(remembered, 'name');
     });
+
+    const shouldScroll = this.restoreScroll();
+    this.restoreScroll.set(true); // re-arm for the next change
+    if (!shouldScroll) return;
 
     // Ensure the remembered row is visible in the virtual viewport. The index
     // must come from the displayed list so active sorting/search is respected.
@@ -1273,6 +1281,8 @@ export class RequestsMainList {
     const ids = [...this.selectedRowIds()];
     if (ids.length === 0) return;
 
+    this.restoreScroll.set(false);
+
     const kind = this.activeViewKind();
     try {
       if (kind === 'collection') {
@@ -1299,6 +1309,7 @@ export class RequestsMainList {
         await this.tagApi.updateRequestColor(project.id, tag, ids, color);
       }
     } catch (err) {
+      this.restoreScroll.set(true);
       console.error('persisting request colour failed, reloading view', err);
       try {
         if (kind === 'collection') {
@@ -1329,6 +1340,8 @@ export class RequestsMainList {
     const ids = this.activeRequests().map(r => r.id);
     if (ids.length === 0) return;
 
+    this.restoreScroll.set(false);
+
     try {
       if (kind === 'collection') {
         const colors: Record<number, string | null> = {};
@@ -1348,6 +1361,7 @@ export class RequestsMainList {
         await this.tagApi.updateRequestColor(project.id, tag, ids, null);
       }
     } catch (err) {
+      this.restoreScroll.set(true);
       console.error('clearing all request colours failed, reloading view', err);
       try {
         if (kind === 'collection') {
