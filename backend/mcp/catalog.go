@@ -57,6 +57,34 @@ var Catalog = []ToolMeta{
 	{"list_tagged_requests", "List the requests of a project carrying a tag.", RiskRead, "tag.list_requests"},
 	{"list_favourites", "List the favourite collections of a project.", RiskRead, "favourite.list"},
 	{"list_trash", "List the requests in a project's trash.", RiskRead, "bin.list"},
+
+	// collections
+	{"create_collection", "Create a collection in a project.", RiskOrganize, "collection.create"},
+	{"rename_collection", "Rename a collection.", RiskOrganize, "collection.update"},
+
+	// requests
+	{"create_request", "Create a request at the end of a collection. method defaults to GET.", RiskOrganize, "request.create"},
+	{"duplicate_request", "Duplicate a request.", RiskOrganize, "request.duplicate"},
+	{"delete_requests", "Move requests to the trash. They can be restored with restore_from_trash or undone.", RiskOrganize, "request.delete"},
+	{"restore_from_trash", "Restore requests from the trash into collections.", RiskOrganize, "bin.restore"},
+	{"bulk_edit_requests", "Set one field (name, url, method, headers, body, body_type, body_form, color) on many requests. Undoable.", RiskOrganize, "request.bulk_set"},
+	{"reorder_requests", "Set the custom order of the requests in a collection.", RiskOrganize, "request.update_order"},
+	{"move_requests", "Move requests to another collection (appended at its end). Not undoable: move them back to revert.", RiskOrganize, "request.update"},
+
+	// tags
+	{"add_tag", "Tag a request; the tag is created if the project has none with that name.", RiskOrganize, "tag.add"},
+	{"remove_tag", "Remove a tag from a request.", RiskOrganize, "tag.remove"},
+	{"rename_tag", "Rename a tag everywhere in a project.", RiskOrganize, "tag.rename"},
+	{"reorder_tagged_requests", "Set the custom order of the requests inside one tag.", RiskOrganize, "tag.reorder"},
+	{"set_tag_request_colors", "Set or clear the colour of requests as shown inside one tag.", RiskOrganize, "tag.set_color"},
+
+	// favourites
+	{"create_favourite", "Create a favourite collection in a project.", RiskOrganize, "favourite.create"},
+	{"rename_favourite", "Rename a favourite collection.", RiskOrganize, "favourite.update"},
+	{"add_to_favourite", "Add a request to a favourite collection.", RiskOrganize, "favourite.add_request"},
+	{"remove_from_favourite", "Remove requests from a favourite collection.", RiskOrganize, "favourite.remove_requests"},
+	{"reorder_favourite_requests", "Set the custom order of the requests inside a favourite collection.", RiskOrganize, "favourite.reorder"},
+	{"set_favourite_request_colors", "Set or clear the colour of requests as shown inside a favourite collection.", RiskOrganize, "favourite.set_color"},
 }
 
 // metaFor returns the catalog entry with the given name.

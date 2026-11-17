@@ -11,9 +11,13 @@ import (
 // this list on purpose.
 func TestExposedToolNames(t *testing.T) {
 	want := []string{
-		"get_request", "list_collections", "list_favourites", "list_profiles",
-		"list_projects", "list_recent_requests", "list_requests", "list_responses",
-		"list_tagged_requests", "list_tags", "list_trash",
+		"add_tag", "add_to_favourite", "bulk_edit_requests", "create_collection", "create_favourite",
+		"create_request", "delete_requests", "duplicate_request", "get_request", "list_collections",
+		"list_favourites", "list_profiles", "list_projects", "list_recent_requests", "list_requests",
+		"list_responses", "list_tagged_requests", "list_tags", "list_trash", "move_requests",
+		"remove_from_favourite", "remove_tag", "rename_collection", "rename_favourite", "rename_tag",
+		"reorder_favourite_requests", "reorder_requests", "reorder_tagged_requests",
+		"restore_from_trash", "set_favourite_request_colors", "set_tag_request_colors",
 	}
 	var got []string
 	for _, m := range Catalog {
@@ -49,10 +53,14 @@ func TestNoToolCallsANeverExposedCommand(t *testing.T) {
 	}
 }
 
-func TestPhase1ToolsAreAllRead(t *testing.T) {
+func TestOnlyReadAndOrganizeShip(t *testing.T) {
 	for _, m := range Catalog {
-		if m.Risk != RiskRead {
-			t.Errorf("%s is %s; phase 1 only ships read tools", m.Name, m.Risk)
+		if m.Risk != RiskRead && m.Risk != RiskOrganize {
+			t.Errorf("%s is %s; restricted classes arrive in phase 4", m.Name, m.Risk)
+		}
+		isQuery := strings.HasPrefix(m.Name, "list_") || strings.HasPrefix(m.Name, "get_")
+		if isQuery != (m.Risk == RiskRead) {
+			t.Errorf("%s: query-named tools must be read, and only they", m.Name)
 		}
 	}
 }

@@ -4,7 +4,7 @@ SnapRQ can expose a **curated** set of its commands to AI assistants over the
 Model Context Protocol (MCP), so an assistant can organize requests: browse
 collections, move, rename, tag, favourite, reorder, and so on.
 
-Status: phase 1 (foundation + read tools). See "Phases" below.
+Status: phases 1-2 (foundation, read tools, organize tools). See "Phases" below.
 
 ## Principles
 
@@ -42,6 +42,25 @@ Package `backend/mcp` (imports the SDK as `sdk`):
 | `store.go` | Persistence in `app_settings` |
 | `server.go` | Lifecycle, SDK server, live tool sync |
 | `tools_read.go` | Tool bindings (typed inputs) for read tools |
+| `tools_organize.go` | Typed inputs and bindings for organize tools, incl. the two composed tools (`create_request`, `move_requests`) |
+
+## Tools (phase 2)
+
+All read tools are `list_*` / `get_request`. Organize tools:
+
+| Area | Tools | Undoable |
+|---|---|---|
+| Collections | `create_collection`, `rename_collection` | yes |
+| Requests | `create_request`, `duplicate_request`, `delete_requests` (to trash), `restore_from_trash`, `bulk_edit_requests`, `reorder_requests` | yes |
+| Moving | `move_requests` (reads each request, writes it back with a new `collection_id`) | **no** (same as moving in the UI; move back to revert) |
+| Tags | `add_tag`, `remove_tag`, `rename_tag`, `reorder_tagged_requests`, `set_tag_request_colors` | yes |
+| Favourites | `create_favourite`, `rename_favourite`, `add_to_favourite`, `remove_from_favourite`, `reorder_favourite_requests`, `set_favourite_request_colors` | yes |
+
+Deliberately left out for now:
+
+- **Free-form request editing** (`request.update`). It overwrites every column and is not undoable, so a partial edit would need read-merge-write. `bulk_edit_requests` covers one field at a time and is undoable.
+- **Appearance tools** (collection, tag, favourite icons/colours). The icon vocabulary lives in the frontend, so a tool cannot validate values yet.
+- Note on undo merging: quick repeats of the same command on the same rows share one undo step, so several `bulk_edit_requests` calls on different fields within 750 ms undo only the first field. Do one field per call and do not chain them.
 
 ## Risk classes
 
@@ -99,8 +118,8 @@ claude mcp add --transport http snap-rq http://127.0.0.1:47821/mcp --header "Aut
 ## Phases
 
 0. Spec and branch (this file).
-1. Foundation and read tools.
-2. Organize tools (collections, requests incl. move/reorder/bulk, tags, favourites, trash).
+1. Foundation and read tools. (done)
+2. Organize tools (collections, requests incl. move/reorder/bulk, tags, favourites, trash). (done)
 3. Settings UI (toggle, port, token, per-class and per-tool switches).
 4. Restricted tools (destructive, sensitive, `send_request` with `RunObservable`).
 5. stdio shim, resources, prompts.

@@ -19,7 +19,11 @@ import (
 // Open opens the SQLite database stored in the user's application data
 // directory, runs migrations, and ensures default collections exist.
 func Open() (*sql.DB, error) {
-	dbPath := filepath.Join(xdg.DataHome, "snap-rq-wails-v3", "app.db")
+	return OpenPath(filepath.Join(xdg.DataHome, "snap-rq-wails-v3", "app.db"))
+}
+
+// OpenPath is Open for a database file at an explicit path (tests use a temp file).
+func OpenPath(dbPath string) (*sql.DB, error) {
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
 		return nil, fmt.Errorf("creating data directory: %w", err)
 	}

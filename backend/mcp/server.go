@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -209,23 +210,34 @@ func validateBindings() error {
 	return nil
 }
 
+// callFunc is a tool's behaviour: it receives the typed arguments.
+type callFunc[In any] func(s *Server, in In) (any, error)
+
 // addTool registers a tool whose arguments are passed to its command as-is:
-// In's JSON field names are the command's input names. The policy is
-// re-checked on every call.
+// In's JSON field names are the command's input names.
 func addTool[In any](s *Server, m ToolMeta) {
+	register[In](s, m, func(s *Server, in In) (any, error) { return s.run(m.Command, in) })
+}
+
+// customTool returns a binding for a tool that does more than forward its
+// arguments (defaults, or several commands in a row).
+func customTool[In any](call callFunc[In]) func(*Server, ToolMeta) {
+	return func(s *Server, m ToolMeta) { register[In](s, m, call) }
+}
+
+// register adds the tool to the SDK server. The policy is re-checked on
+// every call, so a tool switched off is refused even by a client that has not
+// re-listed.
+func register[In any](s *Server, m ToolMeta, call callFunc[In]) {
 	sdk.AddTool(s.sdk, &sdk.Tool{
 		Name:        m.Name,
 		Description: m.Description,
-		Annotations: annotationsFor(m.Risk),
+		Annotations: annotationsFor(m),
 	}, func(_ context.Context, _ *sdk.CallToolRequest, in In) (*sdk.CallToolResult, any, error) {
 		if !s.policy.Allowed(m) {
 			return nil, nil, ErrDisabled
 		}
-		payload, err := json.Marshal(in)
-		if err != nil {
-			return nil, nil, err
-		}
-		out, err := s.runner.Run(m.Command, payload)
+		out, err := call(s, in)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -235,6 +247,36 @@ func addTool[In any](s *Server, m ToolMeta) {
 		}
 		return &sdk.CallToolResult{Content: []sdk.Content{&sdk.TextContent{Text: text}}}, nil, nil
 	})
+}
+
+// run marshals the input and runs a command through the runner, the same
+// door the UI uses.
+func (s *Server) run(command string, in any) (any, error) {
+	payload, err := json.Marshal(in)
+	if err != nil {
+		return nil, err
+	}
+	return s.runner.Run(command, payload)
+}
+
+// runMap runs a command and returns its result as a generic JSON object,
+// for tools that read a row, change a field and write it back.
+func (s *Server) runMap(command string, in any) (map[string]any, error) {
+	out, err := s.run(command, in)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := json.Marshal(out)
+	if err != nil {
+		return nil, err
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber() // keep ids exact
+	var result map[string]any
+	if err := decoder.Decode(&result); err != nil {
+		return nil, fmt.Errorf("%s did not return an object: %w", command, err)
+	}
+	return result, nil
 }
 
 // cappedJSON marshals a command result, refusing results over the cap.
@@ -249,11 +291,17 @@ func cappedJSON(out any) (string, error) {
 	return string(raw), nil
 }
 
+// trashingTools are organize tools that remove things from view (to the
+// trash); clients are told so they can prompt.
+var trashingTools = map[string]bool{"delete_requests": true}
+
 // annotationsFor tells clients what a tool does, so they can prompt
-// accordingly. Only read-only is set in phase 1.
-func annotationsFor(r Risk) *sdk.ToolAnnotations {
-	if r == RiskRead {
+// accordingly. Destructive and open-world hints for the restricted classes
+// arrive with those classes.
+func annotationsFor(m ToolMeta) *sdk.ToolAnnotations {
+	if m.Risk == RiskRead {
 		return &sdk.ToolAnnotations{ReadOnlyHint: true}
 	}
-	return &sdk.ToolAnnotations{}
+	destructive := trashingTools[m.Name]
+	return &sdk.ToolAnnotations{DestructiveHint: &destructive}
 }
