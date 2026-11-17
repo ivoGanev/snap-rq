@@ -70,7 +70,7 @@ Deliberately left out for now:
 | `organize` | recoverable edits: rename, move, reorder, tag, favourite, colour, duplicate, bulk edit, delete-to-trash, restore | on |
 | `destructive` | cascading or permanent deletes | off |
 | `external` | outbound network (`send_request`) | off |
-| `sensitive` | environments, variables, cookie jar | off |
+| `sensitive` | variable values, cookie jar | off (not planned) |
 
 Resolution: per-tool override in `mcp_tool_overrides`, else the class default.
 
@@ -135,3 +135,7 @@ Settings → **MCP server…** opens an overlay (`frontend/src/app/mcp-settings`
 - the tool list grouped by risk class, with a switch per class and per tool, and Reset for tools that differ from their class default.
 
 Backend: `backend/mcp/service.go` (`SettingsService`, registered in `main.go`). Class switches write a per-tool override for every tool in the class. Bindings in `frontend/bindings/snap-rq/backend/mcp` were written by hand with the same ids the generator uses; run `wails3 generate bindings -ts -i -clean=true` to replace them.
+
+## Variables
+
+`list_environments` and `list_variables` are read tools. `list_variables` returns names only (`id`, `name`); values are dropped in Go (`tools_variables.go`), covered by a leak test. Decision: the AI may know which variables exist and use `{{name}}`, never read the value. There is no tool that returns values.
