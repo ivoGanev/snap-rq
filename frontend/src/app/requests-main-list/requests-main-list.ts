@@ -242,6 +242,10 @@ export class RequestsMainList {
 
   private loadVersion = 0;
 
+  /** Remembered scroll offset per view (group key), restored on view switch. */
+  private readonly scrollOffsets = new Map<string, number>();
+  private lastGroupKey: string | null = null;
+
   /**
    * Binned rows are structurally compatible view models except for the
    * ordering column (the bin is not user-orderable, so it is fixed at 0).
@@ -448,6 +452,14 @@ export class RequestsMainList {
       const showBin = this.state.showingBin();
       const project = this.state.selectedProject();
 
+      // Remember the outgoing view's scroll position before it is replaced.
+      const prevKey = this.lastGroupKey;
+      if (prevKey !== null && this.viewport) {
+        this.scrollOffsets.set(prevKey, this.viewport.measureScrollOffset('top'));
+      }
+      const nextKey = this.activeGroupKey();
+      this.lastGroupKey = nextKey;
+
       const version = ++this.loadVersion;
       this.requestSearchQuery.set('');
       if (showFamous) {
@@ -475,7 +487,9 @@ export class RequestsMainList {
           showFamous,
           showBin,
           project?.id ?? null,
-          this.activeGroupKey(),
+          nextKey,
+          true,
+          nextKey !== null ? (this.scrollOffsets.get(nextKey) ?? null) : null,
         );
       });
     });
@@ -503,6 +517,8 @@ export class RequestsMainList {
           this.state.showingBin(),
           this.state.selectedProject()?.id ?? null,
           this.activeGroupKey(),
+          false,
+          null,
         );
       });
     });
@@ -529,6 +545,8 @@ export class RequestsMainList {
     showBin: boolean,
     projectId: number | null,
     groupKeyOfView: string | null,
+    scroll: boolean,
+    restoreOffset: number | null,
   ): Promise<void> {
     try {
       if (showBin && projectId !== null) {
@@ -537,6 +555,8 @@ export class RequestsMainList {
         this.restoreRememberedRequest(
           this.binSummaries(),
           this.rememberedRequestId(groupKeyOfView),
+          scroll,
+          restoreOffset,
         );
         return;
       }
@@ -545,7 +565,7 @@ export class RequestsMainList {
         const requests = await this.requestApi.loadRecentRequests(projectId, 50);
         if (version !== this.loadVersion) return;
         this.recentRequests.set(requests);
-        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView));
+        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView), scroll, restoreOffset);
         return;
       }
 
@@ -558,7 +578,7 @@ export class RequestsMainList {
         await this.tagApi.loadTagsForRequests(requests);
         if (version !== this.loadVersion) return;
         this.favouriteApi.requestsMembership.set({});
-        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView));
+        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView), scroll, restoreOffset);
         return;
       }
 
@@ -568,7 +588,7 @@ export class RequestsMainList {
         const requests = this.favouriteApi.requests();
         await this.tagApi.loadTagsForRequests(requests);
         if (version !== this.loadVersion) return;
-        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView));
+        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView), scroll, restoreOffset);
         return;
       }
 
@@ -577,7 +597,7 @@ export class RequestsMainList {
         const requests = this.requestApi.forCollection(collectionId);
         await this.tagApi.loadTagsForRequests(requests);
         if (version !== this.loadVersion) return;
-        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView));
+        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView), scroll, restoreOffset);
         return;
       }
 
@@ -586,7 +606,7 @@ export class RequestsMainList {
         const requests = this.requestApi.forProject(projectId);
         await this.tagApi.loadTagsForRequests(requests);
         if (version !== this.loadVersion) return;
-        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView));
+        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView), scroll, restoreOffset);
         return;
       }
 
@@ -601,7 +621,12 @@ export class RequestsMainList {
     return groupKeyOfView !== null ? this.selectionState.getSelectedRequest(groupKeyOfView) : null;
   }
 
-  private restoreRememberedRequest(requests: HttpRequestSummary[], rememberedId: number | null): void {
+  private restoreRememberedRequest(
+    requests: HttpRequestSummary[],
+    rememberedId: number | null,
+    scroll: boolean,
+    restoreOffset: number | null,
+  ): void {
     if (rememberedId === null) return;
     const remembered = requests.find((r) => r.id === rememberedId);
     if (!remembered) return;
@@ -614,13 +639,20 @@ export class RequestsMainList {
       this.selectCell(remembered, 'name');
     });
 
-    // Ensure the remembered row is visible in the virtual viewport. The index
-    // must come from the displayed list so active sorting/search is respected.
-    if (this.viewport) {
-      const index = this.filteredActiveRequests().findIndex((r) => r.id === rememberedId);
-      if (index >= 0) {
-        this.viewport.scrollToIndex(index, 'auto');
-      }
+    if (!scroll || !this.viewport) return;
+
+    // Restore the exact scroll position this view had when we left it.
+    if (restoreOffset !== null) {
+      this.viewport.scrollToOffset(restoreOffset);
+      return;
+    }
+
+    // First visit: centre the remembered row instead of pinning it to the top.
+    const index = this.filteredActiveRequests().findIndex((r) => r.id === rememberedId);
+    if (index >= 0) {
+      const viewportSize = this.viewport.getViewportSize();
+      const offset = Math.max(0, index * this.rowHeight - (viewportSize - this.rowHeight) / 2);
+      this.viewport.scrollToOffset(offset);
     }
   }
 
