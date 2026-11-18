@@ -41,6 +41,15 @@ func (c Update) Run(input json.RawMessage) (any, error) {
 	if in.ID == 0 {
 		return nil, fmt.Errorf("collection id is required")
 	}
+	projectID := in.ProjectID
+	if projectID == 0 {
+		if err := c.tx.QueryRow(`SELECT project_id FROM collections WHERE id = ?`, in.ID).Scan(&projectID); err != nil {
+			return nil, fmt.Errorf("loading collection: %w", err)
+		}
+	}
+	if err := ensureNameFree(c.tx, projectID, in.Name, in.ID); err != nil {
+		return nil, err
+	}
 	if _, err := c.tx.Exec(
 		`UPDATE collections SET project_id = ?, name = ? WHERE id = ?`,
 		in.ProjectID, in.Name, in.ID,
