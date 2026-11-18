@@ -196,11 +196,18 @@
   }
 </ng-template>
 
-<ng-template #collectionsAddMenu>
-  <button class="context-menu-item" type="button" (click)="onCollectionAddMenu('new')">New Collection</button>
-  <button class="context-menu-item" type="button" (click)="onCollectionAddMenu('import')">Import</button>
-  <button class="context-menu-item" type="button" (click)="onCollectionAddMenu('export')">Export</button>
-</ng-template>
+@if (collectionsMenuOpen()) {
+  <div class="collections-menu-backdrop" (click)="closeCollectionsMenu()"></div>
+  <div
+    class="collections-menu"
+    [style.left.px]="collectionsMenuPos().x"
+    [style.top.px]="collectionsMenuPos().y"
+  >
+    <button class="context-menu-item" type="button" (click)="onCollectionAddMenu('new')">New Collection</button>
+    <button class="context-menu-item" type="button" (click)="onCollectionAddMenu('import')">Import</button>
+    <button class="context-menu-item" type="button" (click)="onCollectionAddMenu('export')">Export</button>
+  </div>
+}
 
 <!-- Appearance popup -->
 @if (appearancePopupOpen()) {
