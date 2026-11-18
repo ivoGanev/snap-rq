@@ -458,26 +458,6 @@ app-sidebar-rail {
   width: min(420px, calc(100vw - 2 * var(--s-4)));
 }
 
-// Collections "+" dropdown. A transparent fixed backdrop catches outside
-// clicks (and blocks the request list's drag handles while open), and the
-// menu sits fixed at the button's coordinates so it is never clipped.
-.collections-menu-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 110;
-}
-
-.collections-menu {
-  position: fixed;
-  z-index: 111;
-  min-width: 160px;
-  padding: var(--s-1) 0;
-  background: var(--surface-solid);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  box-shadow: 0 16px 40px var(--shadow);
-}
-
 .new-collection-popup .overlay-body {
   gap: var(--s-3);
 }

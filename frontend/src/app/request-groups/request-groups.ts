@@ -1,4 +1,4 @@
-import { Component, effect, TemplateRef, computed, inject, isDevMode, signal } from '@angular/core';
+import { Component, effect, TemplateRef, ViewChild, computed, inject, isDevMode, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Dialogs } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
@@ -111,8 +111,8 @@ export class RequestGroups {
   private readonly openapiApi = inject(OpenApiApiService);
   private readonly toast = inject(ToastService);
 
-  protected readonly collectionsMenuOpen = signal(false);
-  protected readonly collectionsMenuPos = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+  @ViewChild('collectionsAddMenu', { static: true })
+  private readonly collectionsAddMenu!: TemplateRef<{ $implicit: unknown }>;
 
   /** Development builds only: the rail shows an undo-history debug button. */
   protected readonly devUndoVisible = isDevMode();
@@ -393,10 +393,6 @@ export class RequestGroups {
       this.contextMenu.close();
       return;
     }
-    if (this.collectionsMenuOpen()) {
-      this.closeCollectionsMenu();
-      return;
-    }
     if (this.appearancePopupOpen()) {
       this.closeAppearancePopup();
       return;
@@ -528,17 +524,19 @@ export class RequestGroups {
     }
   }
 
+  /**
+   * Opens the "+" menu through the shared context menu, which is drawn at the
+   * root of the app. A menu drawn inside the sidebar would be clipped and
+   * positioned by it (the sidebar has a backdrop-filter and overflow: hidden).
+   * It opens on the next tick so the click that asked for it, and the outlet's
+   * document click listener, are finished first.
+   */
   openCollectionsAddMenu(position: { x: number; y: number }): void {
-    this.collectionsMenuPos.set(position);
-    this.collectionsMenuOpen.set(true);
-  }
-
-  closeCollectionsMenu(): void {
-    this.collectionsMenuOpen.set(false);
+    setTimeout(() => this.contextMenu.open(this.collectionsAddMenu, null, position.x, position.y), 0);
   }
 
   onCollectionAddMenu(action: 'new' | 'import' | 'export'): void {
-    this.closeCollectionsMenu();
+    this.contextMenu.close();
     switch (action) {
       case 'new':
         this.openNewCollectionPopup();
