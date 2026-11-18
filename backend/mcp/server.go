@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -56,17 +57,21 @@ type Server struct {
 
 	maskMu sync.RWMutex
 	masker *Masker // nil means masking is off
+	// auditMasker always masks: the audit log never stores secrets, even when
+	// output masking is switched off.
+	auditMasker *Masker
 }
 
 // NewServer returns a stopped server.
 func NewServer(runner Runner, store *Store, version string) *Server {
 	return &Server{
-		runner:     runner,
-		store:      store,
-		policy:     NewPolicy(nil),
-		version:    version,
-		registered: map[string]bool{},
-		masker:     NewMasker(nil), // on until the stored setting says otherwise
+		runner:      runner,
+		store:       store,
+		policy:      NewPolicy(nil),
+		version:     version,
+		registered:  map[string]bool{},
+		masker:      NewMasker(nil), // on until the stored setting says otherwise
+		auditMasker: NewMasker(nil),
 	}
 }
 
@@ -84,7 +89,7 @@ func (s *Server) StartIfEnabled() {
 		return
 	}
 	if devBoot {
-		log.Printf("mcp: listening on http://%s/mcp  token: %s", addr, s.currentToken())
+		log.Printf("mcp: listening on http://%s/mcp (dev bootstrap; the token is under Settings > MCP server)", addr)
 	} else {
 		log.Printf("mcp: listening on http://%s/mcp", addr)
 	}
@@ -257,25 +262,32 @@ func register[In any](s *Server, m ToolMeta, call callFunc[In]) {
 		Name:        m.Name,
 		Description: m.Description,
 		Annotations: annotationsFor(m),
-	}, func(_ context.Context, _ *sdk.CallToolRequest, in In) (*sdk.CallToolResult, any, error) {
+	}, func(_ context.Context, req *sdk.CallToolRequest, in In) (*sdk.CallToolResult, any, error) {
+		started := time.Now()
+		client := clientName(req)
+		fail := func(status string, err error) (*sdk.CallToolResult, any, error) {
+			s.recordAudit(m, client, in, status, err, started)
+			return nil, nil, err
+		}
 		if !s.policy.Allowed(m) {
-			return nil, nil, ErrDisabled
+			return fail(auditRefused, ErrDisabled)
 		}
 		if err := s.checkInput(in); err != nil {
-			return nil, nil, err
+			return fail(auditRefused, err)
 		}
 		out, err := call(s, in)
 		if err != nil {
-			return nil, nil, err
+			return fail(auditError, err)
 		}
 		out, err = s.present(out)
 		if err != nil {
-			return nil, nil, err
+			return fail(auditError, err)
 		}
 		text, err := cappedJSON(out)
 		if err != nil {
-			return nil, nil, err
+			return fail(auditError, err)
 		}
+		s.recordAudit(m, client, in, auditOK, nil, started)
 		return &sdk.CallToolResult{Content: []sdk.Content{&sdk.TextContent{Text: text}}}, nil, nil
 	})
 }
@@ -333,13 +345,14 @@ func annotationsFor(m ToolMeta) *sdk.ToolAnnotations {
 	if m.Risk == RiskRead {
 		return &sdk.ToolAnnotations{ReadOnlyHint: true}
 	}
-	destructive := trashingTools[m.Name]
+	destructive := trashingTools[m.Name] || m.Risk == RiskContent
 	return &sdk.ToolAnnotations{DestructiveHint: &destructive}
 }
 
 func (s *Server) applyMasking(cfg Config) {
 	s.maskMu.Lock()
 	defer s.maskMu.Unlock()
+	s.auditMasker = NewMasker(cfg.MaskExtra)
 	if cfg.MaskSecrets {
 		s.masker = NewMasker(cfg.MaskExtra)
 	} else {
@@ -381,4 +394,42 @@ func (s *Server) checkInput(in any) error {
 		return errors.New("the input contains " + Redacted + ", a masked secret; use a {{variable}} placeholder or leave that field out")
 	}
 	return nil
+}
+
+// clientName is the connected client's name and version from the MCP
+// handshake, or "" when it is not known.
+func clientName(req *sdk.CallToolRequest) string {
+	if req == nil || req.Session == nil {
+		return ""
+	}
+	params := req.Session.InitializeParams()
+	if params == nil || params.ClientInfo == nil {
+		return ""
+	}
+	return strings.TrimSpace(params.ClientInfo.Name + " " + params.ClientInfo.Version)
+}
+
+// recordAudit stores one call. A failure to log never fails the call.
+func (s *Server) recordAudit(m ToolMeta, client string, in any, status string, callErr error, started time.Time) {
+	if s.store == nil {
+		return
+	}
+	s.maskMu.RLock()
+	masker := s.auditMasker
+	s.maskMu.RUnlock()
+	entry := AuditEntry{
+		At:         started.UnixMilli(),
+		Tool:       m.Name,
+		Client:     client,
+		Status:     status,
+		Summary:    summarize(in),
+		Args:       maskArgs(masker, in),
+		DurationMs: time.Since(started).Milliseconds(),
+	}
+	if callErr != nil {
+		entry.Error = truncate(callErr.Error(), 500)
+	}
+	if err := s.store.AddAudit(entry); err != nil {
+		log.Printf("mcp: audit log: %v", err)
+	}
 }

@@ -58,7 +58,7 @@ All read tools are `list_*` / `get_request`. Organize tools:
 
 Deliberately left out for now:
 
-- **Free-form request editing** (`request.update`). It overwrites every column and is not undoable, so a partial edit would need read-merge-write. `bulk_edit_requests` covers one field at a time and is undoable.
+- **Free-form request editing** (`request.update`). It overwrites every column and is not undoable, so a partial edit would need read-merge-write. `bulk_edit_requests` changes `name` or `color` (one field per call, undoable); `edit_request_content` (class `content`, off by default) changes url, method, headers, body, body_type, body_form.
 - **Appearance tools** (collection, tag, favourite icons/colours). The icon vocabulary lives in the frontend, so a tool cannot validate values yet.
 - Note on undo merging: quick repeats of the same command on the same rows share one undo step, so several `bulk_edit_requests` calls on different fields within 750 ms undo only the first field. Do one field per call and do not chain them.
 
@@ -67,7 +67,8 @@ Deliberately left out for now:
 | Class | Meaning | Default |
 |---|---|---|
 | `read` | queries only | on |
-| `organize` | recoverable edits: rename, move, reorder, tag, favourite, colour, duplicate, bulk edit, delete-to-trash, restore | on |
+| `organize` | recoverable edits: rename, move, reorder, tag, favourite, colour, duplicate, bulk rename/colour, delete-to-trash, restore | on |
+| `content` | change what a request sends: URL, method, headers, body (`edit_request_content`) | off |
 | `destructive` | cascading or permanent deletes | off |
 | `external` | outbound network (`send_request`) | off |
 | `sensitive` | variable values, cookie jar | off (not planned) |
@@ -89,10 +90,10 @@ Never exposed, whatever the settings (`NeverExposed`): `settings.update`,
 The typed `settings.get` / `settings.update` commands only read and write
 their own keys, so the token never reaches the frontend through them.
 
-## Trying it in dev (before the Settings UI exists)
+## Trying it in dev
 
 Start the app with `SNAPRQ_MCP=1` (does not persist anything). The log prints
-the address and token. Example for Claude Code:
+the address only; the token is never logged, read it in Settings > MCP server. Example for Claude Code:
 
 ```
 claude mcp add --transport http snap-rq http://127.0.0.1:47821/mcp --header "Authorization: Bearer <token>"
@@ -154,3 +155,11 @@ Setting `mcp_mask_secrets` (absent = on) plus `mcp_mask_extra` (the user's own n
 Limits: matching is by name, so a secret in an oddly named field or inside free text is not caught; add its name under "extra names".
 
 The settings screen lists the always-hidden names (`BuiltinSecretNames`, returned by `SettingsService.Masking`) so the user can see what is covered. Only the checkbox toggles the enable and masking switches, not their text.
+
+## Why a `content` class
+
+A client that can rewrite URLs and headers could, after reading a malicious response or request name (prompt injection), point your saved `Authorization` headers at another host, or add a form-data `file_path`, which would be sent the next time you click Send. So `create_request` only takes a name and method, `bulk_edit_requests` only changes name and colour, and everything that changes what a request sends is `edit_request_content`, which the user has to switch on.
+
+## Recent AI actions (audit log)
+
+Every tool call that reaches the server is recorded in the `mcp_audit_log` table (`audit.go`, written from `register` so no tool can skip it): time, client name/version from the MCP handshake, tool, status (`ok`, `error`, `refused`), a one-line summary (counts and short values, never content), the arguments after masking (capped at 2 KB, always masked even when output masking is off) and the error. Results are not stored and the token never is. The newest 1000 rows or 30 days are kept; Settings > MCP server lists them, refreshes every 3 s while open, and has a Clear button. Logging never fails a call.

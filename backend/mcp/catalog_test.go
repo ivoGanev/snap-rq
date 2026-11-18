@@ -12,7 +12,7 @@ import (
 func TestExposedToolNames(t *testing.T) {
 	want := []string{
 		"add_tag", "add_to_favourite", "bulk_edit_requests", "create_collection", "create_favourite",
-		"create_request", "delete_requests", "duplicate_request", "get_request", "list_collections",
+		"create_request", "delete_requests", "duplicate_request", "edit_request_content", "get_request", "list_collections",
 		"list_environments", "list_favourites", "list_profiles", "list_projects", "list_recent_requests", "list_requests",
 		"list_responses", "list_tagged_requests", "list_tags", "list_trash", "list_variables", "move_requests",
 		"remove_from_favourite", "remove_tag", "rename_collection", "rename_favourite", "rename_tag",
@@ -53,14 +53,39 @@ func TestNoToolCallsANeverExposedCommand(t *testing.T) {
 	}
 }
 
-func TestOnlyReadAndOrganizeShip(t *testing.T) {
+func TestOnlyShippedClassesAreAvailable(t *testing.T) {
 	for _, m := range Catalog {
-		if m.Risk != RiskRead && m.Risk != RiskOrganize {
-			t.Errorf("%s is %s; restricted classes arrive in phase 4", m.Name, m.Risk)
+		switch m.Risk {
+		case RiskRead, RiskOrganize, RiskContent:
+		default:
+			t.Errorf("%s is %s; that class has no tools yet", m.Name, m.Risk)
 		}
 		isQuery := strings.HasPrefix(m.Name, "list_") || strings.HasPrefix(m.Name, "get_")
 		if isQuery != (m.Risk == RiskRead) {
 			t.Errorf("%s: query-named tools must be read, and only they", m.Name)
+		}
+	}
+}
+
+// What a request sends can only be changed through the content class, which
+// is off by default.
+func TestContentClassIsOffByDefault(t *testing.T) {
+	if ClassDefault(RiskContent) {
+		t.Fatal("content tools must be off by default")
+	}
+	meta, ok := metaFor("edit_request_content")
+	if !ok || meta.Risk != RiskContent {
+		t.Fatalf("edit_request_content must be a content tool, got %+v", meta)
+	}
+	if NewPolicy(nil).Allowed(meta) {
+		t.Fatal("edit_request_content is allowed without the user switching it on")
+	}
+	if !NewPolicy(map[string]bool{"edit_request_content": true}).Allowed(meta) {
+		t.Fatal("the user must be able to switch it on")
+	}
+	for _, m := range Catalog {
+		if m.Risk == RiskContent && m.Name != "edit_request_content" {
+			t.Errorf("unexpected content tool %s", m.Name)
 		}
 	}
 }

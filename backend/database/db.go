@@ -254,6 +254,18 @@ func migrate(db *sql.DB) error {
 			state TEXT NOT NULL DEFAULT 'undo' CHECK(state IN ('undo', 'redo'))
 		);
 
+		CREATE TABLE IF NOT EXISTS mcp_audit_log (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			at INTEGER NOT NULL,
+			tool TEXT NOT NULL,
+			client TEXT NOT NULL DEFAULT '',
+			status TEXT NOT NULL,
+			summary TEXT NOT NULL DEFAULT '',
+			args TEXT NOT NULL DEFAULT '',
+			error TEXT NOT NULL DEFAULT '',
+			duration_ms INTEGER NOT NULL DEFAULT 0
+		);
+
 		INSERT OR IGNORE INTO app_settings (key, value) VALUES ('validate_ssl_certificates', 'true');
 	`, "")
 	if err != nil {

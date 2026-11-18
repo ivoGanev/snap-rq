@@ -106,10 +106,45 @@
       </section>
 
       <section class="mcp-section">
+        <div class="mcp-snippet-head">
+          <h4 class="mcp-heading">Recent AI actions</h4>
+          <button
+            class="mcp-button"
+            type="button"
+            [disabled]="api.actions().length === 0"
+            (click)="clearActions()"
+          >
+            Clear
+          </button>
+        </div>
+        @if (api.actions().length === 0) {
+          <span class="mcp-help">Nothing yet. Every tool call an AI client makes is listed here.</span>
+        }
+        @for (action of api.actions(); track action.id) {
+          <div class="mcp-action" [class.mcp-action--bad]="action.status !== 'ok'">
+            <div class="mcp-action-head">
+              <span class="mcp-tool-name">{{ action.tool }}</span>
+              <span class="mcp-help">{{ timeLabel(action.at) }}{{ action.client ? ' · ' + action.client : '' }}</span>
+            </div>
+            @if (action.summary) {
+              <span class="mcp-help">{{ action.summary }}</span>
+            }
+            @if (action.status !== 'ok') {
+              <span class="mcp-action-status">
+                {{ action.status === 'refused' ? 'Refused' : 'Failed' }}: {{ action.error }}
+              </span>
+            }
+          </div>
+        }
+        <span class="mcp-help">
+          Secrets in arguments are hidden here too. The last 1000 calls, or 30 days, are kept.
+        </span>
+      </section>
+
+      <section class="mcp-section">
         <h4 class="mcp-heading">Tools</h4>
         <span class="mcp-help">
-          Only these tools exist for AI clients. Destructive, external and sensitive tools are not
-          offered yet.
+          Only these tools exist for AI clients. Delete-forever, send and variable-value tools do not exist for AI clients.
         </span>
         @for (group of groups(); track group.risk) {
           <div class="mcp-group">

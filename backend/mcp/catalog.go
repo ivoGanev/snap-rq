@@ -18,11 +18,15 @@ const (
 	RiskDestructive Risk = "destructive"
 	RiskExternal    Risk = "external"
 	RiskSensitive   Risk = "sensitive"
+	// RiskContent covers changing what a request sends (URL, method, headers,
+	// body). A client that can do this could redirect your credentials, so it
+	// is off by default.
+	RiskContent Risk = "content"
 )
 
 func (r Risk) valid() bool {
 	switch r {
-	case RiskRead, RiskOrganize, RiskDestructive, RiskExternal, RiskSensitive:
+	case RiskRead, RiskOrganize, RiskDestructive, RiskExternal, RiskSensitive, RiskContent:
 		return true
 	}
 	return false
@@ -65,13 +69,16 @@ var Catalog = []ToolMeta{
 	{"rename_collection", "Rename a collection.", RiskOrganize, "collection.update"},
 
 	// requests
-	{"create_request", "Create a request at the end of a collection. method defaults to GET.", RiskOrganize, "request.create"},
+	{"create_request", "Create an empty request (name and method only) at the end of a collection. method defaults to GET. Setting its URL, headers or body needs edit_request_content.", RiskOrganize, "request.create"},
 	{"duplicate_request", "Duplicate a request.", RiskOrganize, "request.duplicate"},
 	{"delete_requests", "Move requests to the trash. They can be restored with restore_from_trash or undone.", RiskOrganize, "request.delete"},
 	{"restore_from_trash", "Restore requests from the trash into collections.", RiskOrganize, "bin.restore"},
-	{"bulk_edit_requests", "Set one field (name, url, method, headers, body, body_type, body_form, color) on many requests. Undoable.", RiskOrganize, "request.bulk_set"},
+	{"bulk_edit_requests", "Set name or color on many requests. Undoable.", RiskOrganize, "request.bulk_set"},
 	{"reorder_requests", "Set the custom order of the requests in a collection.", RiskOrganize, "request.update_order"},
 	{"move_requests", "Move requests to another collection (appended at its end). Not undoable: move them back to revert.", RiskOrganize, "request.update"},
+
+	// content: what a request sends. Off by default.
+	{"edit_request_content", "Set the URL, method, headers, body, body_type or body_form on many requests. Undoable. Off by default: it changes what a request sends.", RiskContent, "request.bulk_set"},
 
 	// tags
 	{"add_tag", "Tag a request; the tag is created if the project has none with that name.", RiskOrganize, "tag.add"},

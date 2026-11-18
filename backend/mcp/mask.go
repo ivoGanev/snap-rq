@@ -130,6 +130,9 @@ func (m *Masker) Body(text string) string {
 	return text
 }
 
+// Text masks free text that may be a header block, a URL, or a body.
+func (m *Masker) Text(text string) string { return m.Headers(m.URL(m.Body(text))) }
+
 // BodyForm masks the values of sensitive entries in a form body (a JSON array
 // of {key, value, ...}).
 func (m *Masker) BodyForm(text string) string {

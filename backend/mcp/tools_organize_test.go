@@ -43,7 +43,7 @@ func newFakeServer(f *fakeRunner) *Server { return NewServer(f, nil, "test") }
 
 func TestCreateRequestDefaultsMethodToGET(t *testing.T) {
 	f := &fakeRunner{}
-	if _, err := createRequest(newFakeServer(f), createRequestInput{CollectionID: 3, Name: "a", URL: "http://x"}); err != nil {
+	if _, err := createRequest(newFakeServer(f), createRequestInput{CollectionID: 3, Name: "a"}); err != nil {
 		t.Fatal(err)
 	}
 	if got := f.calls[0].input["method"]; got != "GET" {

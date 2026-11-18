@@ -181,3 +181,11 @@ func (s *SettingsService) SetMasking(enabled bool, extra []string) (Masking, err
 	s.server.Reload()
 	return s.Masking(), nil
 }
+
+// RecentActions returns the newest tool calls by AI clients, newest first.
+func (s *SettingsService) RecentActions(limit int) ([]AuditEntry, error) {
+	return s.store.RecentAudit(limit)
+}
+
+// ClearActions deletes the log of tool calls.
+func (s *SettingsService) ClearActions() error { return s.store.ClearAudit() }

@@ -21,13 +21,9 @@ type renameInput struct {
 }
 
 type createRequestInput struct {
-	CollectionID   int64  `json:"collection_id" jsonschema:"collection the request is added to"`
-	Name           string `json:"name" jsonschema:"request name"`
-	URL            string `json:"url" jsonschema:"request URL; {{variable}} placeholders are kept as typed"`
-	Method         string `json:"method,omitempty" jsonschema:"HTTP method, default GET"`
-	Body           string `json:"body,omitempty" jsonschema:"request body"`
-	BodyType       string `json:"body_type,omitempty" jsonschema:"json or text, default json"`
-	RequestHeaders string `json:"request_headers,omitempty" jsonschema:"headers, one 'Name: value' per line"`
+	CollectionID int64  `json:"collection_id" jsonschema:"collection the request is added to"`
+	Name         string `json:"name" jsonschema:"request name"`
+	Method       string `json:"method,omitempty" jsonschema:"HTTP method, default GET"`
 }
 
 type deleteRequestsInput struct {
@@ -45,7 +41,7 @@ type restoreItem struct {
 
 type bulkEditInput struct {
 	IDs   []int64 `json:"ids" jsonschema:"ids of the requests to change"`
-	Field string  `json:"field" jsonschema:"one of name, url, method, headers, body, body_type, body_form, color"`
+	Field string  `json:"field" jsonschema:"name or color"`
 	Value any     `json:"value" jsonschema:"the new value; for color use a slot name, or null to clear"`
 }
 
@@ -124,7 +120,7 @@ func init() {
 		binding{"duplicate_request", addTool[idInput]},
 		binding{"delete_requests", addTool[deleteRequestsInput]},
 		binding{"restore_from_trash", addTool[restoreInput]},
-		binding{"bulk_edit_requests", addTool[bulkEditInput]},
+		binding{"bulk_edit_requests", customTool(bulkEdit)},
 		binding{"reorder_requests", addTool[reorderRequestsInput]},
 		binding{"move_requests", customTool(moveRequests)},
 
@@ -141,6 +137,15 @@ func init() {
 		binding{"reorder_favourite_requests", addTool[reorderFavouriteInput]},
 		binding{"set_favourite_request_colors", addTool[favouriteColorInput]},
 	)
+}
+
+// bulkEdit changes only the organizing fields. What a request sends is
+// edit_request_content's job, a separate tool that is off by default.
+func bulkEdit(s *Server, in bulkEditInput) (any, error) {
+	if in.Field != "name" && in.Field != "color" {
+		return nil, fmt.Errorf("bulk_edit_requests only changes name and color, not %q; changing what a request sends is edit_request_content, which the user must switch on in the MCP settings", in.Field)
+	}
+	return s.run("request.bulk_set", in)
 }
 
 // createRequest fills in the method before creating, so a request is never

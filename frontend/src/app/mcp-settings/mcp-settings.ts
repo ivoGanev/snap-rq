@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, output, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, output, signal } from '@angular/core';
 import { ConfirmService } from '../core/services/confirm.service';
 import { McpApiService, type McpTool } from '../core/services/mcp.service';
 
@@ -12,6 +12,8 @@ interface RiskGroup {
 const RISK_LABELS: Record<string, string> = {
   read: 'Read — look at projects, collections and requests',
   organize: 'Organize — create, rename, move, tag, reorder',
+  content:
+    'Content — change a request’s URL, headers or body (off by default: could redirect your credentials)',
   destructive: 'Destructive — delete',
   external: 'External — send requests',
   sensitive: 'Sensitive — secrets and files',
@@ -26,7 +28,7 @@ const RISK_LABELS: Record<string, string> = {
   templateUrl: './mcp-settings.html',
   styleUrl: './mcp-settings.scss',
 })
-export class McpSettings implements OnInit {
+export class McpSettings implements OnInit, OnDestroy {
   protected readonly api = inject(McpApiService);
   private readonly confirm = inject(ConfirmService);
 
@@ -50,11 +52,27 @@ export class McpSettings implements OnInit {
     }));
   });
 
+  private refreshTimer: ReturnType<typeof setInterval> | undefined;
+
   ngOnInit(): void {
     void this.run(async () => {
       await this.api.load();
       this.token.set(await this.api.token());
+      await this.api.loadActions();
     });
+    this.refreshTimer = setInterval(() => void this.api.loadActions().catch(() => undefined), 3000);
+  }
+
+  ngOnDestroy(): void {
+    clearInterval(this.refreshTimer);
+  }
+
+  protected clearActions(): void {
+    void this.run(() => this.api.clearActions());
+  }
+
+  protected timeLabel(at: number): string {
+    return new Date(at).toLocaleString();
   }
 
   protected async run(action: () => Promise<void>): Promise<void> {

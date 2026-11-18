@@ -182,3 +182,35 @@
   font-size: 0.75rem;
   color: var(--text);
 }
+
+.mcp-snippet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.mcp-action {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+}
+
+.mcp-action-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.mcp-action--bad {
+  border-color: var(--danger-text);
+}
+
+.mcp-action-status {
+  font-size: 0.75rem;
+  color: var(--danger-text);
+}

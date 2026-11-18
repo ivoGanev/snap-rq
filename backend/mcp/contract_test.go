@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"snap-rq/backend/commands"
 	"snap-rq/backend/commands/catalog"
@@ -120,7 +121,7 @@ func TestOrganizeFlowEndToEnd(t *testing.T) {
 	a := h.id(h.run("collection.create", createCollectionInput{ProjectID: project, Name: "A"}))
 	b := h.id(h.run("collection.create", createCollectionInput{ProjectID: project, Name: "B"}))
 	req := h.id(h.call(func() (any, error) {
-		return createRequest(h.s, createRequestInput{CollectionID: a, Name: "r1", URL: "http://x"})
+		return createRequest(h.s, createRequestInput{CollectionID: a, Name: "r1"})
 	}))
 
 	// a move keeps every other field
@@ -166,5 +167,51 @@ func TestOrganizeFlowEndToEnd(t *testing.T) {
 	h.run("bin.restore", restoreInput{Items: []restoreItem{{BinID: bin, CollectionID: a}}})
 	if got, want := h.field(req, "collection_id"), h.text(a); got != want {
 		t.Fatalf("restored into %s, want %s", got, want)
+	}
+}
+
+func TestAuditLogRecordsAndPrunes(t *testing.T) {
+	h := newHarness(t)
+	store := h.s.store
+	h.s.recordAudit(ToolMeta{Name: "move_requests"}, "claude-code 2.0", map[string]any{
+		"ids": []int64{1, 2}, "collection_id": 5, "value": "Authorization: Bearer sk-live-1",
+	}, auditOK, nil, time.Now())
+	h.s.recordAudit(ToolMeta{Name: "edit_request_content"}, "", map[string]any{"field": "url"},
+		auditRefused, ErrDisabled, time.Now())
+	got, err := store.RecentAudit(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].Tool != "edit_request_content" || got[0].Status != auditRefused || got[0].Error == "" {
+		t.Fatalf("newest first with the refusal: %+v", got)
+	}
+	if got[1].Client != "claude-code 2.0" || !strings.Contains(got[1].Summary, "ids×2") || strings.Contains(got[1].Args, "sk-live") {
+		t.Fatalf("entry: %+v", got[1])
+	}
+
+	for i := 0; i < auditMaxRows+50; i++ {
+		if err := store.AddAudit(AuditEntry{At: time.Now().UnixMilli(), Tool: "list_tags", Status: auditOK}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var count int
+	if err := store.db.QueryRow(`SELECT COUNT(*) FROM mcp_audit_log`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != auditMaxRows {
+		t.Fatalf("rows = %d, want %d", count, auditMaxRows)
+	}
+	old := time.Now().Add(-auditMaxAge - time.Hour).UnixMilli()
+	if err := store.AddAudit(AuditEntry{At: old, Tool: "old", Status: auditOK}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.db.QueryRow(`SELECT COUNT(*) FROM mcp_audit_log WHERE tool = 'old'`).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("entries older than the limit must be pruned: %d %v", count, err)
+	}
+	if err := store.ClearAudit(); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := store.RecentAudit(10); len(got) != 0 {
+		t.Fatalf("after clear: %d", len(got))
 	}
 }

@@ -1,10 +1,11 @@
 import { Injectable, signal } from '@angular/core';
 import { SettingsService } from '../../../../bindings/snap-rq/backend/mcp';
-import type { Masking, Status, ToolStatus } from '../../../../bindings/snap-rq/backend/mcp';
+import type { AuditEntry, Masking, Status, ToolStatus } from '../../../../bindings/snap-rq/backend/mcp';
 
 export type McpStatus = Status;
 export type McpTool = ToolStatus;
 export type McpMasking = Masking;
+export type McpAction = AuditEntry;
 
 const EMPTY_STATUS: McpStatus = { enabled: false, running: false, port: 0, url: '', error: '' };
 
@@ -15,6 +16,7 @@ const EMPTY_STATUS: McpStatus = { enabled: false, running: false, port: 0, url: 
 export class McpApiService {
   readonly status = signal<McpStatus>(EMPTY_STATUS);
   readonly tools = signal<McpTool[]>([]);
+  readonly actions = signal<McpAction[]>([]);
   readonly masking = signal<McpMasking>({ enabled: true, extra: [], builtin: [] });
 
   async load(): Promise<void> {
@@ -61,5 +63,14 @@ export class McpApiService {
 
   async setMasking(enabled: boolean, extra: string[]): Promise<void> {
     this.masking.set(await SettingsService.SetMasking(enabled, extra));
+  }
+
+  async loadActions(): Promise<void> {
+    this.actions.set((await SettingsService.RecentActions(100)) ?? []);
+  }
+
+  async clearActions(): Promise<void> {
+    await SettingsService.ClearActions();
+    this.actions.set([]);
   }
 }
