@@ -688,7 +688,7 @@ export class RequestGroups {
       for (const requestId of deletedRequestIds) {
         this.selectionState.deleteRequest(requestId);
       }
-      this.selectionState.setSelectedRequest(groupKey.collection(collection.id), null);
+      this.selectionState.clearSelection(groupKey.collection(collection.id));
 
       if (this.state.selectedCollection()?.id === collection.id) {
         this.state.selectedCollection.set(null);

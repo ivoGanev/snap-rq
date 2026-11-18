@@ -552,9 +552,9 @@ export class RequestsMainList {
       if (showBin && projectId !== null) {
         await this.binApi.loadForProject(projectId);
         if (version !== this.loadVersion) return;
-        this.restoreRememberedRequest(
+        this.restoreRememberedSelection(
           this.binSummaries(),
-          this.rememberedRequestId(groupKeyOfView),
+          groupKeyOfView,
           scroll,
           restoreOffset,
         );
@@ -565,7 +565,7 @@ export class RequestsMainList {
         const requests = await this.requestApi.loadRecentRequests(projectId, 50);
         if (version !== this.loadVersion) return;
         this.recentRequests.set(requests);
-        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView), scroll, restoreOffset);
+        this.restoreRememberedSelection(requests, groupKeyOfView, scroll, restoreOffset);
         return;
       }
 
@@ -578,7 +578,7 @@ export class RequestsMainList {
         await this.tagApi.loadTagsForRequests(requests);
         if (version !== this.loadVersion) return;
         this.favouriteApi.requestsMembership.set({});
-        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView), scroll, restoreOffset);
+        this.restoreRememberedSelection(requests, groupKeyOfView, scroll, restoreOffset);
         return;
       }
 
@@ -588,7 +588,7 @@ export class RequestsMainList {
         const requests = this.favouriteApi.requests();
         await this.tagApi.loadTagsForRequests(requests);
         if (version !== this.loadVersion) return;
-        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView), scroll, restoreOffset);
+        this.restoreRememberedSelection(requests, groupKeyOfView, scroll, restoreOffset);
         return;
       }
 
@@ -597,7 +597,7 @@ export class RequestsMainList {
         const requests = this.requestApi.forCollection(collectionId);
         await this.tagApi.loadTagsForRequests(requests);
         if (version !== this.loadVersion) return;
-        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView), scroll, restoreOffset);
+        this.restoreRememberedSelection(requests, groupKeyOfView, scroll, restoreOffset);
         return;
       }
 
@@ -606,7 +606,7 @@ export class RequestsMainList {
         const requests = this.requestApi.forProject(projectId);
         await this.tagApi.loadTagsForRequests(requests);
         if (version !== this.loadVersion) return;
-        this.restoreRememberedRequest(requests, this.rememberedRequestId(groupKeyOfView), scroll, restoreOffset);
+        this.restoreRememberedSelection(requests, groupKeyOfView, scroll, restoreOffset);
         return;
       }
 
@@ -617,26 +617,35 @@ export class RequestsMainList {
     }
   }
 
-  private rememberedRequestId(groupKeyOfView: string | null): number | null {
-    return groupKeyOfView !== null ? this.selectionState.getSelectedRequest(groupKeyOfView) : null;
-  }
-
-  private restoreRememberedRequest(
+  private restoreRememberedSelection(
     requests: HttpRequestSummary[],
-    rememberedId: number | null,
+    groupKeyOfView: string | null,
     scroll: boolean,
     restoreOffset: number | null,
   ): void {
-    if (rememberedId === null) return;
-    const remembered = requests.find((r) => r.id === rememberedId);
+    const remembered =
+      groupKeyOfView !== null ? this.selectionState.getSelection(groupKeyOfView) : null;
     if (!remembered) return;
+
+    // Keep only rows that are still in this list; the main row falls back to
+    // the first remaining one.
+    const present = new Set(requests.map((r) => r.id));
+    const ids = remembered.ids.filter((id) => present.has(id));
+    if (ids.length === 0) return;
+    const rememberedId = present.has(remembered.primary) ? remembered.primary : ids[0];
+    const primary = requests.find((r) => r.id === rememberedId);
+    if (!primary) return;
 
     // Restore selection without letting the outer reactive effect track the
     // workspace request signal. Otherwise any later change to selectedRequest
     // (e.g. loading the full request for send) would re-run the group-load
     // effect, reset the selection, and scroll the list back to the remembered row.
     untracked(() => {
-      this.selectCell(remembered, 'name');
+      this.selectCell(primary, 'name');
+      if (ids.length > 1) {
+        this.state.selectedIds.set(new Set(ids));
+        this.rememberSelection(primary.id);
+      }
     });
 
     if (!scroll || !this.viewport) return;
@@ -759,10 +768,22 @@ export class RequestsMainList {
     this.highlightedCell.set(highlight ? cell : null);
     this.syncWorkspaceSelection(req);
 
-    const groupKeyOfView = this.activeGroupKey();
-    if (groupKeyOfView !== null) {
-      this.selectionState.setSelectedRequest(groupKeyOfView, req.id);
+    this.rememberSelection(req.id);
+  }
+
+  /**
+   * Remembers the whole selection for the list being viewed, so it comes back
+   * when the user leaves the list and returns.
+   */
+  private rememberSelection(primaryId: number): void {
+    const key = this.activeGroupKey();
+    if (key === null) return;
+    const ids = this.selectedRowIds();
+    if (ids.size === 0) {
+      this.selectionState.clearSelection(key);
+      return;
     }
+    this.selectionState.setSelection(key, ids.has(primaryId) ? primaryId : [...ids][0], ids);
   }
 
   private clearSelection(): void {
@@ -820,6 +841,7 @@ export class RequestsMainList {
     this.selectedCell.set({ requestId: req.id, column });
     this.lastClickedRowId.set(req.id);
     this.syncWorkspaceSelection(req);
+    this.rememberSelection(req.id);
   }
 
   private syncWorkspaceSelection(fallbackReq: HttpRequestSummary | HttpBinnedRequestSummary | null): void {
@@ -892,6 +914,7 @@ export class RequestsMainList {
     this.state.selectedIds.set(next);
     this.selectedCell.set({ requestId: req.id, column });
     this.syncWorkspaceSelection(req);
+    this.rememberSelection(req.id);
   }
 
   // ---------- Drag selection ----------
