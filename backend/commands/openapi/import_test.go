@@ -80,3 +80,23 @@ func TestImportIsNotUndoable(t *testing.T) {
 		t.Fatal("import must not implement Undo")
 	}
 }
+
+func TestImportRejectsSpecWithoutPaths(t *testing.T) {
+	db, err := database.OpenPath(filepath.Join(t.TempDir(), "app.db"))
+	if err != nil {
+		t.Fatalf("opening db: %v", err)
+	}
+	defer db.Close()
+
+	specPath := writeSpec(t, "empty.json", `{"openapi":"3.0.0","info":{"title":"Empty","version":"1"},"paths":{}}`)
+	payload, _ := json.Marshal(map[string]any{"project_id": 1, "file_path": specPath})
+
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatalf("beginning tx: %v", err)
+	}
+	defer tx.Rollback()
+	if _, err := NewImport(tx).Run(json.RawMessage(payload)); err == nil {
+		t.Fatal("expected an error for a spec with no paths")
+	}
+}

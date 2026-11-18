@@ -33,10 +33,16 @@ func (c Import) Run(input json.RawMessage) (any, error) {
 		return nil, fmt.Errorf("project_id is required")
 	}
 
-	loader := openapi3.Loader{IsExternalRefsAllowed: true}
+	// External refs stay off: a spec must not make the app read other files
+	// or URLs on its own.
+	loader := openapi3.Loader{IsExternalRefsAllowed: false}
 	doc, err := loader.LoadFromFile(in.FilePath)
 	if err != nil {
 		return nil, fmt.Errorf("parsing openapi: %w", err)
+	}
+
+	if doc.Paths == nil || doc.Paths.Len() == 0 {
+		return nil, fmt.Errorf("this spec has no paths, nothing to import")
 	}
 
 	plan := buildPlan(doc)
