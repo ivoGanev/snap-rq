@@ -174,3 +174,10 @@ The endpoint is stateless: each request stands alone and there is no session id
 to lose, so an AI app that was connected before SnapRQ restarted keeps working
 once the app is back. The caller is named from its User-Agent in the audit log
 and the approval dialog.
+
+## Where a change happens
+
+The approval dialog groups the affected requests by where they live
+("Project › Collection: names"), read from the real data and never from what
+the AI said, because the same request name can exist in several places. When a
+location cannot be found it says "Location unknown".

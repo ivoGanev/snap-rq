@@ -94,6 +94,32 @@ func TestDialogForDeleteListsNames(t *testing.T) {
 	}
 }
 
+// The person reading the dialog has no other context, so it says where the
+// requests live, read from the real data.
+func TestDialogSaysWhichProjectAndCollection(t *testing.T) {
+	f := &fakeRunner{results: map[string]any{
+		"request.get":     map[string]any{"name": "old login", "collection_id": 7, "project_id": 2},
+		"project.list":    []map[string]any{{"id": 1, "name": "Other"}, {"id": 2, "name": "Shop API"}},
+		"collection.list": []map[string]any{{"id": 7, "name": "Checkout"}},
+	}}
+	a := &fakeApprover{answer: true}
+	s := serverWith(f, a, true)
+	_ = s.gate(context.Background(), ToolMeta{Name: "delete_requests"}, "", deleteRequestsInput{IDs: []int64{4}})
+	lines := strings.Join(a.asked[0].Lines, "\n")
+	if !strings.Contains(lines, "Shop API › Checkout: old login") {
+		t.Fatalf("dialog lacks the location: %s", lines)
+	}
+
+	// When it cannot be found, it says so instead of guessing.
+	f = &fakeRunner{results: map[string]any{"request.get": map[string]any{"name": "x", "collection_id": 9, "project_id": 9}}}
+	a = &fakeApprover{answer: true}
+	s = serverWith(f, a, true)
+	_ = s.gate(context.Background(), ToolMeta{Name: "delete_requests"}, "", deleteRequestsInput{IDs: []int64{4}})
+	if !strings.Contains(strings.Join(a.asked[0].Lines, "\n"), "Location unknown: x") {
+		t.Fatalf("lines = %v", a.asked[0].Lines)
+	}
+}
+
 func TestHostOf(t *testing.T) {
 	for in, want := range map[string]string{
 		"https://api.example.com/v1?x=1": "api.example.com",

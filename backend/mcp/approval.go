@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -198,6 +199,7 @@ func (s *Server) describeContentEdit(req *ApprovalRequest, who string, in conten
 	}
 	req.Title = fmt.Sprintf("%s wants to change the %s of %s", who, label, plural(n, "request"))
 	infos := s.lookRequests(in.IDs)
+	req.Lines = append(req.Lines, s.describeWhere(infos)...)
 	newValue := valueText(in.Value)
 
 	switch in.Field {
@@ -238,20 +240,14 @@ func (s *Server) describeContentEdit(req *ApprovalRequest, who string, in conten
 func (s *Server) describeDelete(req *ApprovalRequest, who string, in deleteRequestsInput) {
 	req.Title = fmt.Sprintf("%s wants to move %s to the trash", who, plural(len(in.IDs), "request"))
 	infos := s.lookRequests(in.IDs)
-	names := make([]string, 0, len(infos))
-	for _, r := range infos {
-		if r.Name != "" {
-			names = append(names, r.Name)
-		}
-	}
-	if len(names) > 0 {
-		req.Lines = append(req.Lines, listWithMore(names, 5))
-	}
+	req.Lines = append(req.Lines, s.describeWhere(infos)...)
 	req.Lines = append(req.Lines, "They can be restored from the trash, or undone with Ctrl+Z.")
 }
 
 type requestInfo struct {
 	Name, URL, Headers string
+	CollectionID       int64
+	ProjectID          int64
 }
 
 // lookRequests reads the real requests, so the dialog can say what is being
@@ -270,6 +266,8 @@ func (s *Server) lookRequests(ids []int64) []requestInfo {
 		info.Name, _ = row["name"].(string)
 		info.URL, _ = row["url"].(string)
 		info.Headers, _ = row["request_headers"].(string)
+		info.CollectionID = numberField(row, "collection_id")
+		info.ProjectID = numberField(row, "project_id")
 		out = append(out, info)
 	}
 	return out
@@ -337,4 +335,103 @@ func listWithMore(items []string, max int) string {
 		return strings.Join(items, ", ")
 	}
 	return fmt.Sprintf("%s and %d more", strings.Join(items[:max], ", "), len(items)-max)
+}
+
+// numberField reads an id from a decoded row; 0 when absent.
+func numberField(row map[string]any, key string) int64 {
+	switch v := row[key].(type) {
+	case json.Number:
+		n, _ := v.Int64()
+		return n
+	case float64:
+		return int64(v)
+	}
+	return 0
+}
+
+// describeWhere says where the requests live, as "Project › Collection:
+// names", because the same request name can exist in several places and the
+// person reading the dialog has no other context. It is read from the real
+// data, never from what the AI said.
+func (s *Server) describeWhere(infos []requestInfo) []string {
+	projects := s.nameMap("project.list", nil)
+	collections := map[int64]string{}
+	loaded := map[int64]bool{}
+	type place struct {
+		label string
+		names []string
+	}
+	order := []string{}
+	groups := map[string]*place{}
+	for _, r := range infos {
+		if r.ProjectID != 0 && !loaded[r.ProjectID] {
+			loaded[r.ProjectID] = true
+			for id, name := range s.nameMap("collection.list", map[string]any{"project_id": r.ProjectID}) {
+				collections[id] = name
+			}
+		}
+		project, collection := projects[r.ProjectID], collections[r.CollectionID]
+		label := "Location unknown"
+		switch {
+		case project != "" && collection != "":
+			label = project + " › " + collection
+		case collection != "":
+			label = collection
+		case project != "":
+			label = project
+		}
+		g, ok := groups[label]
+		if !ok {
+			g = &place{label: label}
+			groups[label] = g
+			order = append(order, label)
+		}
+		name := r.Name
+		if name == "" {
+			name = "(unnamed request)"
+		}
+		g.names = append(g.names, name)
+	}
+	lines := []string{}
+	for i, label := range order {
+		if i == 4 {
+			lines = append(lines, fmt.Sprintf("…and %d more places", len(order)-i))
+			break
+		}
+		g := groups[label]
+		lines = append(lines, g.label+": "+listWithMore(g.names, 5))
+	}
+	return lines
+}
+
+// nameMap runs a list command and returns id -> name. Failures give an empty
+// map, so the dialog says "Location unknown" rather than guessing.
+func (s *Server) nameMap(command string, in any) map[int64]string {
+	out := map[int64]string{}
+	res, err := s.run(command, jsonOrEmpty(in))
+	if err != nil {
+		return out
+	}
+	raw, err := json.Marshal(res)
+	if err != nil {
+		return out
+	}
+	var rows []struct {
+		ID   int64  `json:"id"`
+		Name string `json:"name"`
+	}
+	if json.Unmarshal(raw, &rows) != nil {
+		return out
+	}
+	for _, r := range rows {
+		out[r.ID] = r.Name
+	}
+	return out
+}
+
+func jsonOrEmpty(in any) any {
+	if in == nil {
+		return map[string]any{}
+	}
+	return in
 }
