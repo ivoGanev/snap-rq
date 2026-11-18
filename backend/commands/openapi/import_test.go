@@ -74,7 +74,9 @@ func TestImportCreatesCollectionsAndRequests(t *testing.T) {
 }
 
 func TestImportIsNotUndoable(t *testing.T) {
-	if _, ok := any(NewImport(nil)).(interface{ Undo(any, json.RawMessage) error }); ok {
+	if _, ok := any(NewImport(nil)).(interface {
+		Undo(any, json.RawMessage) error
+	}); ok {
 		t.Fatal("import must not implement Undo")
 	}
 }

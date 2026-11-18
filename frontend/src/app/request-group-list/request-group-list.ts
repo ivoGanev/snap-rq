@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input, model, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, model, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SelectOnFocusDirective } from '../core/directives/select-on-focus.directive';
 import type { Collection, CollectionAppearance } from '../core/services/collection.service';
@@ -60,7 +60,10 @@ export interface SidebarAppearancePatch {
   appearance_value: string;
 }
 
-export type AddMenuAction = 'new' | 'import' | 'export';
+export interface AddMenuPosition {
+  x: number;
+  y: number;
+}
 
 const FOLDER_META: Record<SidebarFolder, { title: string; emptyMessage: string }> = {
   collections: { title: 'Collections', emptyMessage: 'No collections.' },
@@ -88,8 +91,7 @@ export class RequestGroupList {
   readonly showAddMenu = input<boolean>(false);
 
   readonly addClick = output<void>();
-  readonly addMenuSelect = output<AddMenuAction>();
-  readonly menuOpen = signal(false);
+  readonly addMenuOpen = output<AddMenuPosition>();
   readonly itemSelect = output<SidebarItem>();
   readonly itemContextMenu = output<{ item: SidebarItem; event: MouseEvent }>();
   readonly appearanceClick = output<{ item: SidebarItem; event: MouseEvent }>();
@@ -121,17 +123,9 @@ export class RequestGroupList {
     this.addClick.emit();
   }
 
-  toggleMenu(): void {
-    this.menuOpen.update((open) => !open);
-  }
-
-  closeMenu(): void {
-    this.menuOpen.set(false);
-  }
-
-  onMenuSelect(action: AddMenuAction): void {
-    this.menuOpen.set(false);
-    this.addMenuSelect.emit(action);
+  onAddMenuClick(event: MouseEvent): void {
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.addMenuOpen.emit({ x: rect.left, y: rect.bottom + 4 });
   }
 
   onItemClick(item: SidebarItem): void {

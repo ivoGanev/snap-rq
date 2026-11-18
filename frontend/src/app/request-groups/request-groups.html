@@ -48,7 +48,7 @@
         [dropTargetKey]="dropTargetKey()"
         [dropZoneActive]="dropZoneActive()"
         [showAddMenu]="folderFilter() === 'collections'"
-        (addMenuSelect)="onCollectionAddMenu($event)"
+        (addMenuOpen)="openCollectionsAddMenu($event)"
         (addClick)="onAddButtonClick()"
         (itemSelect)="selectSidebarItem($event)"
         (itemContextMenu)="openItemContextMenu($event.item, $event.event, itemContextMenu)"
@@ -194,6 +194,12 @@
       <kbd class="menu-kbd">Del</kbd>
     </button>
   }
+</ng-template>
+
+<ng-template #collectionsAddMenu>
+  <button class="context-menu-item" type="button" (click)="onCollectionAddMenu('new')">New Collection</button>
+  <button class="context-menu-item" type="button" (click)="onCollectionAddMenu('import')">Import</button>
+  <button class="context-menu-item" type="button" (click)="onCollectionAddMenu('export')">Export</button>
 </ng-template>
 
 <!-- Appearance popup -->

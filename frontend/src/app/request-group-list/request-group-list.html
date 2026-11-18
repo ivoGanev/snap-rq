@@ -1,40 +1,13 @@
 <div class="column-header group-list-header">
   <span class="group-list-title">{{ folderTitle() }}</span>
-  @if (showAddMenu()) {
-    <div class="add-menu">
-      <button
-        class="add-button"
-        type="button"
-        (click)="toggleMenu()"
-        aria-label="Add, import or export"
-      >
-        +
-      </button>
-      @if (menuOpen()) {
-        <div class="add-menu-backdrop" (click)="closeMenu()"></div>
-        <div class="add-menu-popup" role="menu">
-          <button class="add-menu-item" type="button" role="menuitem" (click)="onMenuSelect('new')">
-            New Collection
-          </button>
-          <button class="add-menu-item" type="button" role="menuitem" (click)="onMenuSelect('import')">
-            Import
-          </button>
-          <button class="add-menu-item" type="button" role="menuitem" (click)="onMenuSelect('export')">
-            Export
-          </button>
-        </div>
-      }
-    </div>
-  } @else {
-    <button
-      class="add-button"
-      type="button"
-      (click)="onAddClick()"
-      [attr.aria-label]="'Add new ' + folderFilter()"
-    >
-      +
-    </button>
-  }
+  <button
+    class="add-button"
+    type="button"
+    (click)="showAddMenu() ? onAddMenuClick($event) : onAddClick()"
+    [attr.aria-label]="showAddMenu() ? 'Add, import or export' : 'Add new ' + folderFilter()"
+  >
+    +
+  </button>
 </div>
 
 <div class="group-list-scroll" [class.is-drop-zone]="dropZoneActive()">
