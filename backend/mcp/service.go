@@ -156,6 +156,8 @@ func (s *SettingsService) SetRiskEnabled(risk string, enabled bool) error {
 type Masking struct {
 	Enabled bool     `json:"enabled"`
 	Extra   []string `json:"extra"`
+	// Builtin are the names always hidden, so the UI can list them.
+	Builtin []string `json:"builtin"`
 }
 
 // Masking returns the masking setting.
@@ -165,7 +167,7 @@ func (s *SettingsService) Masking() Masking {
 	if extra == nil {
 		extra = []string{}
 	}
-	return Masking{Enabled: cfg.MaskSecrets, Extra: extra}
+	return Masking{Enabled: cfg.MaskSecrets, Extra: extra, Builtin: BuiltinSecretNames()}
 }
 
 // SetMasking stores the masking setting and applies it to the running server.

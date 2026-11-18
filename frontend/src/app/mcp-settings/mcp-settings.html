@@ -10,7 +10,7 @@
         <div class="mcp-error">{{ error() }}</div>
       }
 
-      <label class="mcp-row">
+      <div class="mcp-row">
         <span class="mcp-copy">
           <span class="mcp-label">Enable MCP server</span>
           <span class="mcp-help">
@@ -24,7 +24,7 @@
           [checked]="api.status().enabled"
           (change)="toggleEnabled($event)"
         />
-      </label>
+      </div>
 
       <div class="mcp-status" [class.mcp-status--on]="api.status().running">
         @if (api.status().running) {
@@ -56,7 +56,7 @@
 
       <section class="mcp-section">
         <h4 class="mcp-heading">Privacy</h4>
-        <label class="mcp-row">
+        <div class="mcp-row">
           <span class="mcp-copy">
             <span class="mcp-label">Hide secrets from AI</span>
             <span class="mcp-help">
@@ -70,7 +70,16 @@
             [checked]="api.masking().enabled"
             (change)="toggleMasking($event)"
           />
-        </label>
+        </div>
+        <span class="mcp-help">
+          Hidden automatically: any header, JSON field, form field or URL parameter whose name
+          contains one of
+          @for (name of builtinNames(); track name; let last = $last) {
+            <code>{{ name }}</code>{{ last ? '.' : ', ' }}
+          }
+          Also hidden: the password in <code>user:pass&#64;host</code> URLs. Values that are only a
+          {{ '{{variable}}' }} placeholder are left visible.
+        </span>
         <span class="mcp-help">Extra names to hide, one per line (matches headers, fields and parameters containing the name):</span>
         <textarea
           class="mcp-textarea"

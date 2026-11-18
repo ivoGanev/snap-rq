@@ -28,7 +28,6 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--s-3);
-  cursor: pointer;
 }
 
 .mcp-copy {
@@ -177,4 +176,9 @@
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   resize: vertical;
+}
+
+.mcp-help code {
+  font-size: 0.75rem;
+  color: var(--text);
 }

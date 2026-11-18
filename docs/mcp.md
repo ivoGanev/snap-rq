@@ -152,3 +152,5 @@ Setting `mcp_mask_secrets` (absent = on) plus `mcp_mask_extra` (the user's own n
 `{{variable}}` placeholders are never masked. Masking applies to output only: tools that read and write back (`move_requests`) read the real data, so stored secrets are never overwritten. As a second guard, any tool argument containing `[REDACTED]` is refused while masking is on. Turning masking off in Settings asks for confirmation.
 
 Limits: matching is by name, so a secret in an oddly named field or inside free text is not caught; add its name under "extra names".
+
+The settings screen lists the always-hidden names (`BuiltinSecretNames`, returned by `SettingsService.Masking`) so the user can see what is covered. Only the checkbox toggles the enable and masking switches, not their text.

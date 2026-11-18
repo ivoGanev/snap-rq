@@ -114,6 +114,10 @@ export class McpSettings implements OnInit {
     void this.run(() => this.api.setMasking(this.api.masking().enabled, names));
   }
 
+  protected builtinNames(): string[] {
+    return this.api.masking().builtin ?? [];
+  }
+
   protected maskNamesText(): string {
     return (this.api.masking().extra ?? []).join('\n');
   }

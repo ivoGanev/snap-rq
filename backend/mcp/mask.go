@@ -23,6 +23,9 @@ var baseSecretNames = []string{
 	"private_key", "private-key", "access_key", "access-key", "x-auth",
 }
 
+// BuiltinSecretNames returns the names that are always masked.
+func BuiltinSecretNames() []string { return append([]string{}, baseSecretNames...) }
+
 var (
 	// placeholderValue is a value that is only a {{variable}}, optionally after
 	// a scheme word: "{{token}}", "Bearer {{token}}".

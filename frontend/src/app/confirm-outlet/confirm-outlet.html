@@ -1,5 +1,5 @@
 @if (confirm.active(); as c) {
-  <div class="overlay-backdrop" (click)="confirm.respond(false)">
+  <div class="overlay-backdrop confirm-backdrop" (click)="confirm.respond(false)">
     <div class="overlay-panel confirm-popup" (click)="$event.stopPropagation()">
       <div class="overlay-header">
         <h3 class="overlay-title">{{ c.title }}</h3>

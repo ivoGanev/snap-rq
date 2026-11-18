@@ -15,7 +15,7 @@ const EMPTY_STATUS: McpStatus = { enabled: false, running: false, port: 0, url: 
 export class McpApiService {
   readonly status = signal<McpStatus>(EMPTY_STATUS);
   readonly tools = signal<McpTool[]>([]);
-  readonly masking = signal<McpMasking>({ enabled: true, extra: [] });
+  readonly masking = signal<McpMasking>({ enabled: true, extra: [], builtin: [] });
 
   async load(): Promise<void> {
     const [status, tools, masking] = await Promise.all([
