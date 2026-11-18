@@ -124,6 +124,10 @@ export class RequestGroupList {
   }
 
   onAddMenuClick(event: MouseEvent): void {
+    // Stop the click from bubbling to the context-menu outlet's document
+    // click listener, which closes the menu in the same event that opened it.
+    event.preventDefault();
+    event.stopPropagation();
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     this.addMenuOpen.emit({ x: rect.left, y: rect.bottom + 4 });
   }
