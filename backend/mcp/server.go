@@ -139,9 +139,15 @@ func (s *Server) Start() (string, error) {
 		return "", fmt.Errorf("listening on port %d: %w", cfg.Port, err)
 	}
 	server := s.sdk
-	handler := sdk.NewStreamableHTTPHandler(func(*http.Request) *sdk.Server { return server }, nil)
+	// Stateless: every request stands alone, so a client that was connected
+	// before SnapRQ restarted keeps working instead of presenting a session id
+	// the new process has never seen. The tools are plain request/response.
+	handler := sdk.NewStreamableHTTPHandler(
+		func(*http.Request) *sdk.Server { return server },
+		&sdk.StreamableHTTPOptions{Stateless: true},
+	)
 	mux := http.NewServeMux()
-	mux.Handle("/mcp", Guard(s.currentToken, handler))
+	mux.Handle("/mcp", Guard(s.currentToken, rememberUserAgent(handler)))
 	s.httpSrv = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	go func(srv *http.Server) {
 		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -271,7 +277,7 @@ func register[In any](s *Server, m ToolMeta, call callFunc[In]) {
 		Annotations: annotationsFor(m),
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in In) (*sdk.CallToolResult, any, error) {
 		started := time.Now()
-		client := clientName(req)
+		client := clientName(ctx, req)
 		fail := func(status string, err error) (*sdk.CallToolResult, any, error) {
 			s.recordAudit(m, client, in, status, err, started)
 			return nil, nil, err
@@ -421,15 +427,28 @@ func (s *Server) checkInput(in any) error {
 
 // clientName is the connected client's name and version from the MCP
 // handshake, or "" when it is not known.
-func clientName(req *sdk.CallToolRequest) string {
-	if req == nil || req.Session == nil {
-		return ""
+func clientName(ctx context.Context, req *sdk.CallToolRequest) string {
+	if req != nil && req.Session != nil {
+		if params := req.Session.InitializeParams(); params != nil && params.ClientInfo != nil {
+			if name := strings.TrimSpace(params.ClientInfo.Name + " " + params.ClientInfo.Version); name != "" {
+				return name
+			}
+		}
 	}
-	params := req.Session.InitializeParams()
-	if params == nil || params.ClientInfo == nil {
-		return ""
-	}
-	return strings.TrimSpace(params.ClientInfo.Name + " " + params.ClientInfo.Version)
+	// Stateless requests carry no handshake, so fall back to the HTTP client.
+	ua, _ := ctx.Value(userAgentKey{}).(string)
+	return truncate(strings.TrimSpace(ua), 80)
+}
+
+type userAgentKey struct{}
+
+// rememberUserAgent keeps the caller's User-Agent for the audit log and the
+// approval dialog.
+func rememberUserAgent(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), userAgentKey{}, r.UserAgent())
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 // recordAudit stores one call. A failure to log never fails the call.

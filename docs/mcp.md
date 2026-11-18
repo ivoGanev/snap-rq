@@ -167,3 +167,10 @@ Per-tool switches stay: a tool switched off is not offered at all.
 ## Recent AI actions (audit log)
 
 Every tool call that reaches the server is recorded in the `mcp_audit_log` table (`audit.go`, written from `register` so no tool can skip it): time, client name/version from the MCP handshake, tool, status (`ok`, `error`, `refused`), a one-line summary (counts and short values, never content), the arguments after masking (capped at 2 KB, always masked even when output masking is off) and the error. Results are not stored and the token never is. The newest 1000 rows or 30 days are kept; Settings > MCP server lists them, refreshes every 3 s while open, and has a Clear button. Logging never fails a call.
+
+## Restarting SnapRQ
+
+The endpoint is stateless: each request stands alone and there is no session id
+to lose, so an AI app that was connected before SnapRQ restarted keeps working
+once the app is back. The caller is named from its User-Agent in the audit log
+and the approval dialog.
