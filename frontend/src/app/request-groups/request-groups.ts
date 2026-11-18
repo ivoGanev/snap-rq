@@ -1,6 +1,9 @@
 import { Component, effect, TemplateRef, computed, inject, isDevMode, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Dialogs } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
+import { OpenApiApiService } from '../core/services/openapi.service';
+import { ToastService } from '../core/services/toast.service';
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
 import {
   FavouriteApiService,
@@ -105,6 +108,8 @@ export class RequestGroups {
   private readonly commandApi = inject(CommandApiService);
   private readonly confirm = inject(ConfirmService);
   protected readonly drag = inject(DragSessionService);
+  private readonly openapiApi = inject(OpenApiApiService);
+  private readonly toast = inject(ToastService);
 
   /** Development builds only: the rail shows an undo-history debug button. */
   protected readonly devUndoVisible = isDevMode();
@@ -513,6 +518,63 @@ export class RequestGroups {
       case 'tags':
         this.openNewTagPopup();
         break;
+    }
+  }
+
+  onCollectionAddMenu(action: 'new' | 'import' | 'export'): void {
+    switch (action) {
+      case 'new':
+        this.openNewCollectionPopup();
+        break;
+      case 'import':
+        void this.importOpenApi();
+        break;
+      case 'export':
+        void this.exportOpenApi();
+        break;
+    }
+  }
+
+  async importOpenApi(): Promise<void> {
+    const project = this.state.selectedProject();
+    if (!project) return;
+
+    const path = await Dialogs.OpenFile({
+      Title: 'Import OpenAPI',
+      AllowsMultipleSelection: false,
+    });
+    if (typeof path !== 'string' || !path) return;
+
+    try {
+      const result = await this.openapiApi.importSpec(project.id, path);
+      this.toast.show(
+        `Imported ${result.requests_created} requests into ${result.collections_created} collections`,
+      );
+    } catch (err) {
+      console.error(err);
+      this.toast.show('Import failed — is that a valid OpenAPI file?');
+    }
+  }
+
+  async exportOpenApi(): Promise<void> {
+    const project = this.state.selectedProject();
+    if (!project) return;
+
+    const path = await Dialogs.SaveFile({
+      Filename: 'openapi.json',
+      Title: 'Export OpenAPI',
+      ButtonText: 'Save',
+    });
+    if (typeof path !== 'string' || !path) return;
+
+    try {
+      const result = await this.openapiApi.exportSpec(project.id, path);
+      this.toast.show(
+        `Exported ${result.requests_exported} requests across ${result.collections_exported} collections`,
+      );
+    } catch (err) {
+      console.error(err);
+      this.toast.show('Export failed');
     }
   }
 

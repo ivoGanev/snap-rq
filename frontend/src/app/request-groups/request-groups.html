@@ -47,6 +47,8 @@
         [selectedKey]="selectedKey()"
         [dropTargetKey]="dropTargetKey()"
         [dropZoneActive]="dropZoneActive()"
+        [showAddMenu]="folderFilter() === 'collections'"
+        (addMenuSelect)="onCollectionAddMenu($event)"
         (addClick)="onAddButtonClick()"
         (itemSelect)="selectSidebarItem($event)"
         (itemContextMenu)="openItemContextMenu($event.item, $event.event, itemContextMenu)"

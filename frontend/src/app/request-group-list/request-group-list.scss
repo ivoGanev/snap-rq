@@ -194,3 +194,48 @@
 .group-list-scroll.is-drop-zone .state-message {
   color: var(--text);
 }
+
+// Collections "+" dropdown: the button opens a small menu instead of acting
+// directly. Favourites and tags keep the plain add button.
+.add-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.add-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 108;
+}
+
+.add-menu-popup {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 109;
+  min-width: 150px;
+  padding: var(--s-1);
+  background: var(--surface-solid);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 32px var(--shadow);
+}
+
+.add-menu-item {
+  display: block;
+  width: 100%;
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: left;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  --wails-draggable: no-drag;
+}
+
+.add-menu-item:hover {
+  background: var(--hover-highlight);
+}
