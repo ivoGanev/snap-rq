@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, computed, inject, signal } from '@angular/core';
+import { Component, HostListener, inject } from '@angular/core';
 import { McpApprovalService } from '../core/services/mcp-approval.service';
 
 /**
@@ -10,20 +10,8 @@ import { McpApprovalService } from '../core/services/mcp-approval.service';
   templateUrl: './mcp-approval-outlet.html',
   styleUrl: './mcp-approval-outlet.scss',
 })
-export class McpApprovalOutlet implements OnDestroy {
+export class McpApprovalOutlet {
   protected readonly approvals = inject(McpApprovalService);
-
-  private readonly now = signal(Date.now());
-  private readonly timer = setInterval(() => this.now.set(Date.now()), 1000);
-
-  protected readonly secondsLeft = computed(() => {
-    const current = this.approvals.current();
-    return current ? Math.max(0, Math.ceil((current.expiresAt - this.now()) / 1000)) : 0;
-  });
-
-  ngOnDestroy(): void {
-    clearInterval(this.timer);
-  }
 
   @HostListener('document:keydown', ['$event'])
   onKeydown(event: KeyboardEvent): void {

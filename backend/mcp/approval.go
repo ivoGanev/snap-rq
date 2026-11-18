@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -13,8 +14,9 @@ import (
 
 // Risky tools wait for the user to approve them in SnapRQ. The server sends an
 // event to the window, the window shows a dialog, and the answer comes back
-// through SettingsService.RespondApproval. No answer means no. See
-// docs/mcp.md.
+// through SettingsService.RespondApproval. The call waits for as long as the
+// client keeps it open: there is no timeout, and a client that gives up
+// withdraws the request. See docs/mcp.md.
 
 // approvalTools are the tools that ask first while "ask before risky changes"
 // is on. It is data, like the catalog, not a user setting.
@@ -23,29 +25,26 @@ var approvalTools = map[string]bool{
 	"delete_requests":      true,
 }
 
-// ErrNotApproved is returned to the client when the user said no, or did not
-// answer in time.
-var ErrNotApproved = errors.New("the user did not approve this in SnapRQ (denied, or no answer in time)")
+// ErrNotApproved is returned to the client when the user said no.
+var ErrNotApproved = errors.New("the user did not approve this in SnapRQ")
 
-const (
-	approvalTimeout   = 60 * time.Second
-	approvalMaxLooked = 25 // requests read to describe a change
-)
+// approvalMaxLooked is how many requests are read to describe a change.
+const approvalMaxLooked = 25
 
 // ApprovalRequest is what the dialog shows.
 type ApprovalRequest struct {
-	ID        string   `json:"id"`
-	Tool      string   `json:"tool"`
-	Client    string   `json:"client"`
-	Title     string   `json:"title"`
-	Lines     []string `json:"lines"`
-	Warnings  []string `json:"warnings"`
-	ExpiresAt int64    `json:"expires_at"` // unix milliseconds
+	ID       string   `json:"id"`
+	Tool     string   `json:"tool"`
+	Client   string   `json:"client"`
+	Title    string   `json:"title"`
+	Lines    []string `json:"lines"`
+	Warnings []string `json:"warnings"`
+	AskedAt  int64    `json:"asked_at"` // unix milliseconds
 }
 
 // Approver asks the user. It is an interface so tests can answer for them.
 type Approver interface {
-	Ask(req ApprovalRequest) bool
+	Ask(ctx context.Context, req ApprovalRequest) (bool, error)
 }
 
 // Broker is the real Approver: it announces requests as events and waits.
@@ -53,7 +52,6 @@ type Broker struct {
 	mu      sync.Mutex
 	pending map[string]*pendingApproval
 	emit    func(name string, data any)
-	timeout time.Duration
 }
 
 type pendingApproval struct {
@@ -61,27 +59,28 @@ type pendingApproval struct {
 	answer chan bool
 }
 
-// NewBroker returns a broker with the standard 60 second wait.
+// NewBroker returns a broker with nothing waiting.
 func NewBroker() *Broker {
-	return &Broker{pending: map[string]*pendingApproval{}, timeout: approvalTimeout}
+	return &Broker{pending: map[string]*pendingApproval{}}
 }
 
 // SetEmit sets how events reach the window. Without it nothing can be
-// approved, so every request times out as a no.
+// approved, so every request is refused at once.
 func (b *Broker) SetEmit(emit func(name string, data any)) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.emit = emit
 }
 
-// Ask blocks until the user answers or the wait ends.
-func (b *Broker) Ask(req ApprovalRequest) bool {
+// Ask blocks until the user answers. It returns an error only when ctx ends
+// first, which means the client gave up; the dialog is then withdrawn.
+func (b *Broker) Ask(ctx context.Context, req ApprovalRequest) (bool, error) {
 	var raw [8]byte
 	if _, err := rand.Read(raw[:]); err != nil {
-		return false
+		return false, err
 	}
 	req.ID = hex.EncodeToString(raw[:])
-	req.ExpiresAt = time.Now().Add(b.timeout).UnixMilli()
+	req.AskedAt = time.Now().UnixMilli()
 	p := &pendingApproval{req: req, answer: make(chan bool, 1)}
 
 	b.mu.Lock()
@@ -90,18 +89,20 @@ func (b *Broker) Ask(req ApprovalRequest) bool {
 	b.mu.Unlock()
 	if emit == nil {
 		b.finish(req.ID)
-		return false
+		return false, nil
 	}
 	emit("mcp:approval", req)
 
 	allowed := false
+	var err error
 	select {
 	case allowed = <-p.answer:
-	case <-time.After(b.timeout):
+	case <-ctx.Done():
+		err = ctx.Err()
 	}
 	b.finish(req.ID)
 	emit("mcp:approval-closed", req.ID)
-	return allowed
+	return allowed, err
 }
 
 func (b *Broker) finish(id string) {
@@ -136,17 +137,24 @@ func (b *Broker) Pending() []ApprovalRequest {
 	for _, p := range b.pending {
 		out = append(out, p.req)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ExpiresAt < out[j].ExpiresAt })
+	sort.Slice(out, func(i, j int) bool { return out[i].AskedAt < out[j].AskedAt })
 	return out
 }
 
 // gate asks the user when the tool is risky and asking is switched on. With
 // no approver it refuses: it fails closed.
-func (s *Server) gate(m ToolMeta, client string, in any) error {
+func (s *Server) gate(ctx context.Context, m ToolMeta, client string, in any) error {
 	if !approvalTools[m.Name] || !s.approvalRequired() {
 		return nil
 	}
-	if s.approver == nil || !s.approver.Ask(s.describe(m, client, in)) {
+	if s.approver == nil {
+		return ErrNotApproved
+	}
+	allowed, err := s.approver.Ask(ctx, s.describe(m, client, in))
+	if err != nil {
+		return fmt.Errorf("the request was cancelled before the user answered: %w", err)
+	}
+	if !allowed {
 		return ErrNotApproved
 	}
 	return nil

@@ -8,7 +8,7 @@ export interface McpApproval {
   title: string;
   lines: string[];
   warnings: string[];
-  expiresAt: number;
+  askedAt: number;
 }
 
 const toApproval = (r: ApprovalRequest): McpApproval => ({
@@ -16,13 +16,13 @@ const toApproval = (r: ApprovalRequest): McpApproval => ({
   title: r.title,
   lines: r.lines ?? [],
   warnings: r.warnings ?? [],
-  expiresAt: r.expires_at,
+  askedAt: r.asked_at,
 });
 
 /**
  * Requests from AI clients that wait for the user's answer. The backend sends
  * 'mcp:approval' when a risky call arrives and 'mcp:approval-closed' when it
- * is answered or runs out of time. The oldest is shown first.
+ * is answered or the AI client gives up. The oldest is shown first.
  */
 @Injectable({ providedIn: 'root' })
 export class McpApprovalService {
@@ -61,7 +61,7 @@ export class McpApprovalService {
     this.queue.update((q) =>
       q.some((a) => a.id === approval.id)
         ? q
-        : [...q, approval].sort((a, b) => a.expiresAt - b.expiresAt),
+        : [...q, approval].sort((a, b) => a.askedAt - b.askedAt),
     );
   }
 

@@ -269,7 +269,7 @@ func register[In any](s *Server, m ToolMeta, call callFunc[In]) {
 		Name:        m.Name,
 		Description: m.Description,
 		Annotations: annotationsFor(m),
-	}, func(_ context.Context, req *sdk.CallToolRequest, in In) (*sdk.CallToolResult, any, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in In) (*sdk.CallToolResult, any, error) {
 		started := time.Now()
 		client := clientName(req)
 		fail := func(status string, err error) (*sdk.CallToolResult, any, error) {
@@ -282,7 +282,7 @@ func register[In any](s *Server, m ToolMeta, call callFunc[In]) {
 		if err := s.checkInput(in); err != nil {
 			return fail(auditRefused, err)
 		}
-		if err := s.gate(m, client, in); err != nil {
+		if err := s.gate(ctx, m, client, in); err != nil {
 			return fail(auditRefused, err)
 		}
 		out, err := call(s, in)
