@@ -11,6 +11,7 @@ import (
 	"snap-rq/backend/commands"
 	"snap-rq/backend/commands/catalog"
 	"snap-rq/backend/commands/requests"
+	"snap-rq/backend/mcp"
 	"snap-rq/backend/database"
 	"snap-rq/backend/selfupdate"
 
@@ -72,6 +73,13 @@ func main() {
 		return limit
 	})
 
+	// MCP server: opt-in, loopback only, a curated allowlist of commands
+	// run through the same runner as the UI. See docs/mcp.md.
+	mcpStore := mcp.NewStore(db)
+	mcpServer := mcp.NewServer(runner, mcpStore, currentVersion)
+	mcpServer.StartIfEnabled()
+	defer mcpServer.Stop()
+
 	updaterService := &UpdaterService{}
 
 	app := application.New(application.Options{
@@ -80,6 +88,7 @@ func main() {
 		Services: []application.Service{
 			application.NewService(commands.NewCommandService(runner)),
 			application.NewService(updaterService),
+			application.NewService(mcp.NewSettingsService(mcpServer, mcpStore)),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -90,12 +99,31 @@ func main() {
 	})
 
 	updaterService.app = app
+	// win is set once the window exists. An approval request flashes its
+	// taskbar button until the user comes back, and restores it if minimised;
+	// it does not take focus, so it never interrupts typing elsewhere.
+	var win *application.WebviewWindow
+	mcpServer.SetEmitter(func(name string, data any) {
+		app.Event.Emit(name, data)
+		if win == nil {
+			return
+		}
+		switch name {
+		case "mcp:approval":
+			if win.IsMinimised() {
+				win.UnMinimise()
+			}
+			win.Flash(true)
+		case "mcp:approval-closed":
+			win.Flash(false)
+		}
+	})
 
 	if err := configureUpdater(app); err != nil {
 		log.Fatalf("configuring updater: %v", err)
 	}
 
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	win = app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title: "Window 1",
 		// Window sized to the golden ratio (1000 / 618 ≈ 1.618).
 		Width:      1000,

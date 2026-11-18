@@ -19,7 +19,11 @@ import (
 // Open opens the SQLite database stored in the user's application data
 // directory, runs migrations, and ensures default collections exist.
 func Open() (*sql.DB, error) {
-	dbPath := filepath.Join(xdg.DataHome, "snap-rq-wails-v3", "app.db")
+	return OpenPath(filepath.Join(xdg.DataHome, "snap-rq-wails-v3", "app.db"))
+}
+
+// OpenPath is Open for a database file at an explicit path (tests use a temp file).
+func OpenPath(dbPath string) (*sql.DB, error) {
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
 		return nil, fmt.Errorf("creating data directory: %w", err)
 	}
@@ -29,7 +33,7 @@ func Open() (*sql.DB, error) {
 	// keeps bulk writes from paying rollback-journal overhead. Setting
 	// these with db.Exec would only affect ONE pooled connection — the
 	// runner's transactions would silently miss the cascades.
-	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)", dbPath)
+	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)", dbPath)
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("opening database: %w", err)
@@ -248,6 +252,18 @@ func migrate(db *sql.DB) error {
 			result TEXT NOT NULL,
 			created_at INTEGER NOT NULL,
 			state TEXT NOT NULL DEFAULT 'undo' CHECK(state IN ('undo', 'redo'))
+		);
+
+		CREATE TABLE IF NOT EXISTS mcp_audit_log (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			at INTEGER NOT NULL,
+			tool TEXT NOT NULL,
+			client TEXT NOT NULL DEFAULT '',
+			status TEXT NOT NULL,
+			summary TEXT NOT NULL DEFAULT '',
+			args TEXT NOT NULL DEFAULT '',
+			error TEXT NOT NULL DEFAULT '',
+			duration_ms INTEGER NOT NULL DEFAULT 0
 		);
 
 		INSERT OR IGNORE INTO app_settings (key, value) VALUES ('validate_ssl_certificates', 'true');

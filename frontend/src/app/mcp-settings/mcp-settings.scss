@@ -1,0 +1,216 @@
+@use '../../styles/buttons' as btn;
+
+.mcp-settings {
+  width: min(720px, calc(100vw - 2 * var(--s-4)));
+  height: min(760px, calc(100vh - 2 * var(--s-4)));
+}
+
+.mcp-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-height: 0;
+  padding: var(--s-3) var(--s-4);
+  overflow-y: auto;
+}
+
+.mcp-error {
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.8125rem;
+  color: var(--text);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+}
+
+.mcp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.mcp-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.mcp-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.mcp-help {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.mcp-check {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.mcp-number {
+  flex: 0 0 auto;
+  width: 90px;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--text);
+  background: var(--hover-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 4px;
+}
+
+.mcp-status {
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.8125rem;
+  color: var(--muted);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+}
+
+.mcp-status--on {
+  color: var(--text);
+}
+
+.mcp-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.mcp-heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+
+.mcp-token-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.mcp-token {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.75rem;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mcp-button {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  --wails-draggable: no-drag;
+  @include btn.btn-chip;
+}
+
+.mcp-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+}
+
+.mcp-group-head,
+.mcp-tool-main {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  cursor: pointer;
+}
+
+.mcp-group-head {
+  align-items: center;
+}
+
+.mcp-tool {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding-left: var(--s-3);
+}
+
+.mcp-tool-name {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8125rem;
+  color: var(--text);
+}
+
+.mcp-textarea {
+  padding: var(--s-2) var(--s-3);
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  resize: vertical;
+}
+
+.mcp-help code {
+  font-size: 0.75rem;
+  color: var(--text);
+}
+
+.mcp-snippet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.mcp-action {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+}
+
+.mcp-action-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.mcp-action--bad {
+  border-color: var(--danger-text);
+}
+
+.mcp-action-status {
+  font-size: 0.75rem;
+  color: var(--danger-text);
+}

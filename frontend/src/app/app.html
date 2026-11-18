@@ -74,12 +74,18 @@
 
 <app-confirm-outlet></app-confirm-outlet>
 
+<app-mcp-approval-outlet></app-mcp-approval-outlet>
+
 @if (commands.devPanelOpen()) {
   <app-undo-panel></app-undo-panel>
 }
 
 @if (state.zenModeOpen()) {
   <app-zen-mode></app-zen-mode>
+}
+
+@if (mcpOverlayOpen()) {
+  <app-mcp-settings (close)="mcpOverlayOpen.set(false)"></app-mcp-settings>
 }
 
 @if (cookiesOverlayOpen()) {
@@ -325,6 +331,9 @@
           (change)="onUndoLimitChange($event)"
         />
       </label>
+      <button class="settings-updates-button" type="button" (click)="openMcpSettings()">
+        MCP server…
+      </button>
       <button
         class="settings-updates-button"
         type="button"

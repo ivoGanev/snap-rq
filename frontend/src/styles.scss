@@ -610,6 +610,11 @@ app-root {
   backdrop-filter: blur(4px);
 }
 
+.confirm-backdrop {
+  // a confirmation must sit above whichever overlay asked for it
+  z-index: 200;
+}
+
 .overlay-panel {
   display: flex;
   flex-direction: column;

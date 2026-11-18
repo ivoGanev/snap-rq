@@ -1,0 +1,42 @@
+.approval-backdrop {
+  // above every other overlay, and above ordinary confirmations
+  z-index: 210;
+}
+
+.approval-popup {
+  width: min(520px, calc(100vw - 2 * var(--s-4)));
+}
+
+.approval-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.approval-line,
+.approval-warning,
+.approval-meta {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.approval-warning {
+  padding: var(--s-2) var(--s-3);
+  color: var(--danger-text);
+  background: var(--danger-bg);
+  border-radius: var(--radius);
+}
+
+.approval-meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.approval-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+}
