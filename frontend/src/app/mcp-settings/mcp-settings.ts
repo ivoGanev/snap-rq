@@ -50,25 +50,6 @@ export class McpSettings implements OnInit {
     }));
   });
 
-  protected readonly snippets = computed(() => {
-    const url = this.api.status().url || `http://127.0.0.1:${this.api.status().port}/mcp`;
-    const token = this.token() || '<token>';
-    return [
-      {
-        label: 'Claude Code',
-        text: `claude mcp add --transport http snap-rq ${url} --header "Authorization: Bearer ${token}"`,
-      },
-      {
-        label: 'JSON config',
-        text: JSON.stringify(
-          { mcpServers: { 'snap-rq': { type: 'http', url, headers: { Authorization: `Bearer ${token}` } } } },
-          null,
-          2,
-        ),
-      },
-    ];
-  });
-
   ngOnInit(): void {
     void this.run(async () => {
       await this.api.load();

@@ -99,15 +99,10 @@
   color: var(--text);
 }
 
-.mcp-token-row,
-.mcp-snippet-head {
+.mcp-token-row {
   display: flex;
   align-items: center;
   gap: var(--s-2);
-}
-
-.mcp-snippet-head {
-  justify-content: space-between;
 }
 
 .mcp-token {
@@ -122,18 +117,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.mcp-snippet {
-  margin: 0;
-  padding: var(--s-2) var(--s-3);
-  font-size: 0.75rem;
-  color: var(--text);
-  background: var(--input-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  white-space: pre-wrap;
-  word-break: break-all;
 }
 
 .mcp-button {

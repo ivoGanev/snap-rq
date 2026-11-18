@@ -29,6 +29,9 @@
       <div class="mcp-status" [class.mcp-status--on]="api.status().running">
         @if (api.status().running) {
           Running at {{ api.status().url }}
+          <button class="mcp-button" type="button" (click)="copy('url', api.status().url)">
+            {{ copied() === 'url' ? 'Copied' : 'Copy URL' }}
+          </button>
         } @else if (api.status().enabled) {
           Not running{{ api.status().error ? ': ' + api.status().error : '' }}
         } @else {
@@ -91,19 +94,6 @@
           <button class="mcp-button" type="button" (click)="rotate()">Rotate</button>
         </div>
         <span class="mcp-help">Rotating disconnects every client until it gets the new token.</span>
-      </section>
-
-      <section class="mcp-section">
-        <h4 class="mcp-heading">Connect a client</h4>
-        @for (snippet of snippets(); track snippet.label) {
-          <div class="mcp-snippet-head">
-            <span class="mcp-label">{{ snippet.label }}</span>
-            <button class="mcp-button" type="button" (click)="copy(snippet.label, snippet.text)">
-              {{ copied() === snippet.label ? 'Copied' : 'Copy' }}
-            </button>
-          </div>
-          <pre class="mcp-snippet">{{ snippet.text }}</pre>
-        }
       </section>
 
       <section class="mcp-section">
