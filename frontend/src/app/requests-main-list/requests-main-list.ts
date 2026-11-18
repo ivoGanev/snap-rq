@@ -9,6 +9,7 @@ import { FavouriteApiService, type FavouriteCollection } from '../core/services/
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
 import { SelectionStateService, groupKey } from '../core/services/selection-state.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
+import { DragSessionService } from '../core/services/drag-session.service';
 import { BinApiService, type HttpBinnedRequestSummary, type RestoreInput } from '../core/services/bin.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
 import { ConfirmService } from '../core/services/confirm.service';
@@ -88,6 +89,7 @@ export class RequestsMainList {
   private readonly binApi = inject(BinApiService);
   private readonly confirm = inject(ConfirmService);
   private readonly contextMenu = inject(ContextMenuService);
+  private readonly dragSession = inject(DragSessionService);
 
   @ViewChild(CdkVirtualScrollViewport, { static: false })
   private readonly viewport!: CdkVirtualScrollViewport;
@@ -146,6 +148,9 @@ export class RequestsMainList {
       !this.requestSearchQuery().trim(),
   );
 
+  /** A drag handle is offered in every non-bin view so requests can be moved. */
+  readonly canDragOut = computed(() => !this.state.showingBin());
+
   /** Whether the colour picker is available (selection in a colour-able view). */
   readonly canColorSelection = computed(
     () => USER_COLORABLE_VIEWS[this.activeViewKind()] && this.selectedRowIds().size > 0,
@@ -169,7 +174,12 @@ export class RequestsMainList {
 
   // ---------- Row reorder drag ----------
 
-  private readonly reorderPending = signal<{ requestId: number; startY: number } | null>(null);
+  private readonly reorderPending = signal<{
+    requestId: number;
+    startY: number;
+    externalOnly: boolean;
+    request: HttpRequestSummary;
+  } | null>(null);
   /**
    * Structural drag state only (set once at start, cleared at end) so the
    * signal never changes per pixel. Per-cursor values live in plain fields
@@ -1029,20 +1039,24 @@ export class RequestsMainList {
   onWindowMouseUp(): void {
     if (this.reorderPending() !== null || this.reorderDrag() !== null) {
       const drag = this.reorderDrag();
+      const consumedBySidebar = drag ? this.dragSession.tryDrop() : false;
       this.reorderPending.set(null);
       this.reorderDrag.set(null);
       this.stopReorderFrameLoop();
       document.body.classList.remove('reorder-dragging');
+      this.dragSession.end();
       if (drag) {
         this.ignoreNextClick.set(true);
-        // The insertion slot counts the dragged row itself; adjust for its
-        // removal to get the final insert position.
-        const toIndex =
-          this.reorderInsertIndex > drag.fromIndex ? this.reorderInsertIndex - 1 : this.reorderInsertIndex;
-        if (toIndex !== drag.fromIndex) {
-          this.commitReorder(drag.fromIndex, toIndex);
-          this.flashDroppedRow(drag.request.id);
-          void this.persistReorder();
+        if (!consumedBySidebar && drag.fromIndex >= 0 && this.canReorderRows()) {
+          // The insertion slot counts the dragged row itself; adjust for its
+          // removal to get the final insert position.
+          const toIndex =
+            this.reorderInsertIndex > drag.fromIndex ? this.reorderInsertIndex - 1 : this.reorderInsertIndex;
+          if (toIndex !== drag.fromIndex) {
+            this.commitReorder(drag.fromIndex, toIndex);
+            this.flashDroppedRow(drag.request.id);
+            void this.persistReorder();
+          }
         }
       }
       return;
@@ -1084,9 +1098,15 @@ export class RequestsMainList {
     // Defense in depth: the handle is hidden in multi-selection for selected
     // rows, but re-check so a stale/hidden handle can never start a drag on
     // one of the selected members.
-    if (!this.canReorderRows()) return;
     if (this.selectedRowIds().size > 1 && this.selectedRowIds().has(req.id)) return;
-    this.reorderPending.set({ requestId: req.id, startY: event.clientY });
+
+    this.dragSession.start({ requestIds: [req.id], request: req });
+    this.reorderPending.set({
+      requestId: req.id,
+      startY: event.clientY,
+      externalOnly: !this.canReorderRows(),
+      request: req,
+    });
   }
 
   /**
@@ -1106,9 +1126,20 @@ export class RequestsMainList {
     const pending = this.reorderPending();
     if (pending) {
       if (Math.abs(event.clientY - pending.startY) <= DRAG_THRESHOLD_PX) return;
+      this.reorderPending.set(null);
+
+      if (pending.externalOnly) {
+        this.reorderLastX = event.clientX;
+        this.reorderLastY = event.clientY;
+        this.reorderInsertIndex = 0;
+        this.reorderDrag.set({ request: pending.request, fromIndex: -1 });
+        this.startReorderFrameLoop();
+        document.body.classList.add('reorder-dragging');
+        return;
+      }
+
       const requests = this.filteredActiveRequests();
       const fromIndex = requests.findIndex(r => r.id === pending.requestId);
-      this.reorderPending.set(null);
       if (fromIndex === -1 || !this.canReorderRows()) return;
       this.reorderLastX = event.clientX;
       this.reorderLastY = event.clientY;
@@ -1141,39 +1172,48 @@ export class RequestsMainList {
 
     const viewport = this.viewport.elementRef.nativeElement;
     const rect = viewport.getBoundingClientRect();
+    const overSidebar =
+      drag.fromIndex < 0 ||
+      this.dragSession.hovered() !== null ||
+      this.dragSession.overEmptyCollections();
 
-    if (this.reorderLastY < rect.top + REORDER_EDGE_SCROLL_PX) {
-      this.viewport.scrollToOffset(
-        Math.max(0, this.viewport.measureScrollOffset('top') - REORDER_EDGE_SCROLL_STEP_PX),
+    if (!overSidebar) {
+      if (this.reorderLastY < rect.top + REORDER_EDGE_SCROLL_PX) {
+        this.viewport.scrollToOffset(
+          Math.max(0, this.viewport.measureScrollOffset('top') - REORDER_EDGE_SCROLL_STEP_PX),
+        );
+      } else if (this.reorderLastY > rect.bottom - REORDER_EDGE_SCROLL_PX) {
+        // Native scrollTop clamping stops at the end of the content.
+        this.viewport.scrollToOffset(
+          this.viewport.measureScrollOffset('top') + REORDER_EDGE_SCROLL_STEP_PX,
+        );
+      }
+
+      const scrollOffset = this.viewport.measureScrollOffset('top');
+      const length = this.filteredActiveRequests().length;
+
+      // Insertion slot between rows: the top half of a row inserts above it,
+      // the bottom half below it; clamped to the list ends.
+      const yInContent = scrollOffset + this.reorderLastY - rect.top;
+      this.reorderInsertIndex = Math.max(
+        0,
+        Math.min(Math.round(yInContent / this.rowHeight), length),
       );
-    } else if (this.reorderLastY > rect.bottom - REORDER_EDGE_SCROLL_PX) {
-      // Native scrollTop clamping stops at the end of the content.
-      this.viewport.scrollToOffset(
-        this.viewport.measureScrollOffset('top') + REORDER_EDGE_SCROLL_STEP_PX,
-      );
+
+      const lineTop = rect.top + this.reorderInsertIndex * this.rowHeight - scrollOffset;
+      line.style.top = `${lineTop}px`;
+      line.style.left = `${rect.left + 4}px`;
+      line.style.width = `${Math.max(0, rect.width - 8)}px`;
+      line.style.visibility = 'visible';
+    } else {
+      line.style.visibility = 'hidden';
     }
 
-    const scrollOffset = this.viewport.measureScrollOffset('top');
-    const length = this.filteredActiveRequests().length;
-
-    // Insertion slot between rows: the top half of a row inserts above it,
-    // the bottom half below it; clamped to the list ends.
-    const yInContent = scrollOffset + this.reorderLastY - rect.top;
-    this.reorderInsertIndex = Math.max(
-      0,
-      Math.min(Math.round(yInContent / this.rowHeight), length),
-    );
-
-    const lineTop = rect.top + this.reorderInsertIndex * this.rowHeight - scrollOffset;
     ghost.style.left = `${this.reorderLastX}px`;
     ghost.style.top = `${this.reorderLastY}px`;
-    line.style.top = `${lineTop}px`;
-    line.style.left = `${rect.left + 4}px`;
-    line.style.width = `${Math.max(0, rect.width - 8)}px`;
     // Hidden by CSS until first positioned, so the ghost never flashes at
     // its unpositioned coordinates.
     ghost.style.visibility = 'visible';
-    line.style.visibility = 'visible';
   }
 
   private startReorderFrameLoop(): void {

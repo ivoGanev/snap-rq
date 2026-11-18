@@ -105,6 +105,15 @@ export class FavouriteApiService {
     });
   }
 
+  /** Read-only membership check for one request, without touching any signal. */
+  async isMember(collectionId: number, requestId: number): Promise<boolean> {
+    const result = await this.commands.execute<Record<string, number[]>>('favourite.list_memberships', {
+      request_ids: [requestId],
+    });
+    const ids = result?.[`${requestId}`] ?? [];
+    return ids.map((id) => Number(id)).includes(collectionId);
+  }
+
   async loadMembershipForRequest(requestId: number): Promise<void> {
     const result = await this.commands.execute<Record<string, number[]>>('favourite.list_memberships', {
       request_ids: [requestId],

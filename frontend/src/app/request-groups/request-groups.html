@@ -45,6 +45,8 @@
         [renamingItem]="renamingItem()"
         [renameValue]="renameValue()"
         [selectedKey]="selectedKey()"
+        [dropTargetKey]="dropTargetKey()"
+        [dropZoneActive]="dropZoneActive()"
         (addClick)="onAddButtonClick()"
         (itemSelect)="selectSidebarItem($event)"
         (itemContextMenu)="openItemContextMenu($event.item, $event.event, itemContextMenu)"
@@ -68,11 +70,13 @@
 </div>
 
 <!-- Add: Collection -->
-@if (newCollectionPopupOpen()) {
+@if (newCollectionPopupOpen() || drag.createCollectionRequested()) {
   <div class="overlay-backdrop" (click)="closeNewCollectionPopup()">
     <div class="overlay-panel new-collection-popup" (click)="$event.stopPropagation()">
       <div class="overlay-header">
-        <h3 class="overlay-title">Add new collection</h3>
+        <h3 class="overlay-title">
+          {{ drag.createCollectionRequested() ? 'Create collection & move' : 'Add new collection' }}
+        </h3>
         <button class="overlay-close" type="button" (click)="closeNewCollectionPopup()">Close</button>
       </div>
       <div class="overlay-body">
