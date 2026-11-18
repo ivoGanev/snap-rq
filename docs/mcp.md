@@ -68,7 +68,7 @@ Deliberately left out for now:
 |---|---|---|
 | `read` | queries only | on |
 | `organize` | recoverable edits: rename, move, reorder, tag, favourite, colour, duplicate, bulk rename/colour, delete-to-trash, restore | on |
-| `content` | change what a request sends: URL, method, headers, body (`edit_request_content`) | off |
+| `content` | change what a request sends: URL, method, headers, body (`edit_request_content`); shown to users as "Edit requests" | on, and every call asks first |
 | `destructive` | cascading or permanent deletes | off |
 | `external` | outbound network (`send_request`) | off |
 | `sensitive` | variable values, cookie jar | off (not planned) |
@@ -156,9 +156,13 @@ Limits: matching is by name, so a secret in an oddly named field or inside free 
 
 The settings screen lists the always-hidden names (`BuiltinSecretNames`, returned by `SettingsService.Masking`) so the user can see what is covered. Only the checkbox toggles the enable and masking switches, not their text.
 
-## Why a `content` class
+## Why a `content` class, and approvals
 
-A client that can rewrite URLs and headers could, after reading a malicious response or request name (prompt injection), point your saved `Authorization` headers at another host, or add a form-data `file_path`, which would be sent the next time you click Send. So `create_request` only takes a name and method, `bulk_edit_requests` only changes name and colour, and everything that changes what a request sends is `edit_request_content`, which the user has to switch on.
+A client that can rewrite URLs and headers could, after reading a malicious response or request name (prompt injection), point your saved `Authorization` headers at another host, or add a form-data `file_path`, which would be sent the next time you click Send. So `create_request` only takes a name and method, `bulk_edit_requests` only changes name and colour, and everything that changes what a request sends is `edit_request_content`.
+
+Risky tools ask the user first. `approvalTools` (`approval.go`) lists them: `edit_request_content` and `delete_requests`. One setting, `mcp_require_approval` (absent = on), turns asking on or off for all of them; turning it off asks for confirmation. Flow of a risky call, in `register`: tool switched on? -> `gate` -> `Broker.Ask` emits the Wails event `mcp:approval` -> the window shows the dialog (`mcp-approval-outlet`) -> `SettingsService.RespondApproval` -> run or refuse. No answer in 60 s, no window to ask in, or no approver all mean refuse (fail closed). Refusals are logged as `refused`. The dialog text is built from the real requests (`describe`): who is asking, how many requests, the old and new host for a URL change, and a warning when requests that send a login would be pointed at a new host. Secrets are masked in it.
+
+Per-tool switches stay: a tool switched off is not offered at all.
 
 ## Recent AI actions (audit log)
 

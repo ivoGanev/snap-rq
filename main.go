@@ -99,6 +99,7 @@ func main() {
 	})
 
 	updaterService.app = app
+	mcpServer.SetEmitter(func(name string, data any) { app.Event.Emit(name, data) })
 
 	if err := configureUpdater(app); err != nil {
 		log.Fatalf("configuring updater: %v", err)

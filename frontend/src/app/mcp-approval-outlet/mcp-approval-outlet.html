@@ -1,0 +1,29 @@
+@if (approvals.current(); as a) {
+  <div class="overlay-backdrop approval-backdrop">
+    <div class="overlay-panel approval-popup" role="alertdialog" aria-labelledby="mcp-approval-title">
+      <div class="overlay-header">
+        <h3 class="overlay-title" id="mcp-approval-title">{{ a.title }}</h3>
+      </div>
+
+      <div class="overlay-body approval-body">
+        @for (warning of a.warnings; track warning) {
+          <p class="approval-warning">{{ warning }}</p>
+        }
+        @for (line of a.lines; track line) {
+          <p class="approval-line">{{ line }}</p>
+        }
+        <p class="approval-meta">
+          Denied automatically in {{ secondsLeft() }} s.
+          @if (approvals.waiting() > 0) {
+            {{ approvals.waiting() }} more waiting.
+          }
+        </p>
+      </div>
+
+      <div class="overlay-footer approval-footer">
+        <button class="overlay-close" type="button" (click)="answer(a.id, false)">Deny</button>
+        <button class="variable-add" type="button" (click)="answer(a.id, true)">Allow</button>
+      </div>
+    </div>
+  </div>
+}

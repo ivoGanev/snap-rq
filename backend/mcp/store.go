@@ -18,6 +18,7 @@ const (
 	keyOverrides = "mcp_tool_overrides"
 	keyMask      = "mcp_mask_secrets" // absent means on
 	keyMaskExtra = "mcp_mask_extra"
+	keyApproval  = "mcp_require_approval" // absent means on
 
 	// DefaultPort is an arbitrary unprivileged port; the user can change it.
 	DefaultPort = 47821
@@ -34,6 +35,8 @@ type Config struct {
 	MaskSecrets bool
 	// MaskExtra are the user's own sensitive names.
 	MaskExtra []string
+	// RequireApproval makes risky tools ask the user first; on unless switched off.
+	RequireApproval bool
 }
 
 // Store reads and writes the MCP settings.
@@ -66,7 +69,7 @@ func (s *Store) set(key string, value any) error {
 
 // Load returns the stored configuration, with defaults for anything unset.
 func (s *Store) Load() Config {
-	cfg := Config{Port: DefaultPort, Overrides: map[string]bool{}, MaskSecrets: true}
+	cfg := Config{Port: DefaultPort, Overrides: map[string]bool{}, MaskSecrets: true, RequireApproval: true}
 	s.get(keyEnabled, &cfg.Enabled)
 	var port int
 	if s.get(keyPort, &port) && validPort(port) {
@@ -78,6 +81,7 @@ func (s *Store) Load() Config {
 	}
 	s.get(keyMask, &cfg.MaskSecrets)
 	s.get(keyMaskExtra, &cfg.MaskExtra)
+	s.get(keyApproval, &cfg.RequireApproval)
 	return cfg
 }
 
@@ -166,3 +170,6 @@ func (s *Store) SetMaskExtra(names []string) error {
 	}
 	return s.set(keyMaskExtra, clean)
 }
+
+// SetRequireApproval switches asking before risky changes on or off.
+func (s *Store) SetRequireApproval(on bool) error { return s.set(keyApproval, on) }

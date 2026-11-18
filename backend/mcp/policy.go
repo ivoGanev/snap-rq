@@ -7,6 +7,9 @@ import "sync"
 var classDefaults = map[Risk]bool{
 	RiskRead:     true,
 	RiskOrganize: true,
+	// content tools are on because each call asks the user first; see
+	// approvalTools. Switching asking off warns the user.
+	RiskContent: true,
 }
 
 // ClassDefault reports whether a risk class is on by default.

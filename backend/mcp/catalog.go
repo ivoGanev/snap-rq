@@ -78,7 +78,7 @@ var Catalog = []ToolMeta{
 	{"move_requests", "Move requests to another collection (appended at its end). Not undoable: move them back to revert.", RiskOrganize, "request.update"},
 
 	// content: what a request sends. Off by default.
-	{"edit_request_content", "Set the URL, method, headers, body, body_type or body_form on many requests. Undoable. Off by default: it changes what a request sends.", RiskContent, "request.bulk_set"},
+	{"edit_request_content", "Change the address (URL), method, headers, body, body_type or body_form of many requests. Undoable. The user is asked to approve each call.", RiskContent, "request.bulk_set"},
 
 	// tags
 	{"add_tag", "Tag a request; the tag is created if the project has none with that name.", RiskOrganize, "tag.add"},

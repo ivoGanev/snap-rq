@@ -189,3 +189,25 @@ func (s *SettingsService) RecentActions(limit int) ([]AuditEntry, error) {
 
 // ClearActions deletes the log of tool calls.
 func (s *SettingsService) ClearActions() error { return s.store.ClearAudit() }
+
+// Approval reports whether risky changes ask the user first.
+func (s *SettingsService) Approval() bool { return s.store.Load().RequireApproval }
+
+// SetApproval switches asking before risky changes on or off.
+func (s *SettingsService) SetApproval(on bool) error {
+	if err := s.store.SetRequireApproval(on); err != nil {
+		return err
+	}
+	s.server.Reload()
+	return nil
+}
+
+// RespondApproval delivers the user's answer to a waiting request.
+func (s *SettingsService) RespondApproval(id string, allow bool) bool {
+	return s.server.broker.Respond(id, allow)
+}
+
+// PendingApprovals lists requests still waiting for an answer.
+func (s *SettingsService) PendingApprovals() []ApprovalRequest {
+	return s.server.broker.Pending()
+}

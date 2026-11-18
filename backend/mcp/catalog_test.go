@@ -67,26 +67,28 @@ func TestOnlyShippedClassesAreAvailable(t *testing.T) {
 	}
 }
 
-// What a request sends can only be changed through the content class, which
-// is off by default.
-func TestContentClassIsOffByDefault(t *testing.T) {
-	if ClassDefault(RiskContent) {
-		t.Fatal("content tools must be off by default")
-	}
+// What a request sends can only be changed through the content class, and
+// every tool that does so asks the user first.
+func TestContentToolsAskFirst(t *testing.T) {
 	meta, ok := metaFor("edit_request_content")
 	if !ok || meta.Risk != RiskContent {
 		t.Fatalf("edit_request_content must be a content tool, got %+v", meta)
 	}
-	if NewPolicy(nil).Allowed(meta) {
-		t.Fatal("edit_request_content is allowed without the user switching it on")
-	}
-	if !NewPolicy(map[string]bool{"edit_request_content": true}).Allowed(meta) {
-		t.Fatal("the user must be able to switch it on")
-	}
 	for _, m := range Catalog {
+		if m.Risk == RiskContent && !approvalTools[m.Name] {
+			t.Errorf("%s changes what a request sends but does not ask first", m.Name)
+		}
 		if m.Risk == RiskContent && m.Name != "edit_request_content" {
 			t.Errorf("unexpected content tool %s", m.Name)
 		}
+	}
+	for name := range approvalTools {
+		if _, ok := metaFor(name); !ok {
+			t.Errorf("approvalTools names %q, which is not in the catalog", name)
+		}
+	}
+	if !approvalTools["delete_requests"] {
+		t.Error("deleting requests must ask first")
 	}
 }
 

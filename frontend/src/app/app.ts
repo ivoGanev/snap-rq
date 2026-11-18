@@ -31,6 +31,7 @@ import { RequestPanel } from './request-panel/request-panel';
 import { VariablesEditor } from './variables-editor/variables-editor';
 import { CookiesEditor } from './cookies-editor/cookies-editor';
 import { McpSettings } from './mcp-settings/mcp-settings';
+import { McpApprovalOutlet } from './mcp-approval-outlet/mcp-approval-outlet';
 import { CookieApiService } from './core/services/cookie.service';
 import { ZenMode } from './zen-mode/zen-mode';
 import { ContextMenuOutlet } from './context-menu-outlet/context-menu-outlet';
@@ -52,6 +53,7 @@ import { UndoPanel } from './undo-panel/undo-panel';
     ContextMenuOutlet,
     ToastOutlet,
     ConfirmOutlet,
+    McpApprovalOutlet,
     UndoPanel,
   ],
   templateUrl: './app.html',

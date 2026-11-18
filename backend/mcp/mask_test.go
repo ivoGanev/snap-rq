@@ -82,7 +82,7 @@ func TestPresentMasksAndCanBeSwitchedOff(t *testing.T) {
 	if strings.Contains(string(text), "abc") || !strings.Contains(string(text), `"id":5`) || !strings.Contains(string(text), "token test") {
 		t.Fatalf("got %s", text)
 	}
-	s.applyMasking(Config{MaskSecrets: false})
+	s.applyConfig(Config{MaskSecrets: false})
 	out, _ = s.present(row)
 	if text, _ = json.Marshal(out); !strings.Contains(string(text), "abc") {
 		t.Fatalf("masking off must pass data through: %s", text)
@@ -97,7 +97,7 @@ func TestInputWithRedactedIsRefused(t *testing.T) {
 	if err := s.checkInput(map[string]any{"value": "Authorization: Bearer {{token}}"}); err != nil {
 		t.Fatal(err)
 	}
-	s.applyMasking(Config{MaskSecrets: false})
+	s.applyConfig(Config{MaskSecrets: false})
 	if err := s.checkInput(map[string]any{"value": Redacted}); err != nil {
 		t.Fatalf("with masking off nothing is refused: %v", err)
 	}

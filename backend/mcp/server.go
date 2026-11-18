@@ -55,8 +55,11 @@ type Server struct {
 	tokenMu sync.RWMutex
 	token   string
 
-	maskMu sync.RWMutex
-	masker *Masker // nil means masking is off
+	maskMu          sync.RWMutex
+	requireApproval bool // risky tools ask first
+	approver        Approver
+	broker          *Broker
+	masker          *Masker // nil means masking is off
 	// auditMasker always masks: the audit log never stores secrets, even when
 	// output masking is switched off.
 	auditMasker *Masker
@@ -64,14 +67,18 @@ type Server struct {
 
 // NewServer returns a stopped server.
 func NewServer(runner Runner, store *Store, version string) *Server {
+	broker := NewBroker()
 	return &Server{
-		runner:      runner,
-		store:       store,
-		policy:      NewPolicy(nil),
-		version:     version,
-		registered:  map[string]bool{},
-		masker:      NewMasker(nil), // on until the stored setting says otherwise
-		auditMasker: NewMasker(nil),
+		runner:          runner,
+		store:           store,
+		policy:          NewPolicy(nil),
+		version:         version,
+		registered:      map[string]bool{},
+		masker:          NewMasker(nil), // on until the stored setting says otherwise
+		auditMasker:     NewMasker(nil),
+		requireApproval: true, // asking is the default until the stored setting says otherwise
+		broker:          broker,
+		approver:        broker,
 	}
 }
 
@@ -121,7 +128,7 @@ func (s *Server) Start() (string, error) {
 	}
 	s.setToken(token)
 	s.policy.Set(cfg.Overrides)
-	s.applyMasking(cfg)
+	s.applyConfig(cfg)
 
 	s.sdk = sdk.NewServer(&sdk.Implementation{Name: "snap-rq", Version: s.version}, nil)
 	s.registered = map[string]bool{}
@@ -184,7 +191,7 @@ func (s *Server) Reload() {
 	}
 	cfg := s.store.Load()
 	s.policy.Set(cfg.Overrides)
-	s.applyMasking(cfg)
+	s.applyConfig(cfg)
 	if token := s.store.Token(); token != "" {
 		s.setToken(token)
 	}
@@ -275,6 +282,9 @@ func register[In any](s *Server, m ToolMeta, call callFunc[In]) {
 		if err := s.checkInput(in); err != nil {
 			return fail(auditRefused, err)
 		}
+		if err := s.gate(m, client, in); err != nil {
+			return fail(auditRefused, err)
+		}
 		out, err := call(s, in)
 		if err != nil {
 			return fail(auditError, err)
@@ -349,15 +359,28 @@ func annotationsFor(m ToolMeta) *sdk.ToolAnnotations {
 	return &sdk.ToolAnnotations{DestructiveHint: &destructive}
 }
 
-func (s *Server) applyMasking(cfg Config) {
+func (s *Server) applyConfig(cfg Config) {
 	s.maskMu.Lock()
 	defer s.maskMu.Unlock()
 	s.auditMasker = NewMasker(cfg.MaskExtra)
+	s.requireApproval = cfg.RequireApproval
 	if cfg.MaskSecrets {
 		s.masker = NewMasker(cfg.MaskExtra)
 	} else {
 		s.masker = nil
 	}
+}
+
+// SetEmitter sets how approval requests reach the window.
+func (s *Server) SetEmitter(emit func(name string, data any)) { s.broker.SetEmit(emit) }
+
+func (s *Server) currentAuditMasker() *Masker {
+	s.maskMu.RLock()
+	defer s.maskMu.RUnlock()
+	if s.auditMasker == nil {
+		return NewMasker(nil)
+	}
+	return s.auditMasker
 }
 
 func (s *Server) currentMasker() *Masker {

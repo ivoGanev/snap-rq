@@ -55,6 +55,26 @@
       </label>
 
       <section class="mcp-section">
+        <h4 class="mcp-heading">Approval</h4>
+        <div class="mcp-row">
+          <span class="mcp-copy">
+            <span class="mcp-label">Ask me before the AI makes risky changes</span>
+            <span class="mcp-help">
+              Changing a request's address, headers or body, or moving requests to the trash, shows a
+              window where you choose Allow or Deny. Your saved logins travel with requests, so a
+              changed address could send them somewhere else. No answer in 60 seconds counts as Deny.
+            </span>
+          </span>
+          <input
+            class="mcp-check"
+            type="checkbox"
+            [checked]="api.requireApproval()"
+            (change)="toggleApproval($event)"
+          />
+        </div>
+      </section>
+
+      <section class="mcp-section">
         <h4 class="mcp-heading">Privacy</h4>
         <div class="mcp-row">
           <span class="mcp-copy">

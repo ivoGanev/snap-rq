@@ -16,15 +16,18 @@ const EMPTY_STATUS: McpStatus = { enabled: false, running: false, port: 0, url: 
 export class McpApiService {
   readonly status = signal<McpStatus>(EMPTY_STATUS);
   readonly tools = signal<McpTool[]>([]);
+  readonly requireApproval = signal(true);
   readonly actions = signal<McpAction[]>([]);
   readonly masking = signal<McpMasking>({ enabled: true, extra: [], builtin: [] });
 
   async load(): Promise<void> {
-    const [status, tools, masking] = await Promise.all([
+    const [status, tools, masking, approval] = await Promise.all([
       SettingsService.Status(),
       SettingsService.Tools(),
       SettingsService.Masking(),
+      SettingsService.Approval(),
     ]);
+    this.requireApproval.set(approval);
     this.status.set(status);
     this.tools.set(tools ?? []);
     this.masking.set(masking);
@@ -72,5 +75,10 @@ export class McpApiService {
   async clearActions(): Promise<void> {
     await SettingsService.ClearActions();
     this.actions.set([]);
+  }
+
+  async setRequireApproval(on: boolean): Promise<void> {
+    await SettingsService.SetApproval(on);
+    this.requireApproval.set(on);
   }
 }

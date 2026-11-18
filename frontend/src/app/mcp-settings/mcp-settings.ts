@@ -10,13 +10,10 @@ interface RiskGroup {
 }
 
 const RISK_LABELS: Record<string, string> = {
-  read: 'Read — look at projects, collections and requests',
-  organize: 'Organize — create, rename, move, tag, reorder',
+  read: 'Look — see your projects, collections and requests',
+  organize: 'Tidy up — rename, move, tag, colour and reorder. Deleted requests go to the trash',
   content:
-    'Content — change a request’s URL, headers or body (off by default: could redirect your credentials)',
-  destructive: 'Destructive — delete',
-  external: 'External — send requests',
-  sensitive: 'Sensitive — secrets and files',
+    'Edit requests — change where a request goes or what it carries: its address (URL), headers and body',
 };
 
 /**
@@ -106,6 +103,25 @@ export class McpSettings implements OnInit, OnDestroy {
     void this.run(async () => {
       this.token.set(await this.api.rotateToken());
     });
+  }
+
+  protected async toggleApproval(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const on = input.checked;
+    if (!on) {
+      const ok = await this.confirm.ask({
+        title: 'Stop asking before risky changes?',
+        message:
+          'The AI will be able to change where your requests go and delete them without asking you first. Changing an address could send your saved logins to another server.',
+        confirmLabel: 'Stop asking',
+      });
+      if (!ok) {
+        input.checked = true;
+        return;
+      }
+    }
+    await this.run(() => this.api.setRequireApproval(on));
+    input.checked = this.api.requireApproval();
   }
 
   protected async toggleMasking(event: Event): Promise<void> {
