@@ -111,6 +111,11 @@ type favouriteColorInput struct {
 	Color                 *string `json:"color" jsonschema:"colour slot, or null to clear"`
 }
 
+type importOpenApiInput struct {
+	ProjectID int64  `json:"project_id" jsonschema:"id of the project to import into"`
+	FilePath  string `json:"file_path" jsonschema:"absolute path to the OpenAPI 3.x JSON or YAML file"`
+}
+
 func init() {
 	bindings = append(bindings,
 		binding{"create_collection", addTool[createCollectionInput]},
@@ -136,6 +141,8 @@ func init() {
 		binding{"remove_from_favourite", addTool[removeFromFavouriteInput]},
 		binding{"reorder_favourite_requests", addTool[reorderFavouriteInput]},
 		binding{"set_favourite_request_colors", addTool[favouriteColorInput]},
+
+		binding{"import_openapi", addTool[importOpenApiInput]},
 	)
 }
 

@@ -12,8 +12,8 @@ import (
 func TestExposedToolNames(t *testing.T) {
 	want := []string{
 		"add_tag", "add_to_favourite", "bulk_edit_requests", "create_collection", "create_favourite",
-		"create_request", "delete_requests", "duplicate_request", "edit_request_content", "get_request", "list_collections",
-		"list_environments", "list_favourites", "list_profiles", "list_projects", "list_recent_requests", "list_requests",
+		"create_request", "delete_requests", "duplicate_request", "edit_request_content", "get_request", "import_openapi",
+		"list_collections", "list_environments", "list_favourites", "list_profiles", "list_projects", "list_recent_requests", "list_requests",
 		"list_responses", "list_tagged_requests", "list_tags", "list_trash", "list_variables", "move_requests",
 		"remove_from_favourite", "remove_tag", "rename_collection", "rename_favourite", "rename_tag",
 		"reorder_favourite_requests", "reorder_requests", "reorder_tagged_requests",
