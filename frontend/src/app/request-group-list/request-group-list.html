@@ -10,15 +10,19 @@
   </button>
 </div>
 
-<div class="group-list-scroll">
+<div class="group-list-scroll" [class.is-drop-zone]="dropZoneActive()">
   @if (items().length === 0) {
-    <div class="state-message">{{ activeFolderEmptyMessage() }}</div>
+    <div class="state-message">{{ dropZoneActive() ? dropCreateMessage() : activeFolderEmptyMessage() }}</div>
   }
   <ul class="group-list">
     @for (item of items(); track item.kind + ':' + item.id) {
       <li
         class="group-list-item"
         [class.is-selected]="isSelected(item)"
+        [class.is-drop-target]="isDropTarget(item)"
+        [attr.data-item-kind]="item.kind"
+        [attr.data-item-id]="item.id"
+        [attr.data-item-name]="item.name"
         (click)="onItemClick(item)"
         (contextmenu)="onContextMenu(item, $event)"
       >

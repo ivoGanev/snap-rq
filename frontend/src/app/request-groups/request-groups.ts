@@ -10,6 +10,7 @@ import { RequestApiService } from '../core/services/request.service';
 import { CommandApiService } from '../core/services/command.service';
 import { SelectionStateService, groupKey } from '../core/services/selection-state.service';
 import { TagApiService, type Tag } from '../core/services/tag.service';
+import { DragSessionService, type DropKind } from '../core/services/drag-session.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
 import { IconManifestService } from '../core/services/icon-manifest.service';
 import { ConfirmService } from '../core/services/confirm.service';
@@ -89,6 +90,7 @@ const COLLECTION_COLOR_PALETTE: string[] = [
     'aria-label': 'Request groups',
     '(window:keydown.escape)': 'onEscapePressed()',
     '(window:keydown)': 'onWindowKeydown($event)',
+    '(window:mousemove)': 'onWindowMouseMove($event)',
   },
 })
 export class RequestGroups {
@@ -102,6 +104,7 @@ export class RequestGroups {
   private readonly contextMenu = inject(ContextMenuService);
   private readonly commandApi = inject(CommandApiService);
   private readonly confirm = inject(ConfirmService);
+  protected readonly drag = inject(DragSessionService);
 
   /** Development builds only: the rail shows an undo-history debug button. */
   protected readonly devUndoVisible = isDevMode();
@@ -333,6 +336,44 @@ export class RequestGroups {
     return null;
   });
 
+  /** Sidebar key of the item under the pointer during a drag, if any. */
+  protected readonly dropTargetKey = computed<string | null>(() => {
+    const target = this.drag.hovered();
+    if (!target) return null;
+    if (target.kind === 'collection') return sidebarCollectionKey(target.id);
+    if (target.kind === 'favourite') return sidebarFavouriteKey(target.id);
+    return sidebarTagKey(target.name);
+  });
+
+  protected readonly dropZoneActive = computed(
+    () => this.drag.overEmptyCollections() && this.folderFilter() === 'collections',
+  );
+
+  onWindowMouseMove(event: MouseEvent): void {
+    if (!this.drag.active()) return;
+
+    const el = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+    const itemEl = el?.closest<HTMLElement>('[data-item-kind]');
+    if (itemEl) {
+      const kind = itemEl.dataset['itemKind'] as DropKind;
+      const id = Number(itemEl.dataset['itemId'] ?? 0);
+      const name = itemEl.dataset['itemName'] ?? '';
+      this.drag.setHover({ kind, id, name });
+      return;
+    }
+
+    if (this.folderFilter() === 'collections' && this.collections().length === 0) {
+      const listEl = el?.closest<HTMLElement>('.request-group-list');
+      if (listEl) {
+        this.drag.setOverEmptyCollections(true);
+        return;
+      }
+    }
+
+    this.drag.setHover(null);
+    this.drag.setOverEmptyCollections(false);
+  }
+
   constructor() {
     effect(() => {
       this.state.sidebarListOpen.set(this.folderFilter() !== null);
@@ -483,6 +524,9 @@ export class RequestGroups {
 
   closeNewCollectionPopup(): void {
     this.newCollectionPopupOpen.set(false);
+    if (this.drag.createCollectionRequested()) {
+      this.drag.cancelCreateCollection();
+    }
   }
 
   openNewFavouritePopup(): void {
@@ -508,11 +552,17 @@ export class RequestGroups {
   // ---------- Creation ----------
 
   async addCollection(): Promise<void> {
-    const project = this.state.selectedProject();
-    if (!project) return;
-
     const name = this.newCollectionName().trim();
     if (!name) return;
+
+    if (this.drag.createCollectionRequested()) {
+      await this.drag.confirmCreateCollection(name);
+      this.closeNewCollectionPopup();
+      return;
+    }
+
+    const project = this.state.selectedProject();
+    if (!project) return;
 
     this.state.loading.set(true);
     try {

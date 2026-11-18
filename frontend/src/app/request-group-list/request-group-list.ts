@@ -81,6 +81,8 @@ export class RequestGroupList {
   readonly renamingItem = input<SidebarItem | null>(null);
   readonly renameValue = model('');
   readonly selectedKey = input<string | null>(null);
+  readonly dropTargetKey = input<string | null>(null);
+  readonly dropZoneActive = input<boolean>(false);
 
   readonly addClick = output<void>();
   readonly itemSelect = output<SidebarItem>();
@@ -94,12 +96,20 @@ export class RequestGroupList {
     return this.selectedKey() === sidebarItemKey(item);
   }
 
+  isDropTarget(item: SidebarItem): boolean {
+    return this.dropTargetKey() === sidebarItemKey(item);
+  }
+
   folderTitle(): string {
     return FOLDER_META[this.folderFilter()].title;
   }
 
   activeFolderEmptyMessage(): string {
     return FOLDER_META[this.folderFilter()].emptyMessage;
+  }
+
+  dropCreateMessage(): string {
+    return 'Drop to create a collection';
   }
 
   onAddClick(): void {
