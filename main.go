@@ -99,13 +99,31 @@ func main() {
 	})
 
 	updaterService.app = app
-	mcpServer.SetEmitter(func(name string, data any) { app.Event.Emit(name, data) })
+	// win is set once the window exists. An approval request flashes its
+	// taskbar button until the user comes back, and restores it if minimised;
+	// it does not take focus, so it never interrupts typing elsewhere.
+	var win *application.WebviewWindow
+	mcpServer.SetEmitter(func(name string, data any) {
+		app.Event.Emit(name, data)
+		if win == nil {
+			return
+		}
+		switch name {
+		case "mcp:approval":
+			if win.IsMinimised() {
+				win.UnMinimise()
+			}
+			win.Flash(true)
+		case "mcp:approval-closed":
+			win.Flash(false)
+		}
+	})
 
 	if err := configureUpdater(app); err != nil {
 		log.Fatalf("configuring updater: %v", err)
 	}
 
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	win = app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title: "Window 1",
 		// Window sized to the golden ratio (1000 / 618 ≈ 1.618).
 		Width:      1000,
