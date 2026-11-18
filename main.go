@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"errors"
 	"log"
 	"runtime"
 	"time"
@@ -163,18 +164,45 @@ type UpdaterService struct {
 	app *application.App
 }
 
-// CheckForUpdates opens the framework's update window and runs the full
-// check/download flow in the background.
-func (s *UpdaterService) CheckForUpdates() {
+// UpdateInfo describes a release that can be installed.
+type UpdateInfo struct {
+	Version string `json:"version"`
+}
+
+// CurrentVersion is the version this build reports to the updater.
+func (s *UpdaterService) CurrentVersion() string { return currentVersion }
+
+// Check asks GitHub Releases for a newer version. It returns nil when SnapRQ
+// is up to date. Nothing is downloaded until Install is called.
+func (s *UpdaterService) Check() (*UpdateInfo, error) {
 	if s.app == nil {
-		log.Printf("update check requested before app was ready")
-		return
+		return nil, errors.New("the app is not ready yet")
 	}
-	go func() {
-		if err := s.app.Updater.CheckAndInstall(context.Background()); err != nil {
-			log.Printf("update check failed: %v", err)
-		}
-	}()
+	release, err := s.app.Updater.Check(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	if release == nil {
+		return nil, nil
+	}
+	return &UpdateInfo{Version: release.Version}, nil
+}
+
+// Install downloads, verifies and stages the release that Check found. The
+// settings window shows progress from the updater's events. Restart applies it.
+func (s *UpdaterService) Install() error {
+	if s.app == nil {
+		return errors.New("the app is not ready yet")
+	}
+	return s.app.Updater.DownloadAndInstall(context.Background())
+}
+
+// Restart relaunches SnapRQ to finish the staged update.
+func (s *UpdaterService) Restart() error {
+	if s.app == nil {
+		return errors.New("the app is not ready yet")
+	}
+	return s.app.Updater.Restart(context.Background())
 }
 
 // configureUpdater wires the in-app self-updater to GitHub Releases.
@@ -187,9 +215,11 @@ func configureUpdater(app *application.App) error {
 	if err != nil {
 		return err
 	}
+	// Headless: the settings window shows the update flow itself.
 	return app.Updater.Init(updater.Config{
 		CurrentVersion: currentVersion,
 		Providers:      []updater.Provider{gh},
+		Window:         updater.WindowNone,
 	})
 }
 

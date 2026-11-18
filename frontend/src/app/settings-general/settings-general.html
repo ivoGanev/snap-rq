@@ -1,0 +1,62 @@
+<label class="settings-option">
+  <span class="settings-option-copy">
+    <span class="settings-option-label">Validate SSL certificates</span>
+    <span class="settings-option-help">
+      Disable to allow invalid, expired, or mismatched HTTPS certificates.
+    </span>
+  </span>
+  <input
+    class="settings-toggle"
+    type="checkbox"
+    [checked]="settingsApi.settings().validate_ssl_certificates"
+    (change)="onSslValidationChange($event)"
+  />
+</label>
+<label class="settings-option">
+  <span class="settings-option-copy">
+    <span class="settings-option-label">Use cookie jar</span>
+    <span class="settings-option-help">
+      Store cookies from responses per project and send them with later requests.
+    </span>
+  </span>
+  <input
+    class="settings-toggle"
+    type="checkbox"
+    [checked]="settingsApi.settings().use_cookie_jar"
+    (change)="onCookieJarChange($event)"
+  />
+</label>
+<label class="settings-option">
+  <span class="settings-option-copy">
+    <span class="settings-option-label">Request timeout (seconds)</span>
+    <span class="settings-option-help">
+      Maximum time to wait for a response. Between 1 and 99999 seconds; default is 30.
+    </span>
+  </span>
+  <input
+    class="settings-number"
+    type="number"
+    min="1"
+    max="99999"
+    step="1"
+    [value]="settingsApi.settings().request_timeout_seconds"
+    (change)="onRequestTimeoutChange($event)"
+  />
+</label>
+<label class="settings-option">
+  <span class="settings-option-copy">
+    <span class="settings-option-label">Undo history limit</span>
+    <span class="settings-option-help">
+      Maximum undo steps kept in memory. Between 10 and 1000 steps; default is 100.
+    </span>
+  </span>
+  <input
+    class="settings-number"
+    type="number"
+    min="10"
+    max="1000"
+    step="1"
+    [value]="settingsApi.settings().undo_history_limit"
+    (change)="onUndoLimitChange($event)"
+  />
+</label>

@@ -821,3 +821,78 @@ body.reorder-dragging,
 body.reorder-dragging * {
   cursor: grabbing !important;
 }
+
+// Shared by the settings panels (General, MCP server, Updates).
+.settings-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  cursor: pointer;
+}
+
+.settings-option-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.settings-option-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings-option-help {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.settings-toggle {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.settings-option + .settings-option {
+  margin-top: var(--s-3);
+}
+
+.settings-number {
+  flex: 0 0 auto;
+  width: 80px;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--text);
+  background: var(--hover-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 4px;
+}
+
+.settings-updates-button {
+  width: 100%;
+  margin-top: var(--s-3);
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--hover-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.settings-updates-button:hover {
+  background: var(--glass-border);
+  border-color: var(--accent);
+}

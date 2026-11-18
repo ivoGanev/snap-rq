@@ -10,7 +10,6 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WML } from '@wailsio/runtime';
-import { UpdaterService } from '../../bindings/snap-rq';
 import { WorkspaceStateService } from './core/services/workspace-state.service';
 import { ProjectApiService, type Project } from './core/services/project.service';
 import { EnvironmentApiService, type Environment } from './core/services/environment.service';
@@ -30,7 +29,7 @@ import { RequestsMainList } from './requests-main-list/requests-main-list';
 import { RequestPanel } from './request-panel/request-panel';
 import { VariablesEditor } from './variables-editor/variables-editor';
 import { CookiesEditor } from './cookies-editor/cookies-editor';
-import { McpSettings } from './mcp-settings/mcp-settings';
+import { SettingsDialog } from './settings-dialog/settings-dialog';
 import { McpApprovalOutlet } from './mcp-approval-outlet/mcp-approval-outlet';
 import { CookieApiService } from './core/services/cookie.service';
 import { ZenMode } from './zen-mode/zen-mode';
@@ -48,7 +47,7 @@ import { UndoPanel } from './undo-panel/undo-panel';
     RequestPanel,
     VariablesEditor,
     CookiesEditor,
-    McpSettings,
+    SettingsDialog,
     ZenMode,
     ContextMenuOutlet,
     ToastOutlet,
@@ -93,7 +92,6 @@ export class App implements OnInit, AfterViewInit {
 
   readonly variablesOverlayOpen = signal(false);
   readonly cookiesOverlayOpen = signal(false);
-  readonly mcpOverlayOpen = signal(false);
   protected readonly cookieCount = this.cookieApi.cookies;
 
   /** Keeps the jar in step with the project; a new response may have set cookies. */
@@ -143,10 +141,6 @@ export class App implements OnInit, AfterViewInit {
       this.state.closeZenMode();
       return;
     }
-    if (this.mcpOverlayOpen()) {
-      this.mcpOverlayOpen.set(false);
-      return;
-    }
     if (this.cookiesOverlayOpen()) {
       this.cookiesOverlayOpen.set(false);
       return;
@@ -179,72 +173,6 @@ export class App implements OnInit, AfterViewInit {
 
   closeSettings(): void {
     this.settingsOpen.set(false);
-  }
-
-  openMcpSettings(): void {
-    this.closeSettings();
-    this.mcpOverlayOpen.set(true);
-  }
-
-  checkForUpdates(): void {
-    UpdaterService.CheckForUpdates().catch((err) => {
-      console.error('Update check failed:', err);
-    });
-  }
-
-  async onSslValidationChange(event: Event): Promise<void> {
-    const checked = (event.target as HTMLInputElement).checked;
-    try {
-      await this.settingsApi.update({
-        ...this.settingsApi.settings(),
-        validate_ssl_certificates: checked,
-      });
-    } catch (err) {
-      console.error('Failed to update settings:', err);
-      this.settingsApi.settings.update((current) => ({ ...current }));
-    }
-  }
-
-  async onRequestTimeoutChange(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const parsed = Math.trunc(Number(input.value));
-    const value = Number.isFinite(parsed) ? Math.min(99999, Math.max(1, parsed)) : NaN;
-    const current = this.settingsApi.settings();
-    if (Number.isNaN(value) || input.value.trim() === '') {
-      input.value = String(current.request_timeout_seconds);
-      return;
-    }
-    input.value = String(value);
-    if (value === current.request_timeout_seconds) {
-      return;
-    }
-    try {
-      await this.settingsApi.update({ ...current, request_timeout_seconds: value });
-    } catch (err) {
-      console.error('Failed to update settings:', err);
-      input.value = String(current.request_timeout_seconds);
-    }
-  }
-
-  async onUndoLimitChange(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const parsed = Math.trunc(Number(input.value));
-    const value = Number.isFinite(parsed) ? Math.min(1000, Math.max(10, parsed)) : NaN;
-    const current = this.settingsApi.settings();
-    if (Number.isNaN(value) || input.value.trim() === '') {
-      input.value = String(current.undo_history_limit);
-      return;
-    }
-    input.value = String(value);
-    if (value === current.undo_history_limit) {
-      return;
-    }
-    try {
-      await this.settingsApi.update({ ...current, undo_history_limit: value });
-    } catch (err) {
-      console.error('Failed to update settings:', err);
-      input.value = String(current.undo_history_limit);
-    }
   }
 
   // ---------- Undo / redo hotkeys ----------
@@ -421,16 +349,6 @@ export class App implements OnInit, AfterViewInit {
   openCookiesOverlay(): void {
     void this.cookieApi.reload();
     this.cookiesOverlayOpen.set(true);
-  }
-
-  async onCookieJarChange(event: Event): Promise<void> {
-    const checked = (event.target as HTMLInputElement).checked;
-    try {
-      await this.settingsApi.update({ ...this.settingsApi.settings(), use_cookie_jar: checked });
-    } catch (err) {
-      console.error('Failed to update settings:', err);
-      this.settingsApi.settings.update((current) => ({ ...current }));
-    }
   }
 
   openVariablesOverlay(): void {

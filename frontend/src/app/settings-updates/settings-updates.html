@@ -1,0 +1,61 @@
+<div class="updates">
+  <div class="updates-version">
+    <span class="settings-option-label">SnapRQ {{ currentVersion() }}</span>
+  </div>
+
+  @switch (phase()) {
+    @case ('idle') {
+      <p class="settings-option-help">Check whether a newer version is available.</p>
+      <div class="updates-actions">
+        <button class="settings-updates-button" type="button" (click)="check()">
+          Check for updates
+        </button>
+      </div>
+    }
+    @case ('checking') {
+      <p class="settings-option-help">Checking for updates…</p>
+    }
+    @case ('upToDate') {
+      <p class="settings-option-help">You are on the latest version.</p>
+      <div class="updates-actions">
+        <button class="settings-updates-button" type="button" (click)="check()">Check again</button>
+      </div>
+    }
+    @case ('available') {
+      <p class="settings-option-label">Version {{ newVersion() }} is available.</p>
+      <p class="settings-option-help">
+        It is downloaded and checked first, and SnapRQ restarts to finish installing it.
+      </p>
+      <div class="updates-actions">
+        <button class="settings-updates-button" type="button" (click)="install()">
+          Download and install
+        </button>
+      </div>
+    }
+    @case ('working') {
+      <p class="settings-option-label">{{ stage() }} version {{ newVersion() }}…</p>
+      <progress class="updates-progress" max="100" [value]="percent()"></progress>
+      <p class="settings-option-help">
+        @if (total() > 0) {
+          {{ percent() }}%
+        }
+      </p>
+    }
+    @case ('ready') {
+      <p class="settings-option-label">Version {{ newVersion() }} is ready.</p>
+      <p class="settings-option-help">Restart SnapRQ to finish the update.</p>
+      <div class="updates-actions">
+        <button class="settings-updates-button" type="button" (click)="restart()">
+          Restart now
+        </button>
+      </div>
+    }
+    @case ('error') {
+      <p class="settings-option-label">The update did not finish.</p>
+      <p class="settings-option-help updates-error">{{ message() }}</p>
+      <div class="updates-actions">
+        <button class="settings-updates-button" type="button" (click)="check()">Try again</button>
+      </div>
+    }
+  }
+</div>
