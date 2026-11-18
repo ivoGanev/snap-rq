@@ -1,0 +1,43 @@
+<div class="overlay-backdrop" (click)="close.emit()">
+  <div
+    class="overlay-panel settings-dialog"
+    role="dialog"
+    aria-label="Settings"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="overlay-header">
+      <h3 class="overlay-title">Settings</h3>
+      <button class="overlay-close" type="button" (click)="close.emit()">Close</button>
+    </div>
+
+    <div class="settings-layout">
+      <nav class="settings-nav" aria-label="Settings categories">
+        @for (item of categories; track item.id) {
+          <button
+            class="settings-nav-item"
+            type="button"
+            [class.is-active]="category() === item.id"
+            [attr.aria-current]="category() === item.id ? 'page' : null"
+            (click)="category.set(item.id)"
+          >
+            {{ item.label }}
+          </button>
+        }
+      </nav>
+
+      <section class="settings-pane">
+        @switch (category()) {
+          @case ('general') {
+            <app-settings-general></app-settings-general>
+          }
+          @case ('mcp') {
+            <app-mcp-settings></app-mcp-settings>
+          }
+          @case ('updates') {
+            <app-settings-updates></app-settings-updates>
+          }
+        }
+      </section>
+    </div>
+  </div>
+</div>

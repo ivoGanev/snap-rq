@@ -1,205 +1,196 @@
-<div class="overlay-backdrop" (click)="closeDialog()">
-  <div class="overlay-panel mcp-settings" (click)="$event.stopPropagation()">
-    <div class="overlay-header">
-      <h3 class="overlay-title">MCP server</h3>
-      <button class="overlay-close" type="button" (click)="closeDialog()">Close</button>
+<div class="mcp-body">
+  @if (error()) {
+    <div class="mcp-error">{{ error() }}</div>
+  }
+
+  <div class="mcp-row">
+    <span class="mcp-copy">
+      <span class="mcp-label">Enable MCP server</span>
+      <span class="mcp-help">
+        Lets AI clients on this computer organize your requests. Listens on 127.0.0.1 only and
+        needs the token below. SnapRQ must be running.
+      </span>
+    </span>
+    <input
+      class="mcp-check"
+      type="checkbox"
+      [checked]="api.status().enabled"
+      (change)="toggleEnabled($event)"
+    />
+  </div>
+
+  <div class="mcp-status" [class.mcp-status--on]="api.status().running">
+    @if (api.status().running) {
+      Running at {{ api.status().url }}
+      <button class="mcp-button" type="button" (click)="copy('url', api.status().url)">
+        {{ copied() === 'url' ? 'Copied' : 'Copy URL' }}
+      </button>
+    } @else if (api.status().enabled) {
+      Not running{{ api.status().error ? ': ' + api.status().error : '' }}
+    } @else {
+      Off
+    }
+  </div>
+
+  <label class="mcp-row">
+    <span class="mcp-copy">
+      <span class="mcp-label">Port</span>
+      <span class="mcp-help">1024–65535. A running server restarts on the new port.</span>
+    </span>
+    <input
+      class="mcp-number"
+      type="number"
+      min="1024"
+      max="65535"
+      [value]="api.status().port"
+      (change)="changePort($event)"
+    />
+  </label>
+
+  <section class="mcp-section">
+    <h4 class="mcp-heading">Approval</h4>
+    <div class="mcp-row">
+      <span class="mcp-copy">
+        <span class="mcp-label">Ask me before the AI changes anything</span>
+        <span class="mcp-help">
+          Any change, such as renaming, moving, editing or deleting, shows a window where you
+          choose Allow or Deny. Your saved logins travel with requests, so a changed address or
+          a move to another project could send them somewhere else. The AI waits until you
+          answer. Looking things up never asks.
+        </span>
+      </span>
+      <input
+        class="mcp-check"
+        type="checkbox"
+        [checked]="api.requireApproval()"
+        (change)="toggleApproval($event)"
+      />
     </div>
+  </section>
 
-    <div class="mcp-body">
-      @if (error()) {
-        <div class="mcp-error">{{ error() }}</div>
+  <section class="mcp-section">
+    <h4 class="mcp-heading">Privacy</h4>
+    <div class="mcp-row">
+      <span class="mcp-copy">
+        <span class="mcp-label">Hide secrets from AI</span>
+        <span class="mcp-help">
+          Replaces tokens, passwords and API keys in request URLs, headers, bodies and saved
+          responses with [REDACTED]. {{ '{{variable}}' }} placeholders stay visible. Variable values are never shown.
+        </span>
+      </span>
+      <input
+        class="mcp-check"
+        type="checkbox"
+        [checked]="api.masking().enabled"
+        (change)="toggleMasking($event)"
+      />
+    </div>
+    <span class="mcp-help">
+      Hidden automatically: any header, JSON field, form field or URL parameter whose name
+      contains one of
+      @for (name of builtinNames(); track name; let last = $last) {
+        <code>{{ name }}</code>{{ last ? '.' : ', ' }}
       }
+      Also hidden: the password in <code>user:pass&#64;host</code> URLs. Values that are only a
+      {{ '{{variable}}' }} placeholder are left visible.
+    </span>
+    <span class="mcp-help">Extra names to hide, one per line (matches headers, fields and parameters containing the name):</span>
+    <textarea
+      class="mcp-textarea"
+      rows="3"
+      placeholder="x-internal-key"
+      [value]="maskNamesText()"
+      (change)="saveMaskNames($event)"
+    ></textarea>
+  </section>
 
-      <div class="mcp-row">
-        <span class="mcp-copy">
-          <span class="mcp-label">Enable MCP server</span>
-          <span class="mcp-help">
-            Lets AI clients on this computer organize your requests. Listens on 127.0.0.1 only and
-            needs the token below. SnapRQ must be running.
+  <section class="mcp-section">
+    <h4 class="mcp-heading">Token</h4>
+    <div class="mcp-token-row">
+      <code class="mcp-token">{{ maskedToken() }}</code>
+      <button class="mcp-button" type="button" (click)="tokenVisible.set(!tokenVisible())">
+        {{ tokenVisible() ? 'Hide' : 'Show' }}
+      </button>
+      <button class="mcp-button" type="button" (click)="copy('token', token())">
+        {{ copied() === 'token' ? 'Copied' : 'Copy' }}
+      </button>
+      <button class="mcp-button" type="button" (click)="rotate()">Rotate</button>
+    </div>
+    <span class="mcp-help">Rotating disconnects every client until it gets the new token.</span>
+  </section>
+
+  <section class="mcp-section">
+    <div class="mcp-snippet-head">
+      <h4 class="mcp-heading">Recent AI actions</h4>
+      <button
+        class="mcp-button"
+        type="button"
+        [disabled]="api.actions().length === 0"
+        (click)="clearActions()"
+      >
+        Clear
+      </button>
+    </div>
+    @if (api.actions().length === 0) {
+      <span class="mcp-help">Nothing yet. Every tool call an AI client makes is listed here.</span>
+    }
+    @for (action of api.actions(); track action.id) {
+      <div class="mcp-action" [class.mcp-action--bad]="action.status !== 'ok'">
+        <div class="mcp-action-head">
+          <span class="mcp-tool-name">{{ action.tool }}</span>
+          <span class="mcp-help">{{ timeLabel(action.at) }}{{ action.client ? ' · ' + action.client : '' }}</span>
+        </div>
+        @if (action.summary) {
+          <span class="mcp-help">{{ action.summary }}</span>
+        }
+        @if (action.status !== 'ok') {
+          <span class="mcp-action-status">
+            {{ action.status === 'refused' ? 'Refused' : 'Failed' }}: {{ action.error }}
           </span>
-        </span>
-        <input
-          class="mcp-check"
-          type="checkbox"
-          [checked]="api.status().enabled"
-          (change)="toggleEnabled($event)"
-        />
-      </div>
-
-      <div class="mcp-status" [class.mcp-status--on]="api.status().running">
-        @if (api.status().running) {
-          Running at {{ api.status().url }}
-          <button class="mcp-button" type="button" (click)="copy('url', api.status().url)">
-            {{ copied() === 'url' ? 'Copied' : 'Copy URL' }}
-          </button>
-        } @else if (api.status().enabled) {
-          Not running{{ api.status().error ? ': ' + api.status().error : '' }}
-        } @else {
-          Off
         }
       </div>
+    }
+    <span class="mcp-help">
+      Secrets in arguments are hidden here too. The last 1000 calls, or 30 days, are kept.
+    </span>
+  </section>
 
-      <label class="mcp-row">
-        <span class="mcp-copy">
-          <span class="mcp-label">Port</span>
-          <span class="mcp-help">1024–65535. A running server restarts on the new port.</span>
-        </span>
-        <input
-          class="mcp-number"
-          type="number"
-          min="1024"
-          max="65535"
-          [value]="api.status().port"
-          (change)="changePort($event)"
-        />
-      </label>
-
-      <section class="mcp-section">
-        <h4 class="mcp-heading">Approval</h4>
-        <div class="mcp-row">
-          <span class="mcp-copy">
-            <span class="mcp-label">Ask me before the AI changes anything</span>
-            <span class="mcp-help">
-              Any change, such as renaming, moving, editing or deleting, shows a window where you
-              choose Allow or Deny. Your saved logins travel with requests, so a changed address or
-              a move to another project could send them somewhere else. The AI waits until you
-              answer. Looking things up never asks.
-            </span>
-          </span>
+  <section class="mcp-section">
+    <h4 class="mcp-heading">Tools</h4>
+    <span class="mcp-help">
+      Only these tools exist for AI clients. Delete-forever, send and variable-value tools do not exist for AI clients.
+    </span>
+    @for (group of groups(); track group.risk) {
+      <div class="mcp-group">
+        <label class="mcp-group-head">
           <input
             class="mcp-check"
             type="checkbox"
-            [checked]="api.requireApproval()"
-            (change)="toggleApproval($event)"
+            [checked]="group.allOn"
+            (change)="toggleRisk(group, $event)"
           />
-        </div>
-      </section>
-
-      <section class="mcp-section">
-        <h4 class="mcp-heading">Privacy</h4>
-        <div class="mcp-row">
-          <span class="mcp-copy">
-            <span class="mcp-label">Hide secrets from AI</span>
-            <span class="mcp-help">
-              Replaces tokens, passwords and API keys in request URLs, headers, bodies and saved
-              responses with [REDACTED]. {{ '{{variable}}' }} placeholders stay visible. Variable values are never shown.
-            </span>
-          </span>
-          <input
-            class="mcp-check"
-            type="checkbox"
-            [checked]="api.masking().enabled"
-            (change)="toggleMasking($event)"
-          />
-        </div>
-        <span class="mcp-help">
-          Hidden automatically: any header, JSON field, form field or URL parameter whose name
-          contains one of
-          @for (name of builtinNames(); track name; let last = $last) {
-            <code>{{ name }}</code>{{ last ? '.' : ', ' }}
-          }
-          Also hidden: the password in <code>user:pass&#64;host</code> URLs. Values that are only a
-          {{ '{{variable}}' }} placeholder are left visible.
-        </span>
-        <span class="mcp-help">Extra names to hide, one per line (matches headers, fields and parameters containing the name):</span>
-        <textarea
-          class="mcp-textarea"
-          rows="3"
-          placeholder="x-internal-key"
-          [value]="maskNamesText()"
-          (change)="saveMaskNames($event)"
-        ></textarea>
-      </section>
-
-      <section class="mcp-section">
-        <h4 class="mcp-heading">Token</h4>
-        <div class="mcp-token-row">
-          <code class="mcp-token">{{ maskedToken() }}</code>
-          <button class="mcp-button" type="button" (click)="tokenVisible.set(!tokenVisible())">
-            {{ tokenVisible() ? 'Hide' : 'Show' }}
-          </button>
-          <button class="mcp-button" type="button" (click)="copy('token', token())">
-            {{ copied() === 'token' ? 'Copied' : 'Copy' }}
-          </button>
-          <button class="mcp-button" type="button" (click)="rotate()">Rotate</button>
-        </div>
-        <span class="mcp-help">Rotating disconnects every client until it gets the new token.</span>
-      </section>
-
-      <section class="mcp-section">
-        <div class="mcp-snippet-head">
-          <h4 class="mcp-heading">Recent AI actions</h4>
-          <button
-            class="mcp-button"
-            type="button"
-            [disabled]="api.actions().length === 0"
-            (click)="clearActions()"
-          >
-            Clear
-          </button>
-        </div>
-        @if (api.actions().length === 0) {
-          <span class="mcp-help">Nothing yet. Every tool call an AI client makes is listed here.</span>
-        }
-        @for (action of api.actions(); track action.id) {
-          <div class="mcp-action" [class.mcp-action--bad]="action.status !== 'ok'">
-            <div class="mcp-action-head">
-              <span class="mcp-tool-name">{{ action.tool }}</span>
-              <span class="mcp-help">{{ timeLabel(action.at) }}{{ action.client ? ' · ' + action.client : '' }}</span>
-            </div>
-            @if (action.summary) {
-              <span class="mcp-help">{{ action.summary }}</span>
-            }
-            @if (action.status !== 'ok') {
-              <span class="mcp-action-status">
-                {{ action.status === 'refused' ? 'Refused' : 'Failed' }}: {{ action.error }}
-              </span>
-            }
-          </div>
-        }
-        <span class="mcp-help">
-          Secrets in arguments are hidden here too. The last 1000 calls, or 30 days, are kept.
-        </span>
-      </section>
-
-      <section class="mcp-section">
-        <h4 class="mcp-heading">Tools</h4>
-        <span class="mcp-help">
-          Only these tools exist for AI clients. Delete-forever, send and variable-value tools do not exist for AI clients.
-        </span>
-        @for (group of groups(); track group.risk) {
-          <div class="mcp-group">
-            <label class="mcp-group-head">
+          <span class="mcp-label">{{ group.label }}</span>
+        </label>
+        @for (tool of group.tools; track tool.name) {
+          <div class="mcp-tool">
+            <label class="mcp-tool-main">
               <input
                 class="mcp-check"
                 type="checkbox"
-                [checked]="group.allOn"
-                (change)="toggleRisk(group, $event)"
+                [checked]="tool.enabled"
+                (change)="toggleTool(tool, $event)"
               />
-              <span class="mcp-label">{{ group.label }}</span>
+              <span class="mcp-copy">
+                <span class="mcp-tool-name">{{ tool.name }}</span>
+                <span class="mcp-help">{{ tool.description }}</span>
+              </span>
             </label>
-            @for (tool of group.tools; track tool.name) {
-              <div class="mcp-tool">
-                <label class="mcp-tool-main">
-                  <input
-                    class="mcp-check"
-                    type="checkbox"
-                    [checked]="tool.enabled"
-                    (change)="toggleTool(tool, $event)"
-                  />
-                  <span class="mcp-copy">
-                    <span class="mcp-tool-name">{{ tool.name }}</span>
-                    <span class="mcp-help">{{ tool.description }}</span>
-                  </span>
-                </label>
-                @if (tool.overridden) {
-                  <button class="mcp-button" type="button" (click)="reset(tool)">Reset</button>
-                }
-              </div>
+            @if (tool.overridden) {
+              <button class="mcp-button" type="button" (click)="reset(tool)">Reset</button>
             }
           </div>
         }
-      </section>
-    </div>
-  </div>
+      </div>
+    }
+  </section>
 </div>

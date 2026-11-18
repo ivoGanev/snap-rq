@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnDestroy, OnInit, output, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { ConfirmService } from '../core/services/confirm.service';
 import { McpApiService, type McpTool } from '../core/services/mcp.service';
 
@@ -28,8 +28,6 @@ const RISK_LABELS: Record<string, string> = {
 export class McpSettings implements OnInit, OnDestroy {
   protected readonly api = inject(McpApiService);
   private readonly confirm = inject(ConfirmService);
-
-  readonly close = output<void>();
 
   protected readonly error = signal('');
   protected readonly token = signal('');
@@ -182,9 +180,5 @@ export class McpSettings implements OnInit, OnDestroy {
 
   protected maskedToken(): string {
     return this.tokenVisible() ? this.token() : '•'.repeat(24);
-  }
-
-  protected closeDialog(): void {
-    this.close.emit();
   }
 }

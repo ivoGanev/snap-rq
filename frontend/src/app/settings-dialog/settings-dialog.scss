@@ -1,0 +1,58 @@
+.settings-dialog {
+  width: min(860px, calc(100vw - 2 * var(--s-4)));
+  height: min(620px, calc(100dvh - 2 * var(--s-4)));
+  max-height: none;
+}
+
+.settings-layout {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+.settings-nav {
+  flex: 0 0 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-3) var(--s-2);
+  border-right: 1px solid var(--glass-border);
+  overflow-y: auto;
+}
+
+.settings-nav-item {
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: left;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.settings-nav-item:hover {
+  color: var(--text);
+  background: var(--hover-bg);
+}
+
+.settings-nav-item.is-active {
+  color: var(--text);
+  background: var(--hover-bg);
+  border-color: var(--glass-border);
+}
+
+.settings-pane {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--s-3) var(--s-4);
+  overflow-y: auto;
+}
