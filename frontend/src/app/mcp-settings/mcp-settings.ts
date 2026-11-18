@@ -110,9 +110,9 @@ export class McpSettings implements OnInit, OnDestroy {
     const on = input.checked;
     if (!on) {
       const ok = await this.confirm.ask({
-        title: 'Stop asking before risky changes?',
+        title: 'Stop asking before changes?',
         message:
-          'The AI will be able to change where your requests go and delete them without asking you first. Changing an address could send your saved logins to another server.',
+          'The AI will be able to rename, move, change and delete your requests without asking you first. Changing an address could send your saved logins to another server.',
         confirmLabel: 'Stop asking',
       });
       if (!ok) {

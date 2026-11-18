@@ -26,6 +26,17 @@ var approvalTools = map[string]bool{
 	"delete_requests":      true,
 }
 
+// asksFirst reports whether a tool needs the user's approval: every tool that
+// changes something does, whatever its class, so a new tool is gated by
+// default. Only read tools run without asking.
+func asksFirst(name string) bool {
+	if approvalTools[name] {
+		return true
+	}
+	meta, ok := metaFor(name)
+	return ok && meta.Risk != RiskRead
+}
+
 // ErrNotApproved is returned to the client when the user said no.
 var ErrNotApproved = errors.New("the user did not approve this in SnapRQ")
 
@@ -145,7 +156,7 @@ func (b *Broker) Pending() []ApprovalRequest {
 // gate asks the user when the tool is risky and asking is switched on. With
 // no approver it refuses: it fails closed.
 func (s *Server) gate(ctx context.Context, m ToolMeta, client string, in any) error {
-	if !approvalTools[m.Name] || !s.approvalRequired() {
+	if !asksFirst(m.Name) || !s.approvalRequired() {
 		return nil
 	}
 	if s.approver == nil {
@@ -186,7 +197,7 @@ func (s *Server) describe(m ToolMeta, client string, in any) ApprovalRequest {
 	case deleteRequestsInput:
 		s.describeDelete(&req, who, v)
 	default:
-		req.Title = who + " wants to run " + m.Name
+		s.describeGeneric(&req, who, m, in, masker)
 	}
 	return req
 }
@@ -434,4 +445,34 @@ func jsonOrEmpty(in any) any {
 		return map[string]any{}
 	}
 	return in
+}
+
+// describeGeneric covers the tidy-up tools: it says what the tool does in the
+// catalogue's words, where the affected requests live when the call names
+// them, and the masked arguments.
+func (s *Server) describeGeneric(req *ApprovalRequest, who string, m ToolMeta, in any, masker *Masker) {
+	what := strings.TrimSuffix(strings.TrimSpace(m.Description), ".")
+	if what == "" {
+		what = "run " + m.Name
+	}
+	req.Title = who + " wants to: " + what
+	if generic, err := toGeneric(in); err == nil {
+		if obj, ok := generic.(map[string]any); ok {
+			if list, ok := obj["ids"].([]any); ok {
+				ids := make([]int64, 0, len(list))
+				for _, v := range list {
+					if f, ok := v.(float64); ok {
+						ids = append(ids, int64(f))
+					}
+				}
+				if infos := s.lookRequests(ids); len(infos) > 0 {
+					req.Lines = append(req.Lines, s.describeWhere(infos)...)
+				}
+			}
+		}
+	}
+	if args := maskArgs(masker, in); args != "" && args != "{}" {
+		req.Lines = append(req.Lines, "Details: "+truncate(args, 200))
+	}
+	req.Lines = append(req.Lines, "You can undo this with Ctrl+Z.")
 }

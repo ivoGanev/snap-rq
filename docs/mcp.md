@@ -181,3 +181,10 @@ The approval dialog groups the affected requests by where they live
 ("Project › Collection: names"), read from the real data and never from what
 the AI said, because the same request name can exist in several places. When a
 location cannot be found it says "Location unknown".
+
+## What asks first
+
+Every tool that changes something asks first (tidy-up, content and delete);
+only the read tools run without asking. A tool added later is gated by default.
+The single "ask before changes" switch in the MCP settings turns it off, with a
+warning.

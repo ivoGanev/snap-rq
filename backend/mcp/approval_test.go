@@ -27,9 +27,13 @@ func serverWith(f *fakeRunner, a Approver, require bool) *Server {
 func TestGateOnlyAsksForRiskyTools(t *testing.T) {
 	a := &fakeApprover{answer: true}
 	s := serverWith(&fakeRunner{}, a, true)
-	if err := s.gate(context.Background(), ToolMeta{Name: "move_requests"}, "c", moveRequestsInput{}); err != nil || len(a.asked) != 0 {
-		t.Fatalf("a safe tool must not ask: %v %d", err, len(a.asked))
+	if err := s.gate(context.Background(), ToolMeta{Name: "list_projects"}, "c", struct{}{}); err != nil || len(a.asked) != 0 {
+		t.Fatalf("a read tool must not ask: %v %d", err, len(a.asked))
 	}
+	if err := s.gate(context.Background(), ToolMeta{Name: "move_requests"}, "c", moveRequestsInput{IDs: []int64{1}, CollectionID: 2}); err != nil || len(a.asked) != 1 {
+		t.Fatalf("a tidy-up tool must ask: %v %d", err, len(a.asked))
+	}
+	a.asked = nil
 	if err := s.gate(context.Background(), ToolMeta{Name: "delete_requests"}, "c", deleteRequestsInput{IDs: []int64{1}}); err != nil || len(a.asked) != 1 {
 		t.Fatalf("a risky tool must ask once: %v %d", err, len(a.asked))
 	}
@@ -203,5 +207,34 @@ func TestGateReportsACancelledClient(t *testing.T) {
 	err := s.gate(ctx, ToolMeta{Name: "delete_requests"}, "c", deleteRequestsInput{})
 	if err == nil || err == ErrNotApproved || !strings.Contains(err.Error(), "cancelled") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+// Everything that is not a read asks first, so a tool added later is gated by
+// default.
+func TestEveryChangingToolAsksFirst(t *testing.T) {
+	for _, m := range Catalog {
+		if got, want := asksFirst(m.Name), m.Risk != RiskRead; got != want {
+			t.Errorf("%s (%s): asksFirst = %v", m.Name, m.Risk, got)
+		}
+	}
+}
+
+func TestTidyUpDialogNamesTheActionAndPlace(t *testing.T) {
+	f := &fakeRunner{results: map[string]any{
+		"request.get":     map[string]any{"name": "login", "collection_id": 7, "project_id": 2},
+		"project.list":    []map[string]any{{"id": 2, "name": "Shop API"}},
+		"collection.list": []map[string]any{{"id": 7, "name": "Checkout"}},
+	}}
+	a := &fakeApprover{answer: true}
+	s := serverWith(f, a, true)
+	meta, _ := metaFor("move_requests")
+	_ = s.gate(context.Background(), meta, "claude-code", moveRequestsInput{IDs: []int64{4}, CollectionID: 9})
+	req := a.asked[0]
+	all := req.Title + "\n" + strings.Join(req.Lines, "\n")
+	for _, want := range []string{"claude-code wants to:", "Shop API › Checkout: login"} {
+		if !strings.Contains(all, want) {
+			t.Errorf("dialog lacks %q: %s", want, all)
+		}
 	}
 }
