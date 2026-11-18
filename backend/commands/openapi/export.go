@@ -47,5 +47,6 @@ func (c Export) Run(input json.RawMessage) (any, error) {
 	return map[string]any{
 		"collections_exported": counts.CollectionsExported,
 		"requests_exported":    counts.RequestsExported,
+		"requests_skipped":     counts.RequestsSkipped,
 	}, nil
 }

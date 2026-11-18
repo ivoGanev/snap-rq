@@ -2,7 +2,9 @@ package openapi
 
 import (
 	"encoding/json"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -11,7 +13,19 @@ import (
 type exportCounts struct {
 	CollectionsExported int `json:"collections_exported"`
 	RequestsExported    int `json:"requests_exported"`
+	// RequestsSkipped counts requests left out because another request
+	// already uses the same method and path, or the method is not one
+	// OpenAPI can describe.
+	RequestsSkipped int `json:"requests_skipped"`
 }
+
+var exportMethods = map[string]bool{
+	"GET": true, "PUT": true, "POST": true, "DELETE": true,
+	"OPTIONS": true, "HEAD": true, "PATCH": true, "TRACE": true,
+}
+
+// variablePattern matches a SnapRQ {{variable}}.
+var variablePattern = regexp.MustCompile(`\{\{\s*([^{}\s]+)\s*\}\}`)
 
 type exportRequest struct {
 	Name, URL, Method, Body, BodyType, BodyForm, Headers string
@@ -46,28 +60,45 @@ func (c Export) buildDocument(projectID int64) (*openapi3.T, exportCounts, error
 	}
 
 	servers := map[string]bool{}
+	usedIDs := map[string]bool{}
 	counts := exportCounts{CollectionsExported: len(collections)}
 
 	for _, col := range collections {
 		doc.Tags = append(doc.Tags, &openapi3.Tag{Name: col.Name})
 		for _, req := range col.Requests {
-			counts.RequestsExported++
-			if origin := originOf(req.URL); origin != "" {
-				servers[origin] = true
+			method := strings.ToUpper(strings.TrimSpace(req.Method))
+			path := specPath(pathOf(req.URL))
+			if !exportMethods[method] {
+				counts.RequestsSkipped++
+				continue
 			}
-
-			path := pathOf(req.URL)
 			item := doc.Paths.Value(path)
+			if item != nil && item.GetOperation(method) != nil {
+				counts.RequestsSkipped++
+				continue
+			}
 			if item == nil {
 				item = &openapi3.PathItem{}
 				doc.Paths.Set(path, item)
 			}
-			item.SetOperation(strings.ToUpper(strings.TrimSpace(req.Method)), operationFor(col.Name, req))
+
+			counts.RequestsExported++
+			if origin := originOf(req.URL); origin != "" {
+				servers[origin] = true
+			}
+			item.SetOperation(method, operationFor(col.Name, req, path, uniqueID(sanitizeID(req.Name), usedIDs)))
 		}
 	}
 
 	for origin := range servers {
-		doc.Servers = append(doc.Servers, &openapi3.Server{URL: origin})
+		server := &openapi3.Server{URL: origin}
+		// A {{variable}} base URL becomes a server variable, so re-importing
+		// the file brings the variable back.
+		if strings.HasPrefix(origin, "{") && strings.HasSuffix(origin, "}") {
+			name := strings.Trim(origin, "{}")
+			server.Variables = map[string]*openapi3.ServerVariable{name: {Default: ""}}
+		}
+		doc.Servers = append(doc.Servers, server)
 	}
 	sort.Slice(doc.Servers, func(i, j int) bool { return doc.Servers[i].URL < doc.Servers[j].URL })
 
@@ -126,15 +157,19 @@ func (c Export) loadRequests(collectionID int64) ([]exportRequest, error) {
 	return out, rows.Err()
 }
 
-func operationFor(collection string, req exportRequest) *openapi3.Operation {
+func operationFor(collection string, req exportRequest, path, id string) *openapi3.Operation {
 	op := &openapi3.Operation{
 		Tags:      []string{collection},
 		Responses: defaultResponses(),
 	}
-	if id := sanitizeID(req.Name); id != "" {
+	if id != "" {
 		op.OperationID = id
 	}
-	if params := queryParameters(req.URL); len(params) > 0 {
+	var params openapi3.Parameters
+	params = append(params, pathParameters(path)...)
+	params = append(params, queryParameters(req.URL)...)
+	params = append(params, headerParameters(req.Headers)...)
+	if len(params) > 0 {
 		op.Parameters = params
 	}
 	if rb := exportRequestBody(req); rb != nil {
@@ -143,6 +178,8 @@ func operationFor(collection string, req exportRequest) *openapi3.Operation {
 	return op
 }
 
+// defaultResponses is a placeholder: SnapRQ does not record what a server is
+// expected to answer, but OpenAPI requires at least one response.
 func defaultResponses() *openapi3.Responses {
 	responses := openapi3.NewResponses()
 	responses.Set("200", &openapi3.ResponseRef{Value: openapi3.NewResponse().WithDescription("OK")})
@@ -169,9 +206,106 @@ func exportRequestBody(req exportRequest) *openapi3.RequestBodyRef {
 		return &openapi3.RequestBodyRef{Value: &openapi3.RequestBody{
 			Content: openapi3.Content{"text/plain": &openapi3.MediaType{Example: req.Body}},
 		}}
+	case "form-data":
+		schema := formSchema(req.BodyForm)
+		if schema == nil {
+			return nil
+		}
+		return &openapi3.RequestBodyRef{Value: &openapi3.RequestBody{
+			Content: openapi3.Content{"multipart/form-data": &openapi3.MediaType{Schema: schema.NewRef()}},
+		}}
 	default:
 		return nil
 	}
+}
+
+// formSchema turns the enabled rows of a form body into an object schema.
+func formSchema(raw string) *openapi3.Schema {
+	var rows []formRow
+	if json.Unmarshal([]byte(raw), &rows) != nil {
+		return nil
+	}
+	schema := openapi3.NewObjectSchema()
+	count := 0
+	for _, row := range rows {
+		if !row.Enabled || strings.TrimSpace(row.Key) == "" {
+			continue
+		}
+		field := openapi3.NewStringSchema()
+		if row.Type == "file" {
+			field = field.WithFormat("binary")
+		}
+		schema = schema.WithProperty(row.Key, field)
+		count++
+	}
+	if count == 0 {
+		return nil
+	}
+	return schema
+}
+
+// specPath writes SnapRQ {{variable}} placeholders the way OpenAPI does.
+func specPath(path string) string {
+	return variablePattern.ReplaceAllString(path, "{$1}")
+}
+
+func pathParameters(path string) openapi3.Parameters {
+	var params openapi3.Parameters
+	seen := map[string]bool{}
+	for _, m := range regexp.MustCompile(`\{([^{}/]+)\}`).FindAllStringSubmatch(path, -1) {
+		if seen[m[1]] {
+			continue
+		}
+		seen[m[1]] = true
+		params = append(params, &openapi3.ParameterRef{Value: &openapi3.Parameter{
+			Name:     m[1],
+			In:       "path",
+			Required: true,
+			Schema:   &openapi3.SchemaRef{Value: openapi3.NewStringSchema()},
+		}})
+	}
+	return params
+}
+
+// ignoredHeaders are headers OpenAPI says must not be described as parameters.
+var ignoredHeaders = map[string]bool{"accept": true, "content-type": true, "authorization": true, "cookie": true}
+
+// headerParameters reads the "Name: value" lines SnapRQ stores. Values are
+// left out on purpose: they often hold tokens.
+func headerParameters(raw string) openapi3.Parameters {
+	var params openapi3.Parameters
+	seen := map[string]bool{}
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "//") {
+			continue
+		}
+		name, _, found := strings.Cut(line, ":")
+		name = strings.TrimSpace(name)
+		if !found || name == "" || ignoredHeaders[strings.ToLower(name)] || seen[strings.ToLower(name)] {
+			continue
+		}
+		seen[strings.ToLower(name)] = true
+		params = append(params, &openapi3.ParameterRef{Value: &openapi3.Parameter{
+			Name:   name,
+			In:     "header",
+			Schema: &openapi3.SchemaRef{Value: openapi3.NewStringSchema()},
+		}})
+	}
+	return params
+}
+
+// uniqueID returns id, or id_2, id_3... when it was already used. Empty stays empty.
+func uniqueID(id string, used map[string]bool) string {
+	if id == "" {
+		return ""
+	}
+	candidate := id
+	for n := 2; used[candidate]; n++ {
+		candidate = id + "_" + strconv.Itoa(n)
+	}
+	used[candidate] = true
+	return candidate
 }
 
 func queryParameters(raw string) openapi3.Parameters {
@@ -204,8 +338,21 @@ func queryParameters(raw string) openapi3.Parameters {
 	return params
 }
 
+// leadingVariable splits a URL that starts with a {{variable}} base, such as
+// {{base_url}}/pets, into the variable name and the rest.
+func leadingVariable(s string) (name, rest string, ok bool) {
+	m := variablePattern.FindStringSubmatchIndex(s)
+	if m == nil || m[0] != 0 {
+		return "", s, false
+	}
+	return s[m[2]:m[3]], s[m[1]:], true
+}
+
 func originOf(raw string) string {
 	s := strings.TrimSpace(raw)
+	if name, _, ok := leadingVariable(s); ok {
+		return "{" + name + "}"
+	}
 	i := strings.Index(s, "://")
 	if i < 0 {
 		return ""
@@ -219,6 +366,12 @@ func originOf(raw string) string {
 
 func pathOf(raw string) string {
 	s := strings.TrimSpace(raw)
+	if _, after, ok := leadingVariable(s); ok {
+		s = after
+		if s == "" {
+			return "/"
+		}
+	}
 	rest := s
 	if i := strings.Index(s, "://"); i >= 0 {
 		rest = s[i+3:]

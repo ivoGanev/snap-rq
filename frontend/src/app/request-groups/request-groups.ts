@@ -618,6 +618,14 @@ export class RequestGroups {
     const project = this.state.selectedProject();
     if (!project) return;
 
+    const proceed = await this.confirm.ask({
+      title: 'Export OpenAPI?',
+      message:
+        'The file lists your URLs and request bodies exactly as written, including any tokens or passwords in them. Header values are left out.',
+      confirmLabel: 'Continue',
+    });
+    if (!proceed) return;
+
     const path = await Dialogs.SaveFile({
       Filename: 'openapi.json',
       Title: 'Export OpenAPI',
@@ -627,8 +635,10 @@ export class RequestGroups {
 
     try {
       const result = await this.openapiApi.exportSpec(project.id, path);
+      const skipped =
+        result.requests_skipped > 0 ? `, ${result.requests_skipped} skipped (same method and path)` : '';
       this.toast.show(
-        `Exported ${result.requests_exported} requests across ${result.collections_exported} collections`,
+        `Exported ${result.requests_exported} requests across ${result.collections_exported} collections${skipped}`,
       );
     } catch (err) {
       console.error(err);

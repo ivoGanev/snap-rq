@@ -19,6 +19,7 @@ export interface OpenApiPreviewCollection {
 export interface OpenApiExportResult {
   collections_exported: number;
   requests_exported: number;
+  requests_skipped: number;
 }
 
 /**
