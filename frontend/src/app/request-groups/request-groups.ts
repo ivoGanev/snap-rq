@@ -2,7 +2,7 @@ import { Component, effect, TemplateRef, ViewChild, computed, inject, isDevMode,
 import { FormsModule } from '@angular/forms';
 import { Dialogs } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
-import { OpenApiApiService } from '../core/services/openapi.service';
+import { OpenApiApiService, type OpenApiPreviewCollection } from '../core/services/openapi.service';
 import { ToastService } from '../core/services/toast.service';
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
 import {
@@ -254,6 +254,14 @@ export class RequestGroups {
   protected readonly newFavouritePopupOpen = signal(false);
   protected readonly newFavouriteName = signal('');
   protected readonly newTagPopupOpen = signal(false);
+
+  // Import dialog: the collections a spec would create, and which are ticked.
+  protected readonly importRows = signal<OpenApiPreviewCollection[] | null>(null);
+  protected readonly importSelected = signal<ReadonlySet<string>>(new Set());
+  private importPath = '';
+  protected readonly importableCount = computed(
+    () => (this.importRows() ?? []).filter((row) => !row.exists).length,
+  );
   protected readonly newTagName = signal('');
 
   // Rename inline
@@ -561,13 +569,48 @@ export class RequestGroups {
     if (typeof path !== 'string' || !path) return;
 
     try {
-      const result = await this.openapiApi.importSpec(project.id, path);
+      const rows = await this.openapiApi.previewSpec(project.id, path);
+      this.importPath = path;
+      this.importSelected.set(new Set(rows.filter((row) => !row.exists).map((row) => row.name)));
+      this.importRows.set(rows);
+    } catch (err) {
+      console.error(err);
+      this.toast.show(`Import failed: ${errorText(err)}`);
+    }
+  }
+
+  closeImportDialog(): void {
+    this.importRows.set(null);
+  }
+
+  toggleImportRow(row: OpenApiPreviewCollection): void {
+    if (row.exists) return;
+    const next = new Set(this.importSelected());
+    if (!next.delete(row.name)) next.add(row.name);
+    this.importSelected.set(next);
+  }
+
+  setAllImportRows(selected: boolean): void {
+    const rows = this.importRows() ?? [];
+    this.importSelected.set(
+      new Set(selected ? rows.filter((row) => !row.exists).map((row) => row.name) : []),
+    );
+  }
+
+  async confirmImport(): Promise<void> {
+    const project = this.state.selectedProject();
+    const names = [...this.importSelected()];
+    if (!project || names.length === 0) return;
+
+    this.closeImportDialog();
+    try {
+      const result = await this.openapiApi.importSpec(project.id, this.importPath, names);
       this.toast.show(
         `Imported ${result.requests_created} requests into ${result.collections_created} collections`,
       );
     } catch (err) {
       console.error(err);
-      this.toast.show('Import failed — is that a valid OpenAPI file?');
+      this.toast.show(`Import failed: ${errorText(err)}`);
     }
   }
 
@@ -589,7 +632,7 @@ export class RequestGroups {
       );
     } catch (err) {
       console.error(err);
-      this.toast.show('Export failed');
+      this.toast.show(`Export failed: ${errorText(err)}`);
     }
   }
 
@@ -866,4 +909,8 @@ export class RequestGroups {
     const target = this.appearanceTarget();
     return target ? this.iconManifest.packIcons(FOLDER_FOR_KIND[target.kind]) : [];
   }
+}
+
+function errorText(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }

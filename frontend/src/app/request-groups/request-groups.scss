@@ -518,3 +518,63 @@ app-sidebar-rail {
 .nav-toggle.is-active::before {
   opacity: 1;
 }
+
+.import-dialog {
+  min-width: 340px;
+  max-width: 460px;
+}
+
+.import-note {
+  margin: 0 0 var(--s-2);
+  color: var(--muted);
+}
+
+.import-bulk {
+  display: flex;
+  gap: var(--s-3);
+  margin-bottom: var(--s-2);
+}
+
+.import-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent, inherit);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.import-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.import-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) 0;
+  cursor: pointer;
+}
+
+.import-row--exists {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.import-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-meta {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 0.85em;
+}

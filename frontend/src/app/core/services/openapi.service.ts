@@ -5,7 +5,15 @@ import { RequestApiService } from './request.service';
 
 export interface OpenApiImportResult {
   collections_created: number;
+  collections_skipped: number;
   requests_created: number;
+}
+
+/** One collection a spec would create. `exists` means the project already has that name. */
+export interface OpenApiPreviewCollection {
+  name: string;
+  request_count: number;
+  exists: boolean;
 }
 
 export interface OpenApiExportResult {
@@ -24,10 +32,23 @@ export class OpenApiApiService {
   private readonly collectionApi = inject(CollectionApiService);
   private readonly requestApi = inject(RequestApiService);
 
-  async importSpec(projectId: number, filePath: string): Promise<OpenApiImportResult> {
+  async previewSpec(projectId: number, filePath: string): Promise<OpenApiPreviewCollection[]> {
+    const result = await this.commands.execute<{ collections: OpenApiPreviewCollection[] }>(
+      'openapi.preview',
+      { project_id: projectId, file_path: filePath },
+    );
+    return result.collections;
+  }
+
+  async importSpec(
+    projectId: number,
+    filePath: string,
+    collections: string[],
+  ): Promise<OpenApiImportResult> {
     const result = await this.commands.execute<OpenApiImportResult>('openapi.import', {
       project_id: projectId,
       file_path: filePath,
+      collections,
     });
     await Promise.all([
       this.collectionApi.loadForProject(projectId),
