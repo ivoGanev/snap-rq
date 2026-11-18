@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"snap-rq/backend/commands"
@@ -25,6 +26,9 @@ func (c Import) Run(input json.RawMessage) (any, error) {
 	var in struct {
 		ProjectID int64  `json:"project_id"`
 		FilePath  string `json:"file_path"`
+		// Collections lists the spec collections to import by name. Left out
+		// (as the MCP tool does), every collection is imported.
+		Collections *[]string `json:"collections"`
 	}
 	if err := json.Unmarshal(input, &in); err != nil {
 		return nil, err
@@ -33,22 +37,37 @@ func (c Import) Run(input json.RawMessage) (any, error) {
 		return nil, fmt.Errorf("project_id is required")
 	}
 
-	// External refs stay off: a spec must not make the app read other files
-	// or URLs on its own.
-	loader := openapi3.Loader{IsExternalRefsAllowed: false}
-	doc, err := loader.LoadFromFile(in.FilePath)
+	plan, err := loadPlan(in.FilePath)
 	if err != nil {
-		return nil, fmt.Errorf("parsing openapi: %w", err)
+		return nil, err
 	}
 
-	if doc.Paths == nil || doc.Paths.Len() == 0 {
-		return nil, fmt.Errorf("this spec has no paths, nothing to import")
+	var wanted map[string]bool
+	if in.Collections != nil {
+		wanted = map[string]bool{}
+		for _, name := range *in.Collections {
+			wanted[strings.ToLower(name)] = true
+		}
 	}
 
-	plan := buildPlan(doc)
+	existing, err := existingCollectionNames(c.tx, in.ProjectID)
+	if err != nil {
+		return nil, err
+	}
 
-	var collectionsCreated, requestsCreated int
+	var collectionsCreated, requestsCreated, collectionsSkipped int
 	for _, col := range plan.Collections {
+		key := strings.ToLower(col.Name)
+		if wanted != nil && !wanted[key] {
+			continue
+		}
+		// An existing collection is never changed, and a name is only used once.
+		if existing[key] {
+			collectionsSkipped++
+			continue
+		}
+		existing[key] = true
+
 		colID, err := c.insertCollection(in.ProjectID, col.Name)
 		if err != nil {
 			return nil, err
@@ -64,6 +83,7 @@ func (c Import) Run(input json.RawMessage) (any, error) {
 
 	return map[string]any{
 		"collections_created": collectionsCreated,
+		"collections_skipped": collectionsSkipped,
 		"requests_created":    requestsCreated,
 	}, nil
 }
@@ -106,4 +126,38 @@ func normalizeBodyType(t string) string {
 	default:
 		return "json"
 	}
+}
+
+// loadPlan reads a spec file and flattens it into collections and requests.
+// External refs stay off: a spec must not make the app read other files or
+// URLs on its own.
+func loadPlan(filePath string) (importPlan, error) {
+	loader := openapi3.Loader{IsExternalRefsAllowed: false}
+	doc, err := loader.LoadFromFile(filePath)
+	if err != nil {
+		return importPlan{}, fmt.Errorf("parsing openapi: %w", err)
+	}
+	if doc.Paths == nil || doc.Paths.Len() == 0 {
+		return importPlan{}, fmt.Errorf("this spec has no paths, nothing to import")
+	}
+	return buildPlan(doc), nil
+}
+
+// existingCollectionNames returns the project's collection names, lower-cased,
+// because names are unique without regard to case.
+func existingCollectionNames(tx *sql.Tx, projectID int64) (map[string]bool, error) {
+	rows, err := tx.Query(`SELECT name FROM collections WHERE project_id = ?`, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	names := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		names[strings.ToLower(name)] = true
+	}
+	return names, rows.Err()
 }

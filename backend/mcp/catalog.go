@@ -97,7 +97,7 @@ var Catalog = []ToolMeta{
 	{"set_favourite_request_colors", "Set or clear the colour of requests as shown inside a favourite collection.", RiskOrganize, "favourite.set_color"},
 
 	// openapi import (export is a file write and is never exposed)
-	{"import_openapi", "Import an OpenAPI 3.x spec from a local file path into a project. Creates one collection per tag. Not undoable: delete the created collections to revert.", RiskOrganize, "openapi.import"},
+	{"import_openapi", "Import an OpenAPI 3.x spec from a local file path into a project. Creates one collection per tag; a collection whose name already exists in the project is skipped, never changed. Not undoable: delete the created collections to revert.", RiskOrganize, "openapi.import"},
 }
 
 // metaFor returns the catalog entry with the given name.

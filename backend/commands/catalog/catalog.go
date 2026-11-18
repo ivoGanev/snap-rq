@@ -115,6 +115,7 @@ var All = []commands.Factory{
 	curl.NewRender,
 
 	// openapi import/export
+	openapi.NewPreview,
 	openapi.NewImport,
 	openapi.NewExport,
 }
