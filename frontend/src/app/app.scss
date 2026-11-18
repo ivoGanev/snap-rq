@@ -121,7 +121,9 @@
 .resizer {
   position: absolute;
   top: 0;
-  z-index: 100;
+  // Above the columns but below context menus (91) and dialogs (100), so a
+  // menu opened next to a column edge is never covered by the resize handle.
+  z-index: 90;
   width: 6px;
   height: 100%;
   cursor: col-resize;
