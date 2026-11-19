@@ -22,13 +22,21 @@ func (Import) Info() commands.Info {
 	return commands.Info{FunctionID: "openapi.import", Label: "Import OpenAPI"}
 }
 
+// collectionPick is what the user ticked for one collection in the dialog.
+type collectionPick struct {
+	Name   string   `json:"name"`
+	Add    []string `json:"add"`
+	Update []string `json:"update"`
+}
+
 func (c Import) Run(input json.RawMessage) (any, error) {
 	var in struct {
 		ProjectID int64  `json:"project_id"`
 		FilePath  string `json:"file_path"`
-		// Collections lists the spec collections to import by name. Left out
-		// (as the MCP tool does), every collection is imported.
-		Collections *[]string `json:"collections"`
+		// Collections is what to bring in. Left out (as the MCP tool does),
+		// every request the project does not have yet is added and nothing
+		// existing is changed.
+		Collections *[]collectionPick `json:"collections"`
 	}
 	if err := json.Unmarshal(input, &in); err != nil {
 		return nil, err
@@ -41,51 +49,96 @@ func (c Import) Run(input json.RawMessage) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	var wanted map[string]bool
-	if in.Collections != nil {
-		wanted = map[string]bool{}
-		for _, name := range *in.Collections {
-			wanted[strings.ToLower(name)] = true
-		}
-	}
-
-	existing, err := existingCollectionNames(c.tx, in.ProjectID)
+	// Compared again here, so a project that changed since the preview is
+	// handled by what it holds now.
+	diffs, err := diffPlan(c.tx, in.ProjectID, plan)
 	if err != nil {
 		return nil, err
 	}
 
-	var collectionsCreated, requestsCreated, collectionsSkipped int
-	for _, col := range plan.Collections {
-		key := strings.ToLower(col.Name)
-		if wanted != nil && !wanted[key] {
-			continue
+	picks := map[string]collectionPick{}
+	if in.Collections != nil {
+		for _, p := range *in.Collections {
+			picks[strings.ToLower(p.Name)] = p
 		}
-		// An existing collection is never changed, and a name is only used once.
-		if existing[key] {
-			collectionsSkipped++
-			continue
-		}
-		existing[key] = true
+	}
 
-		colID, err := c.insertCollection(in.ProjectID, col.Name)
-		if err != nil {
-			return nil, err
+	var collectionsCreated, requestsCreated, requestsUpdated int
+	created := map[string]int64{} // collections made in this run, by lower-cased name
+	for _, d := range diffs {
+		add, update := map[string]bool{}, map[string]bool{}
+		if in.Collections == nil {
+			for _, r := range d.requests {
+				if r.Status == statusNew {
+					add[r.Key] = true
+				}
+			}
+		} else {
+			pick, ok := picks[strings.ToLower(d.name)]
+			if !ok {
+				continue
+			}
+			for _, k := range pick.Add {
+				add[k] = true
+			}
+			for _, k := range pick.Update {
+				update[k] = true
+			}
 		}
-		collectionsCreated++
-		for i, req := range col.Requests {
-			if err := c.insertRequest(colID, req, i); err != nil {
+
+		colID := d.colID
+		if colID == 0 {
+			colID = created[strings.ToLower(d.name)]
+		}
+		next := 0
+		if colID != 0 {
+			if err := c.tx.QueryRow(
+				`SELECT COALESCE(MAX(user_sort_order), -1) + 1 FROM http_requests WHERE collection_id = ?`, colID,
+			).Scan(&next); err != nil {
 				return nil, err
 			}
-			requestsCreated++
+		}
+
+		for _, r := range d.requests {
+			switch {
+			case r.Status == statusNew && add[r.Key]:
+				if colID == 0 {
+					if colID, err = c.insertCollection(in.ProjectID, d.name); err != nil {
+						return nil, err
+					}
+					created[strings.ToLower(d.name)] = colID
+					collectionsCreated++
+				}
+				if err := c.insertRequest(colID, r.seed, next); err != nil {
+					return nil, err
+				}
+				next++
+				requestsCreated++
+			case r.Status == statusChanged && update[r.Key]:
+				if err := c.updateRequest(applyChanges(*r.stored, r.seed, r.Changes)); err != nil {
+					return nil, err
+				}
+				requestsUpdated++
+			}
 		}
 	}
 
 	return map[string]any{
 		"collections_created": collectionsCreated,
-		"collections_skipped": collectionsSkipped,
 		"requests_created":    requestsCreated,
+		"requests_updated":    requestsUpdated,
 	}, nil
+}
+
+// updateRequest writes back the fields a spec can change.
+func (c Import) updateRequest(r storedRequest) error {
+	_, err := c.tx.Exec(
+		`UPDATE http_requests
+		    SET url = ?, request_headers = ?, body = ?, body_type = ?, body_form = ?
+		  WHERE id = ?`,
+		r.URL, r.Headers, r.Body, r.BodyType, r.BodyForm, r.ID,
+	)
+	return err
 }
 
 // insertCollection mirrors collections/create.go: a row plus its default
@@ -141,23 +194,4 @@ func loadPlan(filePath string) (importPlan, error) {
 		return importPlan{}, fmt.Errorf("this spec has no paths, nothing to import")
 	}
 	return buildPlan(doc), nil
-}
-
-// existingCollectionNames returns the project's collection names, lower-cased,
-// because names are unique without regard to case.
-func existingCollectionNames(tx *sql.Tx, projectID int64) (map[string]bool, error) {
-	rows, err := tx.Query(`SELECT name FROM collections WHERE project_id = ?`, projectID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	names := map[string]bool{}
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			return nil, err
-		}
-		names[strings.ToLower(name)] = true
-	}
-	return names, rows.Err()
 }
