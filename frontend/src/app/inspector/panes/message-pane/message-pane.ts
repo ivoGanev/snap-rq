@@ -1,6 +1,6 @@
 import { Component, input } from '@angular/core';
 import { InspectorHeader } from '../../inspector-header/inspector-header';
-import type { InspectorContentOf } from '../../inspector-content';
+import type { InspectorContentOf } from '../../inspector';
 
 /** Inspector pane that only shows a message (empty and multi-selection states). */
 @Component({

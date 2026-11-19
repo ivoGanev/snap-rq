@@ -47,49 +47,47 @@ before the next step starts. Tick the box when a step is merged.
 └────────────────┴──────────────────┴─────────────────────────┴───────────────────────────┘
 ```
 
-**One "active view" value** replaces the scattered flags in `WorkspaceStateService`
-(`showingBin`, `showingAllRequests`, `showingFamousRequests`, `selectedTag`,
-`selectedCollection`, `selectedFavouriteCollection`). It is a tagged union, roughly:
+### Views
+
+The workspace shows one **view** at a time: all requests, recent, the trash bin, or the
+requests of one collection, favourite list or tag (script, after Stage C). Each view is a
+small object in `core/workspace/workspace-view.ts` that holds everything specific to it:
 
 ```ts
-type ActiveView =
-  | { kind: 'all' } | { kind: 'recent' } | { kind: 'bin' }
-  | { kind: 'collection'; id: number }
-  | { kind: 'favourite'; id: number }
-  | { kind: 'script'; id: number };
+class TrashView {
+  readonly kind = 'bin';
+  readonly title = 'Trash bin';            // list header
+  readonly canReorder = false;             // rows can be drag-reordered
+  readonly canColour = false;              // rows can be coloured
+  readonly survivesProjectSwitch = true;   // stays open on project switch
+  inspect(selection) { … }                 // what the Inspector shows
+}
 ```
 
-The Inspector and the request list read this one value instead of combining flags.
+`WorkspaceStateService.view` holds the open view (or `null`); switch with
+`selectView(new TrashView())`. Readers ask the view (`view()?.canReorder`,
+`view()?.title`) instead of combining flags. Adding a view means adding one class.
 
 ### Inspector
 
-The Inspector is a plain container that knows nothing about any view. Three pieces:
+The Inspector (`inspector/inspector.ts`) is a plain container that knows nothing about any
+view. The same file holds the `InspectorContent` union (what can be shown, e.g.
+`{ kind: 'response'; requestId }`) and the map from each kind to its pane component, typed
+so a kind without a pane does not compile. It shows the multi-selection message, otherwise
+whatever `view.inspect(selection)` returns. Each pane owns its header (shared
+`inspector-header`), data loading and actions.
 
-- **Content** (`inspector/inspector-content.ts`): a tagged union of what can be shown,
-  e.g. `{ kind: 'response'; requestId }` or `{ kind: 'binned-request'; binId }`.
-- **Panes** (`inspector/inspector-panes.ts`): one component per content kind, each taking
-  that member as its required `content` input. The map is typed against the union, so a
-  kind without a pane does not compile. Each pane owns its header (shared
-  `inspector-header` component), data loading and actions.
-- **Decision** (`core/services/inspector.service.ts`): the only code that turns workspace
-  state into content: the multi-selection message, otherwise the active view's
-  `inspector()` rule from `VIEW_DEFINITIONS` (`core/models/view-definitions.ts`).
-
-Adding scripts means: add `{ kind: 'script'; scriptId }`, write `script-pane`, register it,
-and give the script view definition an `inspector()` rule that returns it. The Inspector
-itself does not change.
+Adding scripts means: add `{ kind: 'script'; scriptId }`, write `script-pane`, add it to the
+map, and have `ScriptView.inspect()` return it.
 
 ```
+core/workspace/workspace-view.ts   the views (one class each)
 inspector/
-  inspector.ts                    container: <ng-container *ngComponentOutlet>
-  inspector-content.ts            content union
-  inspector-panes.ts              kind → pane component
-  inspector-header/               shared header
-  panes/message-pane/             empty and multi-selection states
-  panes/response-pane/            wraps response-viewer (also used by Zen mode)
-  panes/binned-request-pane/      trash restore / delete permanently
-core/services/inspector.service.ts   multi-selection rule, then the view's rule
-core/models/view-definitions.ts      per-view capabilities + Inspector rule
+  inspector.ts                     content union + pane map + container
+  inspector-header/                shared header
+  panes/message-pane/              empty and multi-selection states
+  panes/response-pane/             wraps response-viewer (also used by Zen mode)
+  panes/binned-request-pane/       trash restore / delete permanently
 ```
 
 **Out of scope for now:** splitting `requests-main-list` (2,250 lines) into a generic,
@@ -139,12 +137,21 @@ listed under "Later" so it isn't forgotten.
   calls the active view's rule, plus the shared multi-selection rule.
   _Files:_ `core/services/inspector.service.ts`, new `core/models/view-definitions.ts`,
   `request-view-capabilities.ts`.
+  _Superseded by A2c: the tables split one view across several files._
 
-- [ ] **A3. Request list reads active view.**
-  Move `requests-main-list` (`activeViewKind`, `activeGroupKey`, loading) onto `activeView`,
-  then remove the old flags that nothing reads any more.
-  _Files:_ `requests-main-list/*`, `request-view-capabilities.ts`,
-  `workspace-state.service.ts`.
+- [x] **A2c. One coherent view domain.**
+  Replace `active-view.ts`, `view-definitions.ts` and `request-view-capabilities.ts` with
+  one class per view in `core/workspace/workspace-view.ts` (see "Views" above). Fold the
+  Inspector content union, pane map and `InspectorService` into `inspector/inspector.ts`.
+  `state.activeView` becomes `state.view` (null when nothing is open). The request list
+  reads `view.canReorder`, `view.canColour` and `view.title`. No visible change.
+  _Files:_ `core/workspace/workspace-view.ts`, `inspector/**`, `workspace-state.service.ts`,
+  `request-groups.ts`, `app.ts`, `requests-main-list.ts`.
+
+- [ ] **A3. Request list reads the view.**
+  Move the rest of `requests-main-list` (`activeViewKind` branches, `activeGroupKey`,
+  `activeRequests`, loading) onto `state.view`, then remove the old read-only flags.
+  _Files:_ `requests-main-list/*`, `workspace-state.service.ts`, `request-groups.ts`.
 
 ### Stage B: backend tags → scripts
 
@@ -228,7 +235,7 @@ and the frontend build.
 |------|------------|
 | A1, A1b | Right panel shows the right thing in every view: response heading and count, trash card with "Deleted request" title, "restore to collection" dialog when the original collection is gone, and the empty-state message. |
 | A1b | Switch quickly between a request, Trash, a collection and multi-selection: never a stale pane, response list or trash card. Select a request, then another: responses reload for the new one. Send a request: the new response appears. Open Zen mode on a request: responses still show. |
-| A2a, A2b | Clicking each rail entry and each group shows the right list and the right Inspector content. Switching quickly between Trash and a collection never leaves a stale trash card or response. |
+| A2a–A2c | Clicking each rail entry and each group shows the right list and the right Inspector content. Switching quickly between Trash and a collection never leaves a stale trash card or response. |
 | A2a | Start the app: it opens on All requests. Switch project from All, Recent and Trash: you stay there (Trash shows the new project's items, no old trash card). Switch project from a collection: you land in All. Open the Collections folder while in All: the list empties; while in a collection: the collection stays. Rename the open tag: you stay in it. Delete the open collection, favourite and tag: the list empties and the Inspector says "Select a request…". |
 | A3 | Sorting, reorder handles and colour controls appear only in collections, favourites and tags. Scroll position and selection are remembered per group. |
 | B1 | Start the app on a copy of an existing database: it starts, tags are gone, all other data is intact. Starting it a second time doesn't fail. |

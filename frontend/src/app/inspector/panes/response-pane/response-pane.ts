@@ -3,7 +3,7 @@ import { InspectorHeader } from '../../inspector-header/inspector-header';
 import { ResponseViewer } from '../../../response-viewer/response-viewer';
 import { WorkspaceStateService } from '../../../core/services/workspace-state.service';
 import { RequestApiService } from '../../../core/services/request.service';
-import type { InspectorContentOf } from '../../inspector-content';
+import type { InspectorContentOf } from '../../inspector';
 
 /** Inspector pane for a live request: loads and shows its responses. */
 @Component({

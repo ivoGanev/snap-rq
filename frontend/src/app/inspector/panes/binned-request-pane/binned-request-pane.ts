@@ -1,6 +1,6 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { InspectorHeader } from '../../inspector-header/inspector-header';
-import type { InspectorContentOf } from '../../inspector-content';
+import type { InspectorContentOf } from '../../inspector';
 import { WorkspaceStateService } from '../../../core/services/workspace-state.service';
 import { BinApiService, type RestoreInput } from '../../../core/services/bin.service';
 import { CollectionApiService, type Collection } from '../../../core/services/collection.service';

@@ -31,6 +31,14 @@ import {
 } from '../request-group-list/request-group-list';
 import { SidebarRail } from '../sidebar-rail/sidebar-rail';
 import {
+  AllRequestsView,
+  CollectionView,
+  FavouriteView,
+  RecentView,
+  TagView,
+  TrashView,
+} from '../core/workspace/workspace-view';
+import {
   SIDEBAR_VIEWS,
   type SidebarView,
   type SidebarViewId,
@@ -129,13 +137,13 @@ export class RequestGroups {
    */
   private readonly selectHandlers: SelectHandlerMap = {
     collection: (item) => {
-      this.state.selectView({ kind: 'collection', collection: item.data });
+      this.state.selectView(new CollectionView(item.data));
     },
     favourite: (item) => {
-      this.state.selectView({ kind: 'favourite', favourite: item.data });
+      this.state.selectView(new FavouriteView(item.data));
     },
     tag: (item) => {
-      this.state.selectView({ kind: 'tag', name: item.data.name });
+      this.state.selectView(new TagView(item.data.name));
     },
   };
 
@@ -151,7 +159,7 @@ export class RequestGroups {
       if (!project) return;
       await this.tagApi.renameTag(project.id, item.data.name, newName);
       if (this.state.selectedTag() === item.data.name) {
-        this.state.selectView({ kind: 'tag', name: newName });
+        this.state.selectView(new TagView(newName));
       }
     },
   };
@@ -445,19 +453,19 @@ export class RequestGroups {
   // ---------- Selection ----------
 
   selectAll(): void {
-    this.state.selectView({ kind: 'all' });
+    this.state.selectView(new AllRequestsView());
     this.folderFilter.set(null);
   }
 
   selectFamous(): void {
-    this.state.selectView({ kind: 'recent' });
+    this.state.selectView(new RecentView());
     this.folderFilter.set(null);
   }
 
   selectTrashBin(): void {
     const project = this.state.selectedProject();
     if (!project) return;
-    this.state.selectView({ kind: 'bin' });
+    this.state.selectView(new TrashView());
     this.folderFilter.set(null);
     void this.state.loadBinnedRequests(project.id);
   }
@@ -480,9 +488,9 @@ export class RequestGroups {
 
     // The trash bin always closes. Opening a folder also closes "all" and
     // "recent"; an open collection, favourite or tag stays open.
-    const view = this.state.activeView().kind;
+    const view = this.state.view()?.kind;
     if (view === 'bin' || (next !== null && (view === 'all' || view === 'recent'))) {
-      this.state.selectView({ kind: 'none' });
+      this.state.selectView(null);
     }
 
     if (next !== null) {
@@ -824,7 +832,7 @@ export class RequestGroups {
       this.selectionState.clearSelection(groupKey.collection(collection.id));
 
       if (this.state.selectedCollection()?.id === collection.id) {
-        this.state.selectView({ kind: 'none' });
+        this.state.selectView(null);
         this.state.selectedRequest.set(null);
         this.state.selectedResponse.set(null);
       }
@@ -839,7 +847,7 @@ export class RequestGroups {
     try {
       await this.favouriteApi.deleteCollection(collection.id);
       if (this.state.selectedFavouriteCollection()?.id === collection.id) {
-        this.state.selectView({ kind: 'none' });
+        this.state.selectView(null);
         this.favouriteApi.requests.set([]);
       }
     } catch (err) {
@@ -854,7 +862,7 @@ export class RequestGroups {
     try {
       await this.tagApi.deleteTag(project.id, tag.name);
       if (this.state.selectedTag() === tag.name) {
-        this.state.selectView({ kind: 'none' });
+        this.state.selectView(null);
       }
     } catch (err) {
       console.error(err);

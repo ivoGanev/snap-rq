@@ -6,7 +6,7 @@ import { EnvironmentVariableApiService } from './environment-variable.service';
 import { EnvironmentApiService } from './environment.service';
 import { ChangeBus } from './change-bus.service';
 import { EnvironmentContext } from '../models/environment-context';
-import { PROJECT_WIDE_VIEWS, type ActiveView } from '../models/active-view';
+import { AllRequestsView, type WorkspaceView } from '../workspace/workspace-view';
 import type { Collection } from './collection.service';
 import type { Project } from './project.service';
 import type { Environment } from './environment.service';
@@ -32,27 +32,27 @@ export class WorkspaceStateService {
   readonly loading = signal(false);
   readonly selectedProject = signal<Project | null>(null);
   readonly selectedEnvironment = signal<Environment | null>(null);
-  private readonly view = signal<ActiveView>({ kind: 'none' });
-  /** The view the workspace is showing. Change it with `selectView`. */
-  readonly activeView = this.view.asReadonly();
+  private readonly openView = signal<WorkspaceView | null>(null);
+  /** The view the workspace is showing, or null when none is open. Change it with `selectView`. */
+  readonly view = this.openView.asReadonly();
 
-  // Read-only shortcuts derived from `activeView`, kept so existing readers
-  // don't have to change at once.
+  // Read-only shortcuts derived from `view`, kept so existing readers don't
+  // have to change at once (step A3 of docs/plans/tags-to-scripts.md).
   readonly selectedCollection = computed<Collection | null>(() => {
-    const view = this.view();
-    return view.kind === 'collection' ? view.collection : null;
+    const view = this.openView();
+    return view?.kind === 'collection' ? view.collection : null;
   });
   readonly selectedFavouriteCollection = computed<FavouriteCollection | null>(() => {
-    const view = this.view();
-    return view.kind === 'favourite' ? view.favourite : null;
+    const view = this.openView();
+    return view?.kind === 'favourite' ? view.favourite : null;
   });
   readonly selectedTag = computed<string | null>(() => {
-    const view = this.view();
-    return view.kind === 'tag' ? view.name : null;
+    const view = this.openView();
+    return view?.kind === 'tag' ? view.name : null;
   });
-  readonly showingAllRequests = computed(() => this.view().kind === 'all');
-  readonly showingFamousRequests = computed(() => this.view().kind === 'recent');
-  readonly showingBin = computed(() => this.view().kind === 'bin');
+  readonly showingAllRequests = computed(() => this.openView()?.kind === 'all');
+  readonly showingFamousRequests = computed(() => this.openView()?.kind === 'recent');
+  readonly showingBin = computed(() => this.openView()?.kind === 'bin');
 
   readonly selectedIds = signal<Set<number>>(new Set());
   readonly selectedRequest = signal<HttpRequest | null>(null);
@@ -144,11 +144,11 @@ export class WorkspaceStateService {
    * Switch to `view`. Entering the trash bin clears the open request (its
    * rows are not live requests); leaving it clears the selected binned row.
    */
-  selectView(view: ActiveView): void {
-    const leavingBin = this.view().kind === 'bin' && view.kind !== 'bin';
-    this.view.set(view);
+  selectView(view: WorkspaceView | null): void {
+    const leavingBin = this.openView()?.kind === 'bin' && view?.kind !== 'bin';
+    this.openView.set(view);
 
-    if (view.kind === 'bin') {
+    if (view?.kind === 'bin') {
       this.selectedRequest.set(null);
       this.selectedResponse.set(null);
       this.selectedBinnedRequest.set(null);
@@ -158,12 +158,13 @@ export class WorkspaceStateService {
   }
 
   /**
-   * After switching project: project-wide views (all, recent, bin) stay
-   * open, a view of one of the old project's groups falls back to all.
+   * After switching project: views that exist in every project (all, recent,
+   * trash) stay open; a view of one of the old project's groups falls back
+   * to all requests.
    */
   selectViewForNewProject(): void {
-    const current = this.view();
-    this.selectView(PROJECT_WIDE_VIEWS.has(current.kind) ? current : { kind: 'all' });
+    const current = this.openView();
+    this.selectView(current?.survivesProjectSwitch ? current : new AllRequestsView());
   }
 
   async loadBinnedRequests(projectId: number): Promise<void> {

@@ -281,7 +281,7 @@ export class App implements OnInit, AfterViewInit {
       } else {
         this.state.selectedProject.set(null);
         this.state.selectedEnvironment.set(null);
-        this.state.selectView({ kind: 'none' });
+        this.state.selectView(null);
         this.state.selectedRequest.set(null);
         this.state.selectedResponse.set(null);
         this.collectionApi.collections.set([]);
@@ -436,7 +436,7 @@ export class App implements OnInit, AfterViewInit {
         } else {
           this.state.selectedProject.set(null);
           this.state.selectedEnvironment.set(null);
-          this.state.selectView({ kind: 'none' });
+          this.state.selectView(null);
           this.state.selectedRequest.set(null);
           this.state.selectedResponse.set(null);
           this.collectionApi.collections.set([]);

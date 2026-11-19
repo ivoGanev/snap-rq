@@ -20,7 +20,7 @@ import { RequestHeadersTab } from '../request-headers-tab/request-headers-tab';
 import { CodeEditor } from '../code-editor/code-editor';
 import { SelectOnFocusDirective } from '../core/directives/select-on-focus.directive';
 import { requestColorInfo } from '../core/request-colors';
-import { USER_ORDERABLE_VIEWS, USER_COLORABLE_VIEWS, type RequestListViewKind } from './request-view-capabilities';
+import type { WorkspaceViewKind } from '../core/workspace/workspace-view';
 
 type ColumnKey = 'name' | 'url' | 'method' | 'tags';
 type SortDirection = 'asc' | 'desc';
@@ -126,24 +126,16 @@ export class RequestsMainList {
 
   // ---------- View ordering capability ----------
 
-  /** Which logical view (collection/favourite/tag/all/recent/bin) is shown. */
-  readonly activeViewKind = computed<RequestListViewKind>(() => {
-    if (this.state.showingBin()) return 'bin';
-    if (this.state.showingFamousRequests()) return 'recent';
-    if (this.state.selectedTag()) return 'tag';
-    if (this.state.selectedFavouriteCollection()) return 'favourite';
-    if (this.state.selectedCollection()) return 'collection';
-    return 'all';
-  });
+  /** Which view is shown; "all" when none is open. */
+  readonly activeViewKind = computed<WorkspaceViewKind>(() => this.state.view()?.kind ?? 'all');
 
   /**
-   * Rows can only be drag-reordered on user-orderable views (see
-   * request-view-ordering.ts) while the user's own order is actually the
+   * Rows can only be drag-reordered in views that allow it while the user's own order is actually the
    * displayed order: no column sort and no search filter active.
    */
   readonly canReorderRows = computed(
     () =>
-      USER_ORDERABLE_VIEWS[this.activeViewKind()] &&
+      (this.state.view()?.canReorder ?? false) &&
       this.sortColumn() === null &&
       !this.requestSearchQuery().trim(),
   );
@@ -153,7 +145,7 @@ export class RequestsMainList {
 
   /** Whether the colour picker is available (selection in a colour-able view). */
   readonly canColorSelection = computed(
-    () => USER_COLORABLE_VIEWS[this.activeViewKind()] && this.selectedRowIds().size > 0,
+    () => (this.state.view()?.canColour ?? false) && this.selectedRowIds().size > 0,
   );
 
   /** The colour shared by all selected rows in this view, or null when mixed/none. */
@@ -307,18 +299,7 @@ export class RequestsMainList {
     return [];
   });
 
-  readonly activeGroupName = computed<string | null>(() => {
-    if (this.state.showingBin()) return 'Trash bin';
-    if (this.state.showingFamousRequests()) return 'Recent';
-    if (this.state.showingAllRequests()) return 'All requests';
-    const tag = this.state.selectedTag();
-    if (tag) return tag;
-    const favourite = this.state.selectedFavouriteCollection();
-    if (favourite) return favourite.name;
-    const collection = this.state.selectedCollection();
-    if (collection) return collection.name;
-    return null;
-  });
+  readonly activeGroupName = computed<string | null>(() => this.state.view()?.title ?? null);
 
   readonly activeGroupKey = computed<string | null>(() => {
     const projectId = this.state.selectedProject()?.id ?? null;
@@ -1418,8 +1399,8 @@ export class RequestsMainList {
    * Clears the colour on every request in the current view in one bulk call.
    */
   async clearAllRequestColors(): Promise<void> {
+    if (!this.state.view()?.canColour) return;
     const kind = this.activeViewKind();
-    if (!USER_COLORABLE_VIEWS[kind]) return;
 
     const ids = this.activeRequests().map(r => r.id);
     if (ids.length === 0) return;
@@ -2188,7 +2169,7 @@ export class RequestsMainList {
     try {
       await this.favouriteApi.deleteCollection(collection.id);
       if (this.state.selectedFavouriteCollection()?.id === collection.id) {
-        this.state.selectView({ kind: 'none' });
+        this.state.selectView(null);
         this.favouriteApi.requests.set([]);
       }
     } catch (err) {
