@@ -501,3 +501,68 @@ func TestCreateCookiesTableIsIdempotentAndUnique(t *testing.T) {
 		t.Errorf("expected duplicate (project, domain, path, name) to be rejected")
 	}
 }
+
+func TestMakeGroupNamesUniqueRenamesDuplicates(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("opening in-memory db: %v", err)
+	}
+	defer db.Close()
+
+	if err := migrate(db); err != nil {
+		t.Fatalf("migrate failed: %v", err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO collections (project_id, name) VALUES (1, 'Auth');
+		INSERT INTO collections (project_id, name) VALUES (1, 'auth');
+		INSERT INTO collections (project_id, name) VALUES (1, 'AUTH');
+		INSERT INTO collections (project_id, name) VALUES (2, 'Auth');
+		INSERT INTO favourite_collections (project_id, name) VALUES (1, 'Todo');
+		INSERT INTO favourite_collections (project_id, name) VALUES (1, 'todo');
+	`); err != nil {
+		t.Fatalf("seeding duplicates: %v", err)
+	}
+
+	if err := makeGroupNamesUnique(db); err != nil {
+		t.Fatalf("makeGroupNamesUnique failed: %v", err)
+	}
+	// Running it again must be harmless.
+	if err := makeGroupNamesUnique(db); err != nil {
+		t.Fatalf("second run failed: %v", err)
+	}
+
+	names := func(query string) []string {
+		rows, err := db.Query(query)
+		if err != nil {
+			t.Fatalf("query: %v", err)
+		}
+		defer rows.Close()
+		var out []string
+		for rows.Next() {
+			var n string
+			if err := rows.Scan(&n); err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			out = append(out, n)
+		}
+		return out
+	}
+
+	got := names(`SELECT name FROM collections ORDER BY id`)
+	want := []string{"Auth", "auth (2)", "AUTH (2)", "Auth"}
+	if len(got) != len(want) {
+		t.Fatalf("collections = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("collections = %v, want %v", got, want)
+		}
+	}
+
+	if _, err := db.Exec(`INSERT INTO collections (project_id, name) VALUES (1, 'AUTH')`); err == nil {
+		t.Fatal("expected the unique index to reject a duplicate name")
+	}
+	if _, err := db.Exec(`INSERT INTO favourite_collections (project_id, name) VALUES (1, 'TODO')`); err == nil {
+		t.Fatal("expected the unique index to reject a duplicate favourite name")
+	}
+}

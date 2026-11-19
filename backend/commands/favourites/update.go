@@ -44,6 +44,15 @@ func (c Update) Run(input json.RawMessage) (any, error) {
 	if col.ID == 0 {
 		return nil, fmt.Errorf("favourite collection id is required")
 	}
+	var projectID int64
+	if err := c.tx.QueryRow(
+		`SELECT project_id FROM favourite_collections WHERE id = ?`, col.ID,
+	).Scan(&projectID); err != nil {
+		return nil, fmt.Errorf("loading favourite collection: %w", err)
+	}
+	if err := ensureNameFree(c.tx, projectID, col.Name, col.ID); err != nil {
+		return nil, err
+	}
 	if _, err := c.tx.Exec(
 		`UPDATE favourite_collections SET name = ? WHERE id = ?`, col.Name, col.ID,
 	); err != nil {

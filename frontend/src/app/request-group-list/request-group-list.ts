@@ -60,6 +60,11 @@ export interface SidebarAppearancePatch {
   appearance_value: string;
 }
 
+export interface AddMenuPosition {
+  x: number;
+  y: number;
+}
+
 const FOLDER_META: Record<SidebarFolder, { title: string; emptyMessage: string }> = {
   collections: { title: 'Collections', emptyMessage: 'No collections.' },
   favourites: { title: 'Favourites', emptyMessage: 'No favourite collections.' },
@@ -83,8 +88,10 @@ export class RequestGroupList {
   readonly selectedKey = input<string | null>(null);
   readonly dropTargetKey = input<string | null>(null);
   readonly dropZoneActive = input<boolean>(false);
+  readonly showAddMenu = input<boolean>(false);
 
   readonly addClick = output<void>();
+  readonly addMenuOpen = output<AddMenuPosition>();
   readonly itemSelect = output<SidebarItem>();
   readonly itemContextMenu = output<{ item: SidebarItem; event: MouseEvent }>();
   readonly appearanceClick = output<{ item: SidebarItem; event: MouseEvent }>();
@@ -114,6 +121,15 @@ export class RequestGroupList {
 
   onAddClick(): void {
     this.addClick.emit();
+  }
+
+  onAddMenuClick(event: MouseEvent): void {
+    // Keep the click from reaching the context-menu outlet's document click
+    // listener, which closes any open menu.
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.addMenuOpen.emit({ x: rect.left, y: rect.bottom + 4 });
   }
 
   onItemClick(item: SidebarItem): void {

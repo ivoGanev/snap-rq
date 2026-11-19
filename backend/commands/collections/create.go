@@ -33,6 +33,10 @@ func (c Create) Run(input json.RawMessage) (any, error) {
 		return nil, errors.New("project id is required")
 	}
 
+	if err := ensureNameFree(c.tx, in.ProjectID, in.Name, 0); err != nil {
+		return nil, err
+	}
+
 	result, err := c.tx.Exec(
 		`INSERT INTO collections (project_id, name) VALUES (?, ?)`, in.ProjectID, in.Name)
 	if err != nil {

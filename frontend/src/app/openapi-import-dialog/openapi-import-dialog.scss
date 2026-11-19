@@ -1,0 +1,157 @@
+.import-dialog {
+  min-width: 420px;
+  max-width: 640px;
+}
+
+.import-note {
+  margin: 0 0 var(--s-2);
+  color: var(--muted);
+}
+
+.import-note--small {
+  margin: var(--s-1) 0 0 var(--s-5, 24px);
+  font-size: 0.85em;
+}
+
+.import-bulk {
+  display: flex;
+  gap: var(--s-3);
+  margin-bottom: var(--s-2);
+}
+
+.import-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent, inherit);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.import-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.import-collection {
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.import-head,
+.import-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) 0;
+  cursor: pointer;
+}
+
+.import-head {
+  font-weight: 600;
+}
+
+.import-row {
+  padding-left: var(--s-5, 24px);
+}
+
+.import-row--quiet {
+  color: var(--muted);
+  cursor: default;
+}
+
+.import-name,
+.import-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-meta {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 0.85em;
+  font-weight: 400;
+}
+
+.import-method {
+  flex: 0 0 auto;
+  min-width: 54px;
+  font-size: 0.8em;
+  font-weight: 600;
+}
+
+.import-badge {
+  flex: 0 0 auto;
+  width: 1ch;
+  font-weight: 700;
+}
+
+.import-new {
+  color: #5fd38d;
+}
+
+.import-changed {
+  color: #f2b84b;
+}
+
+.import-fold {
+  margin: var(--s-1) 0 0 var(--s-5, 24px);
+}
+
+.import-changes {
+  margin: 0 0 var(--s-1) calc(var(--s-5, 24px) + 2.5ch);
+  padding: var(--s-2);
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.18);
+  font-size: 0.85em;
+}
+
+.import-change {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+
+.import-field {
+  min-width: 70px;
+  color: var(--muted);
+}
+
+.import-arrow {
+  color: var(--muted);
+}
+
+.import-before {
+  color: #ef7b7b;
+}
+
+.import-after {
+  color: #5fd38d;
+}
+
+.import-diff {
+  flex: 1 1 100%;
+  margin: var(--s-1) 0 0;
+  overflow-x: auto;
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.import-line {
+  display: block;
+  white-space: pre;
+}
+
+.import-line--add {
+  color: #5fd38d;
+}
+
+.import-line--del {
+  color: #ef7b7b;
+}

@@ -1,6 +1,10 @@
-import { Component, effect, TemplateRef, computed, inject, isDevMode, signal } from '@angular/core';
+import { Component, effect, TemplateRef, ViewChild, computed, inject, isDevMode, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Dialogs } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
+import { OpenApiApiService } from '../core/services/openapi.service';
+import { OpenApiImportPrompt } from '../core/services/openapi-import-prompt.service';
+import { ToastService } from '../core/services/toast.service';
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
 import {
   FavouriteApiService,
@@ -105,6 +109,12 @@ export class RequestGroups {
   private readonly commandApi = inject(CommandApiService);
   private readonly confirm = inject(ConfirmService);
   protected readonly drag = inject(DragSessionService);
+  private readonly openapiApi = inject(OpenApiApiService);
+  private readonly importPrompt = inject(OpenApiImportPrompt);
+  private readonly toast = inject(ToastService);
+
+  @ViewChild('collectionsAddMenu', { static: true })
+  private readonly collectionsAddMenu!: TemplateRef<{ $implicit: unknown }>;
 
   /** Development builds only: the rail shows an undo-history debug button. */
   protected readonly devUndoVisible = isDevMode();
@@ -246,6 +256,7 @@ export class RequestGroups {
   protected readonly newFavouritePopupOpen = signal(false);
   protected readonly newFavouriteName = signal('');
   protected readonly newTagPopupOpen = signal(false);
+
   protected readonly newTagName = signal('');
 
   // Rename inline
@@ -513,6 +524,90 @@ export class RequestGroups {
       case 'tags':
         this.openNewTagPopup();
         break;
+    }
+  }
+
+  /**
+   * Opens the "+" menu through the shared context menu, which is drawn at the
+   * root of the app. A menu drawn inside the sidebar would be clipped and
+   * positioned by it (the sidebar has a backdrop-filter and overflow: hidden).
+   * It opens on the next tick so the click that asked for it, and the outlet's
+   * document click listener, are finished first.
+   */
+  openCollectionsAddMenu(position: { x: number; y: number }): void {
+    setTimeout(() => this.contextMenu.open(this.collectionsAddMenu, null, position.x, position.y), 0);
+  }
+
+  onCollectionAddMenu(action: 'new' | 'import' | 'export'): void {
+    this.contextMenu.close();
+    switch (action) {
+      case 'new':
+        this.openNewCollectionPopup();
+        break;
+      case 'import':
+        void this.importOpenApi();
+        break;
+      case 'export':
+        void this.exportOpenApi();
+        break;
+    }
+  }
+
+  async importOpenApi(): Promise<void> {
+    const project = this.state.selectedProject();
+    if (!project) return;
+
+    const path = await Dialogs.OpenFile({
+      Title: 'Import OpenAPI',
+      AllowsMultipleSelection: false,
+    });
+    if (typeof path !== 'string' || !path) return;
+
+    try {
+      const rows = await this.openapiApi.previewSpec(project.id, path);
+      const picks = await this.importPrompt.choose(rows);
+      if (!picks || picks.length === 0) return;
+
+      const result = await this.openapiApi.importSpec(project.id, path, picks);
+      const parts: string[] = [];
+      if (result.requests_created > 0) parts.push(`${result.requests_created} added`);
+      if (result.requests_updated > 0) parts.push(`${result.requests_updated} updated`);
+      this.toast.show(parts.length > 0 ? `Imported: ${parts.join(', ')}` : 'Nothing to import');
+    } catch (err) {
+      console.error(err);
+      this.toast.show(`Import failed: ${errorText(err)}`);
+    }
+  }
+
+  async exportOpenApi(): Promise<void> {
+    const project = this.state.selectedProject();
+    if (!project) return;
+
+    const proceed = await this.confirm.ask({
+      title: 'Export OpenAPI?',
+      message:
+        'The file lists your URLs and request bodies exactly as written, including any tokens or passwords in them. Header values are left out.',
+      confirmLabel: 'Continue',
+    });
+    if (!proceed) return;
+
+    const path = await Dialogs.SaveFile({
+      Filename: 'openapi.json',
+      Title: 'Export OpenAPI',
+      ButtonText: 'Save',
+    });
+    if (typeof path !== 'string' || !path) return;
+
+    try {
+      const result = await this.openapiApi.exportSpec(project.id, path);
+      const skipped =
+        result.requests_skipped > 0 ? `, ${result.requests_skipped} skipped (same method and path)` : '';
+      this.toast.show(
+        `Exported ${result.requests_exported} requests across ${result.collections_exported} collections${skipped}`,
+      );
+    } catch (err) {
+      console.error(err);
+      this.toast.show(`Export failed: ${errorText(err)}`);
     }
   }
 
@@ -789,4 +884,8 @@ export class RequestGroups {
     const target = this.appearanceTarget();
     return target ? this.iconManifest.packIcons(FOLDER_FOR_KIND[target.kind]) : [];
   }
+}
+
+function errorText(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }

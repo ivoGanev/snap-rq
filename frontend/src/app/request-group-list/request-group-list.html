@@ -3,8 +3,8 @@
   <button
     class="add-button"
     type="button"
-    (click)="onAddClick()"
-    [attr.aria-label]="'Add new ' + folderFilter()"
+    (click)="showAddMenu() ? onAddMenuClick($event) : onAddClick()"
+    [attr.aria-label]="showAddMenu() ? 'Add, import or export' : 'Add new ' + folderFilter()"
   >
     +
   </button>

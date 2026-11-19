@@ -44,6 +44,7 @@ type ToolMeta struct {
 var NeverExposed = []string{
 	"settings.update",       // would let an assistant change timeouts, SSL checks, undo size
 	"response.save_to_file", // arbitrary file write
+	"openapi.export",        // arbitrary file write
 	"icon.cleanup",
 }
 
@@ -94,6 +95,9 @@ var Catalog = []ToolMeta{
 	{"remove_from_favourite", "Remove requests from a favourite collection.", RiskOrganize, "favourite.remove_requests"},
 	{"reorder_favourite_requests", "Set the custom order of the requests inside a favourite collection.", RiskOrganize, "favourite.reorder"},
 	{"set_favourite_request_colors", "Set or clear the colour of requests as shown inside a favourite collection.", RiskOrganize, "favourite.set_color"},
+
+	// openapi import (export is a file write and is never exposed)
+	{"import_openapi", "Import an OpenAPI 3.x spec from a local file path into a project. Creates one collection per tag; requests the collection already has are left alone, new ones are added. Not undoable: delete the created collections to revert.", RiskOrganize, "openapi.import"},
 }
 
 // metaFor returns the catalog entry with the given name.

@@ -36,6 +36,8 @@ import { ZenMode } from './zen-mode/zen-mode';
 import { ContextMenuOutlet } from './context-menu-outlet/context-menu-outlet';
 import { ToastOutlet } from './toast-outlet/toast-outlet';
 import { ConfirmOutlet } from './confirm-outlet/confirm-outlet';
+import { OpenApiImportDialog } from './openapi-import-dialog/openapi-import-dialog';
+import { OpenApiImportPrompt } from './core/services/openapi-import-prompt.service';
 import { UndoPanel } from './undo-panel/undo-panel';
 
 @Component({
@@ -52,6 +54,7 @@ import { UndoPanel } from './undo-panel/undo-panel';
     ContextMenuOutlet,
     ToastOutlet,
     ConfirmOutlet,
+    OpenApiImportDialog,
     McpApprovalOutlet,
     UndoPanel,
   ],
@@ -63,6 +66,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly theme = inject(ThemeService);
   protected readonly settingsApi = inject(SettingsApiService);
   protected readonly commands = inject(CommandApiService);
+  protected readonly importPrompt = inject(OpenApiImportPrompt);
   private readonly projectApi = inject(ProjectApiService);
   private readonly environmentApi = inject(EnvironmentApiService);
   private readonly requestApi = inject(RequestApiService);

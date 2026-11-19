@@ -11,6 +11,7 @@ import (
 	"snap-rq/backend/commands/environments"
 	"snap-rq/backend/commands/favourites"
 	"snap-rq/backend/commands/icons"
+	"snap-rq/backend/commands/openapi"
 	"snap-rq/backend/commands/profiles"
 	"snap-rq/backend/commands/projects"
 	"snap-rq/backend/commands/requests"
@@ -112,4 +113,9 @@ var All = []commands.Factory{
 	// curl helpers
 	curl.NewParse,
 	curl.NewRender,
+
+	// openapi import/export
+	openapi.NewPreview,
+	openapi.NewImport,
+	openapi.NewExport,
 }

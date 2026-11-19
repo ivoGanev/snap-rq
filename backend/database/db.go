@@ -91,6 +91,10 @@ func OpenPath(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
+	if err := makeGroupNamesUnique(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
 	if err := ensureDefaultCollection(db); err != nil {
 		return nil, fmt.Errorf("ensuring default collection: %w", err)
 	}
@@ -1021,5 +1025,75 @@ func ensureDefaultCollection(db *sql.DB) error {
 		return fmt.Errorf("creating default favourite collection: %w", err)
 	}
 
+	return nil
+}
+
+// makeGroupNamesUnique gives collections and favourite collections a name
+// that is unique within their project, compared without regard to case.
+// Databases created before this rule can hold duplicates, which would make
+// the unique index fail, so the later duplicate is renamed ("name (2)")
+// first. Nothing is deleted.
+func makeGroupNamesUnique(db *sql.DB) error {
+	for _, table := range []string{"collections", "favourite_collections"} {
+		if err := renameDuplicateNames(db, table); err != nil {
+			return err
+		}
+		_, err := db.Exec(fmt.Sprintf(
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_%s_project_name ON %s(project_id, name COLLATE NOCASE)`,
+			table, table))
+		if err != nil {
+			return fmt.Errorf("creating unique name index on %s: %w", table, err)
+		}
+	}
+	return nil
+}
+
+func renameDuplicateNames(db *sql.DB, table string) error {
+	rows, err := db.Query(fmt.Sprintf(`SELECT id, project_id, name FROM %s ORDER BY project_id, id`, table))
+	if err != nil {
+		return fmt.Errorf("reading %s names: %w", table, err)
+	}
+	type row struct {
+		id, projectID int64
+		name          string
+	}
+	var all []row
+	taken := map[string]bool{}
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.id, &r.projectID, &r.name); err != nil {
+			rows.Close()
+			return err
+		}
+		all = append(all, r)
+		taken[fmt.Sprintf("%d/%s", r.projectID, strings.ToLower(r.name))] = true
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	rows.Close()
+
+	seen := map[string]bool{}
+	for _, r := range all {
+		key := fmt.Sprintf("%d/%s", r.projectID, strings.ToLower(r.name))
+		if !seen[key] {
+			seen[key] = true
+			continue
+		}
+		newName := ""
+		for n := 2; ; n++ {
+			newName = fmt.Sprintf("%s (%d)", r.name, n)
+			k := fmt.Sprintf("%d/%s", r.projectID, strings.ToLower(newName))
+			if !taken[k] {
+				taken[k] = true
+				seen[k] = true
+				break
+			}
+		}
+		if _, err := db.Exec(fmt.Sprintf(`UPDATE %s SET name = ? WHERE id = ?`, table), newName, r.id); err != nil {
+			return fmt.Errorf("renaming duplicate in %s: %w", table, err)
+		}
+	}
 	return nil
 }
