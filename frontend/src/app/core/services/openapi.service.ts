@@ -5,15 +5,42 @@ import { RequestApiService } from './request.service';
 
 export interface OpenApiImportResult {
   collections_created: number;
-  collections_skipped: number;
   requests_created: number;
+  requests_updated: number;
 }
 
-/** One collection a spec would create. `exists` means the project already has that name. */
+export interface OpenApiFieldChange {
+  field: 'query' | 'headers' | 'body type' | 'body';
+  before: string;
+  after: string;
+}
+
+/** One request the file describes, compared with the collection in the project. */
+export interface OpenApiPreviewRequest {
+  key: string;
+  method: string;
+  path: string;
+  status: 'new' | 'changed' | 'unchanged';
+  changes: OpenApiFieldChange[];
+}
+
+/** One collection the file describes. `exists` means the project already has that name. */
 export interface OpenApiPreviewCollection {
   name: string;
-  request_count: number;
   exists: boolean;
+  new: number;
+  changed: number;
+  unchanged: number;
+  requests: OpenApiPreviewRequest[];
+  /** Requests the project has that the file does not (kept as they are). */
+  not_in_spec: string[];
+}
+
+/** What the user ticked in one collection: request keys to add and to update. */
+export interface OpenApiPick {
+  name: string;
+  add: string[];
+  update: string[];
 }
 
 export interface OpenApiExportResult {
@@ -44,7 +71,7 @@ export class OpenApiApiService {
   async importSpec(
     projectId: number,
     filePath: string,
-    collections: string[],
+    collections: OpenApiPick[],
   ): Promise<OpenApiImportResult> {
     const result = await this.commands.execute<OpenApiImportResult>('openapi.import', {
       project_id: projectId,

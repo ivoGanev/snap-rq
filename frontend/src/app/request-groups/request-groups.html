@@ -101,54 +101,13 @@
   </div>
 }
 
-<!-- Import OpenAPI: pick which collections to bring in -->
-@if (importRows(); as rows) {
-  <div class="overlay-backdrop" (click)="closeImportDialog()">
-    <div class="overlay-panel import-dialog" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Import OpenAPI</h3>
-        <button class="overlay-close" type="button" (click)="closeImportDialog()">Close</button>
-      </div>
-      <div class="overlay-body">
-        @if (importableCount() === 0) {
-          <p class="import-note">Every collection in this file already exists, so there is nothing to import.</p>
-        } @else {
-          <div class="import-bulk">
-            <button class="import-link" type="button" (click)="setAllImportRows(true)">Select all</button>
-            <button class="import-link" type="button" (click)="setAllImportRows(false)">Select none</button>
-          </div>
-        }
-        <ul class="import-list">
-          @for (row of rows; track row.name) {
-            <li>
-              <label class="import-row" [class.import-row--exists]="row.exists">
-                <input
-                  type="checkbox"
-                  [checked]="importSelected().has(row.name)"
-                  [disabled]="row.exists"
-                  (change)="toggleImportRow(row)"
-                />
-                <span class="import-name">{{ row.name }}</span>
-                <span class="import-meta">
-                  {{ row.exists ? 'already exists, skipped' : row.request_count + ' requests' }}
-                </span>
-              </label>
-            </li>
-          }
-        </ul>
-      </div>
-      <div class="overlay-footer">
-        <button
-          class="variable-add"
-          type="button"
-          [disabled]="importSelected().size === 0"
-          (click)="confirmImport()"
-        >
-          Import
-        </button>
-      </div>
-    </div>
-  </div>
+<!-- Import OpenAPI: what is new, changed or unchanged -->
+@if (importPreview(); as rows) {
+  <app-openapi-import-dialog
+    [rows]="rows"
+    (confirmed)="confirmImport($event)"
+    (cancelled)="closeImportDialog()"
+  />
 }
 
 <!-- Add: Favourites -->
