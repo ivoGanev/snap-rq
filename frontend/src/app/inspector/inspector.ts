@@ -1,49 +1,24 @@
-import { Component, effect, inject } from '@angular/core';
-import { WorkspaceStateService } from '../core/services/workspace-state.service';
-import { RequestApiService } from '../core/services/request.service';
-import { ResponseViewer } from '../response-viewer/response-viewer';
-import { BinnedRequestDetail } from '../binned-request-detail/binned-request-detail';
+import { Component, computed, inject } from '@angular/core';
+import { NgComponentOutlet } from '@angular/common';
+import { InspectorService } from '../core/services/inspector.service';
+import { INSPECTOR_PANES } from './inspector-panes';
 
 /**
- * The right-hand panel. It is a container: it decides which detail component
- * to show for what the user is doing (a request's responses, a request in the
- * trash bin) and owns the panel header and empty states.
+ * The right-hand panel. A plain container: it shows the pane registered for
+ * the current Inspector content and passes the content in. It knows nothing
+ * about requests, the trash bin or any other view; see InspectorService for
+ * what is shown and INSPECTOR_PANES for how.
  */
 @Component({
   selector: 'app-inspector',
-  imports: [ResponseViewer, BinnedRequestDetail],
-  templateUrl: './inspector.html',
-  styleUrl: './inspector.scss',
+  imports: [NgComponentOutlet],
+  template: `<ng-container *ngComponentOutlet="pane(); inputs: { content: content() }" />`,
   host: {
     class: 'sidebar sidebar-right',
     'aria-label': 'Inspector',
   },
 })
 export class Inspector {
-  protected readonly state = inject(WorkspaceStateService);
-  private readonly requestApi = inject(RequestApiService);
-
-  protected readonly responses = this.requestApi.responses;
-
-  constructor() {
-    // Keep the selected request's responses loaded; clear them whenever no
-    // single live request is selected.
-    effect(() => {
-      if (this.state.multiSelectionActive() || this.state.showingBin()) {
-        this.requestApi.responses.set([]);
-        this.state.selectedResponse.set(null);
-        this.state.responsesLoading.set(false);
-        return;
-      }
-
-      const req = this.state.selectedRequest();
-      if (req) {
-        this.state.loadResponses(req.id);
-      } else {
-        this.requestApi.responses.set([]);
-        this.state.selectedResponse.set(null);
-        this.state.responsesLoading.set(this.state.selectedIds().size > 0);
-      }
-    });
-  }
+  protected readonly content = inject(InspectorService).content;
+  protected readonly pane = computed(() => INSPECTOR_PANES[this.content().kind]);
 }

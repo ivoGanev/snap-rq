@@ -1,24 +1,31 @@
-import { Component, inject, signal } from '@angular/core';
-import { WorkspaceStateService } from '../core/services/workspace-state.service';
-import { BinApiService, type RestoreInput } from '../core/services/bin.service';
-import { CollectionApiService, type Collection } from '../core/services/collection.service';
+import { Component, computed, inject, input, signal } from '@angular/core';
+import { InspectorHeader } from '../../inspector-header/inspector-header';
+import type { InspectorContentOf } from '../../inspector-content';
+import { WorkspaceStateService } from '../../../core/services/workspace-state.service';
+import { BinApiService, type RestoreInput } from '../../../core/services/bin.service';
+import { CollectionApiService, type Collection } from '../../../core/services/collection.service';
 
 /**
- * Inspector detail for a request in the trash bin: shows where it came from and
+ * Inspector pane for a request in the trash bin: shows where it came from and
  * lets the user restore it (to its original collection, or a picked one when
  * that collection is gone) or delete it permanently.
  */
 @Component({
-  selector: 'app-binned-request-detail',
-  templateUrl: './binned-request-detail.html',
-  styleUrl: './binned-request-detail.scss',
+  selector: 'app-binned-request-pane',
+  imports: [InspectorHeader],
+  templateUrl: './binned-request-pane.html',
+  styleUrl: './binned-request-pane.scss',
 })
-export class BinnedRequestDetail {
+export class BinnedRequestPane {
   private readonly state = inject(WorkspaceStateService);
   private readonly binApi = inject(BinApiService);
   protected readonly collectionApi = inject(CollectionApiService);
 
-  protected readonly request = this.state.selectedBinnedRequest;
+  readonly content = input.required<InspectorContentOf<'binned-request'>>();
+
+  protected readonly request = computed(
+    () => this.binApi.binnedRequests().find(r => r.id === this.content().binId) ?? null,
+  );
   protected readonly restoreCollectionModalOpen = signal(false);
 
   openRestorePicker(): void {

@@ -1,10 +1,8 @@
-@use '../../styles/buttons' as btn;
+@use '../../../../styles/buttons' as btn;
 
+// Lay the pane out as if it were a direct child of the Inspector.
 :host {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+  display: contents;
 }
 
 .binned-request-panel {

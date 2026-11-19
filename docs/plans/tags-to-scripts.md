@@ -38,11 +38,11 @@ before the next step starts. Tick the box when a step is merged.
 
 ```
 ┌─ sidebar rail ─┬─ group list ─────┬─ request list ──────────┬─ Inspector ───────────────┐
-│ All            │ (collections /   │ requests of the active  │ switches on active view:  │
-│ Recent         │  favourites /    │ group                   │  • response-detail        │
-│ Collections    │  scripts)        │                         │  • binned-request-detail  │
-│ Favourites     │                  │                         │  • script-detail (editor) │
-│ Scripts  ◄ new │                  │                         │                           │
+│ All            │ (collections /   │ requests of the active  │ shows one pane:           │
+│ Recent         │  favourites /    │ group                   │  • message-pane           │
+│ Collections    │  scripts)        │                         │  • response-pane          │
+│ Favourites     │                  │                         │  • binned-request-pane    │
+│ Scripts  ◄ new │                  │                         │  • script-pane (editor)   │
 │ Trash          │                  │                         │                           │
 └────────────────┴──────────────────┴─────────────────────────┴───────────────────────────┘
 ```
@@ -60,6 +60,34 @@ type ActiveView =
 ```
 
 The Inspector and the request list read this one value instead of combining flags.
+
+### Inspector
+
+The Inspector is a plain container that knows nothing about any view. Three pieces:
+
+- **Content** (`inspector/inspector-content.ts`): a tagged union of what can be shown,
+  e.g. `{ kind: 'response'; requestId }` or `{ kind: 'binned-request'; binId }`.
+- **Panes** (`inspector/inspector-panes.ts`): one component per content kind, each taking
+  that member as its required `content` input. The map is typed against the union, so a
+  kind without a pane does not compile. Each pane owns its header (shared
+  `inspector-header` component), data loading and actions.
+- **Decision** (`core/services/inspector.service.ts`): the only code that turns workspace
+  state into content. In A2 this moves into per-view rules.
+
+Adding scripts means: add `{ kind: 'script'; scriptId }`, write `script-pane`, register it,
+and add the rule. The Inspector itself does not change.
+
+```
+inspector/
+  inspector.ts                    container: <ng-container *ngComponentOutlet>
+  inspector-content.ts            content union
+  inspector-panes.ts              kind → pane component
+  inspector-header/               shared header
+  panes/message-pane/             empty and multi-selection states
+  panes/response-pane/            wraps response-viewer (also used by Zen mode)
+  panes/binned-request-pane/      trash restore / delete permanently
+core/services/inspector.service.ts   decides the content
+```
 
 **Out of scope for now:** splitting `requests-main-list` (2,250 lines) into a generic,
 column-configurable grid. Scripts no longer need their own list (D2), so this can wait. It is
@@ -79,12 +107,25 @@ listed under "Later" so it isn't forgotten.
   per-view in C3), the empty and multi-selection messages, and the response-loading effect.
   _Files:_ `frontend/src/app/request-panel/*` → `frontend/src/app/inspector/*`, new
   `binned-request-detail/`, `app.html`, `app.ts`.
+  _Superseded by A1b: the container still had view-specific `@if` checks._
 
-- [ ] **A2. Active view state.**
+- [x] **A1b. Generic Inspector.**
+  Make the Inspector a plain pane host (see "Inspector" above): content union, typed pane
+  map, shared header, `InspectorService` decides the content. `binned-request-detail`
+  becomes `panes/binned-request-pane`; new `message-pane` and `response-pane` (the
+  response-loading effect moves into it). **Visible change:** pane titles are "Response"
+  and "Deleted request"; message states have an empty header bar.
+  _Files:_ `inspector/**`, `core/services/inspector.service.ts`.
+
+- [ ] **A2. Active view and view definitions.**
   Add `activeView` to `WorkspaceStateService`. Keep the old flags as computed values
-  derived from it so callers keep working, then move the Inspector to `activeView`.
-  _Files:_ `core/services/workspace-state.service.ts`, `inspector/*`, `request-groups/*`,
-  `sidebar-rail/*`.
+  derived from it so callers keep working. Add one view definition per view kind (all,
+  recent, bin, collection, favourite, tag) holding what is specific to that view: its
+  capabilities (orderable, colourable, today in `request-view-capabilities.ts`) and its
+  Inspector rule `inspector(selection) → InspectorContent`. `InspectorService` then just
+  calls the active view's rule, plus the shared multi-selection rule.
+  _Files:_ `core/services/workspace-state.service.ts`, `core/services/inspector.service.ts`,
+  new view definitions file, `request-groups/*`, `sidebar-rail/*`.
 
 - [ ] **A3. Request list reads active view.**
   Move `requests-main-list` (`activeViewKind`, `activeGroupKey`, loading) onto `activeView`,
@@ -131,11 +172,12 @@ listed under "Later" so it isn't forgotten.
   _Files:_ `requests-main-list/*`.
 
 - [ ] **C3. Script editor in the Inspector.**
-  New `script-detail`: script name heading, CodeMirror editor (JavaScript mode, A3) with
+  New `script-pane` (content `{ kind: 'script'; scriptId }`): script name heading, CodeMirror editor (JavaScript mode, A3) with
   auto-save, and a WIP banner: "Scripts can't run yet. This feature is in progress, so if
   you'd like to see it sooner, consider supporting development." with a link to D4. The
-  Inspector shows it whenever the active view is a script (A2).
-  _Files:_ new `script-detail/`, `inspector/*`, `core/services/script.service.ts`.
+  script view's Inspector rule always returns it (A2).
+  _Files:_ new `inspector/panes/script-pane/`, `inspector/inspector-content.ts`,
+  `inspector/inspector-panes.ts`, view definitions, `core/services/script.service.ts`.
 
 ### Later (not scheduled)
 
@@ -171,7 +213,8 @@ and the frontend build.
 
 | Step | Also check |
 |------|------------|
-| A1 | Right panel looks exactly as before in every view: response heading and count, trash card, "restore to collection" dialog when the original collection is gone, and the empty-state message. |
+| A1, A1b | Right panel shows the right thing in every view: response heading and count, trash card with "Deleted request" title, "restore to collection" dialog when the original collection is gone, and the empty-state message. |
+| A1b | Switch quickly between a request, Trash, a collection and multi-selection: never a stale pane, response list or trash card. Select a request, then another: responses reload for the new one. Send a request: the new response appears. Open Zen mode on a request: responses still show. |
 | A2 | Clicking each rail entry and each group shows the right content in the right panel. Switching quickly between Trash and a collection never leaves a stale trash card or response. |
 | A3 | Sorting, reorder handles and colour controls appear only in collections, favourites and tags. Scroll position and selection are remembered per group. |
 | B1 | Start the app on a copy of an existing database: it starts, tags are gone, all other data is intact. Starting it a second time doesn't fail. |
