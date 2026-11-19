@@ -2188,7 +2188,7 @@ export class RequestsMainList {
     try {
       await this.favouriteApi.deleteCollection(collection.id);
       if (this.state.selectedFavouriteCollection()?.id === collection.id) {
-        this.state.selectedFavouriteCollection.set(null);
+        this.state.selectView({ kind: 'none' });
         this.favouriteApi.requests.set([]);
       }
     } catch (err) {

@@ -117,15 +117,25 @@ listed under "Later" so it isn't forgotten.
   and "Deleted request"; message states have an empty header bar.
   _Files:_ `inspector/**`, `core/services/inspector.service.ts`.
 
-- [ ] **A2. Active view and view definitions.**
-  Add `activeView` to `WorkspaceStateService`. Keep the old flags as computed values
-  derived from it so callers keep working. Add one view definition per view kind (all,
+- [x] **A2a. Active view.**
+  Add `activeView` (`core/models/active-view.ts`) and `selectView()` to
+  `WorkspaceStateService`. The six old flags become read-only values derived from it, so
+  readers keep working; all 44 writers now call `selectView()`. `enterBinView` /
+  `exitBinView` are gone. Project switch: all, recent and trash stay open, a collection,
+  favourite or tag falls back to all (`selectViewForNewProject`). **Behaviour fixes:**
+  switching project while in Trash no longer leaves the old project's trash card in the
+  Inspector; deleting the last project from Recent or Trash leaves no view open.
+  _Files:_ `core/models/active-view.ts`, `workspace-state.service.ts`, `request-groups.ts`,
+  `app.ts`, `requests-main-list.ts`.
+
+- [ ] **A2b. View definitions.**
+  Add one view definition per view kind (all,
   recent, bin, collection, favourite, tag) holding what is specific to that view: its
   capabilities (orderable, colourable, today in `request-view-capabilities.ts`) and its
   Inspector rule `inspector(selection) → InspectorContent`. `InspectorService` then just
   calls the active view's rule, plus the shared multi-selection rule.
-  _Files:_ `core/services/workspace-state.service.ts`, `core/services/inspector.service.ts`,
-  new view definitions file, `request-groups/*`, `sidebar-rail/*`.
+  _Files:_ `core/services/inspector.service.ts`, new `core/models/view-definitions.ts`,
+  `request-view-capabilities.ts`.
 
 - [ ] **A3. Request list reads active view.**
   Move `requests-main-list` (`activeViewKind`, `activeGroupKey`, loading) onto `activeView`,
@@ -215,7 +225,8 @@ and the frontend build.
 |------|------------|
 | A1, A1b | Right panel shows the right thing in every view: response heading and count, trash card with "Deleted request" title, "restore to collection" dialog when the original collection is gone, and the empty-state message. |
 | A1b | Switch quickly between a request, Trash, a collection and multi-selection: never a stale pane, response list or trash card. Select a request, then another: responses reload for the new one. Send a request: the new response appears. Open Zen mode on a request: responses still show. |
-| A2 | Clicking each rail entry and each group shows the right content in the right panel. Switching quickly between Trash and a collection never leaves a stale trash card or response. |
+| A2a, A2b | Clicking each rail entry and each group shows the right list and the right Inspector content. Switching quickly between Trash and a collection never leaves a stale trash card or response. |
+| A2a | Start the app: it opens on All requests. Switch project from All, Recent and Trash: you stay there (Trash shows the new project's items, no old trash card). Switch project from a collection: you land in All. Open the Collections folder while in All: the list empties; while in a collection: the collection stays. Rename the open tag: you stay in it. Delete the open collection, favourite and tag: the list empties and the Inspector says "Select a request…". |
 | A3 | Sorting, reorder handles and colour controls appear only in collections, favourites and tags. Scroll position and selection are remembered per group. |
 | B1 | Start the app on a copy of an existing database: it starts, tags are gone, all other data is intact. Starting it a second time doesn't fail. |
 | B2 | Create, rename and delete a script; attach it to and detach it from a request; reorder and colour requests inside a script. |

@@ -129,13 +129,13 @@ export class RequestGroups {
    */
   private readonly selectHandlers: SelectHandlerMap = {
     collection: (item) => {
-      this.state.selectedCollection.set(item.data);
+      this.state.selectView({ kind: 'collection', collection: item.data });
     },
     favourite: (item) => {
-      this.state.selectedFavouriteCollection.set(item.data);
+      this.state.selectView({ kind: 'favourite', favourite: item.data });
     },
     tag: (item) => {
-      this.state.selectedTag.set(item.data.name);
+      this.state.selectView({ kind: 'tag', name: item.data.name });
     },
   };
 
@@ -151,7 +151,7 @@ export class RequestGroups {
       if (!project) return;
       await this.tagApi.renameTag(project.id, item.data.name, newName);
       if (this.state.selectedTag() === item.data.name) {
-        this.state.selectedTag.set(newName);
+        this.state.selectView({ kind: 'tag', name: newName });
       }
     },
   };
@@ -445,29 +445,19 @@ export class RequestGroups {
   // ---------- Selection ----------
 
   selectAll(): void {
-    this.state.selectedCollection.set(null);
-    this.state.selectedFavouriteCollection.set(null);
-    this.state.selectedTag.set(null);
-    this.state.exitBinView();
-    this.state.showingFamousRequests.set(false);
-    this.state.showingAllRequests.set(true);
+    this.state.selectView({ kind: 'all' });
     this.folderFilter.set(null);
   }
 
   selectFamous(): void {
-    this.state.selectedCollection.set(null);
-    this.state.selectedFavouriteCollection.set(null);
-    this.state.selectedTag.set(null);
-    this.state.exitBinView();
-    this.state.showingAllRequests.set(false);
-    this.state.showingFamousRequests.set(true);
+    this.state.selectView({ kind: 'recent' });
     this.folderFilter.set(null);
   }
 
   selectTrashBin(): void {
     const project = this.state.selectedProject();
     if (!project) return;
-    this.state.enterBinView();
+    this.state.selectView({ kind: 'bin' });
     this.folderFilter.set(null);
     void this.state.loadBinnedRequests(project.id);
   }
@@ -485,13 +475,17 @@ export class RequestGroups {
   }
 
   private toggleFolderFilter(filter: SidebarFolder): void {
-    this.state.exitBinView();
     const current = this.folderFilter();
     const next = current === filter ? null : filter;
 
+    // The trash bin always closes. Opening a folder also closes "all" and
+    // "recent"; an open collection, favourite or tag stays open.
+    const view = this.state.activeView().kind;
+    if (view === 'bin' || (next !== null && (view === 'all' || view === 'recent'))) {
+      this.state.selectView({ kind: 'none' });
+    }
+
     if (next !== null) {
-      this.state.showingAllRequests.set(false);
-      this.state.showingFamousRequests.set(false);
       // Opening a folder must reveal its list, even from the collapsed rail.
       this.state.sidebarExpanded.set(true);
     }
@@ -500,12 +494,6 @@ export class RequestGroups {
   }
 
   selectSidebarItem(item: SidebarItem): void {
-    this.state.exitBinView();
-    this.state.selectedCollection.set(null);
-    this.state.selectedFavouriteCollection.set(null);
-    this.state.selectedTag.set(null);
-    this.state.showingAllRequests.set(false);
-    this.state.showingFamousRequests.set(false);
     this.selectItem(item);
     this.folderFilter.set(FOLDER_FOR_KIND[item.kind]);
   }
@@ -836,7 +824,7 @@ export class RequestGroups {
       this.selectionState.clearSelection(groupKey.collection(collection.id));
 
       if (this.state.selectedCollection()?.id === collection.id) {
-        this.state.selectedCollection.set(null);
+        this.state.selectView({ kind: 'none' });
         this.state.selectedRequest.set(null);
         this.state.selectedResponse.set(null);
       }
@@ -851,7 +839,7 @@ export class RequestGroups {
     try {
       await this.favouriteApi.deleteCollection(collection.id);
       if (this.state.selectedFavouriteCollection()?.id === collection.id) {
-        this.state.selectedFavouriteCollection.set(null);
+        this.state.selectView({ kind: 'none' });
         this.favouriteApi.requests.set([]);
       }
     } catch (err) {
@@ -866,7 +854,7 @@ export class RequestGroups {
     try {
       await this.tagApi.deleteTag(project.id, tag.name);
       if (this.state.selectedTag() === tag.name) {
-        this.state.selectedTag.set(null);
+        this.state.selectView({ kind: 'none' });
       }
     } catch (err) {
       console.error(err);

@@ -281,10 +281,7 @@ export class App implements OnInit, AfterViewInit {
       } else {
         this.state.selectedProject.set(null);
         this.state.selectedEnvironment.set(null);
-        this.state.selectedCollection.set(null);
-        this.state.selectedFavouriteCollection.set(null);
-        this.state.selectedTag.set(null);
-        this.state.showingAllRequests.set(false);
+        this.state.selectView({ kind: 'none' });
         this.state.selectedRequest.set(null);
         this.state.selectedResponse.set(null);
         this.collectionApi.collections.set([]);
@@ -302,10 +299,7 @@ export class App implements OnInit, AfterViewInit {
 
   async selectProject(project: Project): Promise<void> {
     this.state.selectedProject.set(project);
-    this.state.selectedCollection.set(null);
-    this.state.selectedFavouriteCollection.set(null);
-    this.state.selectedTag.set(null);
-    this.state.showingAllRequests.set(true);
+    this.state.selectViewForNewProject();
     this.state.selectedRequest.set(null);
     this.state.selectedResponse.set(null);
     this.requestApi.allRequests.set({});
@@ -442,10 +436,7 @@ export class App implements OnInit, AfterViewInit {
         } else {
           this.state.selectedProject.set(null);
           this.state.selectedEnvironment.set(null);
-          this.state.selectedCollection.set(null);
-          this.state.selectedFavouriteCollection.set(null);
-          this.state.selectedTag.set(null);
-          this.state.showingAllRequests.set(false);
+          this.state.selectView({ kind: 'none' });
           this.state.selectedRequest.set(null);
           this.state.selectedResponse.set(null);
           this.collectionApi.collections.set([]);
