@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 export const groupKey = {
   collection: (collectionId: number) => `collection:${collectionId}`,
   favourite: (favouriteId: number) => `favourite:${favouriteId}`,
+  script: (projectId: number, scriptName: string) => `script:${projectId}:${scriptName}`,
   allRequests: (projectId: number) => `all:${projectId}`,
   famous: (projectId: number) => `famous:${projectId}`,
   bin: (projectId: number) => `bin:${projectId}`,
@@ -17,7 +18,7 @@ export interface RememberedSelection {
 
 /**
  * In-memory runtime state for the user's last selection within each
- * request-list group (collection, favourite, all requests, famous, bin):
+ * request-list group (collection, favourite, script, all requests, famous, bin):
  * every selected request, and which one was the main one. This is
  * intentionally not persisted across app restarts — it only preserves
  * selection state during the current session.

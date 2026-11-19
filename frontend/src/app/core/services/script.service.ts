@@ -121,7 +121,17 @@ export class ScriptApiService {
     return result ?? [];
   }
 
+  async updateRequestOrder(projectId: number, scriptName: string, orderedRequestIds: number[]): Promise<void> {
+    await this.commands.execute('script.reorder', {
+      project_id: projectId, script_name: scriptName, ordered_request_ids: orderedRequestIds,
+    });
+  }
 
+  async updateRequestColor(projectId: number, scriptName: string, requestIds: number[], color: string | null): Promise<void> {
+    await this.commands.execute('script.set_color', {
+      project_id: projectId, script_name: scriptName, request_ids: requestIds, color,
+    });
+  }
 
   /** Updates a script's appearance (icon or colour). */
   async updateAppearance(scriptId: number, appearance: Omit<ScriptAppearance, 'id' | 'script_id'>): Promise<ScriptAppearance> {
