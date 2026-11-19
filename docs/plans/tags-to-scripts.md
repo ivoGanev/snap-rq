@@ -23,10 +23,12 @@ before the next step starts. Tick the box when a step is merged.
 | D5 | The right panel is renamed **Inspector**. It is a container that shows a different component depending on what the user is doing (response, trash item, script). |
 | D6 | Attaching works as today: the request "Tags…" dialog becomes "Scripts…", a request can have many scripts, and a script can be attached to many requests. |
 
-### Assumptions (confirm or correct)
+### Assumptions (all confirmed 2026-11-19)
 
 - **A1:** Per-request **colours** inside a script are kept, like favourites and collections (only ordering was confirmed).
 - **A2:** In the Scripts view the Inspector **always** shows the selected script's editor, even when a request row is selected. To see a response, the user opens the request from another view.
+  **Deleting** a request inside a script view **detaches** the script from it; the request
+  itself is not moved to the trash (today, deleting inside a tag view trashes the request).
 - **A3:** Script text is plain text with **JavaScript highlighting**, auto-saved after a short pause (like other editors in the app). Editing text is not part of the app's undo/redo history; CodeMirror's own undo covers it.
 - **A4:** MCP tools are renamed (`add_tag` → `attach_script`, etc.). Any MCP client that calls the old names stops working. Acceptable before release.
 
@@ -69,13 +71,14 @@ listed under "Later" so it isn't forgotten.
 
 ### Stage A: refactor, no visible change
 
-- [ ] **A1. Inspector container.**
-  Rename `request-panel` → `inspector`. Move the response part into `response-detail` and
-  the trash restore/delete card (and its "restore to collection" dialog) into
-  `binned-request-detail`. The Inspector only decides which one to show. The "Response"
-  heading and the response count move into `response-detail`.
+- [x] **A1. Inspector container.**
+  Rename `request-panel` → `inspector`. Move the trash restore/delete card (and its
+  "restore to collection" dialog) into `binned-request-detail`. The existing
+  `response-viewer` already is the response detail, so it needs no wrapper. The Inspector
+  decides which detail to show and keeps the header ("Response" for now; it becomes
+  per-view in C3), the empty and multi-selection messages, and the response-loading effect.
   _Files:_ `frontend/src/app/request-panel/*` → `frontend/src/app/inspector/*`, new
-  `response-detail/`, `binned-request-detail/`, `app.html`, `app.ts`.
+  `binned-request-detail/`, `app.html`, `app.ts`.
 
 - [ ] **A2. Active view state.**
   Add `activeView` to `WorkspaceStateService`. Keep the old flags as computed values
@@ -123,7 +126,8 @@ listed under "Later" so it isn't forgotten.
 
 - [ ] **C2. Attach dialog.**
   The request "Tags…" dialog and the bulk tag dialog become "Scripts…": pick from existing
-  scripts, or create one by name.
+  scripts, or create one by name. Deleting requests while a script is open detaches the
+  script instead of trashing the requests (A2); the confirm text says so.
   _Files:_ `requests-main-list/*`.
 
 - [ ] **C3. Script editor in the Inspector.**
@@ -174,5 +178,5 @@ and the frontend build.
 | B2 | Create, rename and delete a script; attach it to and detach it from a request; reorder and colour requests inside a script. |
 | B3 | From an MCP client: the tool list shows the new names, and attaching or reordering needs approval as before. |
 | C1 | The Scripts rail entry has its icon on Windows **and macOS** (icons need explicit size, see `AGENTS.md`). Rename and delete work from the context menu. |
-| C2 | Attach two scripts to one request; bulk-attach a script to several selected requests; creating a script from the dialog adds it to the sidebar. |
+| C2 | Attach two scripts to one request; bulk-attach a script to several selected requests; creating a script from the dialog adds it to the sidebar. Inside a script, delete one request and then several: they leave the script, are **not** in Trash, and are still in their collection. |
 | C3 | Select a script: the editor shows its text. Type, wait, switch away and back: the text is saved. Restart: still saved. The WIP banner and donate link show. Selecting a request inside the script view keeps the editor (A2). |

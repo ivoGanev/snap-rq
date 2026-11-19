@@ -1,51 +1,28 @@
-import { Component, effect, inject, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
-import { RequestApiService } from '../core/services/request.service';
-import { ResponseViewer } from '../response-viewer/response-viewer';
-import { BinApiService, type HttpBinnedRequestSummary, type RestoreInput } from '../core/services/bin.service';
+import { BinApiService, type RestoreInput } from '../core/services/bin.service';
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
 
+/**
+ * Inspector detail for a request in the trash bin: shows where it came from and
+ * lets the user restore it (to its original collection, or a picked one when
+ * that collection is gone) or delete it permanently.
+ */
 @Component({
-  selector: 'app-request-panel',
-  imports: [ResponseViewer],
-  templateUrl: './request-panel.html',
-  styleUrl: './request-panel.scss',
-  host: {
-    class: 'sidebar sidebar-right',
-    'aria-label': 'Request and response panel',
-  },
+  selector: 'app-binned-request-detail',
+  templateUrl: './binned-request-detail.html',
+  styleUrl: './binned-request-detail.scss',
 })
-export class RequestPanel {
-  protected readonly state = inject(WorkspaceStateService);
-  private readonly requestApi = inject(RequestApiService);
+export class BinnedRequestDetail {
+  private readonly state = inject(WorkspaceStateService);
   private readonly binApi = inject(BinApiService);
   protected readonly collectionApi = inject(CollectionApiService);
 
-  protected readonly responses = this.requestApi.responses;
+  protected readonly request = this.state.selectedBinnedRequest;
   protected readonly restoreCollectionModalOpen = signal(false);
 
-  constructor() {
-    effect(() => {
-      if (this.state.multiSelectionActive() || this.state.showingBin()) {
-        this.requestApi.responses.set([]);
-        this.state.selectedResponse.set(null);
-        this.state.responsesLoading.set(false);
-        return;
-      }
-
-      const req = this.state.selectedRequest();
-      if (req) {
-        this.state.loadResponses(req.id);
-      } else {
-        this.requestApi.responses.set([]);
-        this.state.selectedResponse.set(null);
-        this.state.responsesLoading.set(this.state.selectedIds().size > 0);
-      }
-    });
-  }
-
   openRestorePicker(): void {
-    const req = this.state.selectedBinnedRequest();
+    const req = this.request();
     if (!req) return;
 
     const collections = this.collectionApi.collections();
@@ -64,7 +41,7 @@ export class RequestPanel {
   }
 
   async restoreToCollection(collection: Collection): Promise<void> {
-    const req = this.state.selectedBinnedRequest();
+    const req = this.request();
     if (!req) return;
 
     await this.doRestore([{ bin_id: req.id, collection_id: collection.id }]);
@@ -86,7 +63,7 @@ export class RequestPanel {
   }
 
   async deletePermanently(): Promise<void> {
-    const req = this.state.selectedBinnedRequest();
+    const req = this.request();
     if (!req) return;
 
     this.state.loading.set(true);
