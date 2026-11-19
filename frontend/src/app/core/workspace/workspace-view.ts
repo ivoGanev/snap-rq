@@ -6,7 +6,7 @@ import type { InspectorContent } from '../../inspector/inspector';
 
 /**
  * The views the workspace can show: all requests, recent, the trash bin, or
- * the requests of one collection, favourite list or tag. Each view is one
+ * the requests of one collection, favourite list or script. Each view is one
  * small object that knows everything specific to it: its title, what the user
  * may do with its rows, and what the Inspector shows for a selection.
  *
@@ -19,7 +19,7 @@ export type WorkspaceView =
   | TrashView
   | CollectionView
   | FavouriteView
-  | TagView;
+  | ScriptView;
 
 export type WorkspaceViewKind = WorkspaceView['kind'];
 
@@ -122,8 +122,8 @@ export class FavouriteView implements ViewBehaviour {
   }
 }
 
-export class TagView implements ViewBehaviour {
-  readonly kind = 'tag';
+export class ScriptView implements ViewBehaviour {
+  readonly kind = 'script';
   readonly canReorder = true;
   readonly canColour = true;
   readonly survivesProjectSwitch = false;

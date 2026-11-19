@@ -3,11 +3,11 @@ import { FormsModule } from '@angular/forms';
 import { SelectOnFocusDirective } from '../core/directives/select-on-focus.directive';
 import type { Collection, CollectionAppearance } from '../core/services/collection.service';
 import type { FavouriteCollection, FavouriteAppearance } from '../core/services/favourite.service';
-import type { Tag, TagAppearance } from '../core/services/tag.service';
+import type { Script, ScriptAppearance } from '../core/services/script.service';
 import { IconManifestService } from '../core/services/icon-manifest.service';
 
-export type SidebarFolder = 'collections' | 'favourites' | 'tags';
-export type SidebarItemAppearance = CollectionAppearance | FavouriteAppearance | TagAppearance;
+export type SidebarFolder = 'collections' | 'favourites' | 'scripts';
+export type SidebarItemAppearance = CollectionAppearance | FavouriteAppearance | ScriptAppearance;
 
 /** Discriminated union of sidebar entries; `kind` narrows `data` and `appearance`. */
 export interface CollectionSidebarItem {
@@ -26,30 +26,30 @@ export interface FavouriteSidebarItem {
   data: FavouriteCollection;
 }
 
-export interface TagSidebarItem {
-  kind: 'tag';
+export interface ScriptSidebarItem {
+  kind: 'script';
   id: number;
   name: string;
-  appearance: TagAppearance;
-  data: Tag;
+  appearance: ScriptAppearance;
+  data: Script;
 }
 
-export type SidebarItem = CollectionSidebarItem | FavouriteSidebarItem | TagSidebarItem;
+export type SidebarItem = CollectionSidebarItem | FavouriteSidebarItem | ScriptSidebarItem;
 
 export const FOLDER_FOR_KIND: Record<SidebarItem['kind'], SidebarFolder> = {
   collection: 'collections',
   favourite: 'favourites',
-  tag: 'tags',
+  script: 'scripts',
 };
 
-/** Stable identity of a sidebar item, e.g. `collection:12` or `tag:auth`. */
+/** Stable identity of a sidebar item, e.g. `collection:12` or `script:auth`. */
 export const sidebarCollectionKey = (id: number): string => `collection:${id}`;
 export const sidebarFavouriteKey = (id: number): string => `favourite:${id}`;
-export const sidebarTagKey = (name: string): string => `tag:${name}`;
+export const sidebarScriptKey = (name: string): string => `script:${name}`;
 
 export function sidebarItemKey(item: SidebarItem): string {
-  return item.kind === 'tag'
-    ? sidebarTagKey(item.name)
+  return item.kind === 'script'
+    ? sidebarScriptKey(item.name)
     : item.kind === 'favourite'
       ? sidebarFavouriteKey(item.id)
       : sidebarCollectionKey(item.id);
@@ -68,7 +68,7 @@ export interface AddMenuPosition {
 const FOLDER_META: Record<SidebarFolder, { title: string; emptyMessage: string }> = {
   collections: { title: 'Collections', emptyMessage: 'No collections.' },
   favourites: { title: 'Favourites', emptyMessage: 'No favourite collections.' },
-  tags: { title: 'Tags', emptyMessage: 'No tags yet.' },
+  scripts: { title: 'Scripts', emptyMessage: 'No scripts yet.' },
 };
 
 @Component({

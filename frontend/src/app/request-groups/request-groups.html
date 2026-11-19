@@ -129,13 +129,13 @@
   </div>
 }
 
-<!-- Add: Tag -->
-@if (newTagPopupOpen()) {
-  <div class="overlay-backdrop" (click)="closeNewTagPopup()">
+<!-- Add: Script -->
+@if (newScriptPopupOpen()) {
+  <div class="overlay-backdrop" (click)="closeNewScriptPopup()">
     <div class="overlay-panel new-collection-popup" (click)="$event.stopPropagation()">
       <div class="overlay-header">
-        <h3 class="overlay-title">Add new tag</h3>
-        <button class="overlay-close" type="button" (click)="closeNewTagPopup()">Close</button>
+        <h3 class="overlay-title">Add new script</h3>
+        <button class="overlay-close" type="button" (click)="closeNewScriptPopup()">Close</button>
       </div>
       <div class="overlay-body">
         <label class="edit-field">
@@ -143,25 +143,25 @@
           <input
             class="edit-input"
             type="text"
-            placeholder="Tag name"
-            [ngModel]="newTagName()"
-            (ngModelChange)="newTagName.set($event)"
-            (keydown.enter)="addTag()"
+            placeholder="Script name"
+            [ngModel]="newScriptName()"
+            (ngModelChange)="newScriptName.set($event)"
+            (keydown.enter)="addScript()"
           />
         </label>
       </div>
       <div class="overlay-footer">
-        <button class="variable-add" type="button" (click)="addTag()">Add tag</button>
+        <button class="variable-add" type="button" (click)="addScript()">Add script</button>
       </div>
     </div>
   </div>
 }
 
 <ng-template #itemContextMenu let-item>
-  @if (item.kind !== 'tag') {
+  @if (item.kind !== 'script') {
     <button class="context-menu-item" type="button" (click)="startRename(item)">Rename</button>
   } @else {
-    <button class="context-menu-item" type="button" (click)="startRename(item)">Rename Tag</button>
+    <button class="context-menu-item" type="button" (click)="startRename(item)">Rename Script</button>
   }
   <button class="context-menu-item" type="button" (click)="openAppearancePopup(item)">
     Change style
@@ -175,13 +175,13 @@
       <span>Delete Favourites</span>
       <kbd class="menu-kbd">Del</kbd>
     </button>
-  } @else if (item.kind === 'tag') {
+  } @else if (item.kind === 'script') {
     <button
       class="context-menu-item context-menu-item--danger context-menu-item--with-hint"
       type="button"
       (click)="deleteItem(item)"
     >
-      <span>Delete Tag</span>
+      <span>Delete Script</span>
       <kbd class="menu-kbd">Del</kbd>
     </button>
   } @else {

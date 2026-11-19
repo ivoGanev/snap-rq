@@ -18,7 +18,7 @@ import { CollectionApiService } from './core/services/collection.service';
 import { RequestApiService } from './core/services/request.service';
 import { FavouriteApiService } from './core/services/favourite.service';
 import { SelectionStateService } from './core/services/selection-state.service';
-import { TagApiService } from './core/services/tag.service';
+import { ScriptApiService } from './core/services/script.service';
 import { ThemeService, type Theme } from './core/services/theme.service';
 import { SettingsApiService } from './core/services/settings.service';
 import { IconManifestService } from './core/services/icon-manifest.service';
@@ -73,7 +73,7 @@ export class App implements OnInit, AfterViewInit {
   private readonly collectionApi = inject(CollectionApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly selectionState = inject(SelectionStateService);
-  private readonly tagApi = inject(TagApiService);
+  private readonly scriptApi = inject(ScriptApiService);
   private readonly iconManifest = inject(IconManifestService);
   private readonly iconApi = inject(IconApiService);
   private readonly cookieApi = inject(CookieApiService);
@@ -87,7 +87,7 @@ export class App implements OnInit, AfterViewInit {
 
   /**
    * Collapsed rail is fixed; expanded without a group list shrinks to fit the
-   * nav buttons; expanded with a list uses the resizable percentage.
+   * nav buttons; expanded with a list uses the resizable percenscripte.
    */
   readonly leftSidebarWidth = computed(() => {
     if (!this.state.sidebarExpanded()) return '72px';
@@ -288,7 +288,7 @@ export class App implements OnInit, AfterViewInit {
         this.requestApi.allRequests.set({});
         this.favouriteApi.collections.set([]);
         this.favouriteApi.requests.set([]);
-        this.tagApi.allTags.set([]);
+        this.scriptApi.allScripts.set([]);
       }
     } catch (err) {
       console.error(err);
@@ -304,12 +304,12 @@ export class App implements OnInit, AfterViewInit {
     this.state.selectedResponse.set(null);
     this.requestApi.allRequests.set({});
     this.favouriteApi.requests.set([]);
-    this.tagApi.requestTags.set({});
+    this.scriptApi.requestScripts.set({});
 
     await this.loadEnvironments(project.id);
     await this.favouriteApi.loadCollectionsForProject(project.id);
     await this.collectionApi.loadForProject(project.id);
-    await this.tagApi.loadTagsForProject(project.id);
+    await this.scriptApi.loadScriptsForProject(project.id);
     await this.requestApi.loadAll();
   }
 
@@ -443,7 +443,7 @@ export class App implements OnInit, AfterViewInit {
           this.requestApi.allRequests.set({});
           this.favouriteApi.collections.set([]);
           this.favouriteApi.requests.set([]);
-          this.tagApi.allTags.set([]);
+          this.scriptApi.allScripts.set([]);
           this.environmentApi.environments.set([]);
         }
       }

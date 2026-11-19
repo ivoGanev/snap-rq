@@ -8,7 +8,7 @@ import { RequestApiService, type HttpRequest, type HttpRequestSummary } from '..
 import { FavouriteApiService, type FavouriteCollection } from '../core/services/favourite.service';
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
 import { SelectionStateService, groupKey } from '../core/services/selection-state.service';
-import { TagApiService, type Tag } from '../core/services/tag.service';
+import { ScriptApiService, type Script } from '../core/services/script.service';
 import { DragSessionService } from '../core/services/drag-session.service';
 import { BinApiService, type HttpBinnedRequestSummary, type RestoreInput } from '../core/services/bin.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
@@ -22,7 +22,7 @@ import { SelectOnFocusDirective } from '../core/directives/select-on-focus.direc
 import { requestColorInfo } from '../core/request-colors';
 import type { WorkspaceViewKind } from '../core/workspace/workspace-view';
 
-type ColumnKey = 'name' | 'url' | 'method' | 'tags';
+type ColumnKey = 'name' | 'url' | 'method' | 'scripts';
 type SortDirection = 'asc' | 'desc';
 
 interface SelectedCell {
@@ -85,7 +85,7 @@ export class RequestsMainList {
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly collectionApi = inject(CollectionApiService);
   private readonly selectionState = inject(SelectionStateService);
-  private readonly tagApi = inject(TagApiService);
+  private readonly scriptApi = inject(ScriptApiService);
   private readonly binApi = inject(BinApiService);
   private readonly confirm = inject(ConfirmService);
   private readonly contextMenu = inject(ContextMenuService);
@@ -96,14 +96,14 @@ export class RequestsMainList {
 
   protected readonly bottomTabs = BOTTOM_TABS;
   protected readonly httpMethods = HTTP_METHODS;
-  protected readonly requestTags = this.tagApi.requestTags;
+  protected readonly requestScripts = this.scriptApi.requestScripts;
   protected readonly favouriteCollections = this.favouriteApi.collections;
   protected readonly favouriteMembership = this.favouriteApi.membership;
   protected readonly requestFavouriteIds = this.favouriteApi.requestsMembership;
   protected readonly collections = this.collectionApi.collections;
 
   readonly requestSearchQuery = signal('');
-  readonly tagRequests = signal<HttpRequestSummary[]>([]);
+  readonly scriptRequests = signal<HttpRequestSummary[]>([]);
   readonly recentRequests = signal<HttpRequestSummary[]>([]);
   readonly newRequestPopupOpen = signal(false);
   readonly newRequestName = signal('My new snappy API');
@@ -222,9 +222,9 @@ export class RequestsMainList {
   private readonly nameHeaderCell = viewChild<ElementRef<HTMLElement>>('nameHeaderCell');
 
 
-  readonly tagsModalOpen = signal(false);
-  readonly tagsModalRequest = signal<HttpRequestSummary | null>(null);
-  readonly tagsModalNewTagName = signal('');
+  readonly scriptsModalOpen = signal(false);
+  readonly scriptsModalRequest = signal<HttpRequestSummary | null>(null);
+  readonly scriptsModalNewScriptName = signal('');
 
   readonly favouritesModalOpen = signal(false);
   readonly favouritesModalRequest = signal<HttpRequestSummary | null>(null);
@@ -234,8 +234,8 @@ export class RequestsMainList {
   readonly newRequestCurl = signal('');
 
   readonly moveCollectionModalOpen = signal(false);
-  readonly bulkTagModalOpen = signal(false);
-  readonly bulkTagName = signal('');
+  readonly bulkScriptModalOpen = signal(false);
+  readonly bulkScriptName = signal('');
   readonly bulkFavouritesModalOpen = signal(false);
 
   // Restore collection picker (used when the original collection is gone).
@@ -273,9 +273,9 @@ export class RequestsMainList {
       return this.binSummaries();
     }
 
-    const tag = this.state.selectedTag();
-    if (tag) {
-      return this.tagRequests();
+    const script = this.state.selectedScript();
+    if (script) {
+      return this.scriptRequests();
     }
 
     if (this.state.selectedFavouriteCollection()) {
@@ -306,9 +306,9 @@ export class RequestsMainList {
     if (this.state.showingBin()) {
       return projectId !== null ? groupKey.bin(projectId) : null;
     }
-    const tag = this.state.selectedTag();
-    if (tag) {
-      return projectId !== null ? groupKey.tag(projectId, tag) : null;
+    const script = this.state.selectedScript();
+    if (script) {
+      return projectId !== null ? groupKey.script(projectId, script) : null;
     }
     const favourite = this.state.selectedFavouriteCollection();
     if (favourite) {
@@ -377,7 +377,7 @@ export class RequestsMainList {
         name: false,
         url: false,
         method: false,
-        tags: false,
+        scripts: false,
       };
       if (isSelected && selectedIds.size <= 1 && cell !== null && cell.requestId === req.id) {
         isCellSelected[cell.column] = true;
@@ -405,27 +405,27 @@ export class RequestsMainList {
     return this.activeRequests().filter((r) => ids.has(r.id));
   });
 
-  readonly tagSuggestions = computed<Tag[]>(() => {
-    const req = this.tagsModalRequest();
+  readonly scriptSuggestions = computed<Script[]>(() => {
+    const req = this.scriptsModalRequest();
     if (!req) return [];
 
-    const query = this.tagsModalNewTagName().trim().toLowerCase();
-    const tags = this.tagApi.allTags();
-    const existing = new Set(this.requestTags()[req.id] ?? []);
+    const query = this.scriptsModalNewScriptName().trim().toLowerCase();
+    const scripts = this.scriptApi.allScripts();
+    const existing = new Set(this.requestScripts()[req.id] ?? []);
 
     if (!query) {
-      return tags.filter((tag) => !existing.has(tag.name)).slice(0, 6);
+      return scripts.filter((script) => !existing.has(script.name)).slice(0, 6);
     }
-    return tags
-      .filter((tag) => tag.name.toLowerCase().includes(query) && !existing.has(tag.name))
+    return scripts
+      .filter((script) => script.name.toLowerCase().includes(query) && !existing.has(script.name))
       .slice(0, 6);
   });
 
-  readonly bulkTagSuggestions = computed<Tag[]>(() => {
-    const query = this.bulkTagName().trim().toLowerCase();
-    const tags = this.tagApi.allTags();
-    if (!query) return tags.slice(0, 6);
-    return tags.filter((tag) => tag.name.toLowerCase().includes(query)).slice(0, 6);
+  readonly bulkScriptSuggestions = computed<Script[]>(() => {
+    const query = this.bulkScriptName().trim().toLowerCase();
+    const scripts = this.scriptApi.allScripts();
+    if (!query) return scripts.slice(0, 6);
+    return scripts.filter((script) => script.name.toLowerCase().includes(query)).slice(0, 6);
   });
 
   readonly availableCollectionsForMove = computed<Collection[]>(() => {
@@ -437,7 +437,7 @@ export class RequestsMainList {
     effect(() => {
       const collection = this.state.selectedCollection();
       const favourite = this.state.selectedFavouriteCollection();
-      const tag = this.state.selectedTag();
+      const script = this.state.selectedScript();
       const showAll = this.state.showingAllRequests();
       const showFamous = this.state.showingFamousRequests();
       const showBin = this.state.showingBin();
@@ -473,7 +473,7 @@ export class RequestsMainList {
           version,
           collection?.id ?? null,
           favourite?.id ?? null,
-          tag,
+          script,
           showAll,
           showFamous,
           showBin,
@@ -502,7 +502,7 @@ export class RequestsMainList {
           version,
           this.state.selectedCollection()?.id ?? null,
           this.state.selectedFavouriteCollection()?.id ?? null,
-          this.state.selectedTag(),
+          this.state.selectedScript(),
           this.state.showingAllRequests(),
           this.state.showingFamousRequests(),
           this.state.showingBin(),
@@ -530,7 +530,7 @@ export class RequestsMainList {
     version: number,
     collectionId: number | null,
     favouriteId: number | null,
-    tag: string | null,
+    script: string | null,
     showAll: boolean,
     showFamous: boolean,
     showBin: boolean,
@@ -560,13 +560,13 @@ export class RequestsMainList {
         return;
       }
 
-      if (tag) {
+      if (script) {
         const project = this.state.selectedProject();
         if (!project) return;
-        const requests = await this.tagApi.getRequestsForTag(project.id, tag);
+        const requests = await this.scriptApi.getRequestsForScript(project.id, script);
         if (version !== this.loadVersion) return;
-        this.tagRequests.set(requests);
-        await this.tagApi.loadTagsForRequests(requests);
+        this.scriptRequests.set(requests);
+        await this.scriptApi.loadScriptsForRequests(requests);
         if (version !== this.loadVersion) return;
         this.favouriteApi.requestsMembership.set({});
         this.restoreRememberedSelection(requests, groupKeyOfView, scroll, restoreOffset);
@@ -577,7 +577,7 @@ export class RequestsMainList {
         await this.favouriteApi.loadRequestsForCollection(favouriteId);
         if (version !== this.loadVersion) return;
         const requests = this.favouriteApi.requests();
-        await this.tagApi.loadTagsForRequests(requests);
+        await this.scriptApi.loadScriptsForRequests(requests);
         if (version !== this.loadVersion) return;
         this.restoreRememberedSelection(requests, groupKeyOfView, scroll, restoreOffset);
         return;
@@ -586,7 +586,7 @@ export class RequestsMainList {
       if (collectionId !== null) {
         if (version !== this.loadVersion) return;
         const requests = this.requestApi.forCollection(collectionId);
-        await this.tagApi.loadTagsForRequests(requests);
+        await this.scriptApi.loadScriptsForRequests(requests);
         if (version !== this.loadVersion) return;
         this.restoreRememberedSelection(requests, groupKeyOfView, scroll, restoreOffset);
         return;
@@ -595,13 +595,13 @@ export class RequestsMainList {
       if (showAll && projectId !== null) {
         if (version !== this.loadVersion) return;
         const requests = this.requestApi.forProject(projectId);
-        await this.tagApi.loadTagsForRequests(requests);
+        await this.scriptApi.loadScriptsForRequests(requests);
         if (version !== this.loadVersion) return;
         this.restoreRememberedSelection(requests, groupKeyOfView, scroll, restoreOffset);
         return;
       }
 
-      this.tagRequests.set([]);
+      this.scriptRequests.set([]);
       this.favouriteApi.requestsMembership.set({});
     } catch (err) {
       console.error(err);
@@ -697,10 +697,10 @@ export class RequestsMainList {
       this.contextMenu.isOpen() ||
       this.editingNameId() !== null ||
       this.editModalOpen() ||
-      this.tagsModalOpen() ||
+      this.scriptsModalOpen() ||
       this.favouritesModalOpen() ||
       this.moveCollectionModalOpen() ||
-      this.bulkTagModalOpen() ||
+      this.bulkScriptModalOpen() ||
       this.bulkFavouritesModalOpen() ||
       this.restoreCollectionModalOpen() ||
       this.newRequestPopupOpen()
@@ -720,8 +720,8 @@ export class RequestsMainList {
       this.closeEditModal();
       return;
     }
-    if (this.tagsModalOpen()) {
-      this.closeTagsModal();
+    if (this.scriptsModalOpen()) {
+      this.closeScriptsModal();
       return;
     }
     if (this.favouritesModalOpen()) {
@@ -732,8 +732,8 @@ export class RequestsMainList {
       this.closeMoveCollectionModal();
       return;
     }
-    if (this.bulkTagModalOpen()) {
-      this.closeBulkTagModal();
+    if (this.bulkScriptModalOpen()) {
+      this.closeBulkScriptModal();
       return;
     }
     if (this.bulkFavouritesModalOpen()) {
@@ -1289,12 +1289,12 @@ export class RequestsMainList {
       return;
     }
 
-    if (kind === 'tag') {
-      const next = [...this.tagRequests()];
+    if (kind === 'script') {
+      const next = [...this.scriptRequests()];
       const [moved] = next.splice(from, 1);
       if (!moved) return;
       next.splice(to, 0, moved);
-      this.tagRequests.set(next.map((req, index) => ({ ...req, user_sort_order: index })));
+      this.scriptRequests.set(next.map((req, index) => ({ ...req, user_sort_order: index })));
     }
   }
 
@@ -1313,11 +1313,11 @@ export class RequestsMainList {
         const favourite = this.state.selectedFavouriteCollection();
         if (!favourite) return;
         await this.favouriteApi.updateRequestOrder(favourite.id, orderedIds);
-      } else if (kind === 'tag') {
+      } else if (kind === 'script') {
         const project = this.state.selectedProject();
-        const tag = this.state.selectedTag();
-        if (!project || !tag) return;
-        await this.tagApi.updateRequestOrder(project.id, tag, orderedIds);
+        const script = this.state.selectedScript();
+        if (!project || !script) return;
+        await this.scriptApi.updateRequestOrder(project.id, script, orderedIds);
       }
     } catch (err) {
       console.error('persisting request order failed, reloading view', err);
@@ -1327,11 +1327,11 @@ export class RequestsMainList {
         } else if (kind === 'favourite') {
           const favourite = this.state.selectedFavouriteCollection();
           if (favourite) await this.favouriteApi.loadRequestsForCollection(favourite.id);
-        } else if (kind === 'tag') {
+        } else if (kind === 'script') {
           const project = this.state.selectedProject();
-          const tag = this.state.selectedTag();
-          if (project && tag) {
-            this.tagRequests.set(await this.tagApi.getRequestsForTag(project.id, tag));
+          const script = this.state.selectedScript();
+          if (project && script) {
+            this.scriptRequests.set(await this.scriptApi.getRequestsForScript(project.id, script));
           }
         }
       } catch (reloadErr) {
@@ -1364,15 +1364,15 @@ export class RequestsMainList {
           this.favouriteApi.requests().map(r => (idSet.has(r.id) ? { ...r, user_color: color } : r)),
         );
         await this.favouriteApi.updateRequestColor(favourite.id, ids, color);
-      } else if (kind === 'tag') {
+      } else if (kind === 'script') {
         const project = this.state.selectedProject();
-        const tag = this.state.selectedTag();
-        if (!project || !tag) return;
+        const script = this.state.selectedScript();
+        if (!project || !script) return;
         const idSet = new Set(ids);
-        this.tagRequests.set(
-          this.tagRequests().map(r => (idSet.has(r.id) ? { ...r, user_color: color } : r)),
+        this.scriptRequests.set(
+          this.scriptRequests().map(r => (idSet.has(r.id) ? { ...r, user_color: color } : r)),
         );
-        await this.tagApi.updateRequestColor(project.id, tag, ids, color);
+        await this.scriptApi.updateRequestColor(project.id, script, ids, color);
       }
     } catch (err) {
       console.error('persisting request colour failed, reloading view', err);
@@ -1382,11 +1382,11 @@ export class RequestsMainList {
         } else if (kind === 'favourite') {
           const favourite = this.state.selectedFavouriteCollection();
           if (favourite) await this.favouriteApi.loadRequestsForCollection(favourite.id);
-        } else if (kind === 'tag') {
+        } else if (kind === 'script') {
           const project = this.state.selectedProject();
-          const tag = this.state.selectedTag();
-          if (project && tag) {
-            this.tagRequests.set(await this.tagApi.getRequestsForTag(project.id, tag));
+          const script = this.state.selectedScript();
+          if (project && script) {
+            this.scriptRequests.set(await this.scriptApi.getRequestsForScript(project.id, script));
           }
         }
       } catch (reloadErr) {
@@ -1416,12 +1416,12 @@ export class RequestsMainList {
         if (!favourite) return;
         this.favouriteApi.requests.set(this.favouriteApi.requests().map(r => ({ ...r, user_color: null })));
         await this.favouriteApi.updateRequestColor(favourite.id, ids, null);
-      } else if (kind === 'tag') {
+      } else if (kind === 'script') {
         const project = this.state.selectedProject();
-        const tag = this.state.selectedTag();
-        if (!project || !tag) return;
-        this.tagRequests.set(this.tagRequests().map(r => ({ ...r, user_color: null })));
-        await this.tagApi.updateRequestColor(project.id, tag, ids, null);
+        const script = this.state.selectedScript();
+        if (!project || !script) return;
+        this.scriptRequests.set(this.scriptRequests().map(r => ({ ...r, user_color: null })));
+        await this.scriptApi.updateRequestColor(project.id, script, ids, null);
       }
     } catch (err) {
       console.error('clearing all request colours failed, reloading view', err);
@@ -1431,11 +1431,11 @@ export class RequestsMainList {
         } else if (kind === 'favourite') {
           const favourite = this.state.selectedFavouriteCollection();
           if (favourite) await this.favouriteApi.loadRequestsForCollection(favourite.id);
-        } else if (kind === 'tag') {
+        } else if (kind === 'script') {
           const project = this.state.selectedProject();
-          const tag = this.state.selectedTag();
-          if (project && tag) {
-            this.tagRequests.set(await this.tagApi.getRequestsForTag(project.id, tag));
+          const script = this.state.selectedScript();
+          if (project && script) {
+            this.scriptRequests.set(await this.scriptApi.getRequestsForScript(project.id, script));
           }
         }
       } catch (reloadErr) {
@@ -1504,7 +1504,7 @@ export class RequestsMainList {
 
       const duplicatedRequests = duplicated.map(d => d.request);
       await Promise.all([
-        this.tagApi.loadTagsForRequests(duplicatedRequests),
+        this.scriptApi.loadScriptsForRequests(duplicatedRequests),
         this.favouriteApi.loadMembershipForRequests(duplicatedRequests),
       ]);
 
@@ -1555,7 +1555,7 @@ export class RequestsMainList {
 
       const favourite = this.state.selectedFavouriteCollection();
       const collection = this.state.selectedCollection();
-      const tag = this.state.selectedTag();
+      const script = this.state.selectedScript();
 
       if (favourite) {
         for (const id of ids) {
@@ -1576,9 +1576,9 @@ export class RequestsMainList {
 
       this.clearSelection();
 
-      if (tag) {
-        this.tagRequests.update(list => list.filter(r => !ids.includes(r.id)));
-        await this.tagApi.loadTagsForRequests(this.tagRequests());
+      if (script) {
+        this.scriptRequests.update(list => list.filter(r => !ids.includes(r.id)));
+        await this.scriptApi.loadScriptsForRequests(this.scriptRequests());
       }
     } catch (err) {
       console.error(err);
@@ -1677,22 +1677,22 @@ export class RequestsMainList {
     }
   }
 
-  // ---------- Bulk Tag ----------
+  // ---------- Bulk Script ----------
 
-  openBulkTagModal(): void {
+  openBulkScriptModal(): void {
     this.contextMenu.close();
-    this.bulkTagName.set('');
-    this.bulkTagModalOpen.set(true);
+    this.bulkScriptName.set('');
+    this.bulkScriptModalOpen.set(true);
   }
 
-  closeBulkTagModal(): void {
-    this.bulkTagModalOpen.set(false);
-    this.bulkTagName.set('');
+  closeBulkScriptModal(): void {
+    this.bulkScriptModalOpen.set(false);
+    this.bulkScriptName.set('');
   }
 
-  async addBulkTag(tagName: string): Promise<void> {
+  async addBulkScript(scriptName: string): Promise<void> {
     if (this.state.showingBin()) return;
-    const name = tagName.trim();
+    const name = scriptName.trim();
     const project = this.state.selectedProject();
     if (!name || !project) return;
 
@@ -1702,9 +1702,9 @@ export class RequestsMainList {
     this.state.loading.set(true);
     try {
       for (const req of requests) {
-        await this.tagApi.addTagToRequest(req.id, project.id, name);
+        await this.scriptApi.attachScript(req.id, project.id, name);
       }
-      this.bulkTagName.set('');
+      this.bulkScriptName.set('');
     } catch (err) {
       console.error(err);
     } finally {
@@ -1842,8 +1842,8 @@ export class RequestsMainList {
         return req.url;
       case 'method':
         return req.method;
-      case 'tags':
-        return (this.requestTags()[req.id] ?? []).join(', ');
+      case 'scripts':
+        return (this.requestScripts()[req.id] ?? []).join(', ');
       default:
         return '';
     }
@@ -1981,8 +1981,8 @@ export class RequestsMainList {
       this.startInlineNameEdit(request);
       return;
     }
-    if (column === 'tags') {
-      this.openTagsModal(request);
+    if (column === 'scripts') {
+      this.openScriptsModal(request);
       return;
     }
     this.openEditModal(request, column);
@@ -2033,7 +2033,7 @@ export class RequestsMainList {
     const column = this.editModalColumn();
     if (!req || !column) return;
 
-    if (column === 'tags') return;
+    if (column === 'scripts') return;
 
     const field = this.columnToRequestField(column);
     await this.updateRequestField(req, field, this.editModalValue());
@@ -2063,38 +2063,38 @@ export class RequestsMainList {
     await this.updateRequestField(req, 'method', method);
   }
 
-  // ---------- Tags modal (single request) ----------
+  // ---------- Scripts modal (single request) ----------
 
-  openTagsModal(req: HttpRequestSummary): void {
+  openScriptsModal(req: HttpRequestSummary): void {
     this.contextMenu.close();
-    this.tagsModalRequest.set(req);
-    this.tagsModalNewTagName.set('');
-    this.tagsModalOpen.set(true);
+    this.scriptsModalRequest.set(req);
+    this.scriptsModalNewScriptName.set('');
+    this.scriptsModalOpen.set(true);
   }
 
-  closeTagsModal(): void {
-    this.tagsModalOpen.set(false);
-    this.tagsModalRequest.set(null);
-    this.tagsModalNewTagName.set('');
+  closeScriptsModal(): void {
+    this.scriptsModalOpen.set(false);
+    this.scriptsModalRequest.set(null);
+    this.scriptsModalNewScriptName.set('');
   }
 
-  async addTagToRequest(req: HttpRequestSummary, tagName: string): Promise<void> {
-    const name = tagName.trim();
+  async addScriptToRequest(req: HttpRequestSummary, scriptName: string): Promise<void> {
+    const name = scriptName.trim();
     const project = this.state.selectedProject();
     if (!name || !project) return;
 
     try {
-      await this.tagApi.addTagToRequest(req.id, project.id, name);
-      this.tagsModalNewTagName.set('');
+      await this.scriptApi.attachScript(req.id, project.id, name);
+      this.scriptsModalNewScriptName.set('');
     } catch (err) {
       console.error(err);
     }
   }
 
-  async removeTagFromRequest(req: HttpRequestSummary, tagName: string, event: MouseEvent): Promise<void> {
+  async removeScriptFromRequest(req: HttpRequestSummary, scriptName: string, event: MouseEvent): Promise<void> {
     event.stopPropagation();
     try {
-      await this.tagApi.removeTagFromRequest(req.id, tagName);
+      await this.scriptApi.detachScript(req.id, scriptName);
     } catch (err) {
       console.error(err);
     }
@@ -2226,6 +2226,6 @@ export class RequestsMainList {
     };
 
     this.favouriteApi.requests.update(patch);
-    this.tagRequests.update(patch);
+    this.scriptRequests.update(patch);
   }
 }

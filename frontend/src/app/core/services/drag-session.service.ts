@@ -2,12 +2,12 @@ import { Injectable, inject, signal } from '@angular/core';
 import type { HttpRequestSummary } from '../models/http';
 import { RequestApiService } from './request.service';
 import { FavouriteApiService } from './favourite.service';
-import { TagApiService } from './tag.service';
+import { ScriptApiService } from './script.service';
 import { CollectionApiService } from './collection.service';
 import { WorkspaceStateService } from './workspace-state.service';
 import { ToastService } from './toast.service';
 
-export type DropKind = 'collection' | 'favourite' | 'tag';
+export type DropKind = 'collection' | 'favourite' | 'script';
 
 export interface DropTarget {
   kind: DropKind;
@@ -30,7 +30,7 @@ export interface DragSession {
 export class DragSessionService {
   private readonly requestApi = inject(RequestApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
-  private readonly tagApi = inject(TagApiService);
+  private readonly scriptApi = inject(ScriptApiService);
   private readonly collectionApi = inject(CollectionApiService);
   private readonly state = inject(WorkspaceStateService);
   private readonly toast = inject(ToastService);
@@ -153,19 +153,19 @@ export class DragSessionService {
       return;
     }
 
-    if (target.kind === 'tag') {
+    if (target.kind === 'script') {
       const project = this.state.selectedProject();
       if (!project) return;
-      const existing = this.tagApi.requestTags()[requestId] ?? [];
+      const existing = this.scriptApi.requestScripts()[requestId] ?? [];
       if (existing.includes(target.name)) {
-        this.toast.show(`Already tagged "${target.name}"`);
+        this.toast.show(`Already attached to "${target.name}"`);
         return;
       }
       try {
-        await this.tagApi.addTagToRequest(requestId, project.id, target.name);
-        this.toast.show(`Tagged "${name}" with "${target.name}"`);
+        await this.scriptApi.attachScript(requestId, project.id, target.name);
+        this.toast.show(`Attached "${target.name}" to "${name}"`);
       } catch (err) {
-        console.error('adding tag to request failed', err);
+        console.error('attaching script failed', err);
       }
     }
   }

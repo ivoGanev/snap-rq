@@ -76,7 +76,7 @@
 </div>
 
 @if (!activeGroupName()) {
-  <div class="state-message">Select a collection, favourite group, or tag to view requests.</div>
+  <div class="state-message">Select a collection, favourite group, or script to view requests.</div>
 }
 
 @if (activeGroupName() && activeRequests().length === 0) {
@@ -338,8 +338,8 @@
     <button class="context-menu-item" type="button" (click)="openMoveCollectionModal()">
       Move to collection…
     </button>
-    <button class="context-menu-item" type="button" (click)="openBulkTagModal()">
-      Add tag…
+    <button class="context-menu-item" type="button" (click)="openBulkScriptModal()">
+      Attach script…
     </button>
     <button class="context-menu-item" type="button" (click)="openBulkFavouritesModal()">
       Add to favourites…
@@ -517,24 +517,24 @@
   }
 </ng-template>
 
-@if (tagsModalOpen()) {
-  <div class="overlay-backdrop" (click)="closeTagsModal()">
-    <div class="overlay-panel tags-modal" (click)="$event.stopPropagation()">
+@if (scriptsModalOpen()) {
+  <div class="overlay-backdrop" (click)="closeScriptsModal()">
+    <div class="overlay-panel scripts-modal" (click)="$event.stopPropagation()">
       <div class="overlay-header">
-        <h3 class="overlay-title">Tags</h3>
-        <button class="overlay-close" type="button" (click)="closeTagsModal()">Close</button>
+        <h3 class="overlay-title">Scripts</h3>
+        <button class="overlay-close" type="button" (click)="closeScriptsModal()">Close</button>
       </div>
 
       <div class="overlay-body">
-        <div class="request-tags request-tags--editable">
-          @for (tag of requestTags()[tagsModalRequest()!.id] ?? []; track tag) {
-            <span class="tag-chip tag-chip--editable">
-              {{ tag }}
+        <div class="request-scripts request-scripts--editable">
+          @for (script of requestScripts()[scriptsModalRequest()!.id] ?? []; track script) {
+            <span class="script-chip script-chip--editable">
+              {{ script }}
               <button
-                class="tag-chip-remove"
+                class="script-chip-remove"
                 type="button"
-                (click)="removeTagFromRequest(tagsModalRequest()!, tag, $event)"
-                aria-label="Remove tag"
+                (click)="removeScriptFromRequest(scriptsModalRequest()!, script, $event)"
+                aria-label="Detach script"
               >
                 ×
               </button>
@@ -542,24 +542,24 @@
           }
         </div>
 
-        <div class="tag-input-wrap">
+        <div class="script-input-wrap">
           <input
-            class="tag-input"
+            class="script-input"
             type="text"
-            placeholder="Add tag…"
-            [ngModel]="tagsModalNewTagName()"
-            (ngModelChange)="tagsModalNewTagName.set($event)"
-            (keydown.enter)="addTagToRequest(tagsModalRequest()!, tagsModalNewTagName())"
+            placeholder="Attach script…"
+            [ngModel]="scriptsModalNewScriptName()"
+            (ngModelChange)="scriptsModalNewScriptName.set($event)"
+            (keydown.enter)="addScriptToRequest(scriptsModalRequest()!, scriptsModalNewScriptName())"
           />
-          @if (tagSuggestions().length && tagsModalNewTagName().trim()) {
-            <div class="tag-suggestions">
-              @for (tag of tagSuggestions(); track tag.id) {
+          @if (scriptSuggestions().length && scriptsModalNewScriptName().trim()) {
+            <div class="script-suggestions">
+              @for (script of scriptSuggestions(); track script.id) {
                 <button
-                  class="tag-suggestion"
+                  class="script-suggestion"
                   type="button"
-                  (click)="addTagToRequest(tagsModalRequest()!, tag.name)"
+                  (click)="addScriptToRequest(scriptsModalRequest()!, script.name)"
                 >
-                  {{ tag.name }}
+                  {{ script.name }}
                 </button>
               }
             </div>
@@ -671,33 +671,33 @@
   </div>
 }
 
-@if (bulkTagModalOpen()) {
-  <div class="overlay-backdrop" (click)="closeBulkTagModal()">
-    <div class="overlay-panel tags-modal" (click)="$event.stopPropagation()">
+@if (bulkScriptModalOpen()) {
+  <div class="overlay-backdrop" (click)="closeBulkScriptModal()">
+    <div class="overlay-panel scripts-modal" (click)="$event.stopPropagation()">
       <div class="overlay-header">
-        <h3 class="overlay-title">Add tag to {{ selectedRowIds().size }} request(s)</h3>
-        <button class="overlay-close" type="button" (click)="closeBulkTagModal()">Close</button>
+        <h3 class="overlay-title">Attach script to {{ selectedRowIds().size }} request(s)</h3>
+        <button class="overlay-close" type="button" (click)="closeBulkScriptModal()">Close</button>
       </div>
 
       <div class="overlay-body">
-        <div class="tag-input-wrap">
+        <div class="script-input-wrap">
           <input
-            class="tag-input"
+            class="script-input"
             type="text"
-            placeholder="Tag name"
-            [ngModel]="bulkTagName()"
-            (ngModelChange)="bulkTagName.set($event)"
-            (keydown.enter)="addBulkTag(bulkTagName())"
+            placeholder="Script name"
+            [ngModel]="bulkScriptName()"
+            (ngModelChange)="bulkScriptName.set($event)"
+            (keydown.enter)="addBulkScript(bulkScriptName())"
           />
-          @if (bulkTagSuggestions().length && bulkTagName().trim()) {
-            <div class="tag-suggestions">
-              @for (tag of bulkTagSuggestions(); track tag.id) {
+          @if (bulkScriptSuggestions().length && bulkScriptName().trim()) {
+            <div class="script-suggestions">
+              @for (script of bulkScriptSuggestions(); track script.id) {
                 <button
-                  class="tag-suggestion"
+                  class="script-suggestion"
                   type="button"
-                  (click)="addBulkTag(tag.name)"
+                  (click)="addBulkScript(script.name)"
                 >
-                  {{ tag.name }}
+                  {{ script.name }}
                 </button>
               }
             </div>
@@ -706,7 +706,7 @@
       </div>
 
       <div class="overlay-footer">
-        <button class="variable-add" type="button" (click)="addBulkTag(bulkTagName())">Add tag</button>
+        <button class="variable-add" type="button" (click)="addBulkScript(bulkScriptName())">Attach script</button>
       </div>
     </div>
   </div>

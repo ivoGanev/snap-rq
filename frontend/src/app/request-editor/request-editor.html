@@ -66,43 +66,43 @@
         ></app-request-body-editor>
       </div>
 
-      @if (showTagInput() || (requestTags()[state.selectedRequest()!.id]?.length ?? 0) > 0) {
+      @if (showScriptInput() || (requestScripts()[state.selectedRequest()!.id]?.length ?? 0) > 0) {
         <label class="edit-field">
-          <span class="edit-label">Tags</span>
-          <div class="request-tags request-tags--editable">
-            @for (tag of requestTags()[state.selectedRequest()!.id] ?? []; track tag) {
-              <span class="tag-chip tag-chip--editable">
-                {{ tag }}
+          <span class="edit-label">Scripts</span>
+          <div class="request-scripts request-scripts--editable">
+            @for (script of requestScripts()[state.selectedRequest()!.id] ?? []; track script) {
+              <span class="script-chip script-chip--editable">
+                {{ script }}
                 <button
-                  class="tag-chip-remove"
+                  class="script-chip-remove"
                   type="button"
-                  (click)="removeTagFromRequest(state.selectedRequest()!, tag, $event)"
-                  aria-label="Remove tag"
+                  (click)="removeScriptFromRequest(state.selectedRequest()!, script, $event)"
+                  aria-label="Detach script"
                 >
                   ×
                 </button>
               </span>
             }
           </div>
-          @if (showTagInput()) {
-            <div class="tag-input-wrap">
+          @if (showScriptInput()) {
+            <div class="script-input-wrap">
               <input
-                class="tag-input"
+                class="script-input"
                 type="text"
-                placeholder="Add tag…"
-                [ngModel]="newTagName()"
-                (ngModelChange)="newTagName.set($event)"
-                (keydown.enter)="addTagToRequest(state.selectedRequest()!, newTagName())"
+                placeholder="Attach script…"
+                [ngModel]="newScriptName()"
+                (ngModelChange)="newScriptName.set($event)"
+                (keydown.enter)="addScriptToRequest(state.selectedRequest()!, newScriptName())"
               />
-              @if (tagSuggestions().length && newTagName().trim()) {
-                <div class="tag-suggestions">
-                  @for (tag of tagSuggestions(); track tag.id) {
+              @if (scriptSuggestions().length && newScriptName().trim()) {
+                <div class="script-suggestions">
+                  @for (script of scriptSuggestions(); track script.id) {
                     <button
-                      class="tag-suggestion"
+                      class="script-suggestion"
                       type="button"
-                      (click)="addTagToRequest(state.selectedRequest()!, tag.name)"
+                      (click)="addScriptToRequest(state.selectedRequest()!, script.name)"
                     >
-                      {{ tag.name }}
+                      {{ script.name }}
                     </button>
                   }
                 </div>

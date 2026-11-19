@@ -13,7 +13,7 @@ import {
 import { RequestApiService } from '../core/services/request.service';
 import { CommandApiService } from '../core/services/command.service';
 import { SelectionStateService, groupKey } from '../core/services/selection-state.service';
-import { TagApiService, type Tag } from '../core/services/tag.service';
+import { ScriptApiService, type Script } from '../core/services/script.service';
 import { DragSessionService, type DropKind } from '../core/services/drag-session.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
 import { IconManifestService } from '../core/services/icon-manifest.service';
@@ -24,7 +24,7 @@ import {
   RequestGroupList,
   sidebarCollectionKey,
   sidebarFavouriteKey,
-  sidebarTagKey,
+  sidebarScriptKey,
   type SidebarAppearancePatch,
   type SidebarFolder,
   type SidebarItem,
@@ -35,7 +35,7 @@ import {
   CollectionView,
   FavouriteView,
   RecentView,
-  TagView,
+  ScriptView,
   TrashView,
 } from '../core/workspace/workspace-view';
 import {
@@ -112,7 +112,7 @@ export class RequestGroups {
   private readonly requestApi = inject(RequestApiService);
   private readonly selectionState = inject(SelectionStateService);
   protected readonly iconManifest = inject(IconManifestService);
-  private readonly tagApi = inject(TagApiService);
+  private readonly scriptApi = inject(ScriptApiService);
   private readonly contextMenu = inject(ContextMenuService);
   private readonly commandApi = inject(CommandApiService);
   private readonly confirm = inject(ConfirmService);
@@ -142,8 +142,8 @@ export class RequestGroups {
     favourite: (item) => {
       this.state.selectView(new FavouriteView(item.data));
     },
-    tag: (item) => {
-      this.state.selectView(new TagView(item.data.name));
+    script: (item) => {
+      this.state.selectView(new ScriptView(item.data.name));
     },
   };
 
@@ -154,12 +154,12 @@ export class RequestGroups {
     favourite: async (item, newName) => {
       await this.favouriteApi.updateCollection({ ...item.data, name: newName });
     },
-    tag: async (item, newName) => {
+    script: async (item, newName) => {
       const project = this.state.selectedProject();
       if (!project) return;
-      await this.tagApi.renameTag(project.id, item.data.name, newName);
-      if (this.state.selectedTag() === item.data.name) {
-        this.state.selectView(new TagView(newName));
+      await this.scriptApi.renameScript(project.id, item.data.name, newName);
+      if (this.state.selectedScript() === item.data.name) {
+        this.state.selectView(new ScriptView(newName));
       }
     },
   };
@@ -171,15 +171,15 @@ export class RequestGroups {
     favourite: async (item, patch) => {
       await this.favouriteApi.updateAppearance(item.id, patch);
     },
-    tag: async (item, patch) => {
-      await this.tagApi.updateAppearance(item.id, patch);
+    script: async (item, patch) => {
+      await this.scriptApi.updateAppearance(item.id, patch);
     },
   };
 
   private readonly removeHandlers: RemoveHandlerMap = {
     collection: (item) => this.deleteCollection(item.data),
     favourite: (item) => this.deleteFavouriteCollection(item.data),
-    tag: (item) => this.deleteTag(item.data),
+    script: (item) => this.deleteScript(item.data),
   };
 
   // Generic dispatchers: they tie the map key to the item's kind, so the
@@ -208,7 +208,7 @@ export class RequestGroups {
 
   protected readonly collections = this.collectionApi.collections;
   protected readonly favouriteCollections = this.favouriteApi.collections;
-  protected readonly allTags = this.tagApi.allTags;
+  protected readonly allScripts = this.scriptApi.allScripts;
 
   // Which folder panel is open in the second column.
   protected readonly folderFilter = signal<SidebarFolder | null>(null);
@@ -220,7 +220,7 @@ export class RequestGroups {
     famous: () => this.selectFamous(),
     collections: () => this.selectCollections(),
     favourites: () => this.selectFavourites(),
-    tags: () => this.selectTags(),
+    scripts: () => this.selectScripts(),
     trash: () => this.selectTrashBin(),
   };
 
@@ -229,7 +229,7 @@ export class RequestGroups {
     famous: () => this.state.showingFamousRequests(),
     collections: () => this.folderFilter() === 'collections',
     favourites: () => this.folderFilter() === 'favourites',
-    tags: () => this.folderFilter() === 'tags',
+    scripts: () => this.folderFilter() === 'scripts',
     trash: () => this.state.showingBin(),
   };
 
@@ -263,9 +263,9 @@ export class RequestGroups {
   protected readonly newCollectionName = signal('');
   protected readonly newFavouritePopupOpen = signal(false);
   protected readonly newFavouriteName = signal('');
-  protected readonly newTagPopupOpen = signal(false);
+  protected readonly newScriptPopupOpen = signal(false);
 
-  protected readonly newTagName = signal('');
+  protected readonly newScriptName = signal('');
 
   // Rename inline
   protected readonly renamingItem = signal<SidebarItem | null>(null);
@@ -295,9 +295,9 @@ export class RequestGroups {
         appearance: f.appearance,
         data: f,
       })),
-    tags: () =>
-      this.allTags().map((t) => ({
-        kind: 'tag',
+    scripts: () =>
+      this.allScripts().map((t) => ({
+        kind: 'script',
         id: t.id,
         name: t.name,
         appearance: t.appearance,
@@ -316,11 +316,11 @@ export class RequestGroups {
     if (collection) return sidebarCollectionKey(collection.id);
     const favourite = this.state.selectedFavouriteCollection();
     if (favourite) return sidebarFavouriteKey(favourite.id);
-    const tag = this.state.selectedTag();
-    return tag ? sidebarTagKey(tag) : null;
+    const script = this.state.selectedScript();
+    return script ? sidebarScriptKey(script) : null;
   });
 
-  /** The selected sidebar entity (collection/favourite/tag), if any. */
+  /** The selected sidebar entity (collection/favourite/script), if any. */
   protected readonly selectedSidebarItem = computed<SidebarItem | null>(() => {
     const collection = this.state.selectedCollection();
     if (collection) {
@@ -344,11 +344,11 @@ export class RequestGroups {
       };
     }
 
-    const tagName = this.state.selectedTag();
-    if (tagName) {
-      const tag = this.allTags().find((t) => t.name === tagName);
-      if (tag) {
-        return { kind: 'tag', id: tag.id, name: tag.name, appearance: tag.appearance, data: tag };
+    const scriptName = this.state.selectedScript();
+    if (scriptName) {
+      const script = this.allScripts().find((t) => t.name === scriptName);
+      if (script) {
+        return { kind: 'script', id: script.id, name: script.name, appearance: script.appearance, data: script };
       }
     }
 
@@ -361,7 +361,7 @@ export class RequestGroups {
     if (!target) return null;
     if (target.kind === 'collection') return sidebarCollectionKey(target.id);
     if (target.kind === 'favourite') return sidebarFavouriteKey(target.id);
-    return sidebarTagKey(target.name);
+    return sidebarScriptKey(target.name);
   });
 
   protected readonly dropZoneActive = computed(
@@ -416,8 +416,8 @@ export class RequestGroups {
       this.closeNewFavouritePopup();
       return;
     }
-    if (this.newTagPopupOpen()) {
-      this.closeNewTagPopup();
+    if (this.newScriptPopupOpen()) {
+      this.closeNewScriptPopup();
       return;
     }
     if (this.renamingItem()) {
@@ -438,7 +438,7 @@ export class RequestGroups {
       this.appearancePopupOpen() ||
       this.newCollectionPopupOpen() ||
       this.newFavouritePopupOpen() ||
-      this.newTagPopupOpen()
+      this.newScriptPopupOpen()
     ) {
       return;
     }
@@ -478,8 +478,8 @@ export class RequestGroups {
     this.toggleFolderFilter('favourites');
   }
 
-  selectTags(): void {
-    this.toggleFolderFilter('tags');
+  selectScripts(): void {
+    this.toggleFolderFilter('scripts');
   }
 
   private toggleFolderFilter(filter: SidebarFolder): void {
@@ -487,7 +487,7 @@ export class RequestGroups {
     const next = current === filter ? null : filter;
 
     // The trash bin always closes. Opening a folder also closes "all" and
-    // "recent"; an open collection, favourite or tag stays open.
+    // "recent"; an open collection, favourite or script stays open.
     const view = this.state.view()?.kind;
     if (view === 'bin' || (next !== null && (view === 'all' || view === 'recent'))) {
       this.state.selectView(null);
@@ -517,8 +517,8 @@ export class RequestGroups {
       case 'favourites':
         this.openNewFavouritePopup();
         break;
-      case 'tags':
-        this.openNewTagPopup();
+      case 'scripts':
+        this.openNewScriptPopup();
         break;
     }
   }
@@ -630,14 +630,14 @@ export class RequestGroups {
     this.newFavouritePopupOpen.set(false);
   }
 
-  openNewTagPopup(): void {
+  openNewScriptPopup(): void {
     this.contextMenu.close();
-    this.newTagName.set('');
-    this.newTagPopupOpen.set(true);
+    this.newScriptName.set('');
+    this.newScriptPopupOpen.set(true);
   }
 
-  closeNewTagPopup(): void {
-    this.newTagPopupOpen.set(false);
+  closeNewScriptPopup(): void {
+    this.newScriptPopupOpen.set(false);
   }
 
   // ---------- Creation ----------
@@ -685,14 +685,14 @@ export class RequestGroups {
     }
   }
 
-  async addTag(): Promise<void> {
+  async addScript(): Promise<void> {
     const project = this.state.selectedProject();
-    const name = this.newTagName().trim().toLowerCase();
+    const name = this.newScriptName().trim().toLowerCase();
     if (!project || !name) return;
 
     try {
-      await this.tagApi.addTagToRequest(0, project.id, name);
-      this.closeNewTagPopup();
+      await this.scriptApi.attachScript(0, project.id, name);
+      this.closeNewScriptPopup();
     } catch (err) {
       console.error(err);
     }
@@ -794,7 +794,7 @@ export class RequestGroups {
     this.contextMenu.close();
 
     const noun =
-      item.kind === 'collection' ? 'collection' : item.kind === 'favourite' ? 'favourites' : 'tag';
+      item.kind === 'collection' ? 'collection' : item.kind === 'favourite' ? 'favourites' : 'script';
     const confirmed = await this.confirm.ask({
       title: `Delete ${noun}?`,
       message: this.deleteItemMessage(item),
@@ -816,8 +816,8 @@ export class RequestGroups {
         return `This will delete "${item.name}" and all requests inside it. This cannot be undone.`;
       case 'favourite':
         return `This will delete the favourites group "${item.name}". The requests themselves are not affected.`;
-      case 'tag':
-        return `This will delete the tag "${item.name}". The requests themselves are not affected.`;
+      case 'script':
+        return `This will delete the script "${item.name}". The requests themselves are not affected.`;
     }
   }
 
@@ -855,13 +855,13 @@ export class RequestGroups {
     }
   }
 
-  private async deleteTag(tag: Tag): Promise<void> {
+  private async deleteScript(script: Script): Promise<void> {
     const project = this.state.selectedProject();
     if (!project) return;
 
     try {
-      await this.tagApi.deleteTag(project.id, tag.name);
-      if (this.state.selectedTag() === tag.name) {
+      await this.scriptApi.deleteScript(project.id, script.name);
+      if (this.state.selectedScript() === script.name) {
         this.state.selectView(null);
       }
     } catch (err) {

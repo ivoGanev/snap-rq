@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 
 import { FavouriteApiService } from '../core/services/favourite.service';
-import { TagApiService, type Tag } from '../core/services/tag.service';
+import { ScriptApiService, type Script } from '../core/services/script.service';
 import { RequestBodyEditor, type BodyKind } from '../request-body-editor/request-body-editor';
 import { RequestHeadersEditor } from '../request-headers-editor/request-headers-editor';
 import { CodeEditor } from '../code-editor/code-editor';
@@ -19,15 +19,15 @@ export class RequestEditor {
   protected readonly state = inject(WorkspaceStateService);
   private readonly requestApi = inject(RequestApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
-  private readonly tagApi = inject(TagApiService);
+  private readonly scriptApi = inject(ScriptApiService);
 
-  protected readonly requestTags = this.tagApi.requestTags;
+  protected readonly requestScripts = this.scriptApi.requestScripts;
   protected readonly environmentVariables = this.state.environmentVariables;
 
-  readonly showTagInput = input<boolean>(true);
+  readonly showScriptInput = input<boolean>(true);
   readonly draftRequest = signal<HttpRequest | null>(null);
-  readonly tagInputOpen = signal(false);
-  readonly newTagName = signal('');
+  readonly scriptInputOpen = signal(false);
+  readonly newScriptName = signal('');
 
   readonly bodyEditorType = computed<BodyKind>(() => {
     const type = this.draftRequest()?.body_type;
@@ -35,16 +35,16 @@ export class RequestEditor {
     return 'json';
   });
 
-  readonly tagSuggestions = computed<Tag[]>(() => {
-    const query = this.newTagName().trim().toLowerCase();
-    const tags = this.tagApi.allTags();
+  readonly scriptSuggestions = computed<Script[]>(() => {
+    const query = this.newScriptName().trim().toLowerCase();
+    const scripts = this.scriptApi.allScripts();
     const selected = this.state.selectedRequest();
-    const existing = selected ? new Set(this.requestTags()[selected.id] ?? []) : new Set<string>();
+    const existing = selected ? new Set(this.requestScripts()[selected.id] ?? []) : new Set<string>();
     if (!query) {
-      return tags.filter((tag) => !existing.has(tag.name)).slice(0, 6);
+      return scripts.filter((script) => !existing.has(script.name)).slice(0, 6);
     }
-    return tags
-      .filter((tag) => tag.name.toLowerCase().includes(query) && !existing.has(tag.name))
+    return scripts
+      .filter((script) => script.name.toLowerCase().includes(query) && !existing.has(script.name))
       .slice(0, 6);
   });
 
@@ -103,37 +103,37 @@ export class RequestEditor {
     }
   }
 
-  openTagInput(): void {
-    this.tagInputOpen.set(true);
-    this.newTagName.set('');
+  openScriptInput(): void {
+    this.scriptInputOpen.set(true);
+    this.newScriptName.set('');
   }
 
-  closeTagInput(): void {
-    this.tagInputOpen.set(false);
-    this.newTagName.set('');
+  closeScriptInput(): void {
+    this.scriptInputOpen.set(false);
+    this.newScriptName.set('');
   }
 
-  async addTagToRequest(req: HttpRequest | HttpRequestSummary, tagName: string): Promise<void> {
-    const name = tagName.trim();
+  async addScriptToRequest(req: HttpRequest | HttpRequestSummary, scriptName: string): Promise<void> {
+    const name = scriptName.trim();
     const project = this.state.selectedProject();
     if (!name || !project) return;
 
     try {
-      await this.tagApi.addTagToRequest(req.id, project.id, name);
-      this.closeTagInput();
+      await this.scriptApi.attachScript(req.id, project.id, name);
+      this.closeScriptInput();
     } catch (err) {
       console.error(err);
     }
   }
 
-  async removeTagFromRequest(
+  async removeScriptFromRequest(
     req: HttpRequest | HttpRequestSummary,
-    tagName: string,
+    scriptName: string,
     event: MouseEvent,
   ): Promise<void> {
     event.stopPropagation();
     try {
-      await this.tagApi.removeTagFromRequest(req.id, tagName);
+      await this.scriptApi.detachScript(req.id, scriptName);
     } catch (err) {
       console.error(err);
     }

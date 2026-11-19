@@ -21,7 +21,7 @@ export interface IconPack {
 }
 
 const MANIFEST_PATH = '/icons/_manifest.yaml';
-const FEATURES = ['collections', 'favourites', 'tags'] as const;
+const FEATURES = ['collections', 'favourites', 'scripts'] as const;
 const FALLBACK_PACK = 'standard';
 
 /** Shape of the manifest, as parsed by the `yaml` library. */

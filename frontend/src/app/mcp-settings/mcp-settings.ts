@@ -11,7 +11,7 @@ interface RiskGroup {
 
 const RISK_LABELS: Record<string, string> = {
   read: 'Look — see your projects, collections and requests',
-  organize: 'Tidy up — rename, move, tag, colour and reorder. Deleted requests go to the trash',
+  organize: 'Tidy up — rename, move, attach scripts, colour and reorder. Deleted requests go to the trash',
   content:
     'Edit requests — change where a request goes or what it carries: its address (URL), headers and body',
 };

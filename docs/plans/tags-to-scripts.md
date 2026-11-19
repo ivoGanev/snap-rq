@@ -198,12 +198,14 @@ listed under "Later" so it isn't forgotten.
 
 ### Stage C: scripts UI
 
-- [ ] **C1. Sidebar and naming.**
+- [x] **C1. Sidebar and naming.**
   The rail entry "Tags" → "Scripts" with a code icon (`{ }`). The group list, context menu
   ("Rename Script", "Delete Script") and "Add new script" dialog use the new names. View
   ids `tags`/`tag` → `scripts`/`script`.
-  _Files:_ `sidebar-rail/sidebar-views.ts`, `request-groups/*`, `request-group-list/*`,
-  `request-view-capabilities.ts`.
+  _Done:_ `tag.service.ts` → `script.service.ts` (`ScriptApiService`, `attachScript`/`detachScript`),
+  `TagView` → `ScriptView`, `selectedTag` → `selectedScript`, sidebar folder and theme icon
+  feature `tags` → `scripts`, `tag-*` CSS classes → `script-*`, UI text says "Attach script".
+  Behaviour unchanged.
 
 - [ ] **C2. Attach dialog.**
   The request "Tags…" dialog and the bulk tag dialog become "Scripts…": pick from existing

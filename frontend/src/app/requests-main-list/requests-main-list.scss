@@ -470,7 +470,7 @@
 }
 
 // Three-dot reorder handle; rendered on every row of user-orderable views
-// (collections / favourites / tags) and revealed on row hover or selection.
+// (collections / favourites / scripts) and revealed on row hover or selection.
 .drag-handle {
   display: inline-flex;
   align-items: center;
@@ -789,7 +789,7 @@
 }
 
 .new-request-popup,
-.tags-modal,
+.scripts-modal,
 .favourites-modal,
 .move-collection-modal {
   width: min(420px, calc(100vw - 2 * var(--s-4)));

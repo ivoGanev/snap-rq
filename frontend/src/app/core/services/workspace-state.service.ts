@@ -46,9 +46,9 @@ export class WorkspaceStateService {
     const view = this.openView();
     return view?.kind === 'favourite' ? view.favourite : null;
   });
-  readonly selectedTag = computed<string | null>(() => {
+  readonly selectedScript = computed<string | null>(() => {
     const view = this.openView();
-    return view?.kind === 'tag' ? view.name : null;
+    return view?.kind === 'script' ? view.name : null;
   });
   readonly showingAllRequests = computed(() => this.openView()?.kind === 'all');
   readonly showingFamousRequests = computed(() => this.openView()?.kind === 'recent');
