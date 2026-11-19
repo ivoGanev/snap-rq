@@ -148,10 +148,9 @@ listed under "Later" so it isn't forgotten.
   _Files:_ `core/workspace/workspace-view.ts`, `inspector/**`, `workspace-state.service.ts`,
   `request-groups.ts`, `app.ts`, `requests-main-list.ts`.
 
-- [ ] **A3. Request list reads the view.**
-  Move the rest of `requests-main-list` (`activeViewKind` branches, `activeGroupKey`,
-  `activeRequests`, loading) onto `state.view`, then remove the old read-only flags.
-  _Files:_ `requests-main-list/*`, `workspace-state.service.ts`, `request-groups.ts`.
+- ~~**A3. Request list reads the view.**~~ Moved to "Later" (2026-11-19): scripts don't
+  need it, the old flags are read-only so they can't drift, and it only touches the riskiest
+  file.
 
 ### Stage B: backend tags → scripts
 
@@ -201,6 +200,10 @@ listed under "Later" so it isn't forgotten.
 
 ### Later (not scheduled)
 
+- **A3. Request list reads the view.** Move the rest of `requests-main-list`
+  (`activeViewKind` branches, `activeGroupKey`, `activeRequests`, `loadActiveGroup`'s seven
+  view parameters) onto `state.view` with `switch (view.kind)`, add `groupKey()` to the
+  views, then delete the six read-only flags in `WorkspaceStateService`.
 - Generic column-configurable `data-grid`, then move `requests-main-list` onto it piece
   by piece (virtual scroll, selection, sort, column resize, reorder, drag-out, colours).
 - Script execution.
