@@ -154,17 +154,25 @@ listed under "Later" so it isn't forgotten.
 
 ### Stage B: backend tags → scripts
 
-- [ ] **B1. Database migration.**
-  Drop `request_tags`, `tag_appearances` and `tags` (D1). Create `scripts` (`id`,
-  `project_id`, `name`, `content`, timestamps), `request_scripts` (with `user_sort_order`
-  and `user_color`, like `request_tags`) and `script_appearances`.
+- [x] **B1. Script tables (nothing removed).**
+  New idempotent step `createScriptTables`: `scripts` (`id`, `project_id`, `name`,
+  `content`; name unique per project), `request_scripts` (`user_sort_order`, `user_color`,
+  like `request_tags`) and `script_appearances`, all cascading from the project. No
+  timestamps until something needs them. The tag tables stay until B2, so every commit
+  leaves a working app.
   _Files:_ `backend/database/db.go`, `backend/database/db_test.go`.
 
 - [ ] **B2. Go commands and models.**
   Rename `backend/commands/tags` → `backend/commands/scripts` (add, remove, rename, delete,
   list, list_for_requests, list_requests, reorder, set_color, set_appearance) and add
   `get_content` / `set_content`. Regenerate the Wails bindings.
-  _Files:_ `backend/commands/scripts/*`, `backend/models/*`, `frontend/bindings` (generated).
+  Also move the other code that touches tags onto scripts: request delete (and its undo
+  snapshot), request duplicate, trash restore and icon cleanup. Then drop the tag tables
+  (`DROP TABLE IF EXISTS request_tags, tag_appearances, tags`, D1) and remove undo entries
+  for tag commands (`DELETE FROM undo_log WHERE command LIKE 'tag.%'`). Old undo and
+  trash snapshots keep their `tag_links` / `tags` fields, which are then ignored.
+  _Files:_ `backend/commands/scripts/*`, `backend/commands/{requests,bin,icons}/*`,
+  `backend/models/*`, `backend/database/db.go`, `frontend/bindings` (generated).
 
 - [ ] **B3. MCP tools.**
   Rename the tag tools (A4): `list_scripts`, `list_script_requests`, `attach_script`,
@@ -241,9 +249,21 @@ and the frontend build.
 | A2a–A2c | Clicking each rail entry and each group shows the right list and the right Inspector content. Switching quickly between Trash and a collection never leaves a stale trash card or response. |
 | A2a | Start the app: it opens on All requests. Switch project from All, Recent and Trash: you stay there (Trash shows the new project's items, no old trash card). Switch project from a collection: you land in All. Open the Collections folder while in All: the list empties; while in a collection: the collection stays. Rename the open tag: you stay in it. Delete the open collection, favourite and tag: the list empties and the Inspector says "Select a request…". |
 | A3 | Sorting, reorder handles and colour controls appear only in collections, favourites and tags. Scroll position and selection are remembered per group. |
-| B1 | Start the app on a copy of an existing database: it starts, tags are gone, all other data is intact. Starting it a second time doesn't fail. |
-| B2 | Create, rename and delete a script; attach it to and detach it from a request; reorder and colour requests inside a script. |
+| B1 | Start the app on a copy of your real database: it starts, and tags, collections, favourites and Trash all still work. Start it again: no errors. `go test ./backend/database/ -run TestCreateScriptTables` passes. |
+| B2 | Start on a copy of a real database: tags are gone, everything else is intact, Ctrl+Z still works. Create, rename and delete a script; attach it to and detach it from a request; reorder and colour requests inside a script. |
 | B3 | From an MCP client: the tool list shows the new names, and attaching or reordering needs approval as before. |
 | C1 | The Scripts rail entry has its icon on Windows **and macOS** (icons need explicit size, see `AGENTS.md`). Rename and delete work from the context menu. |
 | C2 | Attach two scripts to one request; bulk-attach a script to several selected requests; creating a script from the dialog adds it to the sidebar. Inside a script, delete one request and then several: they leave the script, are **not** in Trash, and are still in their collection. |
 | C3 | Select a script: the editor shows its text. Type, wait, switch away and back: the text is saved. Restart: still saved. The WIP banner and donate link show. Selecting a request inside the script view keeps the editor (A2). |
+
+---
+
+## Known issues (not caused by this work)
+
+- `go test ./...` has 6 failures that already existed before Stage B (checked on the
+  commit before B1): 3 in `commands/openapi`, `TestMakeGroupNamesUniqueRenamesDuplicates`
+  in `database`, and 2 in `mcp`.
+- The production frontend build fails: `requests-main-list.scss` is 572 bytes over the
+  20 kB budget in `angular.json`. Because of that, `frontend/dist` can be left empty and
+  `go build ./...` then fails on the embed; run `npx ng build --configuration development`
+  first.

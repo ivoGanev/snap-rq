@@ -566,3 +566,82 @@ func TestMakeGroupNamesUniqueRenamesDuplicates(t *testing.T) {
 		t.Fatal("expected the unique index to reject a duplicate favourite name")
 	}
 }
+
+func TestCreateScriptTables(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "scripts.db")
+
+	// The full startup migration must run twice on the same file.
+	for i := 0; i < 2; i++ {
+		db, err := OpenPath(path)
+		if err != nil {
+			t.Fatalf("OpenPath run %d: %v", i+1, err)
+		}
+		if i == 0 {
+			db.Close()
+		} else {
+			defer db.Close()
+			checkScriptTables(t, db)
+		}
+	}
+}
+
+func checkScriptTables(t *testing.T, db *sql.DB) {
+	t.Helper()
+
+	var projectID, collectionID int64
+	if err := db.QueryRow(`SELECT id, project_id FROM collections LIMIT 1`).Scan(&collectionID, &projectID); err != nil {
+		t.Fatalf("loading default collection: %v", err)
+	}
+	res, err := db.Exec(
+		`INSERT INTO http_requests (collection_id, name, url, method) VALUES (?, 'r', 'http://x', 'GET')`,
+		collectionID,
+	)
+	if err != nil {
+		t.Fatalf("inserting request: %v", err)
+	}
+	requestID, _ := res.LastInsertId()
+
+	res, err = db.Exec(`INSERT INTO scripts (project_id, name) VALUES (?, 'auth')`, projectID)
+	if err != nil {
+		t.Fatalf("inserting script: %v", err)
+	}
+	scriptID, _ := res.LastInsertId()
+
+	var content string
+	if err := db.QueryRow(`SELECT content FROM scripts WHERE id = ?`, scriptID).Scan(&content); err != nil || content != "" {
+		t.Errorf("new script content = %q, %v; want empty", content, err)
+	}
+	if _, err := db.Exec(`INSERT INTO scripts (project_id, name) VALUES (?, 'auth')`, projectID); err == nil {
+		t.Errorf("expected a duplicate script name in one project to be rejected")
+	}
+
+	if _, err := db.Exec(
+		`INSERT INTO request_scripts (request_id, script_id, user_sort_order, user_color) VALUES (?, ?, 3, 'slot-1')`,
+		requestID, scriptID,
+	); err != nil {
+		t.Fatalf("attaching script: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO request_scripts (request_id, script_id) VALUES (?, ?)`, requestID, scriptID); err == nil {
+		t.Errorf("expected attaching the same script twice to be rejected")
+	}
+	if _, err := db.Exec(
+		`INSERT INTO script_appearances (script_id, appearance_type, appearance_value) VALUES (?, 'icon', 'ico_1')`,
+		scriptID,
+	); err != nil {
+		t.Fatalf("adding appearance: %v", err)
+	}
+
+	// Deleting the project removes its scripts, their links and appearances.
+	if _, err := db.Exec(`DELETE FROM projects WHERE id = ?`, projectID); err != nil {
+		t.Fatalf("deleting project: %v", err)
+	}
+	for _, table := range []string{"scripts", "request_scripts", "script_appearances"} {
+		var count int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM ` + table).Scan(&count); err != nil {
+			t.Fatalf("counting %s: %v", table, err)
+		}
+		if count != 0 {
+			t.Errorf("%s has %d rows after deleting the project; want 0", table, count)
+		}
+	}
+}

@@ -91,6 +91,10 @@ func OpenPath(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
+	if err := createScriptTables(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
 	if err := makeGroupNamesUnique(db); err != nil {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
@@ -941,6 +945,49 @@ func addRequestLastUsedAt(db *sql.DB) error {
 func createCookiesTable(db *sql.DB) error {
 	_, err := db.Exec(cookies.Schema)
 	return err
+}
+
+// createScriptTables adds user scripts: named code a user writes per project
+// and attaches to many requests. They replace tags (see
+// docs/plans/tags-to-scripts.md); request_scripts and script_appearances
+// mirror request_tags and tag_appearances, so a script keeps a per-request
+// order and colour and a sidebar icon or colour.
+func createScriptTables(db *sql.DB) error {
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS scripts (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			project_id INTEGER NOT NULL,
+			name TEXT NOT NULL,
+			content TEXT NOT NULL DEFAULT '',
+			FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+			UNIQUE (project_id, name)
+		);
+
+		CREATE TABLE IF NOT EXISTS request_scripts (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			request_id INTEGER NOT NULL,
+			script_id INTEGER NOT NULL,
+			user_sort_order INTEGER NOT NULL DEFAULT 0,
+			user_color TEXT,
+			FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE,
+			FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE,
+			UNIQUE (request_id, script_id)
+		);
+		CREATE INDEX IF NOT EXISTS idx_request_scripts_script_sort ON request_scripts(script_id, user_sort_order);
+
+		CREATE TABLE IF NOT EXISTS script_appearances (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			script_id INTEGER NOT NULL,
+			appearance_type TEXT NOT NULL CHECK(appearance_type IN ('icon', 'color')),
+			appearance_value TEXT NOT NULL,
+			FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE,
+			UNIQUE (script_id)
+		);
+	`)
+	if err != nil {
+		return fmt.Errorf("creating script tables: %w", err)
+	}
+	return nil
 }
 
 func tableExists(db *sql.DB, table string) bool {
