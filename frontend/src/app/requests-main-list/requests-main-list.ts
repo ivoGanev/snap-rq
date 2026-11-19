@@ -16,6 +16,7 @@ import { ConfirmService } from '../core/services/confirm.service';
 import { isEditableTarget } from '../core/dom/editable-target';
 import { RequestBottomDrawer, type BottomTab } from '../request-bottom-drawer/request-bottom-drawer';
 import { RequestBodyTab } from '../request-body-tab/request-body-tab';
+import { ScriptTabs } from '../script-tabs/script-tabs';
 import { RequestHeadersTab } from '../request-headers-tab/request-headers-tab';
 import { CodeEditor } from '../code-editor/code-editor';
 import { SelectOnFocusDirective } from '../core/directives/select-on-focus.directive';
@@ -65,7 +66,7 @@ const NAME_COLUMN_MIN_WIDTH = 120;
  */
 @Component({
   selector: 'app-requests-main-list',
-  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, SelectOnFocusDirective],
+  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, SelectOnFocusDirective, ScriptTabs],
   templateUrl: './requests-main-list.html',
   styleUrl: './requests-main-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

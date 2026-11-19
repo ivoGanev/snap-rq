@@ -1,3 +1,7 @@
+@if (state.view()?.kind === 'script') {
+  <app-script-tabs />
+}
+
 <div class="column-header column-header--requests">
   @if (!state.showingBin()) {
     <button

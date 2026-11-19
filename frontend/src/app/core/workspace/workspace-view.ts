@@ -133,14 +133,24 @@ export class FavouriteView implements ViewBehaviour {
   }
 }
 
+/** The two tabs of a script view: its code, or the requests it is attached to. */
+export type ScriptTab = 'script' | 'attachments';
+
 export class ScriptView implements ViewBehaviour {
   readonly kind = 'script';
-  readonly main = 'script';
   readonly canReorder = true;
   readonly canColour = true;
   readonly survivesProjectSwitch = false;
 
-  constructor(readonly script: Script) {}
+  constructor(
+    readonly script: Script,
+    readonly tab: ScriptTab = 'script',
+  ) {}
+
+  /** The editor on the Script tab, the request list on the Attachments tab. */
+  get main(): MainColumn {
+    return this.tab === 'script' ? 'script' : 'requests';
+  }
 
   get name(): string {
     return this.script.name;

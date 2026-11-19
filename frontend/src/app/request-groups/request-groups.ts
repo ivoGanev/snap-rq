@@ -158,8 +158,9 @@ export class RequestGroups {
       const project = this.state.selectedProject();
       if (!project) return;
       await this.scriptApi.renameScript(project.id, item.data.name, newName);
-      if (this.state.selectedScript() === item.data.name) {
-        this.state.selectView(new ScriptView({ ...item.data, name: newName }));
+      const view = this.state.view();
+      if (view?.kind === 'script' && view.name === item.data.name) {
+        this.state.selectView(new ScriptView({ ...item.data, name: newName }, view.tab));
       }
     },
   };

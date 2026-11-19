@@ -1,5 +1,6 @@
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { CodeEditor } from '../code-editor/code-editor';
+import { ScriptTabs } from '../script-tabs/script-tabs';
 import { ScriptApiService } from '../core/services/script.service';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 
@@ -13,7 +14,7 @@ const SAVE_DELAY_MS = 500;
  */
 @Component({
   selector: 'app-script-editor',
-  imports: [CodeEditor],
+  imports: [CodeEditor, ScriptTabs],
   templateUrl: './script-editor.html',
   styleUrl: './script-editor.scss',
   host: {
