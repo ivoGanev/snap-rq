@@ -1,38 +1,26 @@
 import { computed, Injectable, inject } from '@angular/core';
 import { WorkspaceStateService } from './workspace-state.service';
+import { VIEW_DEFINITIONS } from '../models/view-definitions';
 import type { InspectorContent } from '../../inspector/inspector-content';
 
 /**
- * Decides what the Inspector shows. This is the only place that turns
- * workspace selection state into Inspector content; panes and the Inspector
- * itself never look at selection flags.
+ * Decides what the Inspector shows: a multi-selection message when several
+ * rows are selected, otherwise whatever the active view's rule returns (see
+ * VIEW_DEFINITIONS).
  */
 @Injectable({ providedIn: 'root' })
 export class InspectorService {
   private readonly state = inject(WorkspaceStateService);
 
   readonly content = computed<InspectorContent>(() => {
-    const state = this.state;
-
-    if (state.multiSelectionActive()) {
+    if (this.state.multiSelectionActive()) {
       return { kind: 'message', text: 'You are in multi selection mode.' };
     }
 
-    const binned = state.selectedBinnedRequest();
-    if (binned) {
-      return { kind: 'binned-request', binId: binned.id };
-    }
-
-    const request = state.selectedRequest();
-    if (request && !state.showingBin()) {
-      return { kind: 'response', requestId: request.id };
-    }
-
-    if (!request && state.selectedIds().size === 0) {
-      return { kind: 'message', text: 'Select a request to view its response.' };
-    }
-
-    // A row is selected but its full request is still loading: show nothing yet.
-    return { kind: 'message', text: '' };
+    return VIEW_DEFINITIONS[this.state.activeView().kind].inspector({
+      request: this.state.selectedRequest(),
+      binned: this.state.selectedBinnedRequest(),
+      selectedCount: this.state.selectedIds().size,
+    });
   });
 }

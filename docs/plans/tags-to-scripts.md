@@ -72,10 +72,12 @@ The Inspector is a plain container that knows nothing about any view. Three piec
   kind without a pane does not compile. Each pane owns its header (shared
   `inspector-header` component), data loading and actions.
 - **Decision** (`core/services/inspector.service.ts`): the only code that turns workspace
-  state into content. In A2 this moves into per-view rules.
+  state into content: the multi-selection message, otherwise the active view's
+  `inspector()` rule from `VIEW_DEFINITIONS` (`core/models/view-definitions.ts`).
 
 Adding scripts means: add `{ kind: 'script'; scriptId }`, write `script-pane`, register it,
-and add the rule. The Inspector itself does not change.
+and give the script view definition an `inspector()` rule that returns it. The Inspector
+itself does not change.
 
 ```
 inspector/
@@ -86,7 +88,8 @@ inspector/
   panes/message-pane/             empty and multi-selection states
   panes/response-pane/            wraps response-viewer (also used by Zen mode)
   panes/binned-request-pane/      trash restore / delete permanently
-core/services/inspector.service.ts   decides the content
+core/services/inspector.service.ts   multi-selection rule, then the view's rule
+core/models/view-definitions.ts      per-view capabilities + Inspector rule
 ```
 
 **Out of scope for now:** splitting `requests-main-list` (2,250 lines) into a generic,
@@ -128,7 +131,7 @@ listed under "Later" so it isn't forgotten.
   _Files:_ `core/models/active-view.ts`, `workspace-state.service.ts`, `request-groups.ts`,
   `app.ts`, `requests-main-list.ts`.
 
-- [ ] **A2b. View definitions.**
+- [x] **A2b. View definitions.**
   Add one view definition per view kind (all,
   recent, bin, collection, favourite, tag) holding what is specific to that view: its
   capabilities (orderable, colourable, today in `request-view-capabilities.ts`) and its
