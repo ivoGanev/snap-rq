@@ -1,0 +1,8 @@
+# Store text files as LF in the repo and check them out as LF on every OS.
+# Go tooling (go mod tidy, wails) always writes LF, so this keeps go.mod/go.sum
+# from showing phantom modifications under core.autocrlf=true on Windows.
+* text=auto eol=lf
+
+# Windows batch scripts need CRLF to run reliably under cmd.exe.
+*.bat text eol=crlf
+*.cmd text eol=crlf
