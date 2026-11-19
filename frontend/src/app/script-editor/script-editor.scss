@@ -1,0 +1,22 @@
+.script-editor-header {
+  justify-content: flex-start;
+  gap: var(--s-3);
+}
+
+.panel-title {
+  font-family: var(--font-display);
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.script-save-error {
+  font-size: 0.75rem;
+  color: var(--error-text);
+}
+
+.script-editor-code {
+  flex: 1 1 auto;
+  min-height: 0;
+}

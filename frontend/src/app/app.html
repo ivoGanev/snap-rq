@@ -47,7 +47,14 @@
 <div class="app-shell" (window:keydown.escape)="onEscapePressed()">
   <app-request-groups [style.width]="leftSidebarWidth()"></app-request-groups>
 
-  <app-requests-main-list></app-requests-main-list>
+  @switch (state.view()?.main ?? 'requests') {
+    @case ('script') {
+      <app-script-editor />
+    }
+    @default {
+      <app-requests-main-list />
+    }
+  }
 
   <app-inspector [style.width.%]="rightColumnWidth()"></app-inspector>
 

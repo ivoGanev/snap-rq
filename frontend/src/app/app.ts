@@ -26,6 +26,7 @@ import { IconApiService } from './core/services/icon-api.service';
 import { CommandApiService } from './core/services/command.service';
 import { RequestGroups } from './request-groups/request-groups';
 import { RequestsMainList } from './requests-main-list/requests-main-list';
+import { ScriptEditor } from './script-editor/script-editor';
 import { Inspector } from './inspector/inspector';
 import { VariablesEditor } from './variables-editor/variables-editor';
 import { CookiesEditor } from './cookies-editor/cookies-editor';
@@ -46,6 +47,7 @@ import { UndoPanel } from './undo-panel/undo-panel';
     FormsModule,
     RequestGroups,
     RequestsMainList,
+    ScriptEditor,
     Inspector,
     VariablesEditor,
     CookiesEditor,

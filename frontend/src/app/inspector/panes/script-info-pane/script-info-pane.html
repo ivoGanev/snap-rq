@@ -1,0 +1,31 @@
+<app-inspector-header title="Script" />
+
+<div class="script-info">
+  <div class="script-wip" role="note">
+    <span class="script-wip-badge">WIP</span>
+    <p class="script-wip-text">
+      Scripts can't run yet. This feature is in progress, so if you'd like to see it sooner,
+      consider <a class="script-wip-link" [href]="donateUrl" (click)="openDonate($event)">supporting development</a>.
+    </p>
+  </div>
+
+  <section class="script-attached">
+    <h4 class="script-attached-title">
+      Attached to {{ attached().length }} {{ attached().length === 1 ? 'request' : 'requests' }}
+    </h4>
+    @if (attached().length === 0) {
+      <p class="script-attached-empty">
+        Attach it from a request's "Scripts…" menu, or drag requests onto it in the sidebar.
+      </p>
+    } @else {
+      <ul class="script-attached-list">
+        @for (req of attached(); track req.id) {
+          <li class="script-attached-item">
+            <span class="script-attached-method">{{ req.method }}</span>
+            <span class="script-attached-name">{{ req.name }}</span>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+</div>

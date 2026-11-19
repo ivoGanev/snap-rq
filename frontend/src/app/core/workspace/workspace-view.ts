@@ -24,6 +24,9 @@ export type WorkspaceView =
 
 export type WorkspaceViewKind = WorkspaceView['kind'];
 
+/** What the middle column shows: the request list, or a script's editor. */
+export type MainColumn = 'requests' | 'script';
+
 /** What a view decides the Inspector content from. */
 export interface InspectorSelection {
   /** The open live request, if any. */
@@ -35,6 +38,8 @@ export interface InspectorSelection {
 }
 
 interface ViewBehaviour {
+  /** What the middle column shows for this view. */
+  readonly main: MainColumn;
   /** Shown above the request list. */
   readonly title: string;
   /** Rows can be drag-reordered and the order is saved for this view. */
@@ -66,6 +71,7 @@ export function inspectRequest({ request, selectedCount }: InspectorSelection): 
 
 export class AllRequestsView implements ViewBehaviour {
   readonly kind = 'all';
+  readonly main = 'requests';
   readonly title = 'All requests';
   readonly canReorder = false;
   readonly canColour = false;
@@ -75,6 +81,7 @@ export class AllRequestsView implements ViewBehaviour {
 
 export class RecentView implements ViewBehaviour {
   readonly kind = 'recent';
+  readonly main = 'requests';
   readonly title = 'Recent';
   readonly canReorder = false;
   readonly canColour = false;
@@ -84,6 +91,7 @@ export class RecentView implements ViewBehaviour {
 
 export class TrashView implements ViewBehaviour {
   readonly kind = 'bin';
+  readonly main = 'requests';
   readonly title = 'Trash bin';
   readonly canReorder = false;
   readonly canColour = false;
@@ -97,6 +105,7 @@ export class TrashView implements ViewBehaviour {
 
 export class CollectionView implements ViewBehaviour {
   readonly kind = 'collection';
+  readonly main = 'requests';
   readonly canReorder = true;
   readonly canColour = true;
   readonly survivesProjectSwitch = false;
@@ -111,6 +120,7 @@ export class CollectionView implements ViewBehaviour {
 
 export class FavouriteView implements ViewBehaviour {
   readonly kind = 'favourite';
+  readonly main = 'requests';
   readonly canReorder = true;
   readonly canColour = true;
   readonly survivesProjectSwitch = false;
@@ -125,6 +135,7 @@ export class FavouriteView implements ViewBehaviour {
 
 export class ScriptView implements ViewBehaviour {
   readonly kind = 'script';
+  readonly main = 'script';
   readonly canReorder = true;
   readonly canColour = true;
   readonly survivesProjectSwitch = false;
@@ -139,8 +150,8 @@ export class ScriptView implements ViewBehaviour {
     return this.script.name;
   }
 
-  /** Always the script's editor, even when a request in it is selected. */
+  /** The editor is in the middle; the Inspector shows what the script is attached to. */
   inspect(): InspectorContent {
-    return { kind: 'script', scriptId: this.script.id };
+    return { kind: 'script-info', scriptId: this.script.id, scriptName: this.script.name };
   }
 }

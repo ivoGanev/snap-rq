@@ -148,10 +148,16 @@ export class WorkspaceStateService {
     const leavingBin = this.openView()?.kind === 'bin' && view?.kind !== 'bin';
     this.openView.set(view);
 
-    if (view?.kind === 'bin') {
+    if (view?.kind === 'bin' || view?.main === 'script') {
+      // Neither shows live requests: drop the open one.
       this.selectedRequest.set(null);
       this.selectedResponse.set(null);
       this.selectedBinnedRequest.set(null);
+      if (view.main === 'script') {
+        // The request list is not shown, so nothing in it can stay selected.
+        this.selectedIds.set(new Set());
+        this.multiSelectionActive.set(false);
+      }
     } else if (leavingBin) {
       this.selectedBinnedRequest.set(null);
     }

@@ -228,6 +228,25 @@ listed under "Later" so it isn't forgotten.
   `Script` (for its id) and its `inspect()` always returns the script. The donate link opens
   in the system browser.
 
+### Stage D: focused script view (2026-11-19, replaces parts of C2/C3)
+
+After trying C3 the request list inside a script view felt wrong. A script view now has no
+request list: the middle column is the script editor, the Inspector shows the WIP message
+and the requests the script is attached to. Scripts are attached from other views only
+(request editor chips, "Scripts…" menu, drag onto the sidebar).
+
+- [x] **D1. The view picks the middle column.** Every view has `main: 'requests' | 'script'`;
+  `app.html` switches on it. Entering a script view drops the open request and row selection.
+- [x] **D2. Editor in the middle, info on the right.** New `script-editor/` (moved from the C3
+  Inspector pane: name heading, JS editor, autosave, "Not saved"). New Inspector content
+  `{ kind: 'script-info' }` → `ScriptInfoPane`: WIP banner with donate link, and
+  "Attached to N requests" (reloads after every command).
+- [ ] **D3. Drop the script branch of the request list.** `scriptRequests`, reorder/colour in a
+  script, C2's "Detach from script" delete; `ScriptView` loses `canReorder`/`canColour`.
+- [ ] **D4. Backend clean-up (later, by decision).** `script.reorder`, `script.set_color`, their
+  MCP tools and the `user_sort_order`/`user_color` columns of `request_scripts` are unused by
+  the UI. Kept for now.
+
 ### Later (not scheduled)
 
 - **A3. Request list reads the view.** Move the rest of `requests-main-list`
@@ -277,6 +296,8 @@ and the frontend build.
 | C1 | The Scripts rail entry has its icon on Windows **and macOS** (icons need explicit size, see `AGENTS.md`). Rename and delete work from the context menu. |
 | C2 | Attach two scripts to one request; bulk-attach a script to several selected requests; creating a script from the dialog adds it to the sidebar. Inside a script, delete one request and then several: they leave the script, are **not** in Trash, and are still in their collection. |
 | C3 | Select a script: the editor shows its text. Type, wait, switch away and back: the text is saved. Restart: still saved. The WIP banner and donate link show. Selecting a request inside the script view keeps the editor (A2). |
+| D1–D2 | Select a script: the editor is in the middle, WIP + "Attached to N requests" on the right. Type, switch script and back: saved. Attach a request from a collection view: the count goes up. Ctrl+Z it: down. Other views unchanged. |
+| D3 | Attaching still works from the editor chips, the "Scripts…" menu and drag-and-drop. Del in a collection still moves to Trash. |
 
 ---
 

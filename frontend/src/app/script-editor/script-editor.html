@@ -1,0 +1,16 @@
+<div class="column-header script-editor-header">
+  <span class="panel-title">{{ name() }}</span>
+  @if (saveError()) {
+    <span class="script-save-error">Not saved</span>
+  }
+</div>
+
+<!-- loaded() goes false while switching scripts, so each script gets a fresh editor (and undo history). -->
+@if (loaded()) {
+  <app-code-editor
+    class="script-editor-code"
+    language="javascript"
+    [text]="loadedText()"
+    (textChange)="onTextChange($event)"
+  />
+}
