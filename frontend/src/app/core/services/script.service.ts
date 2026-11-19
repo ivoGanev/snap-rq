@@ -14,6 +14,8 @@ export interface Script {
   id: number;
   project_id: number;
   name: string;
+  /** The script's code; only `get` returns it, lists leave it out. */
+  content?: string;
   appearance: ScriptAppearance;
 }
 
@@ -55,6 +57,16 @@ export class ScriptApiService {
       mapped[Number(key)] = value ?? [];
     }
     this.requestScripts.set(mapped);
+  }
+
+  /** One script with its code, for the editor. */
+  async get(id: number): Promise<Script> {
+    return this.commands.execute<Script>('script.get', { id });
+  }
+
+  /** Saves a script's code. Not undoable: the editor has its own undo. */
+  async setContent(id: number, content: string): Promise<void> {
+    await this.commands.execute('script.set_content', { id, content });
   }
 
   async attachScript(requestId: number, projectId: number, scriptName: string): Promise<Script> {

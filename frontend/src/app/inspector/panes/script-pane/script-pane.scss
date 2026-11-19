@@ -1,0 +1,52 @@
+:host {
+  display: contents;
+}
+
+.script-pane {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-height: 0;
+  padding: 0 var(--s-3) var(--s-3);
+}
+
+.script-wip {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  background: var(--hover-bg);
+}
+
+.script-wip-badge {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--on-accent);
+  background: var(--grad);
+}
+
+.script-wip-text {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.script-wip-link {
+  color: var(--accent);
+}
+
+.script-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.script-save-error {
+  font-size: 0.75rem;
+  color: var(--error-text);
+}

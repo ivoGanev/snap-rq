@@ -143,7 +143,7 @@ export class RequestGroups {
       this.state.selectView(new FavouriteView(item.data));
     },
     script: (item) => {
-      this.state.selectView(new ScriptView(item.data.name));
+      this.state.selectView(new ScriptView(item.data));
     },
   };
 
@@ -159,7 +159,7 @@ export class RequestGroups {
       if (!project) return;
       await this.scriptApi.renameScript(project.id, item.data.name, newName);
       if (this.state.selectedScript() === item.data.name) {
-        this.state.selectView(new ScriptView(newName));
+        this.state.selectView(new ScriptView({ ...item.data, name: newName }));
       }
     },
   };

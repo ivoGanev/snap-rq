@@ -5,6 +5,7 @@ import { inspectRequest } from '../core/workspace/workspace-view';
 import { MessagePane } from './panes/message-pane/message-pane';
 import { ResponsePane } from './panes/response-pane/response-pane';
 import { BinnedRequestPane } from './panes/binned-request-pane/binned-request-pane';
+import { ScriptPane } from './panes/script-pane/script-pane';
 
 /**
  * What the Inspector can show. The open view decides which one
@@ -20,7 +21,9 @@ export type InspectorContent =
   /** The responses of a live request. */
   | { kind: 'response'; requestId: number }
   /** A request in the trash bin. */
-  | { kind: 'binned-request'; binId: number };
+  | { kind: 'binned-request'; binId: number }
+  /** A user script, in its editor. */
+  | { kind: 'script'; scriptId: number };
 
 /** The content member for one kind, e.g. `InspectorContentOf<'response'>`. */
 export type InspectorContentOf<K extends InspectorContent['kind']> = Extract<InspectorContent, { kind: K }>;
@@ -29,6 +32,7 @@ const PANES: { readonly [K in InspectorContent['kind']]: Type<unknown> } = {
   message: MessagePane,
   response: ResponsePane,
   'binned-request': BinnedRequestPane,
+  script: ScriptPane,
 };
 
 const MULTI_SELECTION: InspectorContent = { kind: 'message', text: 'You are in multi selection mode.' };

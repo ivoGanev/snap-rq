@@ -1,5 +1,6 @@
 import type { Collection } from '../services/collection.service';
 import type { FavouriteCollection } from '../services/favourite.service';
+import type { Script } from '../services/script.service';
 import type { HttpRequest } from '../services/request.service';
 import type { HttpBinnedRequestSummary } from '../services/bin.service';
 import type { InspectorContent } from '../../inspector/inspector';
@@ -127,11 +128,19 @@ export class ScriptView implements ViewBehaviour {
   readonly canReorder = true;
   readonly canColour = true;
   readonly survivesProjectSwitch = false;
-  inspect = inspectRequest;
 
-  constructor(readonly name: string) {}
+  constructor(readonly script: Script) {}
+
+  get name(): string {
+    return this.script.name;
+  }
 
   get title(): string {
-    return this.name;
+    return this.script.name;
+  }
+
+  /** Always the script's editor, even when a request in it is selected. */
+  inspect(): InspectorContent {
+    return { kind: 'script', scriptId: this.script.id };
   }
 }

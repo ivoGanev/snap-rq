@@ -33,10 +33,13 @@ import {
   WidgetType,
 } from '@codemirror/view';
 import { json, jsonParseLinter } from '@codemirror/lang-json';
+import { javascript } from '@codemirror/lang-javascript';
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { tags as t } from '@lezer/highlight';
 import { linter, type Diagnostic } from '@codemirror/lint';
 import { defaultKeymap, history, historyKeymap, redo } from '@codemirror/commands';
 
-export type EditorLanguage = 'json' | 'text';
+export type EditorLanguage = 'json' | 'text' | 'javascript';
 
 export interface EditorVariable {
   key: string;
@@ -56,6 +59,16 @@ const variablesField = StateField.define<EditorVariable[]>({
     return value;
   },
 });
+
+/** Code colours from the theme's syntax palette (used for JavaScript). */
+const CODE_HIGHLIGHT = HighlightStyle.define([
+  { tag: [t.keyword, t.controlKeyword, t.definitionKeyword, t.moduleKeyword], color: 'var(--syntax-boolean)' },
+  { tag: [t.string, t.special(t.string), t.regexp], color: 'var(--syntax-string)' },
+  { tag: [t.number, t.bool, t.null], color: 'var(--syntax-number)' },
+  { tag: [t.propertyName, t.function(t.variableName), t.function(t.propertyName)], color: 'var(--syntax-key)' },
+  { tag: [t.comment, t.lineComment, t.blockComment], color: 'var(--syntax-comment)', fontStyle: 'italic' },
+  { tag: [t.punctuation, t.operator, t.bracket], color: 'var(--syntax-punctuation)' },
+]);
 
 const VARIABLE_QUOTED_REGEX = /"\{\{\s*(\w+)\s*\}\}"/g;
 const VARIABLE_UNQUOTED_REGEX = /\{\{\s*(\w+)\s*\}\}/g;
@@ -203,10 +216,10 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
     });
 
     effect(() => {
-      const isJson = this.isJson();
+      const language = this.language();
       if (!this.view) return;
       this.view.dispatch({
-        effects: this.languageCompartment.reconfigure(this.languageExtension(isJson)),
+        effects: this.languageCompartment.reconfigure(this.languageExtension(language)),
       });
     });
 
@@ -236,7 +249,7 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
         doc: this.text(),
         extensions: [
           this.baseExtensions(),
-          this.languageCompartment.of(this.languageExtension(this.isJson())),
+          this.languageCompartment.of(this.languageExtension(this.language())),
           variablesField.init(() => this.variables()),
           variableDecorations(),
           this.singleLineCompartment.of(this.singleLineExtensions(this.singleLine())),
@@ -374,8 +387,9 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
     ];
   }
 
-  private languageExtension(isJson: boolean): Extension {
-    if (!isJson) return [];
+  private languageExtension(language: EditorLanguage): Extension {
+    if (language === 'javascript') return [javascript(), syntaxHighlighting(CODE_HIGHLIGHT)];
+    if (language !== 'json') return [];
     const parse = jsonParseLinter();
     return [
       json(),

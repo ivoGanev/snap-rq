@@ -215,13 +215,18 @@ listed under "Later" so it isn't forgotten.
   menu entry is now "Scripts…". Delete (key or menu) inside a script view detaches, and the
   menu item reads "Detach from script". Re-attaching no longer duplicates the chip.
 
-- [ ] **C3. Script editor in the Inspector.**
+- [x] **C3. Script editor in the Inspector.**
   New `script-pane` (content `{ kind: 'script'; scriptId }`): script name heading, CodeMirror editor (JavaScript mode, A3) with
   auto-save, and a WIP banner: "Scripts can't run yet. This feature is in progress, so if
   you'd like to see it sooner, consider supporting development." with a link to D4. The
   script view's Inspector rule always returns it (A2).
   _Files:_ new `inspector/panes/script-pane/`, `inspector/inspector-content.ts`,
   `inspector/inspector-panes.ts`, view definitions, `core/services/script.service.ts`.
+  _Done:_ `inspector/panes/script-pane/` reuses `CodeEditor`, which gained a `javascript`
+  language (`@codemirror/lang-javascript`, coloured from the `--syntax-*` palette). Saves
+  500 ms after typing stops and when switching script or view. `ScriptView` now holds the
+  `Script` (for its id) and its `inspect()` always returns the script. The donate link opens
+  in the system browser.
 
 ### Later (not scheduled)
 
