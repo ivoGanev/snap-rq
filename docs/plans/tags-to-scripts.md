@@ -185,9 +185,11 @@ listed under "Later" so it isn't forgotten.
   _Files:_ `backend/commands/scripts/*`, `backend/commands/{requests,bin,icons}/*`,
   `backend/models/*`, `backend/database/db.go`, `frontend/.../core/services/tag.service.ts`.
 
-- [ ] **B3. MCP tools.**
-  Rename the tag tools (A4): `list_scripts`, `list_script_requests`, `attach_script`,
-  `detach_script`, `rename_script`, `reorder_script_requests`, `set_script_request_colors`.
+- [x] **B3. MCP tools.**
+  Renamed the tag tools (A4): `list_tags` → `list_scripts`, `list_tagged_requests` →
+  `list_script_requests`, `add_tag` → `attach_script`, `remove_tag` → `detach_script`,
+  `rename_tag` → `rename_script`, `reorder_tagged_requests` → `reorder_script_requests`,
+  `set_tag_request_colors` → `set_script_request_colors`; inputs take `script_name`.
   Content editing over MCP is left out until execution is designed.
   _Files:_ `backend/mcp/catalog.go`, `tools_organize.go`, `tools_read.go`, tests, `docs/mcp.md`.
 

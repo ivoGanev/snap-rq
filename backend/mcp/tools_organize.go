@@ -55,32 +55,32 @@ type moveRequestsInput struct {
 	CollectionID int64   `json:"collection_id" jsonschema:"collection to move them to"`
 }
 
-type addTagInput struct {
-	RequestID int64  `json:"request_id" jsonschema:"id of the request"`
-	ProjectID int64  `json:"project_id" jsonschema:"id of the request's project"`
-	TagName   string `json:"tag_name" jsonschema:"tag name (case-insensitive)"`
+type attachScriptInput struct {
+	RequestID  int64  `json:"request_id" jsonschema:"id of the request"`
+	ProjectID  int64  `json:"project_id" jsonschema:"id of the request's project"`
+	ScriptName string `json:"script_name" jsonschema:"script name (created if new)"`
 }
 
-type removeTagInput struct {
-	RequestID int64  `json:"request_id" jsonschema:"id of the request"`
-	TagName   string `json:"tag_name" jsonschema:"tag name"`
+type detachScriptInput struct {
+	RequestID  int64  `json:"request_id" jsonschema:"id of the request"`
+	ScriptName string `json:"script_name" jsonschema:"script name"`
 }
 
-type renameTagInput struct {
+type renameScriptInput struct {
 	ProjectID int64  `json:"project_id" jsonschema:"id of the project"`
-	OldName   string `json:"old_name" jsonschema:"current tag name"`
-	NewName   string `json:"new_name" jsonschema:"new tag name"`
+	OldName   string `json:"old_name" jsonschema:"current script name"`
+	NewName   string `json:"new_name" jsonschema:"new script name"`
 }
 
-type reorderTaggedInput struct {
+type reorderScriptInput struct {
 	ProjectID  int64   `json:"project_id" jsonschema:"id of the project"`
-	TagName    string  `json:"tag_name" jsonschema:"tag name"`
-	OrderedIDs []int64 `json:"ordered_request_ids" jsonschema:"the tagged request ids in the wanted order"`
+	ScriptName string  `json:"script_name" jsonschema:"script name"`
+	OrderedIDs []int64 `json:"ordered_request_ids" jsonschema:"the attached request ids in the wanted order"`
 }
 
-type tagColorInput struct {
+type scriptColorInput struct {
 	ProjectID  int64   `json:"project_id" jsonschema:"id of the project"`
-	TagName    string  `json:"tag_name" jsonschema:"tag name"`
+	ScriptName string  `json:"script_name" jsonschema:"script name"`
 	RequestIDs []int64 `json:"request_ids" jsonschema:"requests to colour"`
 	Color      *string `json:"color" jsonschema:"colour slot, or null to clear"`
 }
@@ -129,11 +129,11 @@ func init() {
 		binding{"reorder_requests", addTool[reorderRequestsInput]},
 		binding{"move_requests", customTool(moveRequests)},
 
-		binding{"add_tag", addTool[addTagInput]},
-		binding{"remove_tag", addTool[removeTagInput]},
-		binding{"rename_tag", addTool[renameTagInput]},
-		binding{"reorder_tagged_requests", addTool[reorderTaggedInput]},
-		binding{"set_tag_request_colors", addTool[tagColorInput]},
+		binding{"attach_script", addTool[attachScriptInput]},
+		binding{"detach_script", addTool[detachScriptInput]},
+		binding{"rename_script", addTool[renameScriptInput]},
+		binding{"reorder_script_requests", addTool[reorderScriptInput]},
+		binding{"set_script_request_colors", addTool[scriptColorInput]},
 
 		binding{"create_favourite", addTool[createFavouriteInput]},
 		binding{"rename_favourite", addTool[renameInput]},

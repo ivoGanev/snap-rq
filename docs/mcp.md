@@ -2,7 +2,7 @@
 
 SnapRQ can expose a **curated** set of its commands to AI assistants over the
 Model Context Protocol (MCP), so an assistant can organize requests: browse
-collections, move, rename, tag, favourite, reorder, and so on.
+collections, move, rename, attach scripts, favourite, reorder, and so on.
 
 Status: phases 1-2 (foundation, read tools, organize tools). See "Phases" below.
 
@@ -53,13 +53,13 @@ All read tools are `list_*` / `get_request`. Organize tools:
 | Collections | `create_collection`, `rename_collection` | yes |
 | Requests | `create_request`, `duplicate_request`, `delete_requests` (to trash), `restore_from_trash`, `bulk_edit_requests`, `reorder_requests` | yes |
 | Moving | `move_requests` (reads each request, writes it back with a new `collection_id`) | **no** (same as moving in the UI; move back to revert) |
-| Tags | `add_tag`, `remove_tag`, `rename_tag`, `reorder_tagged_requests`, `set_tag_request_colors` | yes |
+| Scripts | `attach_script`, `detach_script`, `rename_script`, `reorder_script_requests`, `set_script_request_colors` | yes |
 | Favourites | `create_favourite`, `rename_favourite`, `add_to_favourite`, `remove_from_favourite`, `reorder_favourite_requests`, `set_favourite_request_colors` | yes |
 
 Deliberately left out for now:
 
 - **Free-form request editing** (`request.update`). It overwrites every column and is not undoable, so a partial edit would need read-merge-write. `bulk_edit_requests` changes `name` or `color` (one field per call, undoable); `edit_request_content` (class `content`, off by default) changes url, method, headers, body, body_type, body_form.
-- **Appearance tools** (collection, tag, favourite icons/colours). The icon vocabulary lives in the frontend, so a tool cannot validate values yet.
+- **Appearance tools** (collection, script, favourite icons/colours). The icon vocabulary lives in the frontend, so a tool cannot validate values yet.
 - Note on undo merging: quick repeats of the same command on the same rows share one undo step, so several `bulk_edit_requests` calls on different fields within 750 ms undo only the first field. Do one field per call and do not chain them.
 
 ## Risk classes
@@ -67,7 +67,7 @@ Deliberately left out for now:
 | Class | Meaning | Default |
 |---|---|---|
 | `read` | queries only | on |
-| `organize` | recoverable edits: rename, move, reorder, tag, favourite, colour, duplicate, bulk rename/colour, delete-to-trash, restore | on |
+| `organize` | recoverable edits: rename, move, reorder, attach scripts, favourite, colour, duplicate, bulk rename/colour, delete-to-trash, restore | on |
 | `content` | change what a request sends: URL, method, headers, body (`edit_request_content`); shown to users as "Edit requests" | on, and every call asks first |
 | `destructive` | cascading or permanent deletes | off |
 | `external` | outbound network (`send_request`) | off |
@@ -120,7 +120,7 @@ claude mcp add --transport http snap-rq http://127.0.0.1:47821/mcp --header "Aut
 
 0. Spec and branch (this file).
 1. Foundation and read tools. (done)
-2. Organize tools (collections, requests incl. move/reorder/bulk, tags, favourites, trash). (done)
+2. Organize tools (collections, requests incl. move/reorder/bulk, scripts, favourites, trash). (done)
 3. Settings UI (toggle, port, token, per-class and per-tool switches).
 4. Restricted tools (destructive, sensitive, `send_request` with `RunObservable`).
 5. stdio shim, resources, prompts.

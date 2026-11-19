@@ -148,13 +148,13 @@ func TestOrganizeFlowEndToEnd(t *testing.T) {
 		t.Fatalf("undo should restore the name, got %s", got)
 	}
 
-	// tags
-	h.run("tag.add", addTagInput{RequestID: req, ProjectID: project, TagName: "Auth"})
-	if tags := h.text(h.run("tag.list", projectInput{ProjectID: project})); !strings.Contains(tags, "auth") {
-		t.Fatalf("tag missing from %s", tags)
+	// scripts
+	h.run("script.attach", attachScriptInput{RequestID: req, ProjectID: project, ScriptName: "Auth"})
+	if scripts := h.text(h.run("script.list", projectInput{ProjectID: project})); !strings.Contains(scripts, "Auth") {
+		t.Fatalf("script missing from %s", scripts)
 	}
-	h.run("tag.rename", renameTagInput{ProjectID: project, OldName: "auth", NewName: "security"})
-	h.run("tag.remove", removeTagInput{RequestID: req, TagName: "security"})
+	h.run("script.rename", renameScriptInput{ProjectID: project, OldName: "Auth", NewName: "security"})
+	h.run("script.detach", detachScriptInput{RequestID: req, ScriptName: "security"})
 
 	// favourites
 	fav := h.id(h.run("favourite.create", createFavouriteInput{ProjectID: project, Name: "Daily"}))
@@ -190,7 +190,7 @@ func TestAuditLogRecordsAndPrunes(t *testing.T) {
 	}
 
 	for i := 0; i < auditMaxRows+50; i++ {
-		if err := store.AddAudit(AuditEntry{At: time.Now().UnixMilli(), Tool: "list_tags", Status: auditOK}); err != nil {
+		if err := store.AddAudit(AuditEntry{At: time.Now().UnixMilli(), Tool: "list_scripts", Status: auditOK}); err != nil {
 			t.Fatal(err)
 		}
 	}

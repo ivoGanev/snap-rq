@@ -36,20 +36,20 @@ func TestStoreRoundTrip(t *testing.T) {
 	if err := s.SetPort(50000); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SetToolOverride("list_tags", false); err != nil {
+	if err := s.SetToolOverride("list_scripts", false); err != nil {
 		t.Fatal(err)
 	}
 	cfg := s.Load()
-	if !cfg.Enabled || cfg.Port != 50000 || cfg.Overrides["list_tags"] != false {
+	if !cfg.Enabled || cfg.Port != 50000 || cfg.Overrides["list_scripts"] != false {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
-	if _, present := cfg.Overrides["list_tags"]; !present {
+	if _, present := cfg.Overrides["list_scripts"]; !present {
 		t.Fatal("override not stored")
 	}
-	if err := s.ClearToolOverride("list_tags"); err != nil {
+	if err := s.ClearToolOverride("list_scripts"); err != nil {
 		t.Fatal(err)
 	}
-	if _, present := s.Load().Overrides["list_tags"]; present {
+	if _, present := s.Load().Overrides["list_scripts"]; present {
 		t.Fatal("override not cleared")
 	}
 }
