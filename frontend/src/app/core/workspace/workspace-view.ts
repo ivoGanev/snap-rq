@@ -160,8 +160,8 @@ export class ScriptView implements ViewBehaviour {
     return this.script.name;
   }
 
-  /** The editor is in the middle; the Inspector shows what the script is attached to. */
+  /** On both tabs: scripts can't run yet, so the Inspector says so. */
   inspect(): InspectorContent {
-    return { kind: 'script-info', scriptId: this.script.id, scriptName: this.script.name };
+    return { kind: 'wip' };
   }
 }
