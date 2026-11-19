@@ -136,8 +136,9 @@ export class FavouriteView implements ViewBehaviour {
 export class ScriptView implements ViewBehaviour {
   readonly kind = 'script';
   readonly main = 'script';
-  readonly canReorder = true;
-  readonly canColour = true;
+  // No request list in a script view (its middle column is the editor).
+  readonly canReorder = false;
+  readonly canColour = false;
   readonly survivesProjectSwitch = false;
 
   constructor(readonly script: Script) {}

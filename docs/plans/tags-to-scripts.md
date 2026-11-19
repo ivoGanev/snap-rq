@@ -241,7 +241,7 @@ and the requests the script is attached to. Scripts are attached from other view
   Inspector pane: name heading, JS editor, autosave, "Not saved"). New Inspector content
   `{ kind: 'script-info' }` → `ScriptInfoPane`: WIP banner with donate link, and
   "Attached to N requests" (reloads after every command).
-- [ ] **D3. Drop the script branch of the request list.** `scriptRequests`, reorder/colour in a
+- [x] **D3. Drop the script branch of the request list.** `scriptRequests`, reorder/colour in a
   script, C2's "Detach from script" delete; `ScriptView` loses `canReorder`/`canColour`.
 - [ ] **D4. Backend clean-up (later, by decision).** `script.reorder`, `script.set_color`, their
   MCP tools and the `user_sort_order`/`user_color` columns of `request_scripts` are unused by

@@ -103,7 +103,6 @@ export class RequestsMainList {
   protected readonly collections = this.collectionApi.collections;
 
   readonly requestSearchQuery = signal('');
-  readonly scriptRequests = signal<HttpRequestSummary[]>([]);
   readonly recentRequests = signal<HttpRequestSummary[]>([]);
   readonly newRequestPopupOpen = signal(false);
   readonly newRequestName = signal('My new snappy API');
@@ -273,11 +272,6 @@ export class RequestsMainList {
       return this.binSummaries();
     }
 
-    const script = this.state.selectedScript();
-    if (script) {
-      return this.scriptRequests();
-    }
-
     if (this.state.selectedFavouriteCollection()) {
       return this.favouriteApi.requests();
     }
@@ -305,10 +299,6 @@ export class RequestsMainList {
     const projectId = this.state.selectedProject()?.id ?? null;
     if (this.state.showingBin()) {
       return projectId !== null ? groupKey.bin(projectId) : null;
-    }
-    const script = this.state.selectedScript();
-    if (script) {
-      return projectId !== null ? groupKey.script(projectId, script) : null;
     }
     const favourite = this.state.selectedFavouriteCollection();
     if (favourite) {
@@ -424,7 +414,6 @@ export class RequestsMainList {
   /** What Delete does in the current view, shown in the context menu. */
   readonly deleteLabel = computed(() => {
     if (this.state.selectedFavouriteCollection()) return 'Remove from favourites';
-    if (this.state.selectedScript()) return 'Detach from script';
     return 'Move to Trash';
   });
 
@@ -444,7 +433,6 @@ export class RequestsMainList {
     effect(() => {
       const collection = this.state.selectedCollection();
       const favourite = this.state.selectedFavouriteCollection();
-      const script = this.state.selectedScript();
       const showAll = this.state.showingAllRequests();
       const showFamous = this.state.showingFamousRequests();
       const showBin = this.state.showingBin();
@@ -480,7 +468,6 @@ export class RequestsMainList {
           version,
           collection?.id ?? null,
           favourite?.id ?? null,
-          script,
           showAll,
           showFamous,
           showBin,
@@ -509,7 +496,6 @@ export class RequestsMainList {
           version,
           this.state.selectedCollection()?.id ?? null,
           this.state.selectedFavouriteCollection()?.id ?? null,
-          this.state.selectedScript(),
           this.state.showingAllRequests(),
           this.state.showingFamousRequests(),
           this.state.showingBin(),
@@ -537,7 +523,6 @@ export class RequestsMainList {
     version: number,
     collectionId: number | null,
     favouriteId: number | null,
-    script: string | null,
     showAll: boolean,
     showFamous: boolean,
     showBin: boolean,
@@ -563,19 +548,6 @@ export class RequestsMainList {
         const requests = await this.requestApi.loadRecentRequests(projectId, 50);
         if (version !== this.loadVersion) return;
         this.recentRequests.set(requests);
-        this.restoreRememberedSelection(requests, groupKeyOfView, scroll, restoreOffset);
-        return;
-      }
-
-      if (script) {
-        const project = this.state.selectedProject();
-        if (!project) return;
-        const requests = await this.scriptApi.getRequestsForScript(project.id, script);
-        if (version !== this.loadVersion) return;
-        this.scriptRequests.set(requests);
-        await this.scriptApi.loadScriptsForRequests(requests);
-        if (version !== this.loadVersion) return;
-        this.favouriteApi.requestsMembership.set({});
         this.restoreRememberedSelection(requests, groupKeyOfView, scroll, restoreOffset);
         return;
       }
@@ -608,7 +580,6 @@ export class RequestsMainList {
         return;
       }
 
-      this.scriptRequests.set([]);
       this.favouriteApi.requestsMembership.set({});
     } catch (err) {
       console.error(err);
@@ -1293,15 +1264,6 @@ export class RequestsMainList {
       if (!moved) return;
       next.splice(to, 0, moved);
       this.favouriteApi.requests.set(next.map((req, index) => ({ ...req, user_sort_order: index })));
-      return;
-    }
-
-    if (kind === 'script') {
-      const next = [...this.scriptRequests()];
-      const [moved] = next.splice(from, 1);
-      if (!moved) return;
-      next.splice(to, 0, moved);
-      this.scriptRequests.set(next.map((req, index) => ({ ...req, user_sort_order: index })));
     }
   }
 
@@ -1320,11 +1282,6 @@ export class RequestsMainList {
         const favourite = this.state.selectedFavouriteCollection();
         if (!favourite) return;
         await this.favouriteApi.updateRequestOrder(favourite.id, orderedIds);
-      } else if (kind === 'script') {
-        const project = this.state.selectedProject();
-        const script = this.state.selectedScript();
-        if (!project || !script) return;
-        await this.scriptApi.updateRequestOrder(project.id, script, orderedIds);
       }
     } catch (err) {
       console.error('persisting request order failed, reloading view', err);
@@ -1334,12 +1291,6 @@ export class RequestsMainList {
         } else if (kind === 'favourite') {
           const favourite = this.state.selectedFavouriteCollection();
           if (favourite) await this.favouriteApi.loadRequestsForCollection(favourite.id);
-        } else if (kind === 'script') {
-          const project = this.state.selectedProject();
-          const script = this.state.selectedScript();
-          if (project && script) {
-            this.scriptRequests.set(await this.scriptApi.getRequestsForScript(project.id, script));
-          }
         }
       } catch (reloadErr) {
         console.error('reloading view after failed reorder', reloadErr);
@@ -1371,15 +1322,6 @@ export class RequestsMainList {
           this.favouriteApi.requests().map(r => (idSet.has(r.id) ? { ...r, user_color: color } : r)),
         );
         await this.favouriteApi.updateRequestColor(favourite.id, ids, color);
-      } else if (kind === 'script') {
-        const project = this.state.selectedProject();
-        const script = this.state.selectedScript();
-        if (!project || !script) return;
-        const idSet = new Set(ids);
-        this.scriptRequests.set(
-          this.scriptRequests().map(r => (idSet.has(r.id) ? { ...r, user_color: color } : r)),
-        );
-        await this.scriptApi.updateRequestColor(project.id, script, ids, color);
       }
     } catch (err) {
       console.error('persisting request colour failed, reloading view', err);
@@ -1389,12 +1331,6 @@ export class RequestsMainList {
         } else if (kind === 'favourite') {
           const favourite = this.state.selectedFavouriteCollection();
           if (favourite) await this.favouriteApi.loadRequestsForCollection(favourite.id);
-        } else if (kind === 'script') {
-          const project = this.state.selectedProject();
-          const script = this.state.selectedScript();
-          if (project && script) {
-            this.scriptRequests.set(await this.scriptApi.getRequestsForScript(project.id, script));
-          }
         }
       } catch (reloadErr) {
         console.error('reloading view after failed colour update', reloadErr);
@@ -1423,12 +1359,6 @@ export class RequestsMainList {
         if (!favourite) return;
         this.favouriteApi.requests.set(this.favouriteApi.requests().map(r => ({ ...r, user_color: null })));
         await this.favouriteApi.updateRequestColor(favourite.id, ids, null);
-      } else if (kind === 'script') {
-        const project = this.state.selectedProject();
-        const script = this.state.selectedScript();
-        if (!project || !script) return;
-        this.scriptRequests.set(this.scriptRequests().map(r => ({ ...r, user_color: null })));
-        await this.scriptApi.updateRequestColor(project.id, script, ids, null);
       }
     } catch (err) {
       console.error('clearing all request colours failed, reloading view', err);
@@ -1438,12 +1368,6 @@ export class RequestsMainList {
         } else if (kind === 'favourite') {
           const favourite = this.state.selectedFavouriteCollection();
           if (favourite) await this.favouriteApi.loadRequestsForCollection(favourite.id);
-        } else if (kind === 'script') {
-          const project = this.state.selectedProject();
-          const script = this.state.selectedScript();
-          if (project && script) {
-            this.scriptRequests.set(await this.scriptApi.getRequestsForScript(project.id, script));
-          }
         }
       } catch (reloadErr) {
         console.error('reloading view after failed colour clear', reloadErr);
@@ -1562,19 +1486,12 @@ export class RequestsMainList {
 
       const favourite = this.state.selectedFavouriteCollection();
       const collection = this.state.selectedCollection();
-      const script = this.state.selectedScript();
 
       if (favourite) {
         for (const id of ids) {
           await this.favouriteApi.removeRequest(favourite.id, id);
         }
         this.favouriteApi.requests.update(list => list.filter(r => !ids.includes(r.id)));
-      } else if (script) {
-        // Inside a script view, delete means "detach from this script": the
-        // requests stay in their collections and nothing goes to the Trash.
-        for (const id of ids) {
-          await this.scriptApi.detachScript(id, script);
-        }
       } else {
         await this.requestApi.deleteMany(ids);
         for (const id of ids) {
@@ -1588,11 +1505,6 @@ export class RequestsMainList {
       }
 
       this.clearSelection();
-
-      if (script) {
-        this.scriptRequests.update(list => list.filter(r => !ids.includes(r.id)));
-        await this.scriptApi.loadScriptsForRequests(this.scriptRequests());
-      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -2239,6 +2151,5 @@ export class RequestsMainList {
     };
 
     this.favouriteApi.requests.update(patch);
-    this.scriptRequests.update(patch);
   }
 }
