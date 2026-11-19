@@ -14,6 +14,7 @@ import { lineDiff } from './line-diff';
 @Component({
   selector: 'app-openapi-import-dialog',
   templateUrl: './openapi-import-dialog.html',
+  host: { '(document:keydown.escape)': 'cancelled.emit()' },
   styleUrl: './openapi-import-dialog.scss',
 })
 export class OpenApiImportDialog implements OnInit {

@@ -239,6 +239,14 @@
   </div>
 </footer>
 
+@if (importPrompt.active(); as prompt) {
+  <app-openapi-import-dialog
+    [rows]="prompt.rows"
+    (confirmed)="importPrompt.respond($event)"
+    (cancelled)="importPrompt.respond(null)"
+  ></app-openapi-import-dialog>
+}
+
 @if (settingsOpen()) {
   <app-settings-dialog (close)="closeSettings()"></app-settings-dialog>
 }

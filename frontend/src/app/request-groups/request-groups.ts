@@ -2,12 +2,8 @@ import { Component, effect, TemplateRef, ViewChild, computed, inject, isDevMode,
 import { FormsModule } from '@angular/forms';
 import { Dialogs } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
-import {
-  OpenApiApiService,
-  type OpenApiPick,
-  type OpenApiPreviewCollection,
-} from '../core/services/openapi.service';
-import { OpenApiImportDialog } from '../openapi-import-dialog/openapi-import-dialog';
+import { OpenApiApiService } from '../core/services/openapi.service';
+import { OpenApiImportPrompt } from '../core/services/openapi-import-prompt.service';
 import { ToastService } from '../core/services/toast.service';
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
 import {
@@ -90,7 +86,7 @@ const COLLECTION_COLOR_PALETTE: string[] = [
  */
 @Component({
   selector: 'app-request-groups',
-  imports: [FormsModule, RequestGroupList, SidebarRail, OpenApiImportDialog],
+  imports: [FormsModule, RequestGroupList, SidebarRail],
   templateUrl: './request-groups.html',
   styleUrl: './request-groups.scss',
   host: {
@@ -114,6 +110,7 @@ export class RequestGroups {
   private readonly confirm = inject(ConfirmService);
   protected readonly drag = inject(DragSessionService);
   private readonly openapiApi = inject(OpenApiApiService);
+  private readonly importPrompt = inject(OpenApiImportPrompt);
   private readonly toast = inject(ToastService);
 
   @ViewChild('collectionsAddMenu', { static: true })
@@ -260,9 +257,6 @@ export class RequestGroups {
   protected readonly newFavouriteName = signal('');
   protected readonly newTagPopupOpen = signal(false);
 
-  // Import dialog: what the chosen file would add or change.
-  protected readonly importPreview = signal<OpenApiPreviewCollection[] | null>(null);
-  private importPath = '';
   protected readonly newTagName = signal('');
 
   // Rename inline
@@ -571,25 +565,10 @@ export class RequestGroups {
 
     try {
       const rows = await this.openapiApi.previewSpec(project.id, path);
-      this.importPath = path;
-      this.importPreview.set(rows);
-    } catch (err) {
-      console.error(err);
-      this.toast.show(`Import failed: ${errorText(err)}`);
-    }
-  }
+      const picks = await this.importPrompt.choose(rows);
+      if (!picks || picks.length === 0) return;
 
-  closeImportDialog(): void {
-    this.importPreview.set(null);
-  }
-
-  async confirmImport(picks: OpenApiPick[]): Promise<void> {
-    const project = this.state.selectedProject();
-    if (!project || picks.length === 0) return;
-
-    this.closeImportDialog();
-    try {
-      const result = await this.openapiApi.importSpec(project.id, this.importPath, picks);
+      const result = await this.openapiApi.importSpec(project.id, path, picks);
       const parts: string[] = [];
       if (result.requests_created > 0) parts.push(`${result.requests_created} added`);
       if (result.requests_updated > 0) parts.push(`${result.requests_updated} updated`);

@@ -101,15 +101,6 @@
   </div>
 }
 
-<!-- Import OpenAPI: what is new, changed or unchanged -->
-@if (importPreview(); as rows) {
-  <app-openapi-import-dialog
-    [rows]="rows"
-    (confirmed)="confirmImport($event)"
-    (cancelled)="closeImportDialog()"
-  />
-}
-
 <!-- Add: Favourites -->
 @if (newFavouritePopupOpen()) {
   <div class="overlay-backdrop" (click)="closeNewFavouritePopup()">
