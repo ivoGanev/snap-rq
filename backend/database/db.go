@@ -43,6 +43,10 @@ func OpenPath(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("pinging database: %w", err)
 	}
 
+	if err := dropTagTables(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
 	if err := migrate(db); err != nil {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
@@ -203,28 +207,6 @@ func migrate(db *sql.DB) error {
 		CREATE INDEX IF NOT EXISTS idx_favourite_items_collection_id ON favourite_items(favourite_collection_id);
 		CREATE INDEX IF NOT EXISTS idx_favourite_items_request_id ON favourite_items(http_request_id);
 
-		CREATE TABLE IF NOT EXISTS tags (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			project_id INTEGER NOT NULL,
-			name TEXT NOT NULL,
-			FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-			UNIQUE (project_id, name)
-		);
-		CREATE INDEX IF NOT EXISTS idx_tags_project_id_name ON tags(project_id, name);
-
-		CREATE TABLE IF NOT EXISTS request_tags (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			request_id INTEGER NOT NULL,
-			tag_id INTEGER NOT NULL,
-			user_sort_order INTEGER NOT NULL DEFAULT 0,
-			user_color TEXT,
-			FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE,
-			FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
-			UNIQUE (request_id, tag_id)
-		);
-		CREATE INDEX IF NOT EXISTS idx_request_tags_request_id ON request_tags(request_id);
-		CREATE INDEX IF NOT EXISTS idx_request_tags_tag_id ON request_tags(tag_id);
-
 		CREATE TABLE IF NOT EXISTS binned_requests (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			original_request_id INTEGER NOT NULL,
@@ -295,13 +277,7 @@ func migrate(db *sql.DB) error {
 	if err := createFavouriteAppearancesTable(db); err != nil {
 		return err
 	}
-	if err := createTagAppearancesTable(db); err != nil {
-		return err
-	}
 	if err := ensureFavouriteAppearances(db); err != nil {
-		return err
-	}
-	if err := ensureTagAppearances(db); err != nil {
 		return err
 	}
 
@@ -322,24 +298,6 @@ func createFavouriteAppearancesTable(db *sql.DB) error {
 	`)
 	if err != nil {
 		return fmt.Errorf("creating favourite_appearances table: %w", err)
-	}
-	return nil
-}
-
-func createTagAppearancesTable(db *sql.DB) error {
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS tag_appearances (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			tag_id INTEGER NOT NULL,
-			appearance_type TEXT NOT NULL CHECK(appearance_type IN ('icon', 'color')),
-			appearance_value TEXT NOT NULL,
-			FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
-			UNIQUE (tag_id)
-		);
-		CREATE INDEX IF NOT EXISTS idx_tag_appearances_tag_id ON tag_appearances(tag_id);
-	`)
-	if err != nil {
-		return fmt.Errorf("creating tag_appearances table: %w", err)
 	}
 	return nil
 }
@@ -378,45 +336,6 @@ func ensureFavouriteAppearances(db *sql.DB) error {
 		)
 		if err != nil {
 			return fmt.Errorf("creating default favourite appearance for %d: %w", id, err)
-		}
-	}
-	return nil
-}
-
-func ensureTagAppearances(db *sql.DB) error {
-	rows, err := db.Query("SELECT id FROM tags")
-	if err != nil {
-		return fmt.Errorf("listing tags for appearance backfill: %w", err)
-	}
-	defer rows.Close()
-
-	var ids []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return fmt.Errorf("scanning tag id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("iterating tag ids: %w", err)
-	}
-
-	for _, id := range ids {
-		var count int
-		if err := db.QueryRow("SELECT COUNT(*) FROM tag_appearances WHERE tag_id = ?", id).Scan(&count); err != nil {
-			return fmt.Errorf("checking tag appearance exists: %w", err)
-		}
-		if count > 0 {
-			continue
-		}
-		defaultAppearance := models.DefaultTagAppearance()
-		_, err := db.Exec(
-			"INSERT INTO tag_appearances (tag_id, appearance_type, appearance_value) VALUES (?, ?, ?)",
-			id, defaultAppearance.AppearanceType, defaultAppearance.AppearanceValue,
-		)
-		if err != nil {
-			return fmt.Errorf("creating default tag appearance for %d: %w", id, err)
 		}
 	}
 	return nil
@@ -787,10 +706,9 @@ func backfillRequestBodyTypes(db *sql.DB, table string) error {
 
 // addUserSortOrderColumns introduces the per-view user ordering columns.
 //
-// - http_requests.user_sort_order orders a request within its collection.
-// - request_tags.user_sort_order orders a request within a tag.
-// - favourite_items.sort_order is renamed to user_sort_order for naming
-//   consistency (values are preserved).
+//   - http_requests.user_sort_order orders a request within its collection.
+//   - favourite_items.sort_order is renamed to user_sort_order for naming
+//     consistency (values are preserved).
 //
 // Legacy rows keep 0; every consumer orders by user_sort_order with the
 // previous natural tiebreaker (name), so existing ordering is unchanged until
@@ -800,13 +718,6 @@ func addUserSortOrderColumns(db *sql.DB) error {
 		_, err := db.Exec("ALTER TABLE http_requests ADD COLUMN user_sort_order INTEGER NOT NULL DEFAULT 0")
 		if err != nil {
 			return fmt.Errorf("adding user_sort_order column to http_requests: %w", err)
-		}
-	}
-
-	if !columnExists(db, "request_tags", "user_sort_order") {
-		_, err := db.Exec("ALTER TABLE request_tags ADD COLUMN user_sort_order INTEGER NOT NULL DEFAULT 0")
-		if err != nil {
-			return fmt.Errorf("adding user_sort_order column to request_tags: %w", err)
 		}
 	}
 
@@ -822,11 +733,6 @@ func addUserSortOrderColumns(db *sql.DB) error {
 		return fmt.Errorf("creating http_requests collection sort index: %w", err)
 	}
 
-	_, err = db.Exec("CREATE INDEX IF NOT EXISTS idx_request_tags_tag_sort ON request_tags(tag_id, user_sort_order)")
-	if err != nil {
-		return fmt.Errorf("creating request_tags tag sort index: %w", err)
-	}
-
 	return nil
 }
 
@@ -834,11 +740,10 @@ func addUserSortOrderColumns(db *sql.DB) error {
 //
 // - http_requests.user_color colours a request within its collection.
 // - favourite_items.user_color colours a request within a favourite collection.
-// - request_tags.user_color colours a request within a tag.
 //
 // Columns are nullable; NULL means "no colour".
 func addUserColorColumns(db *sql.DB) error {
-	for _, table := range []string{"http_requests", "favourite_items", "request_tags"} {
+	for _, table := range []string{"http_requests", "favourite_items"} {
 		if columnExists(db, table, "user_color") {
 			continue
 		}
@@ -852,7 +757,7 @@ func addUserColorColumns(db *sql.DB) error {
 
 // migrateUserColorsToSlots rewrites the hex colours stored before colour slots
 // existed (user_color used to hold the picked pastel's hex) into theme
-// independent slot names, in the three tables that carry a colour and in the
+// independent slot names, in the tables that carry a colour and in the
 // undo history, whose stored payloads would otherwise write a hex back on
 // undo. It is idempotent: values that are already slots, and hex values it
 // has no slot for, are left untouched.
@@ -860,7 +765,7 @@ func migrateUserColorsToSlots(db *sql.DB) error {
 	// Look up the schema before the transaction opens: it holds a
 	// connection, and a second one would not see an in-memory database.
 	var tables []string
-	for _, table := range []string{"http_requests", "favourite_items", "request_tags"} {
+	for _, table := range []string{"http_requests", "favourite_items"} {
 		if tableExists(db, table) && columnExists(db, table, "user_color") {
 			tables = append(tables, table)
 		}
@@ -948,10 +853,9 @@ func createCookiesTable(db *sql.DB) error {
 }
 
 // createScriptTables adds user scripts: named code a user writes per project
-// and attaches to many requests. They replace tags (see
-// docs/plans/tags-to-scripts.md); request_scripts and script_appearances
-// mirror request_tags and tag_appearances, so a script keeps a per-request
-// order and colour and a sidebar icon or colour.
+// and attaches to many requests. They replace tags (see dropTagTables);
+// a script keeps a per-request order and colour and a sidebar icon or
+// colour.
 func createScriptTables(db *sql.DB) error {
 	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS scripts (
@@ -1143,4 +1047,31 @@ func renameDuplicateNames(db *sql.DB, table string) error {
 		}
 	}
 	return nil
+}
+
+// dropTagTables removes tags, which user scripts replaced (see
+// docs/plans/tags-to-scripts.md). Existing tags are deleted, not converted.
+// Undo entries of tag commands are removed too: those commands no longer
+// exist, so they could not be undone. Older request-delete and trash
+// snapshots still carry tag fields; they are ignored from now on.
+func dropTagTables(db *sql.DB) error {
+	hasUndoLog := tableExists(db, "undo_log")
+
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("starting tag removal: %w", err)
+	}
+	defer tx.Rollback()
+
+	for _, table := range []string{"request_tags", "tag_appearances", "tags"} {
+		if _, err := tx.Exec("DROP TABLE IF EXISTS " + table); err != nil {
+			return fmt.Errorf("dropping %s: %w", table, err)
+		}
+	}
+	if hasUndoLog {
+		if _, err := tx.Exec(`DELETE FROM undo_log WHERE command LIKE 'tag.%'`); err != nil {
+			return fmt.Errorf("removing tag undo entries: %w", err)
+		}
+	}
+	return tx.Commit()
 }

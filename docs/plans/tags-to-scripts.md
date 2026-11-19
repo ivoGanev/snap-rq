@@ -162,17 +162,28 @@ listed under "Later" so it isn't forgotten.
   leaves a working app.
   _Files:_ `backend/database/db.go`, `backend/database/db_test.go`.
 
-- [ ] **B2. Go commands and models.**
-  Rename `backend/commands/tags` → `backend/commands/scripts` (add, remove, rename, delete,
-  list, list_for_requests, list_requests, reorder, set_color, set_appearance) and add
-  `get_content` / `set_content`. Regenerate the Wails bindings.
-  Also move the other code that touches tags onto scripts: request delete (and its undo
-  snapshot), request duplicate, trash restore and icon cleanup. Then drop the tag tables
+- [x] **B2. Go commands and models.**
+  `backend/commands/tags` → `backend/commands/scripts`. Command ids: `script.attach`
+  (was `tag.add`; creates the script if new), `script.detach` (was `tag.remove`),
+  `script.list`, `script.list_for_requests`, `script.list_requests`, `script.rename`,
+  `script.delete`, `script.reorder`, `script.set_color`, `script.set_appearance`, plus new
+  `script.get` (with content, read-only) and `script.set_content` (not undoable, like
+  `request.update`). Commands run by id through one runner, so there are no Wails bindings to
+  regenerate. **Changed from tags:** names keep their case (only trimmed); rename changes the
+  name in place (id, content and links stay) and refuses a name already in use instead of
+  merging; a new script gets its default sidebar icon at once; delete's undo restores the
+  content. **Bugs fixed on the way:** undoing an attach removed that tag from every request;
+  detach looked the name up across all projects. Tests in `commands/scripts/scripts_test.go`.
+  Frontend: only `tag.service.ts` changes (command ids, `script_name`, `script_id`, `script`
+  change events); C1 renames the rest.
+  Also moved the other code that touches tags onto scripts: request delete (and its undo
+  snapshot), request duplicate, trash restore and icon cleanup, and the startup step
+  `dropTagTables` drops the tag tables
   (`DROP TABLE IF EXISTS request_tags, tag_appearances, tags`, D1) and remove undo entries
   for tag commands (`DELETE FROM undo_log WHERE command LIKE 'tag.%'`). Old undo and
   trash snapshots keep their `tag_links` / `tags` fields, which are then ignored.
   _Files:_ `backend/commands/scripts/*`, `backend/commands/{requests,bin,icons}/*`,
-  `backend/models/*`, `backend/database/db.go`, `frontend/bindings` (generated).
+  `backend/models/*`, `backend/database/db.go`, `frontend/.../core/services/tag.service.ts`.
 
 - [ ] **B3. MCP tools.**
   Rename the tag tools (A4): `list_scripts`, `list_script_requests`, `attach_script`,

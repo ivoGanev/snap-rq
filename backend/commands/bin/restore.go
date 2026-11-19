@@ -169,25 +169,25 @@ func (c Restore) restoreOne(binID, targetCollectionID int64) (models.HttpRequest
 		}
 	}
 
-	// re-attach tags and favourites that still exist, by id then by name
-	for _, tag := range snapshot.Tags {
-		var tagID int64
+	// re-attach scripts and favourites that still exist, by id then by name
+	for _, script := range snapshot.Scripts {
+		var scriptID int64
 		err := c.tx.QueryRow(
-			`SELECT id FROM tags WHERE id = ? AND project_id = ?`, tag.ID, targetProjectID,
-		).Scan(&tagID)
+			`SELECT id FROM scripts WHERE id = ? AND project_id = ?`, script.ID, targetProjectID,
+		).Scan(&scriptID)
 		if err == sql.ErrNoRows {
 			err = c.tx.QueryRow(
-				`SELECT id FROM tags WHERE name = ? AND project_id = ?`, tag.Name, targetProjectID,
-			).Scan(&tagID)
+				`SELECT id FROM scripts WHERE name = ? AND project_id = ?`, script.Name, targetProjectID,
+			).Scan(&scriptID)
 		}
 		if err == sql.ErrNoRows {
 			continue
 		}
 		if err != nil {
-			return models.HttpRequest{}, fmt.Errorf("looking up tag: %w", err)
+			return models.HttpRequest{}, fmt.Errorf("looking up script: %w", err)
 		}
 		if _, err := c.tx.Exec(
-			`INSERT OR IGNORE INTO request_tags (request_id, tag_id) VALUES (?, ?)`, newID, tagID,
+			`INSERT OR IGNORE INTO request_scripts (request_id, script_id) VALUES (?, ?)`, newID, scriptID,
 		); err != nil {
 			return models.HttpRequest{}, err
 		}

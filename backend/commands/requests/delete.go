@@ -29,16 +29,16 @@ type deleteInput struct {
 
 // savedRequest is one request with everything that dies with it.
 type savedRequest struct {
-	Request   models.HttpRequest    `json:"request"`
-	Responses []models.HttpResponse `json:"responses"`
-	TagLinks  []savedTagLink        `json:"tag_links"`
-	FavLinks  []savedFavLink        `json:"fav_links"`
+	Request     models.HttpRequest    `json:"request"`
+	Responses   []models.HttpResponse `json:"responses"`
+	ScriptLinks []savedScriptLink     `json:"script_links"`
+	FavLinks    []savedFavLink        `json:"fav_links"`
 }
 
-type savedTagLink struct {
+type savedScriptLink struct {
 	ID            int64   `json:"id"`
 	RequestID     int64   `json:"request_id"`
-	TagID         int64   `json:"tag_id"`
+	ScriptID      int64   `json:"script_id"`
 	UserSortOrder int     `json:"user_sort_order"`
 	UserColor     *string `json:"user_color"`
 }
@@ -83,18 +83,18 @@ func (c Delete) Snapshot(input json.RawMessage) (any, error) {
 		rows.Close()
 
 		rows, err = c.tx.Query(
-			`SELECT id, request_id, tag_id, user_sort_order, user_color
-			 FROM request_tags WHERE request_id = ? ORDER BY id`, id)
+			`SELECT id, request_id, script_id, user_sort_order, user_color
+			 FROM request_scripts WHERE request_id = ? ORDER BY id`, id)
 		if err != nil {
-			return nil, fmt.Errorf("loading tag links: %w", err)
+			return nil, fmt.Errorf("loading script links: %w", err)
 		}
 		for rows.Next() {
-			var link savedTagLink
-			if err := rows.Scan(&link.ID, &link.RequestID, &link.TagID, &link.UserSortOrder, &link.UserColor); err != nil {
+			var link savedScriptLink
+			if err := rows.Scan(&link.ID, &link.RequestID, &link.ScriptID, &link.UserSortOrder, &link.UserColor); err != nil {
 				rows.Close()
 				return nil, err
 			}
-			one.TagLinks = append(one.TagLinks, link)
+			one.ScriptLinks = append(one.ScriptLinks, link)
 		}
 		rows.Close()
 
@@ -149,21 +149,21 @@ func (c Delete) writeBinRow(id int64) error {
 		return err
 	}
 
-	// the trash snapshot stores tag and favourite names, for the restore UI
+	// the trash snapshot stores script and favourite names, for the restore UI
 	snapshot := models.BinnedRequestSnapshot{}
 	rows, err := c.tx.Query(`
-		SELECT t.id, t.name FROM request_tags rt JOIN tags t ON t.id = rt.tag_id
+		SELECT t.id, t.name FROM request_scripts rt JOIN scripts t ON t.id = rt.script_id
 		WHERE rt.request_id = ? ORDER BY t.name`, id)
 	if err != nil {
-		return fmt.Errorf("loading tags: %w", err)
+		return fmt.Errorf("loading scripts: %w", err)
 	}
 	for rows.Next() {
-		var tag models.BinnedTagSnapshot
-		if err := rows.Scan(&tag.ID, &tag.Name); err != nil {
+		var script models.BinnedScriptSnapshot
+		if err := rows.Scan(&script.ID, &script.Name); err != nil {
 			rows.Close()
 			return err
 		}
-		snapshot.Tags = append(snapshot.Tags, tag)
+		snapshot.Scripts = append(snapshot.Scripts, script)
 	}
 	rows.Close()
 
@@ -255,11 +255,11 @@ func (c Delete) Undo(snapshot, _ json.RawMessage) error {
 				return err
 			}
 		}
-		for _, link := range one.TagLinks {
+		for _, link := range one.ScriptLinks {
 			if _, err := c.tx.Exec(`
-				INSERT INTO request_tags (id, request_id, tag_id, user_sort_order, user_color)
+				INSERT INTO request_scripts (id, request_id, script_id, user_sort_order, user_color)
 				VALUES (?, ?, ?, ?, ?)`,
-				link.ID, link.RequestID, link.TagID, link.UserSortOrder, link.UserColor,
+				link.ID, link.RequestID, link.ScriptID, link.UserSortOrder, link.UserColor,
 			); err != nil {
 				return err
 			}

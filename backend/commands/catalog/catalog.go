@@ -16,8 +16,8 @@ import (
 	"snap-rq/backend/commands/projects"
 	"snap-rq/backend/commands/requests"
 	"snap-rq/backend/commands/responses"
+	"snap-rq/backend/commands/scripts"
 	"snap-rq/backend/commands/settings"
-	"snap-rq/backend/commands/tags"
 	"snap-rq/backend/commands/variables"
 )
 
@@ -78,16 +78,18 @@ var All = []commands.Factory{
 	favourites.NewReorder,
 
 	// tags
-	tags.NewListRequests,
-	tags.NewList,
-	tags.NewListForRequests,
-	tags.NewAdd,
-	tags.NewRemove,
-	tags.NewDelete,
-	tags.NewRename,
-	tags.NewSetAppearance,
-	tags.NewReorder,
-	tags.NewSetColor,
+	scripts.NewListRequests,
+	scripts.NewList,
+	scripts.NewListForRequests,
+	scripts.NewGet,
+	scripts.NewAttach,
+	scripts.NewDetach,
+	scripts.NewDelete,
+	scripts.NewRename,
+	scripts.NewSetContent,
+	scripts.NewSetAppearance,
+	scripts.NewReorder,
+	scripts.NewSetColor,
 
 	// environments and their variables
 	environments.NewList,

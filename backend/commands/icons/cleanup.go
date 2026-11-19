@@ -40,7 +40,7 @@ func (c Cleanup) Run(input json.RawMessage) (any, error) {
 	}
 	args = append(args, in.DefaultID)
 
-	for _, table := range []string{"collection_appearances", "favourite_appearances", "tag_appearances"} {
+	for _, table := range []string{"collection_appearances", "favourite_appearances", "script_appearances"} {
 		if _, err := c.tx.Exec(
 			fmt.Sprintf(`UPDATE %s SET appearance_value = ?
 				WHERE appearance_type = 'icon' AND appearance_value NOT IN (%s)`,

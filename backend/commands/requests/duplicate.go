@@ -9,7 +9,7 @@ import (
 	"snap-rq/backend/models"
 )
 
-// duplicate.go — copy a request together with its tag and favourite
+// duplicate.go — copy a request together with its script and favourite
 // memberships. Undo deletes the copy; cascades remove the copies' links.
 
 type Duplicate struct{ tx *sql.Tx }
@@ -57,10 +57,10 @@ func (c Duplicate) Run(input json.RawMessage) (any, error) {
 		return nil, err
 	}
 
-	// copy the tag and favourite memberships as new rows
+	// copy the script and favourite memberships as new rows
 	if _, err := c.tx.Exec(`
-		INSERT INTO request_tags (request_id, tag_id, user_color)
-		SELECT ?, tag_id, user_color FROM request_tags WHERE request_id = ?`, newID, in.ID); err != nil {
+		INSERT INTO request_scripts (request_id, script_id, user_color)
+		SELECT ?, script_id, user_color FROM request_scripts WHERE request_id = ?`, newID, in.ID); err != nil {
 		return nil, err
 	}
 	if _, err := c.tx.Exec(`

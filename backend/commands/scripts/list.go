@@ -1,4 +1,4 @@
-package tags
+package scripts
 
 import (
 	"database/sql"
@@ -9,14 +9,14 @@ import (
 	"snap-rq/backend/models"
 )
 
-//  — a project's tags.
+// list.go — a project's scripts, without their content.
 
 type List struct{ tx *sql.Tx }
 
 func NewList(tx *sql.Tx) commands.Command { return &List{tx: tx} }
 
 func (List) Info() commands.Info {
-	return commands.Info{FunctionID: "tag.list", Label: "List Tags", ReadOnly: true}
+	return commands.Info{FunctionID: "script.list", Label: "List Scripts", ReadOnly: true}
 }
 
 func (c List) Run(input json.RawMessage) (any, error) {
@@ -29,24 +29,24 @@ func (c List) Run(input json.RawMessage) (any, error) {
 	rows, err := c.tx.Query(`
 		SELECT t.id, t.project_id, t.name,
 		       COALESCE(ta.appearance_type, 'icon'), COALESCE(ta.appearance_value, 'default')
-		FROM tags t
-		LEFT JOIN tag_appearances ta ON ta.tag_id = t.id
+		FROM scripts t
+		LEFT JOIN script_appearances ta ON ta.script_id = t.id
 		WHERE t.project_id = ?
 		ORDER BY t.name`, in.ProjectID)
 	if err != nil {
-		return nil, fmt.Errorf("listing tags: %w", err)
+		return nil, fmt.Errorf("listing scripts: %w", err)
 	}
 	defer rows.Close()
 
-	var tags []models.Tag
+	var scripts []models.Script
 	for rows.Next() {
-		var tag models.Tag
-		if err := rows.Scan(&tag.ID, &tag.ProjectID, &tag.Name,
-			&tag.Appearance.AppearanceType, &tag.Appearance.AppearanceValue); err != nil {
+		var script models.Script
+		if err := rows.Scan(&script.ID, &script.ProjectID, &script.Name,
+			&script.Appearance.AppearanceType, &script.Appearance.AppearanceValue); err != nil {
 			return nil, err
 		}
-		tag.Appearance.TagID = tag.ID
-		tags = append(tags, tag)
+		script.Appearance.ScriptID = script.ID
+		scripts = append(scripts, script)
 	}
-	return tags, rows.Err()
+	return scripts, rows.Err()
 }
