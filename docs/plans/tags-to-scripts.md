@@ -19,6 +19,7 @@ before the next step starts. Tick the box when a step is merged.
 | D1 | Existing tags are **deleted**. The migration drops tag data; it does not convert it. |
 | D2 | Scripts behave like tags do today: they are listed in the left sidebar, clicking one lists the **requests attached to it** in the middle column, and the **Inspector** (right panel) shows the **script editor**. |
 | D3 | Requests inside a script keep **manual ordering** (drag to reorder). |
+| E1–E4 | Click a script: Script tab with the editor, WIP centred on the right. Attachments tab: the request list; reorder, colour, Del detaches (not in Trash). Back to Script: text kept. Rename the script on either tab: tab stays. Other views unchanged. |
 | D4 | Donation link is a mock for now: `https://example.com/donate`. |
 | D5 | The right panel is renamed **Inspector**. It is a container that shows a different component depending on what the user is doing (response, trash item, script). |
 | D6 | Attaching works as today: the request "Tags…" dialog becomes "Scripts…", a request can have many scripts, and a script can be attached to many requests. |
@@ -241,11 +242,26 @@ and the requests the script is attached to. Scripts are attached from other view
   Inspector pane: name heading, JS editor, autosave, "Not saved"). New Inspector content
   `{ kind: 'script-info' }` → `ScriptInfoPane`: WIP banner with donate link, and
   "Attached to N requests" (reloads after every command).
-- [ ] **D3. Drop the script branch of the request list.** `scriptRequests`, reorder/colour in a
+- [x] ~~**D3. Drop the script branch of the request list.**~~ Done, then reverted by E2. `scriptRequests`, reorder/colour in a
   script, C2's "Detach from script" delete; `ScriptView` loses `canReorder`/`canColour`.
 - [ ] **D4. Backend clean-up (later, by decision).** `script.reorder`, `script.set_color`, their
   MCP tools and the `user_sort_order`/`user_color` columns of `request_scripts` are unused by
   the UI. Kept for now.
+
+### Stage E: Script / Attachments tabs (2026-11-19, refines D)
+
+A script view has two tabs in its middle column; the Inspector only shows the WIP note.
+
+- [x] **E1. The tab is part of the view.** `ScriptView(script, tab = 'script')`; `main` follows
+  the tab (`script` → editor, `attachments` → request list). Switching tab = `selectView(new
+  ScriptView(script, otherTab))`. The sidebar always opens the Script tab; rename keeps the tab.
+- [x] **E2. Request list script support back.** `git revert` of D3: loading a script's requests,
+  reorder, colours, Del = "Detach from script".
+- [x] **E3. Tab strip.** `script-tabs/` at the top of the script editor and, in a script view,
+  of the request list.
+- [x] **E4. Inspector = WIP only.** `ScriptInfoPane` → `WipPane` (`{ kind: 'wip' }`), centred; the
+  "Attached to N" list is gone (the Attachments tab replaces it). Also on the Attachments tab
+  with a request selected.
 
 ### Later (not scheduled)
 
