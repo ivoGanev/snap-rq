@@ -21,6 +21,7 @@ import {
 } from '@codemirror/state';
 import {
   EditorView,
+  placeholder as placeholderText,
   keymap,
   lineNumbers,
   highlightActiveLine,
@@ -175,6 +176,8 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
    * scrolling only. Used for URL-style inputs.
    */
   readonly singleLine = input(false);
+  /** Faded hint shown while the editor is empty (read once, at creation). */
+  readonly placeholder = input('');
 
   readonly textChange = output<string>();
   /** Emitted when Enter is pressed in single-line mode (where newlines are blocked). */
@@ -253,6 +256,7 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
           variablesField.init(() => this.variables()),
           variableDecorations(),
           this.singleLineCompartment.of(this.singleLineExtensions(this.singleLine())),
+          this.placeholder() ? placeholderText(this.placeholder()) : [],
         ],
       }),
     });
@@ -463,6 +467,10 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
           lineHeight: '1.5',
           height: '100%',
           minHeight: '0',
+        },
+        '.cm-placeholder': {
+          color: 'var(--muted)',
+          fontStyle: 'italic',
         },
         '.cm-content': {
           caretColor: 'var(--text)',
