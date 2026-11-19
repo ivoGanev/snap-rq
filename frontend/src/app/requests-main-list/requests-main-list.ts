@@ -421,6 +421,13 @@ export class RequestsMainList {
       .slice(0, 6);
   });
 
+  /** What Delete does in the current view, shown in the context menu. */
+  readonly deleteLabel = computed(() => {
+    if (this.state.selectedFavouriteCollection()) return 'Remove from favourites';
+    if (this.state.selectedScript()) return 'Detach from script';
+    return 'Move to Trash';
+  });
+
   readonly bulkScriptSuggestions = computed<Script[]>(() => {
     const query = this.bulkScriptName().trim().toLowerCase();
     const scripts = this.scriptApi.allScripts();
@@ -1562,6 +1569,12 @@ export class RequestsMainList {
           await this.favouriteApi.removeRequest(favourite.id, id);
         }
         this.favouriteApi.requests.update(list => list.filter(r => !ids.includes(r.id)));
+      } else if (script) {
+        // Inside a script view, delete means "detach from this script": the
+        // requests stay in their collections and nothing goes to the Trash.
+        for (const id of ids) {
+          await this.scriptApi.detachScript(id, script);
+        }
       } else {
         await this.requestApi.deleteMany(ids);
         for (const id of ids) {

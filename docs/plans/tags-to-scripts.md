@@ -207,11 +207,13 @@ listed under "Later" so it isn't forgotten.
   feature `tags` → `scripts`, `tag-*` CSS classes → `script-*`, UI text says "Attach script".
   Behaviour unchanged.
 
-- [ ] **C2. Attach dialog.**
+- [x] **C2. Attach dialog.**
   The request "Tags…" dialog and the bulk tag dialog become "Scripts…": pick from existing
   scripts, or create one by name. Deleting requests while a script is open detaches the
   script instead of trashing the requests (A2); the confirm text says so.
-  _Files:_ `requests-main-list/*`.
+  _Done:_ the dialogs already picked an existing script or created one by name; the context
+  menu entry is now "Scripts…". Delete (key or menu) inside a script view detaches, and the
+  menu item reads "Detach from script". Re-attaching no longer duplicates the chip.
 
 - [ ] **C3. Script editor in the Inspector.**
   New `script-pane` (content `{ kind: 'script'; scriptId }`): script name heading, CodeMirror editor (JavaScript mode, A3) with

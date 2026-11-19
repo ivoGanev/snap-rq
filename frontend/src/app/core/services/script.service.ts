@@ -66,10 +66,10 @@ export class ScriptApiService {
       return [...list, script];
     });
     if (requestId !== 0) {
-      this.requestScripts.update(map => ({
-        ...map,
-        [requestId]: [...(map[requestId] ?? []), script.name],
-      }));
+      this.requestScripts.update(map => {
+        const current = map[requestId] ?? [];
+        return current.includes(script.name) ? map : { ...map, [requestId]: [...current, script.name] };
+      });
     }
     return script;
   }

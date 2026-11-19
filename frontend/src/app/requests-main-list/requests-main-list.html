@@ -339,7 +339,7 @@
       Move to collection…
     </button>
     <button class="context-menu-item" type="button" (click)="openBulkScriptModal()">
-      Attach script…
+      Scripts…
     </button>
     <button class="context-menu-item" type="button" (click)="openBulkFavouritesModal()">
       Add to favourites…
@@ -353,7 +353,7 @@
       type="button"
       (click)="deleteSelectedRequests()"
     >
-      <span>{{ state.selectedFavouriteCollection() ? 'Remove from favourites' : 'Move to Trash' }}</span>
+      <span>{{ deleteLabel() }}</span>
       <kbd class="menu-kbd">Del</kbd>
     </button>
   }
