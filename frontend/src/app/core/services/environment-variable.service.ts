@@ -6,7 +6,11 @@ export interface EnvironmentVariable {
   id: number;
   environment_id: number;
   key: string;
+  /** Always empty for a secret: its value never leaves the backend unless revealed. */
   value: string;
+  secret: boolean;
+  /** Whether the variable has a value (the only thing known about a secret's). */
+  has_value: boolean;
 }
 
 /**
@@ -32,14 +36,31 @@ export class EnvironmentVariableApiService {
     this.variables.set(all ?? []);
   }
 
-  async create(variable: Omit<EnvironmentVariable, 'id'>): Promise<EnvironmentVariable> {
+  /** Adds a plain variable; tick it as secret afterwards to encrypt it. */
+  async create(variable: { environment_id: number; key: string; value: string }): Promise<EnvironmentVariable> {
     return this.commands.execute<EnvironmentVariable>('variable.create', variable);
   }
 
-  async update(variable: EnvironmentVariable): Promise<EnvironmentVariable> {
-    const updated = await this.commands.execute<EnvironmentVariable>('variable.update', variable);
+  /**
+   * Changes a variable's key and, when `value` is given, its value. Leave the
+   * value out to rename a secret without touching it.
+   */
+  async update(id: number, key: string, value?: string): Promise<EnvironmentVariable> {
+    const updated = await this.commands.execute<EnvironmentVariable>('variable.update', { id, key, value });
     this.variables.update(list => list.map(v => (v.id === updated.id ? updated : v)));
     return updated;
+  }
+
+  /** Makes a variable secret (encrypting its value) or plain again. */
+  async setSecret(id: number, secret: boolean): Promise<EnvironmentVariable> {
+    const updated = await this.commands.execute<EnvironmentVariable>('variable.set_secret', { id, secret });
+    this.variables.update(list => list.map(v => (v.id === updated.id ? updated : v)));
+    return updated;
+  }
+
+  /** A secret's value, decrypted, for the reveal button. */
+  async reveal(id: number): Promise<string> {
+    return this.commands.execute<string>('variable.reveal', { id });
   }
 
   async delete(id: number): Promise<void> {

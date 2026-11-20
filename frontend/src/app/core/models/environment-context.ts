@@ -1,6 +1,8 @@
 export interface EnvironmentVariableValue {
   key: string;
   value: string;
+  /** Secret values stay in the backend: `{{key}}` is left as it is here. */
+  secret?: boolean;
 }
 
 const VARIABLE_REGEX = /\{\{\s*([a-zA-Z0-9_-]+)\s*\}\}/g;
@@ -11,8 +13,10 @@ const VARIABLE_REGEX = /\{\{\s*([a-zA-Z0-9_-]+)\s*\}\}/g;
  * This is the single implementation of `{{variable}}` interpolation in the
  * app: the frontend owns the environment's variables in memory (loaded on
  * environment selection and kept in sync by the variables editor), so display
- * and request execution both resolve through this entity. The backend executes
- * whatever content it is given and never interpolates itself.
+ * and request execution both resolve through this entity.
+ *
+ * Secret variables are skipped: the frontend never has their values, so
+ * `{{key}}` stays visible, and the backend fills them in when sending.
  */
 export class EnvironmentContext {
   private readonly values: ReadonlyMap<string, string>;
@@ -24,6 +28,7 @@ export class EnvironmentContext {
   ) {
     const values = new Map<string, string>();
     for (const variable of variables) {
+      if (variable.secret) continue;
       // Last definition wins, matching the previous backend map semantics.
       values.set(variable.key, variable.value);
     }

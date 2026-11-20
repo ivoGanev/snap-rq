@@ -107,6 +107,9 @@
                   }
                 </span>
               </th>
+              <th class="variables-header variables-header--secret" title="Encrypted, and hidden unless revealed">
+                Secret
+              </th>
               <th class="variables-header variables-header--action" aria-hidden="true"></th>
             </tr>
           </thead>
@@ -119,16 +122,67 @@
                     type="text"
                     placeholder="KEY"
                     [ngModel]="variable.key"
-                    (ngModelChange)="updateVariableField(variable, 'key', $event)"
+                    (ngModelChange)="updateKey(variable, $event)"
                   />
                 </td>
                 <td class="variables-cell variables-cell--value">
+                  @if (!variable.secret) {
+                    <input
+                      class="variables-input"
+                      type="text"
+                      placeholder="Value"
+                      [ngModel]="variable.value"
+                      (ngModelChange)="updateValue(variable, $event)"
+                    />
+                  } @else {
+                    <div class="secret-value">
+                      @if (revealed().has(variable.id)) {
+                        <input
+                          class="variables-input"
+                          type="text"
+                          aria-label="Secret value"
+                          [value]="revealed().get(variable.id)"
+                          (input)="updateValue(variable, $any($event.target).value)"
+                        />
+                      } @else {
+                        <!-- Write-only: typing replaces the secret, leaving it untouched keeps it. -->
+                        <input
+                          class="variables-input secret-input"
+                          type="password"
+                          autocomplete="off"
+                          aria-label="Secret value"
+                          [placeholder]="secretPlaceholder(variable)"
+                          (focus)="focusedSecret.set(variable.id)"
+                          (blur)="focusedSecret.set(null)"
+                          (input)="updateValue(variable, $any($event.target).value)"
+                        />
+                      }
+                      @if (variable.has_value) {
+                        <button
+                          class="secret-reveal"
+                          type="button"
+                          [class.is-active]="revealed().has(variable.id)"
+                          (click)="toggleReveal(variable)"
+                          [attr.aria-label]="revealed().has(variable.id) ? 'Hide value' : 'Reveal value'"
+                          [title]="revealed().has(variable.id) ? 'Hide value' : 'Reveal value'"
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path
+                              d="M12 5C6.5 5 2.7 9.1 1.5 12c1.2 2.9 5 7 10.5 7s9.3-4.1 10.5-7C21.3 9.1 17.5 5 12 5zm0 11.5A4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 0 1 0 9zm0-7a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"
+                            />
+                          </svg>
+                        </button>
+                      }
+                    </div>
+                  }
+                </td>
+                <td class="variables-cell variables-cell--secret">
                   <input
-                    class="variables-input"
-                    type="text"
-                    placeholder="Value"
-                    [ngModel]="variable.value"
-                    (ngModelChange)="updateVariableField(variable, 'value', $event)"
+                    class="secret-toggle"
+                    type="checkbox"
+                    [checked]="variable.secret"
+                    (click)="$event.preventDefault(); toggleSecret(variable)"
+                    [attr.aria-label]="'Secret: ' + (variable.key || 'variable')"
                   />
                 </td>
                 <td class="variables-cell variables-cell--action">
@@ -145,7 +199,7 @@
             }
             @if (sortedVariables().length === 0) {
               <tr>
-                <td class="variables-empty" colspan="3">No variables for this environment.</td>
+                <td class="variables-empty" colspan="4">No variables for this environment.</td>
               </tr>
             }
           </tbody>

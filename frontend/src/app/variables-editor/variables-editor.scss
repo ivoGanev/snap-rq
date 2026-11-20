@@ -168,11 +168,16 @@
 }
 
 .variables-header--key {
-  width: 40%;
+  width: 35%;
 }
 
 .variables-header--value {
-  width: 55%;
+  width: 50%;
+}
+
+.variables-header--secret {
+  width: 10%;
+  text-align: center;
 }
 
 .variables-header--action {
@@ -210,8 +215,55 @@
   vertical-align: middle;
 }
 
-.variables-cell--action {
+.variables-cell--action,
+.variables-cell--secret {
   text-align: center;
+}
+
+// A secret's value: masked, write-only input plus the reveal (eye) button.
+.secret-value {
+  display: flex;
+  align-items: center;
+}
+
+.secret-input::placeholder {
+  letter-spacing: 0.1em;
+}
+
+.secret-reveal {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-right: var(--s-1);
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  --wails-draggable: no-drag;
+}
+
+.secret-reveal svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.secret-reveal:hover,
+.secret-reveal.is-active {
+  color: var(--text);
+  background: var(--hover-bg);
+}
+
+.secret-toggle {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--accent);
 }
 
 .variables-input {

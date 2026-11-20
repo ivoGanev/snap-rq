@@ -1,6 +1,7 @@
 import {
   Component,
   computed,
+  effect,
   ElementRef,
   inject,
   output,
@@ -14,6 +15,7 @@ import {
   EnvironmentVariableApiService,
   type EnvironmentVariable,
 } from '../core/services/environment-variable.service';
+import { ConfirmService } from '../core/services/confirm.service';
 
 type SortColumn = 'key' | 'value';
 type SortDirection = 'asc' | 'desc';
@@ -32,6 +34,7 @@ export class VariablesEditor {
   protected readonly state = inject(WorkspaceStateService);
   private readonly environmentApi = inject(EnvironmentApiService);
   private readonly variableApi = inject(EnvironmentVariableApiService);
+  private readonly confirm = inject(ConfirmService);
 
   readonly close = output<void>();
 
@@ -45,6 +48,14 @@ export class VariablesEditor {
   readonly newEnvironmentName = signal('');
   private readonly newEnvironmentInput = viewChild<ElementRef<HTMLInputElement>>('newEnvInput');
 
+  /**
+   * Revealed secret values by variable id. Only lives while the editor is
+   * open on this environment; the eye button adds and removes entries.
+   */
+  protected readonly revealed = signal<ReadonlyMap<number, string>>(new Map());
+  /** The masked secret field being typed into, which hints that typing replaces it. */
+  protected readonly focusedSecret = signal<number | null>(null);
+
   readonly deleteConfirmOpen = signal(false);
   readonly environmentPendingDelete = signal<Environment | null>(null);
 
@@ -56,6 +67,14 @@ export class VariablesEditor {
     const direction = this.sortDirection() === 'asc' ? 1 : -1;
     return vars.sort((a, b) => a[column].localeCompare(b[column]) * direction);
   });
+
+  constructor() {
+    // Switching environment hides every revealed secret again.
+    effect(() => {
+      this.state.selectedEnvironment();
+      this.revealed.set(new Map());
+    });
+  }
 
   activeEnvironmentName(): string {
     return this.state.selectedEnvironment()?.name ?? 'None';
@@ -189,26 +208,78 @@ export class VariablesEditor {
     }
   }
 
-  async updateVariableField<K extends keyof EnvironmentVariable>(
-    variable: EnvironmentVariable,
-    field: K,
-    value: EnvironmentVariable[K],
-  ): Promise<void> {
-    const updated = { ...variable, [field]: value };
-
-    const list = this.variables();
-    const index = list.findIndex((v) => v.id === updated.id);
-    if (index !== -1) {
-      const next = [...list];
-      next[index] = updated;
-      this.variableApi.variables.set(next);
-    }
-
+  async updateKey(variable: EnvironmentVariable, key: string): Promise<void> {
+    this.patchLocal(variable.id, { key });
     try {
-      await this.variableApi.update(updated);
+      // A secret's value isn't here; leaving it out keeps it as it is.
+      await this.variableApi.update(variable.id, key, variable.secret ? undefined : variable.value);
     } catch (err) {
       console.error(err);
     }
+  }
+
+  async updateValue(variable: EnvironmentVariable, value: string): Promise<void> {
+    if (variable.secret) {
+      // The new value replaces the secret; keep it visible only if it was revealed.
+      if (this.revealed().has(variable.id)) this.setRevealed(variable.id, value);
+      this.patchLocal(variable.id, { has_value: value !== '' });
+    } else {
+      this.patchLocal(variable.id, { value, has_value: value !== '' });
+    }
+    try {
+      await this.variableApi.update(variable.id, variable.key, value);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  // ---------- Secrets ----------
+
+  protected secretPlaceholder(variable: EnvironmentVariable): string {
+    if (this.focusedSecret() === variable.id) return 'Enter new value…';
+    return variable.has_value ? '••••••••••••' : 'Value';
+  }
+
+  async toggleSecret(variable: EnvironmentVariable): Promise<void> {
+    if (variable.secret) {
+      const confirmed = await this.confirm.ask({
+        title: 'Store as plain text?',
+        message: `${variable.key || 'This variable'} will no longer be encrypted, and its value will show in the editor.`,
+        confirmLabel: 'Make plain',
+      });
+      if (!confirmed) return;
+    }
+    try {
+      await this.variableApi.setSecret(variable.id, !variable.secret);
+      this.setRevealed(variable.id, null);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async toggleReveal(variable: EnvironmentVariable): Promise<void> {
+    if (this.revealed().has(variable.id)) {
+      this.setRevealed(variable.id, null);
+      return;
+    }
+    try {
+      this.setRevealed(variable.id, await this.variableApi.reveal(variable.id));
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  private setRevealed(id: number, value: string | null): void {
+    this.revealed.update((map) => {
+      const next = new Map(map);
+      if (value === null) next.delete(id);
+      else next.set(id, value);
+      return next;
+    });
+  }
+
+  private patchLocal(id: number, changes: Partial<EnvironmentVariable>): void {
+    this.variableApi.variables.update((list) => list.map((v) => (v.id === id ? { ...v, ...changes } : v)));
   }
 
   async deleteVariable(variable: EnvironmentVariable, event: MouseEvent): Promise<void> {

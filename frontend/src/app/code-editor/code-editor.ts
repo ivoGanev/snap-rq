@@ -45,6 +45,10 @@ export type EditorLanguage = 'json' | 'text' | 'javascript';
 export interface EditorVariable {
   key: string;
   value: string;
+  /** A secret's value is never in the frontend; its chip says "secret". */
+  secret?: boolean;
+  /** For a secret: whether it has a value (its `value` is always empty). */
+  hasValue?: boolean;
 }
 
 const setVariablesEffect = StateEffect.define<EditorVariable[]>({});
@@ -80,6 +84,7 @@ class VariableWidget extends WidgetType {
     private readonly key: string,
     private readonly value: string,
     private readonly isMissing: boolean,
+    private readonly secret: boolean,
   ) {
     super();
   }
@@ -89,7 +94,7 @@ class VariableWidget extends WidgetType {
     chip.type = 'button';
     chip.className = this.isMissing ? 'variable-chip is-missing' : 'variable-chip';
     chip.textContent = this.key;
-    chip.title = this.isMissing ? 'not defined' : this.formatHint(this.value);
+    chip.title = this.isMissing ? 'not defined' : this.secret ? 'secret' : this.formatHint(this.value);
     chip.tabIndex = -1;
     if (this.isMissing) {
       chip.style.background = 'var(--danger-solid)';
@@ -101,7 +106,10 @@ class VariableWidget extends WidgetType {
 
   override eq(other: VariableWidget): boolean {
     return (
-      other.key === this.key && other.value === this.value && other.isMissing === this.isMissing
+      other.key === this.key &&
+      other.value === this.value &&
+      other.isMissing === this.isMissing &&
+      other.secret === this.secret
     );
   }
 
@@ -141,7 +149,12 @@ function variableDecorations(): Extension {
           const to = from + match[0].length;
           decorations.push(
             Decoration.replace({
-              widget: new VariableWidget(key, variable?.value ?? '', !variable),
+              widget: new VariableWidget(
+                key,
+                variable?.value ?? '',
+                !variable || (!!variable.secret && !variable.hasValue),
+                !!variable?.secret,
+              ),
               inclusive: false,
             }).range(from, to),
           );

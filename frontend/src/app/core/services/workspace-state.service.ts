@@ -65,7 +65,12 @@ export class WorkspaceStateService {
   readonly zenModeOpen = signal(false);
 
   readonly environmentVariables = computed(() =>
-    this.envVarApi.variables().map((v) => ({ key: v.key, value: v.value })),
+    this.envVarApi.variables().map((v) => ({
+      key: v.key,
+      value: v.value,
+      secret: v.secret,
+      hasValue: v.has_value,
+    })),
   );
 
   /**
@@ -184,7 +189,9 @@ export class WorkspaceStateService {
   async sendRequest(req: HttpRequest, event: Event): Promise<void> {
     event.stopPropagation();
     try {
-      await this.requestApi.send(req, this.environmentVariables());
+      // Secrets are left out: the backend fills them in from the environment.
+      const plain = this.environmentVariables().filter((v) => !v.secret);
+      await this.requestApi.send(req, plain, this.selectedEnvironment()?.id ?? null);
     } catch (err) {
       console.error(err);
     }

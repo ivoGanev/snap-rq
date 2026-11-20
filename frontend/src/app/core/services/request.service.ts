@@ -241,8 +241,13 @@ export class RequestApiService {
   // -----------------------------------------------------------------------
 
   /** Starts a send; progress and the saved response arrive via events. */
-  async send(req: HttpRequest, variables: EnvironmentVariableValue[]): Promise<void> {
-    const runId = await this.commands.begin('request.send', { request: req, variables });
+  /** Sends a request; secret variables are filled in by the backend from `environmentId`. */
+  async send(req: HttpRequest, variables: EnvironmentVariableValue[], environmentId: number | null): Promise<void> {
+    const runId = await this.commands.begin('request.send', {
+      request: req,
+      variables,
+      environment_id: environmentId ?? 0,
+    });
     this.runToRequest.set(runId, req.id);
     const runs = this.activeRuns.get(req.id) ?? new Set<string>();
     runs.add(runId);
