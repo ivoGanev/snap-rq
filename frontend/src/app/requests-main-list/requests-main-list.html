@@ -259,8 +259,8 @@
               class="inline-name-input"
               type="text"
               selectOnFocus
-              [ngModel]="editingNameValue()"
-              (ngModelChange)="editingNameValue.set($event)"
+              [value]="editingNameValue()"
+              (input)="editingNameValue.set($any($event.target).value)"
               (mousedown)="$event.stopPropagation()"
               (click)="$event.stopPropagation()"
               (dblclick)="$event.stopPropagation()"
