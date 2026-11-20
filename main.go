@@ -211,6 +211,19 @@ func (s *AppService) Restart() error {
 	return nil
 }
 
+// ShowInFolder opens the system file manager at a folder, or at a file's
+// folder with the file selected (e.g. a backup).
+func (s *AppService) ShowInFolder(path string) error {
+	if s.app == nil {
+		return errors.New("the app is not ready yet")
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	return s.app.Env.OpenFileManager(path, !info.IsDir())
+}
+
 // UpdaterService exposes the self-updater to the frontend. The native
 // application menu is deliberately avoided because its Win32 menu bar causes a
 // WebView2 mouse-input bug on Windows (a dismissed dropdown leaves the web UI

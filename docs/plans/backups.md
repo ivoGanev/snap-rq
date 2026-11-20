@@ -51,7 +51,12 @@ always opens with the current recovery key.
 - [x] **B4. Before app updates**: open the database, back up when the version changed, then
   migrate.
 - [x] **B5. Restore**: pending restore, swap on start, asking for the recovery key or password.
-- [ ] **B6. Settings → Backups UI.**
+- [x] **B6. Settings → Backups UI.** Automatic backups switch with each trigger and the
+  request threshold; folder (Change… / Default / Open); keep N for D days; optional backup
+  password; history with Restore / Show / Delete; Back up now; Restore from file…. A reminder
+  to save the recovery key while it's unseen. Restore asks for the recovery key or password
+  when the backup was made with another key, then restarts. A "Backup saved" toast's "Show"
+  opens this page.
 
 ## Manual checks
 

@@ -64,6 +64,41 @@ export class CommandApiService {
     return Commands.CommandService.Begin(name, JSON.stringify(payload));
   }
 
+  /**
+   * Runs an observable command and resolves with its result when it
+   * finishes (rejects with its error). The finish event can arrive before
+   * Begin returns the run id, so early events are kept until it does.
+   */
+  run<T>(name: string, payload: object): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      type Finish = { runId: string; result?: unknown; error?: string };
+      let runId: string | null = null;
+      const early: Finish[] = [];
+      const settle = (f: Finish): boolean => {
+        if (f.runId !== runId) return false;
+        off();
+        if (f.error) reject(new Error(f.error));
+        else resolve(f.result as T);
+        return true;
+      };
+      const off = Events.On('command:finish', (ev) => {
+        const f = ev.data as Finish;
+        if (runId === null) early.push(f);
+        else settle(f);
+      });
+      this.begin(name, payload).then(
+        (id) => {
+          runId = id;
+          early.some(settle);
+        },
+        (err) => {
+          off();
+          reject(err);
+        },
+      );
+    });
+  }
+
   async undo(): Promise<UndoResult> {
     return Commands.CommandService.Undo();
   }

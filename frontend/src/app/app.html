@@ -259,5 +259,5 @@
 }
 
 @if (settingsOpen()) {
-  <app-settings-dialog (close)="closeSettings()"></app-settings-dialog>
+  <app-settings-dialog [initial]="settingsCategory()" (close)="closeSettings()"></app-settings-dialog>
 }
