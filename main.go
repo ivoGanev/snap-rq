@@ -86,11 +86,19 @@ func main() {
 	// Risky commands (big deletes, imports, anything that can't be undone)
 	// take a whole-database backup first; the window shows a toast once the
 	// file is written.
-	runner.SetBackupGuard(backup.Guard(db, func(info backup.Info) {
-		if app := application.Get(); app != nil {
-			app.Event.Emit("backup:saved", map[string]string{"reason": info.Header.Reason, "path": info.Path})
-		}
-	}))
+	runner.SetBackupGuard(backup.Guard(db,
+		func(info backup.Info) {
+			if app := application.Get(); app != nil {
+				app.Event.Emit("backup:saved", map[string]string{"reason": info.Header.Reason, "path": info.Path})
+			}
+		},
+		func(reason string, err error) {
+			log.Printf("backup %s failed: %v", reason, err)
+			if app := application.Get(); app != nil {
+				app.Event.Emit("backup:failed", map[string]string{"reason": reason, "error": err.Error()})
+			}
+		},
+	))
 	runner.SetUndoLimit(func() int {
 		var limit int
 		var raw string

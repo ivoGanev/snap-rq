@@ -3,6 +3,7 @@ package backup
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -13,18 +14,26 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
-	_ "modernc.org/sqlite" // the snapshot is checked with its own connection
+	sqlite "modernc.org/sqlite"
 
 	"snap-rq/backend/secrets"
 )
 
-// create.go — making a backup in two parts. Begin is what must happen before
-// a risky change: a consistent copy of the database (VACUUM INTO, about a
-// third of a second for 50 MB, without blocking other writers in WAL mode)
-// and a sealed data key. Finish compresses, encrypts and writes the file, and
-// can run in the background.
+// create.go — making a backup in two parts.
+//
+// Begin is all that happens before a risky change, and takes a millisecond or
+// two: it freezes the database by opening a read transaction on a connection
+// of its own (in WAL mode that connection keeps seeing this state, whatever is
+// committed afterwards) and seals a fresh data key.
+//
+// Finish does the heavy work, normally in the background after the change has
+// committed: it copies the frozen snapshot with SQLite's online backup API,
+// compacts the copy (VACUUM, which also drops leftovers of deleted data from
+// free pages), checks it, then compresses, encrypts and writes the file.
+// Finishes run one at a time: snapshots are instant, copies queue up.
 
 // Options describe the backup to make.
 type Options struct {
@@ -35,12 +44,13 @@ type Options struct {
 	Password   string // optional backup password
 }
 
-// Pending is a backup that has its snapshot and key but no file yet.
+// Pending is a backup whose snapshot is frozen but not yet written.
 type Pending struct {
-	opts     Options
-	snapshot string
-	dataKey  []byte
-	header   Header
+	opts    Options
+	conn    *sql.Conn // holds the read transaction: the frozen snapshot
+	dataKey []byte
+	header  Header
+	once    sync.Once
 }
 
 // Info describes a backup file.
@@ -51,7 +61,10 @@ type Info struct {
 	Header Header `json:"header"`
 }
 
-// Begin takes the snapshot and seals a fresh data key.
+// work serialises Finish: one copy, compression and encryption at a time.
+var work sync.Mutex
+
+// Begin freezes the database as it is now and seals a fresh data key.
 func Begin(db *sql.DB, opts Options) (*Pending, error) {
 	if opts.Dir == "" {
 		return nil, errors.New("no backup folder")
@@ -60,59 +73,74 @@ func Begin(db *sql.DB, opts Options) (*Pending, error) {
 		return nil, fmt.Errorf("creating the backup folder: %w", err)
 	}
 
-	snapshot := filepath.Join(opts.Dir, tempName(".db"))
-	if _, err := db.Exec(`VACUUM INTO ?`, snapshot); err != nil {
-		os.Remove(snapshot)
-		return nil, fmt.Errorf("copying the database: %w", err)
-	}
-	if err := quickCheck(snapshot); err != nil {
-		os.Remove(snapshot)
-		return nil, err
-	}
-	stat, err := os.Stat(snapshot)
+	ctx := context.Background()
+	conn, err := db.Conn(ctx)
 	if err != nil {
-		os.Remove(snapshot)
 		return nil, err
+	}
+	p := &Pending{opts: opts, conn: conn}
+	if _, err := conn.ExecContext(ctx, `BEGIN`); err != nil {
+		p.release()
+		return nil, fmt.Errorf("freezing the database: %w", err)
+	}
+	// A read starts the transaction, and with it the snapshot.
+	var one int
+	if err := conn.QueryRowContext(ctx, `SELECT 1 FROM sqlite_master LIMIT 1`).Scan(&one); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		p.release()
+		return nil, fmt.Errorf("freezing the database: %w", err)
 	}
 
-	dataKey, err := newDataKey()
-	if err != nil {
-		os.Remove(snapshot)
+	if p.dataKey, err = newDataKey(); err != nil {
+		p.release()
 		return nil, err
 	}
-	header := Header{
-		Format:        FormatVersion,
-		CreatedAt:     time.Now().UTC().Truncate(time.Second),
-		Kind:          opts.Kind,
-		Reason:        opts.Reason,
-		AppVersion:    opts.AppVersion,
-		DatabaseBytes: stat.Size(),
+	p.header = Header{
+		Format:     FormatVersion,
+		CreatedAt:  time.Now().UTC().Truncate(time.Second),
+		Kind:       opts.Kind,
+		Reason:     opts.Reason,
+		AppVersion: opts.AppVersion,
 	}
-	header.AppKey, header.KeyFingerprint, err = sealWithApp(db, dataKey)
+	p.header.AppKey, p.header.KeyFingerprint, err = sealWithApp(db, p.dataKey)
 	if err != nil && !(errors.Is(err, secrets.ErrLocked) && opts.Password != "") {
 		// With the key locked, only a password can seal the backup.
-		os.Remove(snapshot)
+		p.release()
 		return nil, err
 	}
 	if opts.Password != "" {
-		if header.PasswordKey, err = sealWithPassword(opts.Password, dataKey); err != nil {
-			os.Remove(snapshot)
+		if p.header.PasswordKey, err = sealWithPassword(opts.Password, p.dataKey); err != nil {
+			p.release()
 			return nil, err
 		}
 	}
-	return &Pending{opts: opts, snapshot: snapshot, dataKey: dataKey, header: header}, nil
+	return p, nil
 }
 
-// Finish compresses and encrypts the snapshot into the backup file, then
-// removes the snapshot. The file appears under its final name only once it
-// is complete and on disk.
+// Finish copies the frozen snapshot and writes the backup file. The file
+// appears under its final name only once it is complete and on disk.
 func (p *Pending) Finish() (Info, error) {
-	defer os.Remove(p.snapshot)
+	work.Lock()
+	defer work.Unlock()
 
-	raw, err := os.ReadFile(p.snapshot)
+	copyPath := filepath.Join(p.opts.Dir, tempName(".db"))
+	defer os.Remove(copyPath)
+	err := copySnapshot(p.conn, copyPath)
+	p.release() // the snapshot is no longer needed
+	if err != nil {
+		return Info{}, fmt.Errorf("copying the database: %w", err)
+	}
+	if err := compact(copyPath); err != nil {
+		return Info{}, err
+	}
+	if err := quickCheck(copyPath); err != nil {
+		return Info{}, err
+	}
+
+	raw, err := os.ReadFile(copyPath)
 	if err != nil {
 		return Info{}, err
 	}
+	p.header.DatabaseBytes = int64(len(raw))
 	var compressed bytes.Buffer
 	zw := gzip.NewWriter(&compressed)
 	if _, err := zw.Write(raw); err != nil {
@@ -145,7 +173,53 @@ func (p *Pending) Finish() (Info, error) {
 }
 
 // Discard drops a pending backup (the change it guarded didn't happen).
-func (p *Pending) Discard() { os.Remove(p.snapshot) }
+func (p *Pending) Discard() { p.release() }
+
+// release ends the read transaction and returns the connection to the pool.
+func (p *Pending) release() {
+	p.once.Do(func() {
+		_, _ = p.conn.ExecContext(context.Background(), `ROLLBACK`)
+		p.conn.Close()
+	})
+}
+
+// backuper is the modernc driver connection's online backup API.
+type backuper interface {
+	NewBackup(dstURI string) (*sqlite.Backup, error)
+}
+
+// copySnapshot copies the database as conn's open read transaction sees it.
+func copySnapshot(conn *sql.Conn, dest string) error {
+	return conn.Raw(func(dc any) error {
+		b, ok := dc.(backuper)
+		if !ok {
+			return errors.New("the SQLite driver can't make online backups")
+		}
+		bk, err := b.NewBackup(dest)
+		if err != nil {
+			return err
+		}
+		if _, err := bk.Step(-1); err != nil { // -1: every page at once
+			bk.Finish()
+			return err
+		}
+		return bk.Finish()
+	})
+}
+
+// compact rewrites a copied database without free pages: smaller, and without
+// leftovers of deleted rows.
+func compact(path string) error {
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	if _, err := db.Exec(`VACUUM`); err != nil {
+		return fmt.Errorf("compacting the copy: %w", err)
+	}
+	return nil
+}
 
 // Create makes a whole backup at once.
 func Create(db *sql.DB, opts Options) (Info, error) {
@@ -171,7 +245,8 @@ var unsafeChars = regexp.MustCompile(`[\\/:*?"<>|\x00-\x1f]+`)
 // fileName is "2026-11-20 15-30-05 – before Delete collection Auth.snaprq-backup",
 // in local time, with characters no OS allows in names removed.
 func fileName(h Header) string {
-	reason := strings.TrimSpace(unsafeChars.ReplaceAllString(h.Reason, " "))
+	reason := strings.ReplaceAll(h.Reason, `"`, "") // collection "Auth" → collection Auth
+	reason = strings.Join(strings.Fields(unsafeChars.ReplaceAllString(reason, " ")), " ")
 	if len([]rune(reason)) > 80 {
 		reason = string([]rune(reason)[:80])
 	}

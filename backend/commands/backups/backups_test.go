@@ -111,7 +111,7 @@ func guarded(t *testing.T) (*commands.Runner, *sql.DB, string) {
 	if _, err := run(t, r, "backup.update_settings", map[string]any{"enabled": true, "folder": folder}); err != nil {
 		t.Fatal(err)
 	}
-	r.SetBackupGuard(backup.Guard(db, nil))
+	r.SetBackupGuard(backup.Guard(db, nil, func(reason string, err error) { t.Errorf("backup %s failed: %v", reason, err) }))
 	return r, db, folder
 }
 
