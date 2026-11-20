@@ -4,6 +4,9 @@
  * wrapper services cast to them.
  */
 
+/** The HTTP methods a request can use, in menu order. */
+export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
+
 /** A lightweight request projection for list views (no body or headers). */
 export interface HttpRequestSummary {
   id: number;

@@ -5,6 +5,7 @@ import { Clipboard } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { ChangeBus } from '../core/services/change-bus.service';
 import { RequestApiService, type HttpRequest, type HttpRequestSummary } from '../core/services/request.service';
+import { HTTP_METHODS } from '../core/models/http';
 import { FavouriteApiService } from '../core/services/favourite.service';
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
 import { SelectionStateService, groupKey } from '../core/services/selection-state.service';
@@ -12,6 +13,7 @@ import { ScriptApiService } from '../core/services/script.service';
 import { ScriptPickerDialog } from '../script-picker-dialog/script-picker-dialog';
 import { FavouritePickerDialog } from '../favourite-picker-dialog/favourite-picker-dialog';
 import { RestoreToCollectionDialog } from '../restore-to-collection-dialog/restore-to-collection-dialog';
+import { NewRequestDialog } from '../new-request-dialog/new-request-dialog';
 import { DragSessionService } from '../core/services/drag-session.service';
 import { BinApiService, type HttpBinnedRequestSummary, type RestoreInput } from '../core/services/bin.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
@@ -56,7 +58,6 @@ const BOTTOM_TABS: BottomTab[] = [
   { id: 'headers', label: 'Headers', icon: 'headers', component: RequestHeadersTab },
 ];
 
-const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
 const DRAG_THRESHOLD_PX = 5;
 const REORDER_EDGE_SCROLL_PX = 44;
 const REORDER_EDGE_SCROLL_STEP_PX = 10;
@@ -69,7 +70,7 @@ const NAME_COLUMN_MIN_WIDTH = 120;
  */
 @Component({
   selector: 'app-requests-main-list',
-  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog],
+  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog, NewRequestDialog],
   templateUrl: './requests-main-list.html',
   styleUrl: './requests-main-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -107,10 +108,8 @@ export class RequestsMainList {
   readonly requestSearchQuery = signal('');
   readonly scriptRequests = signal<HttpRequestSummary[]>([]);
   readonly recentRequests = signal<HttpRequestSummary[]>([]);
-  readonly newRequestPopupOpen = signal(false);
-  readonly newRequestName = signal('My new snappy API');
-  readonly newRequestUrl = signal('');
-  readonly newRequestMethod = signal('GET');
+  /** The collection the new-request dialog is open for, or null when it is closed. */
+  readonly newRequestFor = signal<Collection | null>(null);
 
   // Selection state
   readonly selectedRowIds = computed(() => this.state.selectedIds());
@@ -230,8 +229,6 @@ export class RequestsMainList {
   /** The requests the favourite picker is open for, or null when it is closed. */
   readonly favouritePickerFor = signal<HttpRequestSummary[] | null>(null);
 
-  readonly newRequestPopupMode = signal<'manual' | 'curl'>('manual');
-  readonly newRequestCurl = signal('');
 
   readonly moveCollectionModalOpen = signal(false);
 
@@ -682,7 +679,7 @@ export class RequestsMainList {
       this.favouritePickerFor() !== null ||
       this.moveCollectionModalOpen() ||
       this.restorePickerFor() !== null ||
-      this.newRequestPopupOpen()
+      this.newRequestFor() !== null
     );
   }
 
@@ -701,10 +698,6 @@ export class RequestsMainList {
     }
     if (this.moveCollectionModalOpen()) {
       this.closeMoveCollectionModal();
-      return;
-    }
-    if (this.newRequestPopupOpen()) {
-      this.closeNewRequestPopup();
       return;
     }
   }
@@ -1706,89 +1699,9 @@ export class RequestsMainList {
 
   // ---------- New request ----------
 
-  openNewRequestPopup(): void {
+  openNewRequestDialog(): void {
     this.contextMenu.close();
-    this.newRequestName.set('My new snappy API');
-    this.newRequestUrl.set('');
-    this.newRequestMethod.set('GET');
-    this.newRequestCurl.set('');
-    this.newRequestPopupMode.set('manual');
-    this.newRequestPopupOpen.set(true);
-  }
-
-  closeNewRequestPopup(): void {
-    this.newRequestPopupOpen.set(false);
-  }
-
-  setNewRequestPopupMode(mode: 'manual' | 'curl'): void {
-    this.newRequestName.set(mode === 'curl' ? '' : 'My new snappy API');
-    this.newRequestPopupMode.set(mode);
-  }
-
-  async addRequest(): Promise<void> {
-    const collection = this.state.selectedCollection();
-    if (!collection) return;
-
-    const mode = this.newRequestPopupMode();
-    if (mode === 'curl') {
-      await this.addRequestFromCurl(collection.id);
-      return;
-    }
-
-    const name = this.newRequestName().trim();
-    if (!name) return;
-
-    this.state.loading.set(true);
-    try {
-      await this.requestApi.create({
-        collection_id: collection.id,
-        project_id: collection.project_id,
-        name,
-        url: this.newRequestUrl().trim(),
-        method: this.newRequestMethod(),
-        body: '',
-        body_type: 'json',
-        body_form: '',
-        request_headers: '',
-        status_code: 0,
-        response_id: 0,
-      });
-      this.closeNewRequestPopup();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      this.state.loading.set(false);
-    }
-  }
-
-  private async addRequestFromCurl(collectionId: number): Promise<void> {
-    const curl = this.newRequestCurl().trim();
-    if (!curl) return;
-
-    this.state.loading.set(true);
-    try {
-      const projectId = this.state.selectedProject()?.id ?? 0;
-      const req = await this.requestApi.curlToRequest(collectionId, curl);
-      const name = this.newRequestName().trim() || req.name;
-      await this.requestApi.create({
-        collection_id: collectionId,
-        project_id: projectId,
-        name,
-        url: req.url,
-        method: req.method,
-        body: req.body,
-        body_type: req.body_type || 'json',
-        body_form: req.body_form || '',
-        request_headers: req.request_headers,
-        status_code: 0,
-        response_id: 0,
-      });
-      this.closeNewRequestPopup();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      this.state.loading.set(false);
-    }
+    this.newRequestFor.set(this.state.selectedCollection());
   }
 
   async sendSelectedRequest(event: Event): Promise<void> {
