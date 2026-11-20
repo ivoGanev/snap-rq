@@ -31,6 +31,8 @@ import { Inspector } from './inspector/inspector';
 import { VariablesEditor } from './variables-editor/variables-editor';
 import { CookiesEditor } from './cookies-editor/cookies-editor';
 import { SettingsDialog } from './settings-dialog/settings-dialog';
+import { RecoveryKeyDialog } from './dialogs/recovery-key-dialog/recovery-key-dialog';
+import { SecretsApiService } from './core/services/secrets.service';
 import { McpApprovalOutlet } from './mcp-approval-outlet/mcp-approval-outlet';
 import { CookieApiService } from './core/services/cookie.service';
 import { ZenMode } from './zen-mode/zen-mode';
@@ -52,6 +54,7 @@ import { UndoPanel } from './undo-panel/undo-panel';
     VariablesEditor,
     CookiesEditor,
     SettingsDialog,
+    RecoveryKeyDialog,
     ZenMode,
     ContextMenuOutlet,
     ToastOutlet,
@@ -113,6 +116,9 @@ export class App implements OnInit, AfterViewInit {
 
   readonly themeSelectorOpen = signal(false);
   readonly settingsOpen = signal(false);
+  /** The encryption key was replaced since the user saved a recovery key: announce the new one once. */
+  readonly newRecoveryKeyOpen = signal(false);
+  private readonly secretsApi = inject(SecretsApiService);
 
   private resizeStartX = 0;
   private resizeStartWidth = 0;
@@ -120,6 +126,15 @@ export class App implements OnInit, AfterViewInit {
   async ngOnInit(): Promise<void> {
     await this.cleanupDanglingIcons();
     await Promise.all([this.loadProjects(), this.settingsApi.load()]);
+    void this.announceNewRecoveryKey();
+  }
+
+  private async announceNewRecoveryKey(): Promise<void> {
+    try {
+      if ((await this.secretsApi.recoveryKeyState()) === 'changed') this.newRecoveryKeyOpen.set(true);
+    } catch (err) {
+      console.error('checking the recovery key failed', err);
+    }
   }
 
   ngAfterViewInit(): void {

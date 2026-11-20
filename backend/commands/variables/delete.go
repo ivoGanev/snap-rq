@@ -9,8 +9,9 @@ import (
 	"snap-rq/backend/models"
 )
 
-// delete.go — remove one variable. Snapshot saves the exact key/value row;
-// undo re-inserts it under its original id.
+// delete.go — remove one variable. Snapshot saves the exact row as stored
+// (a secret's value stays encrypted in the undo log); undo re-inserts it
+// under its original id.
 
 type Delete struct{ tx *sql.Tx }
 
@@ -29,8 +30,8 @@ func (c Delete) Snapshot(input json.RawMessage) (any, error) {
 	}
 	var saved models.EnvironmentVariable
 	err := c.tx.QueryRow(
-		`SELECT id, environment_id, key, value FROM environment_variables WHERE id = ?`, in.ID,
-	).Scan(&saved.ID, &saved.EnvironmentID, &saved.Key, &saved.Value)
+		`SELECT id, environment_id, key, value, secret FROM environment_variables WHERE id = ?`, in.ID,
+	).Scan(&saved.ID, &saved.EnvironmentID, &saved.Key, &saved.Value, &saved.Secret)
 	if err != nil {
 		return nil, errors.New("variable not found")
 	}
@@ -63,8 +64,8 @@ func (c Delete) Undo(snapshot, _ json.RawMessage) error {
 		return err
 	}
 	_, err := c.tx.Exec(
-		`INSERT INTO environment_variables (id, environment_id, key, value) VALUES (?, ?, ?, ?)`,
-		saved.ID, saved.EnvironmentID, saved.Key, saved.Value)
+		`INSERT INTO environment_variables (id, environment_id, key, value, secret) VALUES (?, ?, ?, ?, ?)`,
+		saved.ID, saved.EnvironmentID, saved.Key, saved.Value, saved.Secret)
 	return err
 }
 

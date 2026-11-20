@@ -1,19 +1,5 @@
 <label class="settings-option">
   <span class="settings-option-copy">
-    <span class="settings-option-label">Validate SSL certificates</span>
-    <span class="settings-option-help">
-      Disable to allow invalid, expired, or mismatched HTTPS certificates.
-    </span>
-  </span>
-  <input
-    class="settings-toggle"
-    type="checkbox"
-    [checked]="settingsApi.settings().validate_ssl_certificates"
-    (change)="onSslValidationChange($event)"
-  />
-</label>
-<label class="settings-option">
-  <span class="settings-option-copy">
     <span class="settings-option-label">Use cookie jar</span>
     <span class="settings-option-help">
       Store cookies from responses per project and send them with later requests.

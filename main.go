@@ -6,14 +6,16 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"path/filepath"
 	"runtime"
 	"time"
 
 	"snap-rq/backend/commands"
 	"snap-rq/backend/commands/catalog"
 	"snap-rq/backend/commands/requests"
-	"snap-rq/backend/mcp"
 	"snap-rq/backend/database"
+	"snap-rq/backend/mcp"
+	"snap-rq/backend/secrets"
 	"snap-rq/backend/selfupdate"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -44,6 +46,10 @@ func init() {
 }
 
 func main() {
+	// Secret variable values are encrypted with a key kept in the OS
+	// credential store (a 0600 file when there is none).
+	secrets.SetDefault(secrets.NewVault(secrets.OSKeyStore(filepath.Join(database.DataDir(), "secret.key"))))
+
 	// Open the local SQLite database and run migrations.
 	db, err := database.Open()
 	if err != nil {

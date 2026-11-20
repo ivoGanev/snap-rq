@@ -9,6 +9,7 @@ import (
 	"snap-rq/backend/commands"
 	"snap-rq/backend/cookies"
 	"snap-rq/backend/models"
+	"snap-rq/backend/secrets"
 
 	_ "modernc.org/sqlite"
 )
@@ -21,7 +22,9 @@ func newTx(t *testing.T) *sql.Tx {
 	}
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { db.Close() })
-	if _, err := db.Exec(`CREATE TABLE projects (id INTEGER PRIMARY KEY); INSERT INTO projects (id) VALUES (1), (2);` + cookies.Schema); err != nil {
+	secrets.SetDefault(secrets.NewVault(secrets.MemoryKeyStore()))
+	if _, err := db.Exec(`CREATE TABLE projects (id INTEGER PRIMARY KEY); INSERT INTO projects (id) VALUES (1), (2);
+		CREATE TABLE app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);` + cookies.Schema); err != nil {
 		t.Fatalf("creating schema: %v", err)
 	}
 	tx, err := db.Begin()
@@ -56,6 +59,16 @@ func run(t *testing.T, c commands.UndoableCommand, input any) (snapshot, result 
 	return raw(t, snap), raw(t, out), nil
 }
 
+// save runs cookie.save (not undoable) and returns the saved cookie.
+func save(t *testing.T, tx *sql.Tx, c models.Cookie) (models.Cookie, error) {
+	t.Helper()
+	out, err := Save{tx}.Run(raw(t, c))
+	if err != nil {
+		return models.Cookie{}, err
+	}
+	return out.(models.Cookie), nil
+}
+
 func listNames(t *testing.T, tx *sql.Tx, project int64) string {
 	t.Helper()
 	out, err := List{tx}.Run(raw(t, map[string]any{"project_id": project}))
@@ -69,51 +82,38 @@ func listNames(t *testing.T, tx *sql.Tx, project int64) string {
 	return strings.Join(names, ",")
 }
 
-func TestSaveCreateEditAndUndo(t *testing.T) {
+func TestSaveCreateAndEditStoreTheValueEncrypted(t *testing.T) {
 	tx := newTx(t)
-	save := Save{tx}
 
-	snap, created, err := run(t, save, models.Cookie{ProjectID: 1, Domain: ".Example.com", Name: "s", Value: "1"})
+	c, err := save(t, tx, models.Cookie{ProjectID: 1, Domain: ".Example.com", Name: "s", Value: "1"})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	var c models.Cookie
-	_ = json.Unmarshal(created, &c)
-	if c.ID == 0 || c.Domain != "example.com" || c.Path != "/" {
-		t.Fatalf("created = %+v, want id, lower-case domain without dot, path /", c)
+	if c.ID == 0 || c.Domain != "example.com" || c.Path != "/" || c.Value != "1" {
+		t.Fatalf("created = %+v, want id, lower-case domain without dot, path /, the plain value", c)
 	}
 
 	c.Value = "2"
-	editSnap, _, err := run(t, save, c)
-	if err != nil {
+	if _, err := save(t, tx, c); err != nil {
 		t.Fatalf("edit: %v", err)
 	}
 	if got := listNames(t, tx, 1); got != "example.com:s=2" {
 		t.Errorf("after edit %q", got)
 	}
-	if err := save.Undo(editSnap, nil); err != nil {
-		t.Fatalf("undo edit: %v", err)
-	}
-	if got := listNames(t, tx, 1); got != "example.com:s=1" {
-		t.Errorf("after undoing the edit %q", got)
-	}
-
-	if err := save.Undo(snap, created); err != nil {
-		t.Fatalf("undo create: %v", err)
-	}
-	if got := listNames(t, tx, 1); got != "" {
-		t.Errorf("after undoing the create %q", got)
+	var stored string
+	tx.QueryRow(`SELECT value FROM cookies WHERE id = ?`, c.ID).Scan(&stored)
+	if !secrets.IsEncrypted(stored) {
+		t.Errorf("stored value %q, want encrypted", stored)
 	}
 }
 
 func TestSaveRejectsBadInputAndDuplicates(t *testing.T) {
 	tx := newTx(t)
-	save := Save{tx}
 	good := models.Cookie{ProjectID: 1, Domain: "example.com", Name: "s", Value: "1"}
-	if _, _, err := run(t, save, good); err != nil {
+	if _, err := save(t, tx, good); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := run(t, save, good); err == nil || !strings.Contains(err.Error(), "already exists") {
+	if _, err := save(t, tx, good); err == nil || !strings.Contains(err.Error(), "already exists") {
 		t.Errorf("duplicate: err = %v, want 'already exists'", err)
 	}
 	for name, bad := range map[string]models.Cookie{
@@ -123,7 +123,7 @@ func TestSaveRejectsBadInputAndDuplicates(t *testing.T) {
 		"no project":    {Domain: "example.com", Name: "s"},
 		"bad samesite":  {ProjectID: 1, Domain: "example.com", Name: "s", SameSite: "Maybe"},
 	} {
-		if _, _, err := run(t, save, bad); err == nil {
+		if _, err := save(t, tx, bad); err == nil {
 			t.Errorf("%s: expected an error", name)
 		}
 	}
@@ -131,7 +131,8 @@ func TestSaveRejectsBadInputAndDuplicates(t *testing.T) {
 
 func TestDeleteAndUndoKeepsId(t *testing.T) {
 	tx := newTx(t)
-	_, created, _ := run(t, Save{tx}, models.Cookie{ProjectID: 1, Domain: "example.com", Name: "s", Value: "1"})
+	saved, _ := save(t, tx, models.Cookie{ProjectID: 1, Domain: "example.com", Name: "s", Value: "1"})
+	created := raw(t, saved)
 	var c models.Cookie
 	_ = json.Unmarshal(created, &c)
 
@@ -147,8 +148,14 @@ func TestDeleteAndUndoKeepsId(t *testing.T) {
 		t.Fatalf("undo: %v", err)
 	}
 	restored, err := loadCookie(tx, c.ID)
-	if err != nil || restored.Value != "1" {
-		t.Errorf("restored = %+v, %v; want the original row under the same id", restored, err)
+	if err != nil || !secrets.IsEncrypted(restored.Value) {
+		t.Fatalf("restored = %+v, %v; want the original row under the same id, still encrypted", restored, err)
+	}
+	if strings.Contains(string(snap), `"1"`) {
+		t.Errorf("the undo snapshot holds the plain value: %s", snap)
+	}
+	if plain, err := cookies.Open(tx, restored.Value); err != nil || plain != "1" {
+		t.Errorf("restored value decrypts to %q, %v; want 1", plain, err)
 	}
 }
 
@@ -160,7 +167,7 @@ func TestClearByDomainAndAllWithUndo(t *testing.T) {
 		{ProjectID: 1, Domain: "b.com", Name: "x", Value: "1"},
 		{ProjectID: 2, Domain: "a.com", Name: "x", Value: "other project"},
 	} {
-		if _, _, err := run(t, Save{tx}, c); err != nil {
+		if _, err := save(t, tx, c); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -71,6 +71,9 @@ func (j *Jar) SetCookies(u *url.URL, cookies []*http.Cookie) {
 		return
 	}
 	defer tx.Rollback()
+	if EnsureUsable(tx) != nil {
+		return // locked by secret variables: keep what's stored, store nothing new
+	}
 
 	for _, c := range cookies {
 		if c == nil || c.Name == "" {
@@ -106,6 +109,10 @@ func (j *Jar) SetCookies(u *url.URL, cookies []*http.Cookie) {
 				j.projectID, domain, path, c.Name)
 			continue
 		}
+		sealed, err := Seal(tx, c.Value)
+		if err != nil {
+			continue
+		}
 		_, _ = tx.Exec(`
 			INSERT INTO cookies
 				(project_id, domain, host_only, path, name, value, expires_at, secure, http_only, same_site, created_at)
@@ -114,7 +121,7 @@ func (j *Jar) SetCookies(u *url.URL, cookies []*http.Cookie) {
 				value = excluded.value, host_only = excluded.host_only,
 				expires_at = excluded.expires_at, secure = excluded.secure,
 				http_only = excluded.http_only, same_site = excluded.same_site`,
-			j.projectID, domain, hostOnly, path, c.Name, c.Value, expires,
+			j.projectID, domain, hostOnly, path, c.Name, sealed, expires,
 			c.Secure, c.HttpOnly, sameSiteName(c.SameSite), now.Unix())
 	}
 	// Housekeeping: drop cookies whose time has passed.
@@ -134,8 +141,11 @@ func (j *Jar) Cookies(u *url.URL) []*http.Cookie {
 	if host == "" {
 		return nil
 	}
+	if EnsureUsable(j.db) != nil {
+		return nil // locked by secret variables: send none until unlocked
+	}
 	rows, err := j.db.Query(`
-		SELECT domain, host_only, path, name, value, secure, created_at
+		SELECT id, domain, host_only, path, name, value, secure, created_at
 		FROM cookies
 		WHERE project_id = ? AND (expires_at = 0 OR expires_at > ?)`,
 		j.projectID, j.now().Unix())
@@ -145,7 +155,8 @@ func (j *Jar) Cookies(u *url.URL) []*http.Cookie {
 	defer rows.Close()
 
 	type match struct {
-		cookie  *http.Cookie
+		id      int64
+		cookie  *http.Cookie // Value still encrypted until the rows are closed
 		pathLen int
 		created int64
 	}
@@ -156,10 +167,11 @@ func (j *Jar) Cookies(u *url.URL) []*http.Cookie {
 		reqPath = "/"
 	}
 	for rows.Next() {
+		var id int64
 		var domain, path, name, value string
 		var hostOnly, secure bool
 		var created int64
-		if err := rows.Scan(&domain, &hostOnly, &path, &name, &value, &secure, &created); err != nil {
+		if err := rows.Scan(&id, &domain, &hostOnly, &path, &name, &value, &secure, &created); err != nil {
 			continue
 		}
 		if !domainApplies(host, domain, hostOnly) || !pathMatches(reqPath, path) {
@@ -168,8 +180,25 @@ func (j *Jar) Cookies(u *url.URL) []*http.Cookie {
 		if secure && !https && !isLoopback(host) {
 			continue
 		}
-		matches = append(matches, match{&http.Cookie{Name: name, Value: value}, len(path), created})
+		matches = append(matches, match{id, &http.Cookie{Name: name, Value: value}, len(path), created})
 	}
+	rows.Close()
+
+	// Decrypt only the cookies that match (a few per request), once the
+	// rows are closed; drop any that will never decrypt.
+	usable := matches[:0]
+	for _, m := range matches {
+		plain, err := Open(j.db, m.cookie.Value)
+		if err != nil {
+			if !isLocked(err) {
+				_, _ = j.db.Exec(`DELETE FROM cookies WHERE id = ?`, m.id)
+			}
+			continue
+		}
+		m.cookie.Value = plain
+		usable = append(usable, m)
+	}
+	matches = usable
 	sort.SliceStable(matches, func(a, b int) bool {
 		if matches[a].pathLen != matches[b].pathLen {
 			return matches[a].pathLen > matches[b].pathLen
@@ -183,12 +212,8 @@ func (j *Jar) Cookies(u *url.URL) []*http.Cookie {
 	return out
 }
 
-// Querier is what List needs; both *sql.DB and *sql.Tx satisfy it.
-type Querier interface {
-	Query(query string, args ...any) (*sql.Rows, error)
-}
-
-// List returns every unexpired cookie of the project, ordered for display.
+// List returns every unexpired cookie of the project, ordered for display,
+// with values decrypted. Values that can't be decrypted are left out.
 func List(db Querier, projectID int64) ([]models.Cookie, error) {
 	rows, err := db.Query(`
 		SELECT id, project_id, domain, host_only, path, name, value, expires_at, secure, http_only, same_site, created_at
@@ -207,7 +232,21 @@ func List(db Querier, projectID int64) ([]models.Cookie, error) {
 		}
 		list = append(list, c)
 	}
-	return list, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close()
+
+	readable := list[:0]
+	for _, c := range list {
+		plain, err := Open(db, c.Value)
+		if err != nil {
+			continue
+		}
+		c.Value = plain
+		readable = append(readable, c)
+	}
+	return readable, nil
 }
 
 // canonicalHost lower-cases a host name and strips a trailing dot.

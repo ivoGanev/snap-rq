@@ -55,6 +55,34 @@
         }
       </div>
 
+      <!-- Only secret variables are worth unlocking; cookies alone are cleared automatically. -->
+      @if (secretsApi.status()?.state === 'locked' && secretsApi.status()!.secret_variables > 0) {
+        <div class="secrets-locked" role="alert">
+          <p class="secrets-locked-text">
+            🔒 Secret values can't be unlocked on this computer: the key that encrypted them is missing.
+            Enter your recovery key, or start over and type the secret values again.
+          </p>
+          <div class="secrets-locked-actions">
+            <input
+              class="variables-input secrets-recovery-input"
+              type="text"
+              placeholder="SNRQ-XXXX-XXXX-…"
+              aria-label="Recovery key"
+              [value]="recoveryInput()"
+              (input)="recoveryInput.set($any($event.target).value); unlockError.set('')"
+              (keydown.enter)="unlock()"
+            />
+            <button class="variable-add" type="button" [disabled]="!recoveryInput().trim()" (click)="unlock()">
+              Unlock
+            </button>
+            <button class="secrets-start-over" type="button" (click)="startOver()">Start over</button>
+          </div>
+          @if (unlockError()) {
+            <p class="secrets-locked-error">{{ unlockError() }}</p>
+          }
+        </div>
+      }
+
       <!-- Toolbar with sticky Add variable -->
       <div class="variables-toolbar">
         <button class="variable-add-button" type="button" (click)="addVariable()">
@@ -119,19 +147,85 @@
                     type="text"
                     placeholder="KEY"
                     [ngModel]="variable.key"
-                    (ngModelChange)="updateVariableField(variable, 'key', $event)"
+                    (ngModelChange)="updateKey(variable, $event)"
                   />
                 </td>
                 <td class="variables-cell variables-cell--value">
-                  <input
-                    class="variables-input"
-                    type="text"
-                    placeholder="Value"
-                    [ngModel]="variable.value"
-                    (ngModelChange)="updateVariableField(variable, 'value', $event)"
-                  />
+                  @if (!variable.secret) {
+                    <input
+                      class="variables-input"
+                      type="text"
+                      placeholder="Value"
+                      [ngModel]="variable.value"
+                      (ngModelChange)="updateValue(variable, $event)"
+                    />
+                  } @else {
+                    <div class="secret-value">
+                      @if (revealed().has(variable.id)) {
+                        <input
+                          class="variables-input"
+                          type="text"
+                          aria-label="Secret value"
+                          [value]="revealed().get(variable.id)"
+                          (input)="updateValue(variable, $any($event.target).value)"
+                        />
+                      } @else {
+                        <!-- Write-only: typing replaces the secret, leaving it untouched keeps it. -->
+                        <input
+                          class="variables-input secret-input"
+                          type="password"
+                          autocomplete="off"
+                          aria-label="Secret value"
+                          [placeholder]="secretPlaceholder(variable)"
+                          (focus)="focusedSecret.set(variable.id)"
+                          (blur)="focusedSecret.set(null)"
+                          (input)="updateValue(variable, $any($event.target).value)"
+                        />
+                      }
+                      @if (variable.has_value) {
+                        <button
+                          class="secret-reveal"
+                          type="button"
+                          [class.is-active]="revealed().has(variable.id)"
+                          (click)="toggleReveal(variable)"
+                          [attr.aria-label]="revealed().has(variable.id) ? 'Hide value' : 'Reveal value'"
+                          [title]="revealed().has(variable.id) ? 'Hide value' : 'Reveal value'"
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path
+                              d="M12 5C6.5 5 2.7 9.1 1.5 12c1.2 2.9 5 7 10.5 7s9.3-4.1 10.5-7C21.3 9.1 17.5 5 12 5zm0 11.5A4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 0 1 0 9zm0-7a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"
+                            />
+                          </svg>
+                        </button>
+                      }
+                    </div>
+                  }
                 </td>
                 <td class="variables-cell variables-cell--action">
+                  <!-- Secret toggle: a closed lock stays (dimmed) on secrets; an open lock appears on hover. -->
+                  <button
+                    class="row-secret"
+                    type="button"
+                    [class.is-secret]="variable.secret"
+                    [attr.aria-pressed]="variable.secret"
+                    [attr.aria-label]="variable.secret ? 'Make plain' : 'Make secret'"
+                    [title]="variable.secret ? 'Secret: encrypted, hidden unless revealed. Click to make plain.' : 'Make secret'"
+                    (click)="toggleSecret(variable)"
+                  >
+                    @if (variable.secret) {
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M17 9V7A5 5 0 0 0 7 7v2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zM9 7a3 3 0 0 1 6 0v2H9V7zm3 10a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"
+                        />
+                      </svg>
+                    } @else {
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M17 9H9V7a3 3 0 0 1 5.83-1h2.07A5 5 0 0 0 7 7v2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zm-5 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"
+                        />
+                      </svg>
+                    }
+                  </button>
                   <button
                     class="row-delete"
                     type="button"
@@ -154,6 +248,10 @@
     </div>
   </div>
 </div>
+
+@if (recoveryKeyOpen()) {
+  <app-recovery-key-dialog reason="first" (closed)="recoveryKeyOpen.set(false)" />
+}
 
 <!-- Environment delete confirmation -->
 @if (deleteConfirmOpen()) {

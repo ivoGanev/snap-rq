@@ -44,7 +44,7 @@ func (c Delete) Snapshot(input json.RawMessage) (any, error) {
 	}
 
 	rows, err := c.tx.Query(
-		`SELECT id, environment_id, key, value FROM environment_variables
+		`SELECT id, environment_id, key, value, secret FROM environment_variables
 		 WHERE environment_id = ? ORDER BY id`, in.ID)
 	if err != nil {
 		return nil, err
@@ -52,7 +52,8 @@ func (c Delete) Snapshot(input json.RawMessage) (any, error) {
 	defer rows.Close()
 	for rows.Next() {
 		var v models.EnvironmentVariable
-		if err := rows.Scan(&v.ID, &v.EnvironmentID, &v.Key, &v.Value); err != nil {
+		// A secret's value stays encrypted in the snapshot.
+		if err := rows.Scan(&v.ID, &v.EnvironmentID, &v.Key, &v.Value, &v.Secret); err != nil {
 			return nil, err
 		}
 		saved.Variables = append(saved.Variables, v)
@@ -98,8 +99,8 @@ func (c Delete) Undo(snapshot, _ json.RawMessage) error {
 	}
 	for _, v := range saved.Variables {
 		if _, err := c.tx.Exec(
-			`INSERT INTO environment_variables (id, environment_id, key, value) VALUES (?, ?, ?, ?)`,
-			v.ID, v.EnvironmentID, v.Key, v.Value,
+			`INSERT INTO environment_variables (id, environment_id, key, value, secret) VALUES (?, ?, ?, ?, ?)`,
+			v.ID, v.EnvironmentID, v.Key, v.Value, v.Secret,
 		); err != nil {
 			return err
 		}

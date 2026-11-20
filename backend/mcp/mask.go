@@ -182,6 +182,36 @@ func (m *Masker) Tree(v any) any {
 	return v
 }
 
+// minRedactLength keeps very short secret values (like "1") from being
+// replaced everywhere they happen to appear in the output.
+const minRedactLength = 4
+
+// redactValues replaces every occurrence of the given values in the strings
+// of a decoded result.
+func redactValues(v any, values []string) any {
+	if len(values) == 0 {
+		return v
+	}
+	switch t := v.(type) {
+	case string:
+		for _, value := range values {
+			if len(value) >= minRedactLength {
+				t = strings.ReplaceAll(t, value, Redacted)
+			}
+		}
+		return t
+	case map[string]any:
+		for k, val := range t {
+			t[k] = redactValues(val, values)
+		}
+	case []any:
+		for i := range t {
+			t[i] = redactValues(t[i], values)
+		}
+	}
+	return v
+}
+
 // toGeneric turns any result into maps and slices so Tree can walk it. Numbers
 // stay exact.
 func toGeneric(out any) (any, error) {

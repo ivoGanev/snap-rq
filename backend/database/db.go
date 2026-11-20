@@ -19,8 +19,12 @@ import (
 // Open opens the SQLite database stored in the user's application data
 // directory, runs migrations, and ensures default collections exist.
 func Open() (*sql.DB, error) {
-	return OpenPath(filepath.Join(xdg.DataHome, "snap-rq-wails-v3", "app.db"))
+	return OpenPath(filepath.Join(DataDir(), "app.db"))
 }
+
+// DataDir is the folder holding the app's database (and, without an OS
+// keyring, the secrets key file).
+func DataDir() string { return filepath.Join(xdg.DataHome, "snap-rq-wails-v3") }
 
 // OpenPath is Open for a database file at an explicit path (tests use a temp file).
 func OpenPath(dbPath string) (*sql.DB, error) {
@@ -96,6 +100,10 @@ func OpenPath(dbPath string) (*sql.DB, error) {
 	}
 
 	if err := createScriptTables(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
+	if err := addVariableSecretColumn(db); err != nil {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
@@ -850,6 +858,18 @@ func addRequestLastUsedAt(db *sql.DB) error {
 func createCookiesTable(db *sql.DB) error {
 	_, err := db.Exec(cookies.Schema)
 	return err
+}
+
+// addVariableSecretColumn marks environment variables as secret. A secret's
+// value column holds the vault's encrypted form (see backend/secrets).
+func addVariableSecretColumn(db *sql.DB) error {
+	if columnExists(db, "environment_variables", "secret") {
+		return nil
+	}
+	if _, err := db.Exec("ALTER TABLE environment_variables ADD COLUMN secret INTEGER NOT NULL DEFAULT 0"); err != nil {
+		return fmt.Errorf("adding secret column to environment_variables: %w", err)
+	}
+	return nil
 }
 
 // createScriptTables adds user scripts: named code a user writes per project

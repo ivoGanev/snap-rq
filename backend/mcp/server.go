@@ -397,16 +397,26 @@ func (s *Server) currentMasker() *Masker {
 
 // present is the output boundary: what a client receives passes through here.
 // Tools themselves read real data, so write-backs are never masked.
+//
+// Values of secret variables are redacted wherever they appear, even with
+// masking turned off: the user marked them secret explicitly.
 func (s *Server) present(out any) (any, error) {
 	m := s.currentMasker()
-	if m == nil {
+	var secretValues []string
+	if s.store != nil {
+		secretValues = s.store.SecretValues()
+	}
+	if m == nil && len(secretValues) == 0 {
 		return out, nil
 	}
 	generic, err := toGeneric(out)
 	if err != nil {
 		return nil, err
 	}
-	return m.Tree(generic), nil
+	if m != nil {
+		generic = m.Tree(generic)
+	}
+	return redactValues(generic, secretValues), nil
 }
 
 // checkInput refuses arguments containing a masked value: a client that read

@@ -19,6 +19,7 @@ import (
 	"snap-rq/backend/commands/scripts"
 	"snap-rq/backend/commands/settings"
 	"snap-rq/backend/commands/variables"
+	"snap-rq/backend/commands/vault"
 )
 
 // All is every command factory, registered once at startup.
@@ -100,6 +101,15 @@ var All = []commands.Factory{
 	variables.NewCreate,
 	variables.NewUpdate,
 	variables.NewDelete,
+	variables.NewSetSecret,
+	variables.NewReveal,
+	vault.NewStatus,
+	vault.NewRecoveryKey,
+	vault.NewSaveRecoveryKey,
+	vault.NewRecoveryKeyReminder,
+	vault.NewMarkRecoveryKeySeen,
+	vault.NewRestore,
+	vault.NewReset,
 
 	// cookie jar
 	cookiejar.NewList,

@@ -172,11 +172,11 @@
 }
 
 .variables-header--value {
-  width: 55%;
+  width: 52%;
 }
 
 .variables-header--action {
-  width: 5%;
+  width: 8%;
 }
 
 .sort-arrow {
@@ -210,8 +210,135 @@
   vertical-align: middle;
 }
 
+.secrets-locked {
+  margin: 0 0 var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--danger-solid);
+  border-radius: var(--radius);
+  background: var(--danger-bg);
+}
+
+.secrets-locked-text {
+  margin: 0 0 var(--s-2);
+  font-size: 0.875rem;
+  color: var(--text);
+}
+
+.secrets-locked-actions {
+  display: flex;
+  gap: var(--s-2);
+  align-items: center;
+}
+
+.secrets-recovery-input {
+  flex: 1 1 auto;
+  font-family: var(--font-mono);
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+}
+
+.secrets-start-over {
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--danger-text);
+  background: transparent;
+  border: 1px solid var(--danger-solid);
+  border-radius: var(--radius);
+  cursor: pointer;
+  --wails-draggable: no-drag;
+}
+
+.secrets-locked-error {
+  margin: var(--s-2) 0 0;
+  font-size: 0.8125rem;
+  color: var(--error-text);
+}
+
 .variables-cell--action {
   text-align: center;
+  white-space: nowrap;
+}
+
+// A secret's value: masked, write-only input plus the reveal (eye) button.
+.secret-value {
+  display: flex;
+  align-items: center;
+}
+
+.secret-input::placeholder {
+  letter-spacing: 0.1em;
+}
+
+.secret-reveal {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-right: var(--s-1);
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  --wails-draggable: no-drag;
+}
+
+.secret-reveal svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.secret-reveal:hover,
+.secret-reveal.is-active {
+  color: var(--text);
+  background: var(--hover-bg);
+}
+
+.row-secret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.row-secret svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+// A secret keeps its closed lock visible (dimmed) so secrets stand out at a glance.
+.row-secret.is-secret {
+  opacity: 0.6;
+  color: var(--accent);
+}
+
+.variables-row:hover .row-secret {
+  opacity: 1;
+}
+
+.row-secret:hover {
+  color: var(--text);
+  background: var(--hover-bg);
 }
 
 .variables-input {
