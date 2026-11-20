@@ -256,7 +256,7 @@
   position: relative;
 }
 
-:root[data-theme='daylight'] .send-plane.is-flying::after {
+:root[data-theme='daylight'] .send-plane.is-done::after {
   content: '';
   position: absolute;
   left: 30%;

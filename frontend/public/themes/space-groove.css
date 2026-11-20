@@ -104,3 +104,13 @@
 
   color-scheme: dark;
 }
+
+/* Send is an eye looking for something in this theme (the others read
+   "Send" or, in Paper Plane, show a paper plane). */
+:root[data-theme='space-groove'] .send-plane-text {
+  display: none;
+}
+
+:root[data-theme='space-groove'] .send-eye {
+  display: block;
+}
