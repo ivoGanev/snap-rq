@@ -50,10 +50,11 @@
   @include btn.btn-success;
 }
 
-// By default the button reads "Send"; the plane and its wind belong to the
-// Paper Plane theme, which shows them (and hides the text) in paper-plane.css.
+// By default the button reads "Send". The plane (Paper Plane) and the eye
+// (Space Groove) are shown, and the text hidden, by those themes' CSS.
 .send-plane-icon,
-.send-plane-wind {
+.send-plane-wind,
+.send-eye {
   display: none;
 }
 
@@ -73,9 +74,9 @@
   stroke-linejoin: round;
 }
 
-// ---------- In flight: the plane glides, wind streams past ----------
+// ---------- Paper plane: in flight it glides, wind streams past ----------
 
-.is-gliding .send-plane-icon {
+.is-sending .send-plane-icon {
   animation: send-plane-glide 1.2s ease-in-out infinite;
 }
 
@@ -97,7 +98,7 @@
   transition: opacity 0.2s ease;
 }
 
-.is-gliding .send-plane-wind {
+.is-sending .send-plane-wind {
   opacity: 1;
 }
 
@@ -112,7 +113,7 @@
   opacity: 0.55;
 }
 
-.is-gliding .send-plane-wind i {
+.is-sending .send-plane-wind i {
   animation: send-plane-wind 0.9s linear infinite;
 }
 
@@ -142,12 +143,12 @@
   }
 }
 
-// ---------- Landing ----------
+// ---------- Paper plane: landing ----------
 
 // Response arrived: the plane flies out to the top right and glides back in.
 // Listed after the glide so it wins while both apply (another send still
 // in flight).
-.is-flying .send-plane-icon {
+.is-done .send-plane-icon {
   animation: send-plane-flight 450ms ease-in-out;
 }
 
@@ -171,7 +172,7 @@
 }
 
 // No response (network error): a short wobble.
-.is-wobbling .send-plane-icon {
+.is-failed .send-plane-icon {
   animation: send-plane-wobble 450ms ease-in-out;
 }
 
@@ -191,5 +192,171 @@
   }
   80% {
     transform: translateX(1px) rotate(3deg);
+  }
+}
+
+// ---------- Eye (Space Groove): always looking for something ----------
+
+// Explicit size (WebKit doesn't shrink unsized SVGs, see AGENTS.md).
+.send-eye {
+  position: relative;
+  flex: none;
+  overflow: visible;
+}
+
+.send-plane--primary .send-eye {
+  width: 32px;
+  height: 20px;
+}
+
+.send-plane--success .send-eye {
+  width: 26px;
+  height: 16px;
+}
+
+.send-eye-white {
+  fill: rgba(255, 255, 255, 0.95);
+}
+
+.send-eye-outline {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+.send-eye-iris-ring {
+  fill: var(--accent-2);
+}
+
+.send-eye-pupil {
+  fill: #0b0519;
+}
+
+.send-eye-glint {
+  fill: #ffffff;
+}
+
+// The lid closes by squashing the whole eye; the iris moves inside it.
+.send-eye-lid,
+.send-eye-iris {
+  transform-box: view-box;
+  transform-origin: 16px 10px;
+}
+
+// Idle: a slow look around, and a blink every few seconds.
+.send-eye-iris {
+  animation: send-eye-look 3s ease-in-out infinite;
+}
+
+.send-eye-lid {
+  animation: send-eye-blink 2.6s ease-in-out infinite;
+}
+
+@keyframes send-eye-look {
+  0%,
+  12% {
+    transform: translate(0, 0);
+  }
+  22%,
+  38% {
+    transform: translate(-5px, 0.5px);
+  }
+  48%,
+  64% {
+    transform: translate(5px, -0.5px);
+  }
+  74%,
+  86% {
+    transform: translate(1px, 1.2px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes send-eye-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.08);
+  }
+}
+
+// Sending: searching, a quick scan from side to side.
+.is-sending .send-eye-iris {
+  animation: send-eye-scan 0.35s ease-in-out infinite alternate;
+}
+
+.is-sending .send-eye-lid {
+  animation: none;
+  transform: scaleY(0.82); // narrowed, concentrating
+}
+
+@keyframes send-eye-scan {
+  from {
+    transform: translate(-6px, 0);
+  }
+  to {
+    transform: translate(6px, 0);
+  }
+}
+
+// Done: found it, a wide-eyed pop with a double blink.
+.is-done .send-eye-lid {
+  animation: send-eye-found 450ms ease-out;
+}
+
+.is-done .send-eye-iris {
+  animation: none;
+  transform: scale(1.15);
+}
+
+@keyframes send-eye-found {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.2, 0.1);
+  }
+  45% {
+    transform: scale(1.2);
+  }
+  65% {
+    transform: scale(1.2, 0.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+// Failed: squint and shake, nothing found.
+.is-failed .send-eye-lid {
+  animation: send-eye-nope 450ms ease-in-out;
+}
+
+.is-failed .send-eye-iris {
+  animation: none;
+}
+
+@keyframes send-eye-nope {
+  0%,
+  100% {
+    transform: translateX(0) scaleY(1);
+  }
+  20% {
+    transform: translateX(-3px) scaleY(0.4);
+  }
+  40% {
+    transform: translateX(3px) scaleY(0.4);
+  }
+  60% {
+    transform: translateX(-2px) scaleY(0.4);
+  }
+  80% {
+    transform: translateX(1px) scaleY(0.6);
   }
 }

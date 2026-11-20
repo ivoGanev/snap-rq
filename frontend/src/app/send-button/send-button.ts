@@ -3,14 +3,18 @@ import { RequestApiService } from '../core/services/request.service';
 
 /** Keep in sync with the keyframes in send-button.scss. */
 const LANDING_MS = 450;
-/** Fast requests answer before this and only get the landing, no glide. */
-const GLIDE_DELAY_MS = 150;
+/** Fast requests answer before this and only get the landing, no sending animation. */
+const SENDING_DELAY_MS = 150;
 
-type Landing = 'fly' | 'wobble';
+/** How a send ended: a response arrived, or there was none (status 0). */
+type Landing = 'done' | 'failed';
 
 /**
- * The Send button. By default it reads "Send"; the Paper Plane theme turns
- * it into a paper plane (paper-plane.css shows the plane, hides the text).
+ * The Send button. By default it reads "Send"; themes can turn it into a
+ * character: Paper Plane shows a paper plane, Space Groove an eye looking
+ * for something (each theme's CSS shows its icon and hides the text). The
+ * button sets the state classes is-sending / is-done / is-failed; each icon
+ * animates them its own way.
  * While its request is in flight (from this button, Ctrl+S or anywhere else)
  * the plane glides with wind lines behind it; when the response arrives it
  * flies off and back, or wobbles when the request failed (no response:
@@ -28,9 +32,9 @@ type Landing = 'fly' | 'wobble';
       type="button"
       [class.send-plane--primary]="variant() === 'primary'"
       [class.send-plane--success]="variant() === 'success'"
-      [class.is-gliding]="gliding()"
-      [class.is-flying]="landing() === 'fly'"
-      [class.is-wobbling]="landing() === 'wobble'"
+      [class.is-sending]="sendingVisible()"
+      [class.is-done]="landing() === 'done'"
+      [class.is-failed]="landing() === 'failed'"
       [attr.aria-busy]="inFlight()"
       [attr.aria-label]="inFlight() ? 'Sending…' : label()"
       [title]="inFlight() ? 'Sending…' : label()"
@@ -38,6 +42,17 @@ type Landing = 'fly' | 'wobble';
     >
       <span class="send-plane-text">Send</span>
       <span class="send-plane-wind" aria-hidden="true"><i></i><i></i><i></i></span>
+      <svg class="send-eye" viewBox="0 0 32 20" aria-hidden="true">
+        <g class="send-eye-lid">
+          <path class="send-eye-white" d="M2 10 Q16 -1 30 10 Q16 21 2 10 Z" />
+          <g class="send-eye-iris">
+            <circle class="send-eye-iris-ring" cx="16" cy="10" r="5.2" />
+            <circle class="send-eye-pupil" cx="16" cy="10" r="2.4" />
+            <circle class="send-eye-glint" cx="17.6" cy="8.4" r="1" />
+          </g>
+          <path class="send-eye-outline" d="M2 10 Q16 -1 30 10 Q16 21 2 10 Z" />
+        </g>
+      </svg>
       <svg class="send-plane-icon" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M22 2 11 13" />
         <path d="M22 2 15 22l-4-9-9-4 20-7z" />
@@ -59,35 +74,36 @@ export class SendButton {
     const id = this.requestId();
     return id !== null && this.requestApi.sending()[id] !== undefined;
   });
-  protected readonly gliding = signal(false);
+  /** In flight long enough to show it (see SENDING_DELAY_MS). */
+  protected readonly sendingVisible = signal(false);
   protected readonly landing = signal<Landing | null>(null);
 
-  private glideTimer: ReturnType<typeof setTimeout> | null = null;
+  private sendingTimer: ReturnType<typeof setTimeout> | null = null;
   private landingTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
-    // Glide only once a request has been in flight a moment, so quick
-    // responses don't flicker.
+    // Show sending only once a request has been in flight a moment, so
+    // quick responses don't flicker.
     effect(() => {
       const flying = this.inFlight();
       untracked(() => {
-        this.clearGlideTimer();
+        this.clearSendingTimer();
         if (!flying) {
-          this.gliding.set(false);
+          this.sendingVisible.set(false);
           return;
         }
-        this.glideTimer = setTimeout(() => this.gliding.set(this.inFlight()), GLIDE_DELAY_MS);
+        this.sendingTimer = setTimeout(() => this.sendingVisible.set(this.inFlight()), SENDING_DELAY_MS);
       });
     });
 
     const landed = this.requestApi.finished$.subscribe((response) => {
       if (response.request_id !== this.requestId()) return;
-      this.land(response.status_code === 0 ? 'wobble' : 'fly');
+      this.land(response.status_code === 0 ? 'failed' : 'done');
     });
 
     inject(DestroyRef).onDestroy(() => {
       landed.unsubscribe();
-      this.clearGlideTimer();
+      this.clearSendingTimer();
       if (this.landingTimer) clearTimeout(this.landingTimer);
     });
   }
@@ -102,8 +118,8 @@ export class SendButton {
     });
   }
 
-  private clearGlideTimer(): void {
-    if (this.glideTimer) clearTimeout(this.glideTimer);
-    this.glideTimer = null;
+  private clearSendingTimer(): void {
+    if (this.sendingTimer) clearTimeout(this.sendingTimer);
+    this.sendingTimer = null;
   }
 }
