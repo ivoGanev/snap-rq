@@ -44,7 +44,7 @@ always opens with the current recovery key.
 - [x] **B1. Format and engine** (`backend/backup`): header + envelope encryption, Begin
   (snapshot + sealed key, before a change) / Finish (compress, encrypt, write; can run in the
   background), Extract, List, leftover cleanup. Tests.
-- [ ] **B2. Settings and history commands**: backup settings in `app_settings`;
+- [x] **B2. Settings and history commands**: backup settings in `app_settings`;
   `backup.list`, `backup.create`, `backup.delete`; retention.
 - [ ] **B3. Before risky operations**: commands declare `BackupBefore`; the runner takes the
   snapshot first; throttle; toast.

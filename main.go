@@ -10,7 +10,9 @@ import (
 	"runtime"
 	"time"
 
+	"snap-rq/backend/backup"
 	"snap-rq/backend/commands"
+	"snap-rq/backend/commands/backups"
 	"snap-rq/backend/commands/catalog"
 	"snap-rq/backend/commands/requests"
 	"snap-rq/backend/database"
@@ -64,9 +66,12 @@ func main() {
 	if err := runner.Register(catalog.All...); err != nil {
 		log.Fatalf("registering commands: %v", err)
 	}
-	if err := runner.RegisterObservable(requests.NewSend); err != nil {
-		log.Fatalf("registering observable commands: %v", err)
+	for _, f := range []commands.ObservableFactory{requests.NewSend, backups.NewCreate} {
+		if err := runner.RegisterObservable(f); err != nil {
+			log.Fatalf("registering observable commands: %v", err)
+		}
 	}
+	backup.AppVersion = currentVersion
 	runner.SetUndoLimit(func() int {
 		var limit int
 		var raw string

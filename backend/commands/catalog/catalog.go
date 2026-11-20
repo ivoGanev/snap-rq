@@ -4,6 +4,7 @@ package catalog
 
 import (
 	"snap-rq/backend/commands"
+	"snap-rq/backend/commands/backups"
 	"snap-rq/backend/commands/bin"
 	"snap-rq/backend/commands/collections"
 	"snap-rq/backend/commands/cookiejar"
@@ -103,6 +104,10 @@ var All = []commands.Factory{
 	variables.NewDelete,
 	variables.NewSetSecret,
 	variables.NewReveal,
+	backups.NewSettings,
+	backups.NewUpdateSettings,
+	backups.NewList,
+	backups.NewDelete,
 	vault.NewStatus,
 	vault.NewRecoveryKey,
 	vault.NewSaveRecoveryKey,
