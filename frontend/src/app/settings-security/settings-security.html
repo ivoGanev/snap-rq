@@ -1,0 +1,29 @@
+<div class="settings-option">
+  <span class="settings-option-copy">
+    <span class="settings-option-label">Secret variables</span>
+    <span class="settings-option-help">{{ summary() }}</span>
+    @if (secretsApi.status()?.store === 'file') {
+      <span class="settings-option-help">
+        ⚠ No system keyring was found, so the key is kept in a file next to the database. Your
+        secrets are protected only by that file's permissions.
+      </span>
+    }
+  </span>
+</div>
+
+@if (secretsApi.status()?.state === 'unlocked') {
+  <div class="settings-option">
+    <span class="settings-option-copy">
+      <span class="settings-option-label">Recovery key</span>
+      <span class="settings-option-help">
+        Unlocks your secrets if this computer's credential store loses the key, or on another
+        computer. Keep it in a password manager.
+      </span>
+    </span>
+    <button class="variable-add" type="button" (click)="recoveryKeyOpen.set(true)">Show recovery key</button>
+  </div>
+}
+
+@if (recoveryKeyOpen()) {
+  <app-recovery-key-dialog (closed)="recoveryKeyOpen.set(false)" />
+}

@@ -16,6 +16,8 @@ import {
   type EnvironmentVariable,
 } from '../core/services/environment-variable.service';
 import { ConfirmService } from '../core/services/confirm.service';
+import { SecretsApiService } from '../core/services/secrets.service';
+import { RecoveryKeyDialog } from '../dialogs/recovery-key-dialog/recovery-key-dialog';
 
 type SortColumn = 'key' | 'value';
 type SortDirection = 'asc' | 'desc';
@@ -26,7 +28,7 @@ type SortDirection = 'asc' | 'desc';
  */
 @Component({
   selector: 'app-variables-editor',
-  imports: [FormsModule],
+  imports: [FormsModule, RecoveryKeyDialog],
   templateUrl: './variables-editor.html',
   styleUrl: './variables-editor.scss',
 })
@@ -35,6 +37,7 @@ export class VariablesEditor {
   private readonly environmentApi = inject(EnvironmentApiService);
   private readonly variableApi = inject(EnvironmentVariableApiService);
   private readonly confirm = inject(ConfirmService);
+  protected readonly secretsApi = inject(SecretsApiService);
 
   readonly close = output<void>();
 
@@ -55,6 +58,10 @@ export class VariablesEditor {
   protected readonly revealed = signal<ReadonlyMap<number, string>>(new Map());
   /** The masked secret field being typed into, which hints that typing replaces it. */
   protected readonly focusedSecret = signal<number | null>(null);
+  /** Shown once, right after the very first secret is created. */
+  protected readonly recoveryKeyOpen = signal(false);
+  protected readonly recoveryInput = signal('');
+  protected readonly unlockError = signal('');
 
   readonly deleteConfirmOpen = signal(false);
   readonly environmentPendingDelete = signal<Environment | null>(null);
@@ -69,6 +76,8 @@ export class VariablesEditor {
   });
 
   constructor() {
+    void this.secretsApi.refresh();
+
     // Switching environment hides every revealed secret again.
     effect(() => {
       this.state.selectedEnvironment();
@@ -250,8 +259,40 @@ export class VariablesEditor {
       if (!confirmed) return;
     }
     try {
+      const wasFirst = !variable.secret && this.secretsApi.status()?.state === 'none';
       await this.variableApi.setSecret(variable.id, !variable.secret);
       this.setRevealed(variable.id, null);
+      const status = await this.secretsApi.refresh();
+      // The first secret just created the key: show the recovery key once.
+      if (wasFirst && status.state === 'unlocked') this.recoveryKeyOpen.set(true);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async unlock(): Promise<void> {
+    const key = this.recoveryInput().trim();
+    if (!key) return;
+    try {
+      await this.secretsApi.restore(key);
+      this.recoveryInput.set('');
+      this.unlockError.set('');
+    } catch {
+      this.unlockError.set("That recovery key doesn't unlock these secrets.");
+    }
+  }
+
+  async startOver(): Promise<void> {
+    const confirmed = await this.confirm.ask({
+      title: 'Clear all secret values?',
+      message:
+        'Every secret value in every environment is cleared. The variable names stay, and you type the values again.',
+      confirmLabel: 'Clear secret values',
+    });
+    if (!confirmed) return;
+    try {
+      await this.secretsApi.reset();
+      this.revealed.set(new Map());
     } catch (err) {
       console.error(err);
     }

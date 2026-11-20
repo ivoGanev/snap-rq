@@ -1,0 +1,39 @@
+<div class="overlay-backdrop" (click)="closed.emit()">
+  <div class="overlay-panel recovery-key-dialog" role="dialog" aria-label="Recovery key" (click)="$event.stopPropagation()">
+    <div class="overlay-header">
+      <h3 class="overlay-title">Recovery key</h3>
+      <button class="overlay-close" type="button" (click)="closed.emit()">Close</button>
+    </div>
+
+    <div class="overlay-body">
+      @if (firstTime()) {
+        <p class="recovery-text">
+          Secret values are encrypted with a key kept in this computer's credential store. Save this
+          recovery key somewhere safe, such as a password manager. You'll need it if that key is lost,
+          or to use these secrets on another computer.
+        </p>
+      } @else {
+        <p class="recovery-text">
+          This key unlocks your secret variables if this computer's credential store loses SnapRQ's
+          key, or on another computer.
+        </p>
+      }
+
+      @if (recoveryKey()) {
+        <code class="recovery-key">{{ recoveryKey() }}</code>
+      }
+      @if (notice()) {
+        <p class="recovery-notice">{{ notice() }}</p>
+      }
+    </div>
+
+    <div class="overlay-footer recovery-actions">
+      <button class="variable-add" type="button" [disabled]="!recoveryKey()" (click)="copy()">Copy</button>
+      <button class="variable-add" type="button" [disabled]="!recoveryKey()" (click)="save()">Save to file…</button>
+      <span class="recovery-spacer"></span>
+      <button class="variable-add" type="button" (click)="closed.emit()">
+        {{ firstTime() ? "I've saved it" : 'Done' }}
+      </button>
+    </div>
+  </div>
+</div>

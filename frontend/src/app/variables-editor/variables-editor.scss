@@ -215,6 +215,52 @@
   vertical-align: middle;
 }
 
+.secrets-locked {
+  margin: 0 0 var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--danger-solid);
+  border-radius: var(--radius);
+  background: var(--danger-bg);
+}
+
+.secrets-locked-text {
+  margin: 0 0 var(--s-2);
+  font-size: 0.875rem;
+  color: var(--text);
+}
+
+.secrets-locked-actions {
+  display: flex;
+  gap: var(--s-2);
+  align-items: center;
+}
+
+.secrets-recovery-input {
+  flex: 1 1 auto;
+  font-family: var(--font-mono);
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+}
+
+.secrets-start-over {
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--danger-text);
+  background: transparent;
+  border: 1px solid var(--danger-solid);
+  border-radius: var(--radius);
+  cursor: pointer;
+  --wails-draggable: no-drag;
+}
+
+.secrets-locked-error {
+  margin: var(--s-2) 0 0;
+  font-size: 0.8125rem;
+  color: var(--error-text);
+}
+
 .variables-cell--action,
 .variables-cell--secret {
   text-align: center;

@@ -56,7 +56,12 @@ unless revealed, and only decrypted when a request is sent.
 - [x] **S5. MCP masks secret values.** Test.
 - [x] **S6. Variables editor:** Secret tick box, masked value, reveal, write-only typing;
   chip tooltip says "secret"; send passes `environment_id`.
-- [ ] **S7. Locked banner and recovery key UI** (first-time prompt, Settings → Security).
+- [x] **S7. Locked banner and recovery key UI** (first-time prompt, Settings → Security).
+  Unlock and "Start over" live in the variables editor's locked banner; Settings → Security
+  shows the state, where the key lives (warning for the file fallback) and "Show recovery
+  key". The recovery key can be copied or saved (`secrets.save_recovery_key`, 0600, never
+  offered to MCP). A send that fails, e.g. on a locked secret, now shows its error as a
+  toast instead of nothing.
 
 ## Manual checks
 

@@ -1,0 +1,39 @@
+.recovery-key-dialog {
+  width: min(560px, calc(100vw - 2 * var(--s-4)));
+}
+
+.recovery-text {
+  margin: 0 0 var(--s-3);
+  font-size: 0.875rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.recovery-key {
+  display: block;
+  padding: var(--s-3);
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+  letter-spacing: 0.04em;
+  word-break: break-all;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  user-select: all;
+}
+
+.recovery-notice {
+  margin: var(--s-2) 0 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.recovery-actions {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.recovery-spacer {
+  flex: 1 1 auto;
+}

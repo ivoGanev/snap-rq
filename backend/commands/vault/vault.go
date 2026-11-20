@@ -7,6 +7,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"os"
 	"strings"
 
 	"snap-rq/backend/commands"
@@ -48,6 +50,39 @@ func (RecoveryKey) Info() commands.Info {
 
 func (c RecoveryKey) Run(json.RawMessage) (any, error) {
 	return secrets.Default().RecoveryKey(c.tx)
+}
+
+// SaveRecoveryKey writes the recovery key to a file the user picked in a save
+// dialog, readable only by them. Never offered to MCP.
+type SaveRecoveryKey struct{ tx *sql.Tx }
+
+func NewSaveRecoveryKey(tx *sql.Tx) commands.Command { return &SaveRecoveryKey{tx: tx} }
+
+func (SaveRecoveryKey) Info() commands.Info {
+	return commands.Info{FunctionID: "secrets.save_recovery_key", Label: "Save Recovery Key", ReadOnly: true}
+}
+
+func (c SaveRecoveryKey) Run(input json.RawMessage) (any, error) {
+	var in struct {
+		FilePath string `json:"file_path"`
+	}
+	if err := json.Unmarshal(input, &in); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(in.FilePath) == "" {
+		return nil, errors.New("file path is required")
+	}
+	key, err := secrets.Default().RecoveryKey(c.tx)
+	if err != nil {
+		return nil, err
+	}
+	text := "SnapRQ recovery key\n\n" + key + "\n\n" +
+		"Keep this somewhere safe, such as a password manager. It unlocks your secret\n" +
+		"variables if this computer's credential store loses SnapRQ's key, or on a new computer.\n"
+	if err := os.WriteFile(in.FilePath, []byte(text), 0o600); err != nil {
+		return nil, fmt.Errorf("saving the recovery key: %w", err)
+	}
+	return nil, nil
 }
 
 // Restore puts a recovery key back, unlocking the secret values.

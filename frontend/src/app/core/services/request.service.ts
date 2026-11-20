@@ -5,6 +5,7 @@ import type { HttpRequest, HttpRequestSummary, HttpResponse } from '../models/ht
 import type { EnvironmentVariableValue } from '../models/environment-context';
 import { CommandApiService } from './command.service';
 import { ChangeBus } from './change-bus.service';
+import { ToastService } from './toast.service';
 import type { EntityChange } from '../models/change-set';
 import { ScriptApiService } from './script.service';
 import { FavouriteApiService } from './favourite.service';
@@ -23,6 +24,7 @@ const NEW_REQUEST_NAME = 'My new snappy API';
 export class RequestApiService {
   private readonly commands = inject(CommandApiService);
   private readonly bus = inject(ChangeBus);
+  private readonly toasts = inject(ToastService);
   private readonly scriptApi = inject(ScriptApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
 
@@ -364,7 +366,7 @@ export class RequestApiService {
     });
 
     Events.On('command:finish', ev => {
-      const { runId, result } = ev.data as { runId: string; result?: HttpResponse };
+      const { runId, result, error } = ev.data as { runId: string; result?: HttpResponse; error?: string };
       const requestId = this.runToRequest.get(runId);
       if (requestId === undefined) return;
 
@@ -384,6 +386,8 @@ export class RequestApiService {
         this.patch(requestId, { status_code: result.status_code, response_id: result.id });
         this.finished$.next(result);
       }
+      // A send that couldn't start, e.g. a locked secret variable.
+      if (error) this.toasts.show(error);
     });
   }
 

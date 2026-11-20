@@ -55,6 +55,33 @@
         }
       </div>
 
+      @if (secretsApi.status()?.state === 'locked') {
+        <div class="secrets-locked" role="alert">
+          <p class="secrets-locked-text">
+            🔒 Secret values can't be unlocked on this computer: the key that encrypted them is missing.
+            Enter your recovery key, or start over and type the secret values again.
+          </p>
+          <div class="secrets-locked-actions">
+            <input
+              class="variables-input secrets-recovery-input"
+              type="text"
+              placeholder="SNRQ-XXXX-XXXX-…"
+              aria-label="Recovery key"
+              [value]="recoveryInput()"
+              (input)="recoveryInput.set($any($event.target).value); unlockError.set('')"
+              (keydown.enter)="unlock()"
+            />
+            <button class="variable-add" type="button" [disabled]="!recoveryInput().trim()" (click)="unlock()">
+              Unlock
+            </button>
+            <button class="secrets-start-over" type="button" (click)="startOver()">Start over</button>
+          </div>
+          @if (unlockError()) {
+            <p class="secrets-locked-error">{{ unlockError() }}</p>
+          }
+        </div>
+      }
+
       <!-- Toolbar with sticky Add variable -->
       <div class="variables-toolbar">
         <button class="variable-add-button" type="button" (click)="addVariable()">
@@ -208,6 +235,10 @@
     </div>
   </div>
 </div>
+
+@if (recoveryKeyOpen()) {
+  <app-recovery-key-dialog [firstTime]="true" (closed)="recoveryKeyOpen.set(false)" />
+}
 
 <!-- Environment delete confirmation -->
 @if (deleteConfirmOpen()) {
