@@ -321,7 +321,6 @@ and the frontend build.
 - `go test ./...` has 6 failures that already existed before Stage B (checked on the
   commit before B1): 3 in `commands/openapi`, `TestMakeGroupNamesUniqueRenamesDuplicates`
   in `database`, and 2 in `mcp`.
-- The production frontend build fails: `requests-main-list.scss` is 572 bytes over the
-  20 kB budget in `angular.json`. Because of that, `frontend/dist` can be left empty and
-  `go build ./...` then fails on the embed; run `npx ng build --configuration development`
-  first.
+- ~~The production frontend build fails on the 20 kB component-style budget.~~ Fixed
+  2026-11-20 (`fix/prod-build-budgets`): budgets raised to desktop-app sizes (initial
+  3 MB / 5 MB, component styles 32 kB / 64 kB).
