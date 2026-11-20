@@ -27,7 +27,9 @@
 // The request list's main action: large, accent gradient.
 .send-plane--primary {
   min-height: 44px;
-  padding: 0 28px;
+  padding: 0 36px;
+  font-size: 1.0625rem;
+  font-weight: 700;
   background: var(--grad);
   @include btn.btn-primary;
 }
@@ -40,8 +42,19 @@
 // Zen mode: the green send.
 .send-plane--success {
   padding: var(--btn-pad-md);
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
   background: var(--grad-success);
   @include btn.btn-success;
+}
+
+// By default the button reads "Send"; the plane and its wind belong to the
+// Paper Plane theme, which shows them (and hides the text) in paper-plane.css.
+.send-plane-icon,
+.send-plane-wind {
+  display: none;
 }
 
 .send-plane--success .send-plane-icon {

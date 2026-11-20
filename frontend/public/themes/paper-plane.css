@@ -236,6 +236,16 @@
   );
 }
 
+/* Send is a paper plane in this theme (the other themes read "Send"). */
+:root[data-theme='daylight'] .send-plane-text {
+  display: none;
+}
+
+:root[data-theme='daylight'] .send-plane-icon,
+:root[data-theme='daylight'] .send-plane-wind {
+  display: block;
+}
+
 /* In flight, the wind behind the plane is drawn in dashed pencil. */
 :root[data-theme='daylight'] .send-plane-wind i {
   border-top-style: dashed;

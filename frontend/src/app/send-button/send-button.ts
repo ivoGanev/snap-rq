@@ -9,11 +9,13 @@ const GLIDE_DELAY_MS = 150;
 type Landing = 'fly' | 'wobble';
 
 /**
- * The Send button: a paper plane. While its request is in flight (from this
- * button, Ctrl+S or anywhere else) the plane glides with wind lines behind
- * it; when the response arrives it flies off and back, or wobbles when the
- * request failed (no response: status 0). Sending again while in flight is
- * fine. "primary" is the request list's main action, "success" Zen mode's.
+ * The Send button. By default it reads "Send"; the Paper Plane theme turns
+ * it into a paper plane (paper-plane.css shows the plane, hides the text).
+ * While its request is in flight (from this button, Ctrl+S or anywhere else)
+ * the plane glides with wind lines behind it; when the response arrives it
+ * flies off and back, or wobbles when the request failed (no response:
+ * status 0). Sending again while in flight is fine. "primary" is the request
+ * list's main action, "success" Zen mode's.
  *
  * The plane always animates, whatever the system's reduce-motion setting:
  * it is the app's signature, and the motion stays inside the button.
@@ -34,6 +36,7 @@ type Landing = 'fly' | 'wobble';
       [title]="inFlight() ? 'Sending…' : label()"
       (click)="send.emit($event)"
     >
+      <span class="send-plane-text">Send</span>
       <span class="send-plane-wind" aria-hidden="true"><i></i><i></i><i></i></span>
       <svg class="send-plane-icon" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M22 2 11 13" />
