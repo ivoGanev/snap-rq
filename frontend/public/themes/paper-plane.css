@@ -274,9 +274,3 @@
     width: 40%;
   }
 }
-
-@media (prefers-reduced-motion: reduce) {
-  :root[data-theme='daylight'] .send-plane.is-flying::after {
-    animation: none;
-  }
-}

@@ -180,30 +180,3 @@
     transform: translateX(1px) rotate(3deg);
   }
 }
-
-// ---------- Reduced motion: a gentle pulse instead of movement ----------
-
-@media (prefers-reduced-motion: reduce) {
-  .is-gliding .send-plane-icon {
-    animation: send-plane-pulse 1.2s ease-in-out infinite;
-  }
-
-  .send-plane-wind {
-    display: none;
-  }
-
-  .is-flying .send-plane-icon,
-  .is-wobbling .send-plane-icon {
-    animation: none;
-  }
-
-  @keyframes send-plane-pulse {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.45;
-    }
-  }
-}

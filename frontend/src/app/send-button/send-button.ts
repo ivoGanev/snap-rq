@@ -14,6 +14,9 @@ type Landing = 'fly' | 'wobble';
  * it; when the response arrives it flies off and back, or wobbles when the
  * request failed (no response: status 0). Sending again while in flight is
  * fine. "primary" is the request list's main action, "success" Zen mode's.
+ *
+ * The plane always animates, whatever the system's reduce-motion setting:
+ * it is the app's signature, and the motion stays inside the button.
  */
 @Component({
   selector: 'app-send-button',
