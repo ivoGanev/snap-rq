@@ -1,0 +1,222 @@
+@if (settings(); as s) {
+  @if (recoveryKeyUnseen()) {
+    <div class="settings-option settings-option--info backups-notice">
+      <span class="settings-option-copy">
+        <span class="settings-option-label">Save your recovery key</span>
+        <span class="settings-option-help">
+          Backups are encrypted. On another computer, or if this one loses its key, you'll need the
+          recovery key to open them.
+        </span>
+      </span>
+      <button class="settings-button" type="button" (click)="recoveryKeyOpen.set(true)">Show recovery key</button>
+    </div>
+  }
+
+  <label class="settings-option">
+    <span class="settings-option-copy">
+      <span class="settings-option-label">Automatic backups</span>
+      <span class="settings-option-help">Back up the whole database before risky changes.</span>
+    </span>
+    <input class="settings-toggle" type="checkbox" [checked]="s.enabled" (change)="setEnabled($event)" />
+  </label>
+
+  @if (s.enabled) {
+    <div class="backups-triggers">
+      @for (trigger of s.all_triggers; track trigger) {
+        <label class="settings-option">
+          <span class="settings-option-copy">
+            <span class="settings-option-help backups-trigger-label">{{ labels[trigger] }}</span>
+          </span>
+          @if (trigger === 'delete_requests') {
+            <span class="backups-threshold">
+              at least
+              <input
+                class="settings-number"
+                type="number"
+                min="1"
+                max="10000"
+                aria-label="Requests deleted at once"
+                [value]="s.request_delete_threshold"
+                (change)="setNumber('request_delete_threshold', $event, 10000)"
+              />
+            </span>
+          }
+          <input
+            class="settings-toggle"
+            type="checkbox"
+            [checked]="triggerOn(trigger)"
+            (change)="setTrigger(trigger, $event)"
+          />
+        </label>
+      }
+    </div>
+  }
+
+  <div class="settings-option settings-option--info">
+    <span class="settings-option-copy">
+      <span class="settings-option-label">Folder</span>
+      <span class="settings-option-help backups-path">{{ s.folder }}</span>
+    </span>
+    <span class="backups-actions">
+      <button class="settings-button" type="button" (click)="chooseFolder()">Change…</button>
+      @if (s.folder !== s.default_folder) {
+        <button class="settings-button" type="button" (click)="useDefaultFolder()">Default</button>
+      }
+      <button class="settings-button" type="button" (click)="backupApi.showInFolder(s.folder)">Open</button>
+    </span>
+  </div>
+
+  <div class="settings-option settings-option--info">
+    <span class="settings-option-copy">
+      <span class="settings-option-label">Keep</span>
+      <span class="settings-option-help">Older automatic backups are deleted. Manual backups are always kept.</span>
+    </span>
+    <span class="backups-keep">
+      last
+      <input
+        class="settings-number"
+        type="number"
+        min="1"
+        max="500"
+        aria-label="Automatic backups to keep"
+        [value]="s.keep_automatic"
+        (change)="setNumber('keep_automatic', $event, 500)"
+      />
+      for
+      <input
+        class="settings-number"
+        type="number"
+        min="1"
+        max="3650"
+        aria-label="Days to keep automatic backups"
+        [value]="s.keep_days"
+        (change)="setNumber('keep_days', $event, 3650)"
+      />
+      days
+    </span>
+  </div>
+
+  <div class="settings-option settings-option--info">
+    <span class="settings-option-copy">
+      <span class="settings-option-label">Backup password</span>
+      <span class="settings-option-help">
+        Optional. Backups can also be opened with it, even without the recovery key.
+        {{ s.has_password ? 'A password is set.' : 'No password set.' }}
+      </span>
+    </span>
+    <span class="backups-actions">
+      <button class="settings-button" type="button" (click)="passwordOpen.set(!passwordOpen())">
+        {{ s.has_password ? 'Change' : 'Set' }}
+      </button>
+      @if (s.has_password) {
+        <button class="settings-button" type="button" (click)="removePassword()">Remove</button>
+      }
+    </span>
+  </div>
+  @if (passwordOpen()) {
+    <div class="backups-password">
+      <input
+        class="backups-input"
+        type="password"
+        autocomplete="new-password"
+        placeholder="New backup password"
+        aria-label="New backup password"
+        [value]="passwordInput()"
+        (input)="passwordInput.set($any($event.target).value)"
+        (keydown.enter)="savePassword()"
+      />
+      <button class="settings-button" type="button" [disabled]="!passwordInput()" (click)="savePassword()">Save</button>
+    </div>
+  }
+
+  <div class="settings-option settings-option--info backups-history-header">
+    <span class="settings-option-copy">
+      <span class="settings-option-label">History</span>
+      @if (notice()) {
+        <span class="settings-option-help">{{ notice() }}</span>
+      }
+    </span>
+    <span class="backups-actions">
+      <button class="settings-button" type="button" [disabled]="busy()" (click)="backUpNow()">
+        {{ busy() ? 'Backing up…' : 'Back up now' }}
+      </button>
+      <button class="settings-button" type="button" (click)="restoreFromFile()">Restore from file…</button>
+    </span>
+  </div>
+
+  @if (backups().length === 0) {
+    <p class="settings-option-help backups-empty">No backups yet.</p>
+  } @else {
+    <ul class="backups-list">
+      @for (b of backups(); track b.path) {
+        <li class="backups-item">
+          <span class="backups-item-copy">
+            <span class="backups-item-date">
+              {{ date(b) }}
+              @if (b.header.kind === 'manual') {
+                <span class="backups-kind">kept</span>
+              }
+            </span>
+            <span class="backups-item-reason">{{ b.header.reason || 'Backup' }} · {{ size(b.bytes) }}</span>
+          </span>
+          <span class="backups-actions backups-item-actions">
+            <button class="settings-button" type="button" (click)="startRestore(b)">Restore</button>
+            <button class="settings-button" type="button" (click)="backupApi.showInFolder(b.path)">Show</button>
+            <button class="settings-button" type="button" (click)="remove(b)">Delete</button>
+          </span>
+        </li>
+      }
+    </ul>
+  }
+}
+
+@if (restore(); as r) {
+  <div class="overlay-backdrop" (click)="r.step === 'unlock' && cancelRestore()">
+    <div class="overlay-panel backups-restore" role="dialog" aria-label="Restore backup" (click)="$event.stopPropagation()">
+      <div class="overlay-header">
+        <h3 class="overlay-title">Restore {{ r.label }}</h3>
+      </div>
+      <div class="overlay-body">
+        @switch (r.step) {
+          @case ('working') {
+            <p class="settings-option-help">Checking the backup and saving your current data…</p>
+          }
+          @case ('ready') {
+            <p class="settings-option-help">Restarting SnapRQ…</p>
+          }
+          @case ('unlock') {
+            <p class="settings-option-help">
+              This backup was made with a different encryption key. Enter its recovery key
+              (SNRQ-…) or the backup password.
+            </p>
+            <input
+              class="backups-input"
+              type="password"
+              autocomplete="off"
+              aria-label="Recovery key or backup password"
+              placeholder="Recovery key or backup password"
+              [value]="unlockInput()"
+              (input)="unlockInput.set($any($event.target).value)"
+              (keydown.enter)="unlockAndRestore()"
+            />
+            @if (r.error) {
+              <p class="backups-error">{{ r.error }}</p>
+            }
+          }
+        }
+      </div>
+      @if (r.step === 'unlock') {
+        <div class="overlay-footer backups-actions">
+          <button class="settings-button" type="button" (click)="cancelRestore()">Cancel</button>
+          <button class="settings-button" type="button" [disabled]="!unlockInput().trim()" (click)="unlockAndRestore()">
+            Restore and restart
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+@if (recoveryKeyOpen()) {
+  <app-recovery-key-dialog reason="first" (closed)="recoveryKeyOpen.set(false); secretsApi.refresh()" />
+}
