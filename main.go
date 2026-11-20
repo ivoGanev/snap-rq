@@ -5,12 +5,17 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"time"
 
+	"snap-rq/backend/backup"
 	"snap-rq/backend/commands"
+	"snap-rq/backend/commands/backups"
 	"snap-rq/backend/commands/catalog"
 	"snap-rq/backend/commands/requests"
 	"snap-rq/backend/database"
@@ -50,8 +55,17 @@ func main() {
 	// credential store (a 0600 file when there is none).
 	secrets.SetDefault(secrets.NewVault(secrets.OSKeyStore(filepath.Join(database.DataDir(), "secret.key"))))
 
-	// Open the local SQLite database and run migrations.
-	db, err := database.Open()
+	// Open the local SQLite database and run migrations. After an update a
+	// backup is taken first, since migrations can reshape tables.
+	backup.AppVersion = currentVersion
+	// A restore prepared before the last restart is swapped in before the
+	// database is opened.
+	if name, err := backup.ApplyPendingRestore(database.DataDir(), database.Path()); err != nil {
+		log.Printf("restore: %v", err)
+	} else if name != "" {
+		log.Printf("restored backup %s", name)
+	}
+	db, err := database.OpenWith(database.Path(), backup.BeforeUpdate(currentVersion))
 	if err != nil {
 		log.Fatalf("failed to open database: %v", err)
 	}
@@ -64,9 +78,27 @@ func main() {
 	if err := runner.Register(catalog.All...); err != nil {
 		log.Fatalf("registering commands: %v", err)
 	}
-	if err := runner.RegisterObservable(requests.NewSend); err != nil {
-		log.Fatalf("registering observable commands: %v", err)
+	for _, f := range []commands.ObservableFactory{requests.NewSend, backups.NewCreate, backups.NewRestore} {
+		if err := runner.RegisterObservable(f); err != nil {
+			log.Fatalf("registering observable commands: %v", err)
+		}
 	}
+	// Risky commands (big deletes, imports, anything that can't be undone)
+	// take a whole-database backup first; the window shows a toast once the
+	// file is written.
+	runner.SetBackupGuard(backup.Guard(db,
+		func(info backup.Info) {
+			if app := application.Get(); app != nil {
+				app.Event.Emit("backup:saved", map[string]string{"reason": info.Header.Reason, "path": info.Path})
+			}
+		},
+		func(reason string, err error) {
+			log.Printf("backup %s failed: %v", reason, err)
+			if app := application.Get(); app != nil {
+				app.Event.Emit("backup:failed", map[string]string{"reason": reason, "error": err.Error()})
+			}
+		},
+	))
 	runner.SetUndoLimit(func() int {
 		var limit int
 		var raw string
@@ -88,6 +120,7 @@ func main() {
 	defer mcpServer.Stop()
 
 	updaterService := &UpdaterService{}
+	appService := &AppService{}
 
 	app := application.New(application.Options{
 		Name:        "snap-rq-wails-v3",
@@ -95,6 +128,7 @@ func main() {
 		Services: []application.Service{
 			application.NewService(commands.NewCommandService(runner)),
 			application.NewService(updaterService),
+			application.NewService(appService),
 			application.NewService(mcp.NewSettingsService(mcpServer, mcpStore)),
 		},
 		Assets: application.AssetOptions{
@@ -106,6 +140,7 @@ func main() {
 	})
 
 	updaterService.app = app
+	appService.app = app
 	// win is set once the window exists. An approval request flashes its
 	// taskbar button until the user comes back, and restores it if minimised;
 	// it does not take focus, so it never interrupts typing elsewhere.
@@ -160,6 +195,41 @@ func main() {
 }
 func jsonUnmarshal(raw string, dest any) error {
 	return json.Unmarshal([]byte(raw), dest)
+}
+
+// AppService exposes app-level actions to the frontend.
+type AppService struct {
+	app *application.App
+}
+
+// Restart starts a new SnapRQ and quits this one, e.g. to finish restoring a
+// backup (the new process swaps the database in before opening it).
+func (s *AppService) Restart() error {
+	if s.app == nil {
+		return errors.New("the app is not ready yet")
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	if err := exec.Command(exe, os.Args[1:]...).Start(); err != nil {
+		return fmt.Errorf("starting SnapRQ again: %w", err)
+	}
+	s.app.Quit()
+	return nil
+}
+
+// ShowInFolder opens the system file manager at a folder, or at a file's
+// folder with the file selected (e.g. a backup).
+func (s *AppService) ShowInFolder(path string) error {
+	if s.app == nil {
+		return errors.New("the app is not ready yet")
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	return s.app.Env.OpenFileManager(path, !info.IsDir())
 }
 
 // UpdaterService exposes the self-updater to the frontend. The native

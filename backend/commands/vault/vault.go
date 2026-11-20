@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 
+	"snap-rq/backend/backup"
 	"snap-rq/backend/commands"
 	"snap-rq/backend/secrets"
 )
@@ -224,4 +225,13 @@ func (c Reset) Run(json.RawMessage) (any, error) {
 
 func (Reset) Changes(_, _ json.RawMessage) []commands.RowChange {
 	return []commands.RowChange{{Component: "variable"}, {Component: "cookie"}}
+}
+
+// BackupBefore: clearing secret values can't be undone, so it always takes a
+// backup first (the values in it stay encrypted with the old key).
+func (Reset) BackupBefore(json.RawMessage) (commands.BackupNeed, bool, error) {
+	return commands.BackupNeed{
+		Trigger: string(backup.TriggerSecretsReset),
+		Reason:  "before Clear secret values",
+	}, true, nil
 }

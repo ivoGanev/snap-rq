@@ -137,8 +137,33 @@ func (v *Vault) Fingerprint(q Querier) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return fingerprintOf(key), nil
+}
+
+// fingerprintOf is Fingerprint for a raw key.
+func fingerprintOf(key []byte) string {
 	sum := sha256.Sum256(key)
-	return hex.EncodeToString(sum[:8]), nil
+	return hex.EncodeToString(sum[:8])
+}
+
+// RecoveryKeyFingerprint is the fingerprint of the key a recovery key
+// stands for, to tell which backups it opens.
+func RecoveryKeyFingerprint(recoveryKey string) (string, error) {
+	key, err := parseRecoveryKey(recoveryKey)
+	if err != nil {
+		return "", err
+	}
+	return fingerprintOf(key), nil
+}
+
+// DecryptWithRecoveryKey decrypts a value with the key a recovery key stands
+// for, without touching the vault: for backups made with an older key.
+func DecryptWithRecoveryKey(recoveryKey, stored string) (string, error) {
+	key, err := parseRecoveryKey(recoveryKey)
+	if err != nil {
+		return "", err
+	}
+	return open(key, stored)
 }
 
 // RecoveryKey returns the key in its readable form (SNRQ-XXXX-…).

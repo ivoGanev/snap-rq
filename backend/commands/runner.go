@@ -48,7 +48,9 @@ type Runner struct {
 	factories   map[string]Factory
 	infos       map[string]Info
 	undoable    map[string]bool
+	guarded     map[string]bool
 	observables map[string]ObservableFactory
+	guard       BackupGuard
 
 	mu         sync.Mutex
 	limit      func() int
@@ -64,6 +66,7 @@ func NewRunner(db *sql.DB) *Runner {
 		factories:   map[string]Factory{},
 		infos:       map[string]Info{},
 		undoable:    map[string]bool{},
+		guarded:     map[string]bool{},
 		observables: map[string]ObservableFactory{},
 	}
 }
@@ -82,6 +85,7 @@ func (r *Runner) Register(factories ...Factory) error {
 		r.factories[info.FunctionID] = factory
 		r.infos[info.FunctionID] = info
 		_, r.undoable[info.FunctionID] = cmd.(UndoableCommand)
+		_, r.guarded[info.FunctionID] = cmd.(BackupGuarded)
 		if r.undoable[info.FunctionID] {
 			if _, ok := cmd.(ReportsChanges); !ok {
 				return fmt.Errorf("command %s is undoable but does not report its changes", info.FunctionID)
@@ -154,10 +158,42 @@ func (r *Runner) Run(name string, input json.RawMessage) (any, error) {
 	}
 
 	r.mu.Lock()
+	finish, err := r.backupBefore(name, factory, input)
+	if err != nil {
+		r.mu.Unlock()
+		return nil, err
+	}
 	result, events, err := r.runWrite(name, info, factory, input)
 	r.mu.Unlock()
+	if finish != nil {
+		finish(err == nil)
+	}
 	emit(events)
 	return result, err
+}
+
+// SetBackupGuard sets what takes a backup before guarded commands (main
+// wires backend/backup in; tests and a nil guard take none).
+func (r *Runner) SetBackupGuard(g BackupGuard) { r.guard = g }
+
+// backupBefore asks a guarded command what it is about to change, in a
+// short read transaction, then lets the guard take the backup. It runs under
+// the writer lock, so nothing changes between the backup and the command.
+func (r *Runner) backupBefore(name string, factory Factory, input json.RawMessage) (func(bool), error) {
+	if r.guard == nil || !r.guarded[name] {
+		return nil, nil
+	}
+	tx, err := r.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	need, needed, err := factory(tx).(BackupGuarded).BackupBefore(input)
+	tx.Rollback()
+	if err != nil || !needed {
+		// A run that can't be described fails on its own in Run.
+		return nil, nil
+	}
+	return r.guard(need)
 }
 
 // Begin starts an observable command and returns its run id immediately.

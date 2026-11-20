@@ -1,13 +1,4 @@
-import {
-  AfterViewInit,
-  Component,
-  HostListener,
-  inject,
-  OnInit,
-  signal,
-  computed,
-  effect,
-} from '@angular/core';
+import { AfterViewInit, Component, HostListener, inject, OnInit, signal, computed, effect, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WML } from '@wailsio/runtime';
 import { WorkspaceStateService } from './core/services/workspace-state.service';
@@ -30,7 +21,8 @@ import { ScriptEditor } from './script-editor/script-editor';
 import { Inspector } from './inspector/inspector';
 import { VariablesEditor } from './variables-editor/variables-editor';
 import { CookiesEditor } from './cookies-editor/cookies-editor';
-import { SettingsDialog } from './settings-dialog/settings-dialog';
+import { SettingsDialog, type SettingsCategory } from './settings-dialog/settings-dialog';
+import { BackupApiService } from './core/services/backup.service';
 import { RecoveryKeyDialog } from './dialogs/recovery-key-dialog/recovery-key-dialog';
 import { SecretsApiService } from './core/services/secrets.service';
 import { McpApprovalOutlet } from './mcp-approval-outlet/mcp-approval-outlet';
@@ -116,12 +108,22 @@ export class App implements OnInit, AfterViewInit {
 
   readonly themeSelectorOpen = signal(false);
   readonly settingsOpen = signal(false);
+  /** The Settings page to open on (a backup toast's "Show" opens Backups). */
+  readonly settingsCategory = signal<SettingsCategory>('general');
   /** The encryption key was replaced since the user saved a recovery key: announce the new one once. */
   readonly newRecoveryKeyOpen = signal(false);
   private readonly secretsApi = inject(SecretsApiService);
+  private readonly backupApi = inject(BackupApiService);
 
   private resizeStartX = 0;
   private resizeStartWidth = 0;
+
+  constructor() {
+    // A "Backup saved" toast's "Show" opens Settings → Backups.
+    effect(() => {
+      if (this.backupApi.showRequested() > 0) untracked(() => this.openSettings('backups'));
+    });
+  }
 
   async ngOnInit(): Promise<void> {
     await this.cleanupDanglingIcons();
@@ -188,7 +190,8 @@ export class App implements OnInit, AfterViewInit {
     }
   }
 
-  openSettings(): void {
+  openSettings(category: SettingsCategory = 'general'): void {
+    this.settingsCategory.set(category);
     this.settingsOpen.set(true);
   }
 

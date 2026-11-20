@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
+	"snap-rq/backend/backup"
 	"snap-rq/backend/commands"
 	"snap-rq/backend/models"
 )
@@ -194,4 +196,19 @@ func loadPlan(filePath string) (importPlan, error) {
 		return importPlan{}, fmt.Errorf("this spec has no paths, nothing to import")
 	}
 	return buildPlan(doc), nil
+}
+
+// BackupBefore: an import can't be undone and changes many rows, so it
+// always takes a backup first.
+func (c Import) BackupBefore(input json.RawMessage) (commands.BackupNeed, bool, error) {
+	var in struct {
+		FilePath string `json:"file_path"`
+	}
+	if err := json.Unmarshal(input, &in); err != nil {
+		return commands.BackupNeed{}, false, err
+	}
+	return commands.BackupNeed{
+		Trigger: string(backup.TriggerOpenAPIImport),
+		Reason:  fmt.Sprintf("before Import OpenAPI %s", filepath.Base(in.FilePath)),
+	}, true, nil
 }
