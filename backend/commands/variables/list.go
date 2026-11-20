@@ -8,7 +8,8 @@ import (
 	"snap-rq/backend/models"
 )
 
-// list.go — an environment's variables, ordered by key.
+// list.go — an environment's variables, ordered by key. Secret values are
+// left out (see forFrontend); nothing is decrypted.
 
 type List struct{ tx *sql.Tx }
 
@@ -26,7 +27,7 @@ func (c List) Run(input json.RawMessage) (any, error) {
 		return nil, err
 	}
 	rows, err := c.tx.Query(
-		`SELECT id, environment_id, key, value FROM environment_variables
+		`SELECT id, environment_id, key, value, secret FROM environment_variables
 		 WHERE environment_id = ? ORDER BY key`, in.EnvironmentID)
 	if err != nil {
 		return nil, err
@@ -36,10 +37,10 @@ func (c List) Run(input json.RawMessage) (any, error) {
 	var variables []models.EnvironmentVariable
 	for rows.Next() {
 		var v models.EnvironmentVariable
-		if err := rows.Scan(&v.ID, &v.EnvironmentID, &v.Key, &v.Value); err != nil {
+		if err := rows.Scan(&v.ID, &v.EnvironmentID, &v.Key, &v.Value, &v.Secret); err != nil {
 			return nil, err
 		}
-		variables = append(variables, v)
+		variables = append(variables, forFrontend(v))
 	}
 	return variables, rows.Err()
 }

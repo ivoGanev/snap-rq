@@ -100,6 +100,8 @@ var All = []commands.Factory{
 	variables.NewCreate,
 	variables.NewUpdate,
 	variables.NewDelete,
+	variables.NewSetSecret,
+	variables.NewReveal,
 
 	// cookie jar
 	cookiejar.NewList,

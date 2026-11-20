@@ -99,6 +99,10 @@ func OpenPath(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
+	if err := addVariableSecretColumn(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
 	if err := makeGroupNamesUnique(db); err != nil {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
@@ -850,6 +854,18 @@ func addRequestLastUsedAt(db *sql.DB) error {
 func createCookiesTable(db *sql.DB) error {
 	_, err := db.Exec(cookies.Schema)
 	return err
+}
+
+// addVariableSecretColumn marks environment variables as secret. A secret's
+// value column holds the vault's encrypted form (see backend/secrets).
+func addVariableSecretColumn(db *sql.DB) error {
+	if columnExists(db, "environment_variables", "secret") {
+		return nil
+	}
+	if _, err := db.Exec("ALTER TABLE environment_variables ADD COLUMN secret INTEGER NOT NULL DEFAULT 0"); err != nil {
+		return fmt.Errorf("adding secret column to environment_variables: %w", err)
+	}
+	return nil
 }
 
 // createScriptTables adds user scripts: named code a user writes per project

@@ -3,10 +3,8 @@ package variables
 import (
 	"database/sql"
 	"encoding/json"
-	"errors"
 
 	"snap-rq/backend/commands"
-	"snap-rq/backend/models"
 )
 
 // update.go — change a variable's key or value. Deliberately not
@@ -14,6 +12,11 @@ import (
 // secrets — neither belongs on the undo stack. Create and delete stay
 // undoable (they are discrete, and deleting one by accident is worth
 // reversing).
+//
+// The value is optional: left out, it stays as it is. The editor leaves it
+// out when renaming a secret, whose value it doesn't have. A secret's new
+// value is encrypted. Whether a variable is secret changes only through
+// variable.set_secret.
 
 type Update struct{ tx *sql.Tx }
 
@@ -24,18 +27,28 @@ func (Update) Info() commands.Info {
 }
 
 func (c Update) Run(input json.RawMessage) (any, error) {
-	var in models.EnvironmentVariable
+	var in struct {
+		ID    int64   `json:"id"`
+		Key   string  `json:"key"`
+		Value *string `json:"value"`
+	}
 	if err := json.Unmarshal(input, &in); err != nil {
 		return nil, err
 	}
-	if in.ID == 0 {
-		return nil, errors.New("variable id is required")
-	}
-	if _, err := c.tx.Exec(
-		`UPDATE environment_variables SET environment_id = ?, key = ?, value = ? WHERE id = ?`,
-		in.EnvironmentID, in.Key, in.Value, in.ID,
-	); err != nil {
+	v, err := load(c.tx, in.ID)
+	if err != nil {
 		return nil, err
 	}
-	return in, nil
+
+	v.Key = in.Key
+	if in.Value != nil {
+		if v.Value, err = storedValue(c.tx, v.Secret, *in.Value); err != nil {
+			return nil, err
+		}
+	}
+	if _, err := c.tx.Exec(`UPDATE environment_variables SET key = ?, value = ? WHERE id = ?`,
+		v.Key, v.Value, v.ID); err != nil {
+		return nil, err
+	}
+	return forFrontend(v), nil
 }

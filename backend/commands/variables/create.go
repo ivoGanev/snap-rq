@@ -12,6 +12,10 @@ import (
 )
 
 // create.go — add one variable to an environment. Undo removes it.
+//
+// The runner keeps an undoable command's input in the undo log, so a secret
+// can't be created with its value: it is created empty and given its value
+// with variable.update, which is never logged.
 
 type Create struct{ tx *sql.Tx }
 
@@ -28,6 +32,7 @@ func (c Create) Run(input json.RawMessage) (any, error) {
 		EnvironmentID int64  `json:"environment_id"`
 		Key           string `json:"key"`
 		Value         string `json:"value"`
+		Secret        bool   `json:"secret"`
 	}
 	if err := json.Unmarshal(input, &in); err != nil {
 		return nil, err
@@ -36,16 +41,19 @@ func (c Create) Run(input json.RawMessage) (any, error) {
 		return nil, errors.New("environment id is required")
 	}
 
+	if in.Secret && in.Value != "" {
+		return nil, errors.New("create a secret empty, then set its value with variable.update")
+	}
 	result, err := c.tx.Exec(
-		`INSERT INTO environment_variables (environment_id, key, value) VALUES (?, ?, ?)`,
-		in.EnvironmentID, in.Key, in.Value)
+		`INSERT INTO environment_variables (environment_id, key, value, secret) VALUES (?, ?, ?, ?)`,
+		in.EnvironmentID, in.Key, in.Value, in.Secret)
 	if err != nil {
 		return nil, err
 	}
 	id, _ := result.LastInsertId()
-	return models.EnvironmentVariable{
-		ID: id, EnvironmentID: in.EnvironmentID, Key: in.Key, Value: in.Value,
-	}, nil
+	return forFrontend(models.EnvironmentVariable{
+		ID: id, EnvironmentID: in.EnvironmentID, Key: in.Key, Value: in.Value, Secret: in.Secret,
+	}), nil
 }
 
 func (c Create) Undo(_, result json.RawMessage) error {
