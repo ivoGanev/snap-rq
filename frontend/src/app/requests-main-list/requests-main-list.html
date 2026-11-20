@@ -21,7 +21,7 @@
     <input
       class="request-search-input"
       type="text"
-      placeholder="Search requests…"
+      [placeholder]="theme.text('requests.search', 'Search requests…')"
       [ngModel]="requestSearchQuery()"
       (ngModelChange)="requestSearchQuery.set($event)"
     />
@@ -75,7 +75,9 @@
 </div>
 
 @if (!activeGroupName()) {
-  <div class="state-message">Select a collection, favourite group, or script to view requests.</div>
+  <div class="state-message">
+    {{ theme.text('requests.none', 'Select a collection, favourite group, or script to view requests.') }}
+  </div>
 }
 
 @if (activeGroupName() && activeRequests().length === 0) {
@@ -86,7 +88,7 @@
       You can permanently delete your requests in here.
     </div>
   } @else {
-    <div class="state-message">No requests in this group.</div>
+    <div class="state-message">{{ theme.text('requests.empty', 'No requests in this group.') }}</div>
   }
 }
 

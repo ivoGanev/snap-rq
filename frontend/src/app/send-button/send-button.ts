@@ -1,28 +1,32 @@
 import { Component, DestroyRef, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { RequestApiService } from '../core/services/request.service';
+import { ThemeService } from '../core/services/theme.service';
 
 /** Keep in sync with the keyframes in send-button.scss. */
 const LANDING_MS = 450;
 /** Fast requests answer before this and only get the landing, no sending animation. */
 const SENDING_DELAY_MS = 150;
+/** How long a theme's "it failed" wording stays on the button. */
+const FAILED_NOTICE_MS = 2500;
 
 /** How a send ended: a response arrived, or there was none (status 0). */
 type Landing = 'done' | 'failed';
 
 /**
- * The Send button. By default it reads "Send"; themes can turn it into a
- * character: Paper Plane shows a paper plane, Space Groove an eye looking
- * for something (each theme's CSS shows its icon and hides the text). The
- * button sets the state classes is-sending / is-done / is-failed; each icon
- * animates them its own way.
- * While its request is in flight (from this button, Ctrl+S or anywhere else)
- * the plane glides with wind lines behind it; when the response arrives it
- * flies off and back, or wobbles when the request failed (no response:
- * status 0). Sending again while in flight is fine. "primary" is the request
+ * The Send button. By default it reads "Send"; themes turn it into a
+ * character through their CSS: Paper Plane shows a paper plane, Space Groove
+ * an eye looking for something, AI Slop a shimmering "✨ Generate" with
+ * thinking dots and a sparkle burst. Themes can also reword its text
+ * ("copy" in themes.json: send.label, send.sending, send.failed).
+ *
+ * It follows its request's in-flight state (from this button, Ctrl+S or
+ * anywhere else) and sets the state classes is-sending / is-done / is-failed
+ * (failed = no response, status 0); each character animates them its own
+ * way. Sending again while in flight is fine. "primary" is the request
  * list's main action, "success" Zen mode's.
  *
- * The plane always animates, whatever the system's reduce-motion setting:
- * it is the app's signature, and the motion stays inside the button.
+ * The characters always animate, whatever the system's reduce-motion
+ * setting: they are the themes' signatures, and the motion stays small.
  */
 @Component({
   selector: 'app-send-button',
@@ -40,7 +44,10 @@ type Landing = 'done' | 'failed';
       [title]="inFlight() ? 'Sending…' : label()"
       (click)="send.emit($event)"
     >
-      <span class="send-plane-text">Send</span>
+      <span class="send-shimmer" aria-hidden="true"></span>
+      <span class="send-plane-text">{{ text() }}</span>
+      <span class="send-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="send-sparkles" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
       <span class="send-plane-wind" aria-hidden="true"><i></i><i></i><i></i></span>
       <svg class="send-eye" viewBox="0 0 32 20" aria-hidden="true">
         <g class="send-eye-lid">
@@ -63,6 +70,7 @@ type Landing = 'done' | 'failed';
 })
 export class SendButton {
   private readonly requestApi = inject(RequestApiService);
+  private readonly theme = inject(ThemeService);
 
   /** The request this button sends; its in-flight state drives the plane. */
   readonly requestId = input<number | null>(null);
@@ -77,9 +85,20 @@ export class SendButton {
   /** In flight long enough to show it (see SENDING_DELAY_MS). */
   protected readonly sendingVisible = signal(false);
   protected readonly landing = signal<Landing | null>(null);
+  /** A theme's "it failed" wording shows for a moment after a failure. */
+  private readonly failedNotice = signal(false);
+
+  /** The visible text: the theme's words for the current moment, or "Send". */
+  protected readonly text = computed(() => {
+    const label = this.theme.text('send.label', 'Send');
+    if (this.sendingVisible()) return this.theme.text('send.sending', label);
+    if (this.failedNotice()) return this.theme.text('send.failed', label);
+    return label;
+  });
 
   private sendingTimer: ReturnType<typeof setTimeout> | null = null;
   private landingTimer: ReturnType<typeof setTimeout> | null = null;
+  private failedTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     // Show sending only once a request has been in flight a moment, so
@@ -105,10 +124,16 @@ export class SendButton {
       landed.unsubscribe();
       this.clearSendingTimer();
       if (this.landingTimer) clearTimeout(this.landingTimer);
+      if (this.failedTimer) clearTimeout(this.failedTimer);
     });
   }
 
   private land(kind: Landing): void {
+    if (this.failedTimer) clearTimeout(this.failedTimer);
+    this.failedNotice.set(kind === 'failed');
+    if (kind === 'failed') {
+      this.failedTimer = setTimeout(() => this.failedNotice.set(false), FAILED_NOTICE_MS);
+    }
     if (this.landingTimer) clearTimeout(this.landingTimer);
     // Restart the animation even if one is already playing.
     this.landing.set(null);

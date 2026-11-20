@@ -79,6 +79,16 @@
   font-style: normal;
 }
 
+// The full Inter (all weights, SIL OFL): AI Slop's font, and the rest of
+// Inter's weights for the other themes, instead of relying on the system.
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/Inter/Inter-VariableFont_opsz,wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 // Paper Plane: Figtree for text, IBM Plex Mono for code, Caveat for
 // handwritten titles (all SIL OFL, bundled so the theme looks the same on
 // every OS and offline).

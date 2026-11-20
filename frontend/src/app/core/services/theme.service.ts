@@ -16,6 +16,8 @@ export interface Theme {
   iconSet: ThemeIconSet;
   fontFamily: string;
   preview: string;
+  /** Texts this theme rewords, by key (see ThemeService.text). */
+  copy?: Record<string, string>;
 }
 
 const STORAGE_KEY = 'theme:id';
@@ -38,6 +40,16 @@ export class ThemeService {
 
   constructor() {
     void this.load();
+  }
+
+  /**
+   * A text the current theme may reword, else the fallback. Only a few
+   * harmless texts have keys (the Send button, some empty states); menus,
+   * dialogs and errors always keep their normal wording. Reading the current
+   * theme makes it reactive in templates and computed signals.
+   */
+  text(key: string, fallback: string): string {
+    return this.currentTheme()?.copy?.[key] ?? fallback;
   }
 
   select(themeId: string): void {

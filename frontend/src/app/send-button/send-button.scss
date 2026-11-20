@@ -54,7 +54,10 @@
 // (Space Groove) are shown, and the text hidden, by those themes' CSS.
 .send-plane-icon,
 .send-plane-wind,
-.send-eye {
+.send-eye,
+.send-dots,
+.send-sparkles,
+.send-shimmer {
   display: none;
 }
 
@@ -358,5 +361,126 @@
   }
   80% {
     transform: translateX(1px) scaleY(0.6);
+  }
+}
+
+// ---------- AI Slop: thinking dots, shimmer, sparkle burst ----------
+
+// "Thinking" dots: take no room until sending.
+.send-dots {
+  align-items: flex-end;
+  gap: 3px;
+  width: 0;
+  margin-left: 0;
+  overflow: hidden;
+}
+
+.is-sending .send-dots {
+  width: auto;
+  margin-left: 4px;
+}
+
+.send-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.is-sending .send-dots i {
+  animation: send-dot-bounce 0.9s ease-in-out infinite;
+}
+
+.send-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.send-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes send-dot-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+// A shine sweeping across the button while sending (clipped to the button).
+.send-shimmer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.send-shimmer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.4) 50%, transparent 70%);
+  transform: translateX(-100%);
+  opacity: 0;
+}
+
+.is-sending .send-shimmer::before {
+  opacity: 1;
+  animation: send-shimmer 1.1s linear infinite;
+}
+
+@keyframes send-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+// Sparkles bursting out of the button when the answer arrives.
+.send-sparkles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.send-sparkles i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  font-style: normal;
+  font-size: 12px;
+  line-height: 1;
+  color: #fde68a;
+  opacity: 0;
+}
+
+.send-sparkles i::before {
+  content: '✦';
+}
+
+.send-sparkles i:nth-child(1) { --dx: -38px; --dy: -22px; }
+.send-sparkles i:nth-child(2) { --dx: 0px; --dy: -30px; }
+.send-sparkles i:nth-child(3) { --dx: 38px; --dy: -22px; }
+.send-sparkles i:nth-child(4) { --dx: 42px; --dy: 18px; }
+.send-sparkles i:nth-child(5) { --dx: -42px; --dy: 18px; }
+.send-sparkles i:nth-child(6) { --dx: 0px; --dy: 28px; }
+
+.is-done .send-sparkles i {
+  animation: send-sparkle 600ms ease-out;
+}
+
+@keyframes send-sparkle {
+  0% {
+    transform: translate(-50%, -50%) scale(0.4);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.1) rotate(45deg);
+    opacity: 0;
   }
 }

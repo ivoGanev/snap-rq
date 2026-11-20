@@ -67,5 +67,36 @@
     },
     "fontFamily": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
     "preview": "linear-gradient(135deg, #1b1e24 0%, #14161b 100%)"
+  },
+  {
+    "id": "ai-slop",
+    "name": "AI Slop",
+    "css": "/themes/ai-slop.css",
+    "iconSet": {
+      "features": {
+        "collections": {
+          "pack": "standard",
+          "version": 1
+        },
+        "favourites": {
+          "pack": "standard",
+          "version": 1
+        },
+        "scripts": {
+          "pack": "standard",
+          "version": 1
+        }
+      }
+    },
+    "fontFamily": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+    "preview": "linear-gradient(135deg, #7c3aed 0%, #6366f1 45%, #3b82f6 75%, #ec4899 100%)",
+    "copy": {
+      "send.label": "✨ Generate",
+      "send.sending": "Thinking",
+      "send.failed": "I apologize for the confusion.",
+      "requests.search": "✨ Ask anything…",
+      "requests.none": "✨ Pick a collection to unlock the full potential of your APIs!",
+      "requests.empty": "✨ Let's delve into your APIs! This group is empty — for now."
+    }
   }
 ]

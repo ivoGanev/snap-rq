@@ -15,6 +15,7 @@ import { FavouritePickerDialog } from '../dialogs/favourite-picker-dialog/favour
 import { RestoreToCollectionDialog } from '../dialogs/restore-to-collection-dialog/restore-to-collection-dialog';
 import { CurlImportDialog } from '../dialogs/curl-import-dialog/curl-import-dialog';
 import { SendButton } from '../send-button/send-button';
+import { ThemeService } from '../core/services/theme.service';
 import { DragSessionService } from '../core/services/drag-session.service';
 import { BinApiService, type HttpBinnedRequestSummary, type RestoreInput } from '../core/services/bin.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
@@ -93,6 +94,8 @@ export class RequestsMainList {
   private readonly selectionState = inject(SelectionStateService);
   private readonly scriptApi = inject(ScriptApiService);
   private readonly binApi = inject(BinApiService);
+  /** For the few texts a theme may reword (see ThemeService.text). */
+  protected readonly theme = inject(ThemeService);
   private readonly injector = inject(Injector);
   private readonly confirm = inject(ConfirmService);
   private readonly contextMenu = inject(ContextMenuService);

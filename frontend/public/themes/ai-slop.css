@@ -1,0 +1,243 @@
+/*
+ * AI Slop theme: a loving parody of the generic AI-app look. Purple-to-blue
+ * gradients on everything, frosted glass, glow, sparkles, gradient text,
+ * pills and shimmer. The jokes are visual (and a few harmless texts via
+ * "copy" in themes.json); the app stays fully usable underneath.
+ */
+[data-theme='ai-slop'],
+:root[data-theme='ai-slop'],
+:root:has([data-theme='ai-slop']) {
+  --ink: #0b0a1a;
+  --text: #eef0ff;
+  --muted: #a5a9d6;
+  --accent: #8b5cf6;
+  --accent-2: #3b82f6;
+  --accent-3: #ec4899;
+  --glass: rgba(139, 92, 246, 0.08);
+  --glass-strong: rgba(139, 92, 246, 0.14);
+  --glass-border: rgba(165, 140, 255, 0.28);
+  --radius: 16px;
+  --grad: linear-gradient(135deg, #7c3aed 0%, #6366f1 50%, #3b82f6 100%);
+  --grad-success: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%);
+  --grad-alt: linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #3b82f6 100%);
+  --on-accent: #ffffff;
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+
+  --background: var(--ink);
+  --surface: rgba(28, 24, 58, 0.55);
+  --menu-bg: rgba(30, 26, 64, 0.92);
+  --surface-solid: #17142f;
+  --input-bg: rgba(139, 92, 246, 0.08);
+  --row-even-bg: rgba(139, 92, 246, 0.035);
+  --hover-bg: rgba(139, 92, 246, 0.1);
+  --hover-highlight: rgba(139, 92, 246, 0.16);
+  --active-border: rgba(139, 92, 246, 0.5);
+  --selected-bg: rgba(139, 92, 246, 0.2);
+  --selected-border: rgba(167, 139, 250, 0.7);
+  --focus-ring: rgba(139, 92, 246, 0.35);
+  --focus-border: rgba(167, 139, 250, 0.85);
+  --active-tint-bg: rgba(139, 92, 246, 0.18);
+  --active-tint-border: rgba(167, 139, 250, 0.55);
+  --danger-text: #fb7185;
+  --danger-bg: rgba(244, 63, 94, 0.15);
+  --danger-solid: rgba(244, 63, 94, 0.85);
+  --error-text: #fb7185;
+  --success-text: #5eead4;
+  --shadow: rgba(76, 29, 149, 0.45);
+  --backdrop: rgba(8, 6, 24, 0.6);
+
+  --scrollbar-track: rgba(139, 92, 246, 0.06);
+  --scrollbar-thumb: rgba(139, 92, 246, 0.35);
+  --scrollbar-thumb-hover: rgba(139, 92, 246, 0.55);
+  --scrollbar-thumb-grad: linear-gradient(180deg, #8b5cf6 0%, #3b82f6 100%);
+  --scrollbar-thumb-grad-hover: linear-gradient(180deg, #a78bfa 0%, #60a5fa 100%);
+  /* Glow, generously. */
+  --btn-glow: rgba(139, 92, 246, 0.45);
+  --btn-glow-strong: rgba(139, 92, 246, 0.7);
+  --btn-glow-success: rgba(6, 182, 212, 0.4);
+  --btn-glow-success-strong: rgba(6, 182, 212, 0.6);
+  --btn-glow-danger: rgba(244, 63, 94, 0.4);
+  --btn-glow-danger-strong: rgba(244, 63, 94, 0.6);
+  --btn-glow-gold: rgba(236, 72, 153, 0.35);
+  --btn-highlight: rgba(255, 255, 255, 0.25);
+  --btn-edge: rgba(167, 139, 250, 0.3);
+  --btn-border-hover: rgba(167, 139, 250, 0.8);
+  --btn-ghost-ring: rgba(139, 92, 246, 0.45);
+  --btn-focus: #a78bfa;
+
+  /* Request colour slots (stored by name in the database; each theme picks the colour). */
+  --label-primary: #a78bfa;
+  --label-secondary: #60a5fa;
+  --label-tertiary: #f472b6;
+  --label-quaternary: #2dd4bf;
+  --label-quinary: #c084fc;
+  --label-senary: #fb7185;
+
+  --status-2xx: #5eead4;
+  --status-3xx: #fbbf24;
+  --status-4xx: #fb7185;
+  --status-5xx: #f472b6;
+  --method-get-bg: rgba(96, 165, 250, 0.18);
+  --method-get-fg: #93c5fd;
+  --method-post-bg: rgba(45, 212, 191, 0.16);
+  --method-post-fg: #5eead4;
+  --method-put-bg: rgba(251, 191, 36, 0.16);
+  --method-put-fg: #fcd34d;
+  --method-patch-bg: rgba(192, 132, 252, 0.18);
+  --method-patch-fg: #d8b4fe;
+
+  --syntax-key: #93c5fd;
+  --syntax-string: #5eead4;
+  --syntax-number: #f9a8d4;
+  --syntax-boolean: #c4b5fd;
+  --syntax-null: #f472b6;
+  --syntax-punctuation: #8b8fc7;
+  --syntax-tag: #a78bfa;
+  --syntax-attribute: #67e8f9;
+  --syntax-comment: #6b6fa8;
+  --syntax-csv-even: #e0e7ff;
+  --syntax-csv-odd: #93c5fd;
+
+  color-scheme: dark;
+}
+
+/*
+ * The slop layer. ':root' raises specificity above components' scoped styles.
+ */
+
+/* Two big blurry gradient blobs behind everything: one fixed layer, so the
+   glass and the long lists stay cheap. */
+:root[data-theme='ai-slop'] body {
+  background:
+    radial-gradient(40vmax 40vmax at 8% 12%, rgba(124, 58, 237, 0.35), transparent 60%),
+    radial-gradient(45vmax 45vmax at 95% 90%, rgba(59, 130, 246, 0.3), transparent 60%),
+    radial-gradient(30vmax 30vmax at 75% 10%, rgba(236, 72, 153, 0.16), transparent 60%),
+    var(--ink);
+  background-attachment: fixed;
+}
+
+/* Frosted glass on floating things only (blur is expensive). */
+:root[data-theme='ai-slop'] .overlay-panel,
+:root[data-theme='ai-slop'] .context-menu-panel {
+  background: rgba(30, 26, 64, 0.72);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 20px 60px rgba(76, 29, 149, 0.55),
+    0 0 40px rgba(139, 92, 246, 0.25);
+}
+
+/* Gradient text titles, each with a sparkle. */
+:root[data-theme='ai-slop'] .panel-title,
+:root[data-theme='ai-slop'] .column-title,
+:root[data-theme='ai-slop'] .overlay-title,
+:root[data-theme='ai-slop'] .zen-pane-title,
+:root[data-theme='ai-slop'] .section-title {
+  background: linear-gradient(90deg, #c4b5fd 0%, #93c5fd 50%, #f9a8d4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+:root[data-theme='ai-slop'] .panel-title::before,
+:root[data-theme='ai-slop'] .column-title::before,
+:root[data-theme='ai-slop'] .overlay-title::before,
+:root[data-theme='ai-slop'] .zen-pane-title::before {
+  content: '✨ ';
+  -webkit-text-fill-color: initial;
+  color: #fde68a;
+}
+
+/* The badge that does nothing. */
+:root[data-theme='ai-slop'] .column-title::after {
+  content: '✨ AI';
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  background: var(--grad-alt);
+  border-radius: 999px;
+  box-shadow: 0 0 12px rgba(236, 72, 153, 0.5);
+}
+
+/* Pills, with glow. */
+:root[data-theme='ai-slop'] .variable-add,
+:root[data-theme='ai-slop'] .settings-button,
+:root[data-theme='ai-slop'] .add-request-button,
+:root[data-theme='ai-slop'] .send-plane,
+:root[data-theme='ai-slop'] .restore-button,
+:root[data-theme='ai-slop'] .mcp-button,
+:root[data-theme='ai-slop'] .script-chip,
+:root[data-theme='ai-slop'] .request-method,
+:root[data-theme='ai-slop'] .environment-chip,
+:root[data-theme='ai-slop'] .request-search-input {
+  border-radius: 999px;
+}
+
+:root[data-theme='ai-slop'] .variable-add,
+:root[data-theme='ai-slop'] .add-request-button,
+:root[data-theme='ai-slop'] .send-plane {
+  box-shadow: 0 0 18px var(--btn-glow);
+}
+
+/* Glowing focus. */
+:root[data-theme='ai-slop'] .edit-input:focus,
+:root[data-theme='ai-slop'] .request-search-input:focus,
+:root[data-theme='ai-slop'] .script-input:focus,
+:root[data-theme='ai-slop'] .variable-input:focus {
+  box-shadow:
+    0 0 0 2px rgba(139, 92, 246, 0.45),
+    0 0 18px rgba(139, 92, 246, 0.45);
+}
+
+/* Selection: a gradient wash with a glowing edge. */
+:root[data-theme='ai-slop'] .spreadsheet-row.is-selected {
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.28), rgba(59, 130, 246, 0.12)) !important;
+  box-shadow: inset 3px 0 0 #a78bfa, 0 0 18px rgba(139, 92, 246, 0.25) !important;
+}
+
+/* Send: "✨ Generate", a gradient that never stops shifting. */
+:root[data-theme='ai-slop'] .send-plane {
+  background: linear-gradient(110deg, #7c3aed, #6366f1, #3b82f6, #ec4899, #7c3aed);
+  background-size: 300% 100%;
+  animation: ai-slop-shift 6s linear infinite;
+}
+
+:root[data-theme='ai-slop'] .send-plane-text {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The extras this theme turns on: "Thinking" dots, a shimmer while sending,
+   a burst of sparkles when the answer arrives (it may leave the button). */
+:root[data-theme='ai-slop'] .send-plane {
+  overflow: visible;
+}
+
+:root[data-theme='ai-slop'] .send-dots {
+  display: inline-flex;
+}
+
+:root[data-theme='ai-slop'] .send-sparkles,
+:root[data-theme='ai-slop'] .send-shimmer {
+  display: block;
+}
+
+@keyframes ai-slop-shift {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 300% 50%;
+  }
+}
