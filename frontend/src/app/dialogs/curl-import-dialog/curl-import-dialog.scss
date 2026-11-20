@@ -1,0 +1,17 @@
+.curl-import-dialog {
+  width: min(640px, calc(100vw - 2 * var(--s-4)));
+}
+
+.curl-import-input {
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+
+.curl-import-error {
+  margin: var(--s-2) 0 0;
+  font-size: 0.8125rem;
+  color: var(--error-text);
+}

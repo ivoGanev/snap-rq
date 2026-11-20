@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, OnDestroy, TemplateRef, ViewChild, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, Injector, OnDestroy, TemplateRef, ViewChild, afterNextRender, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { Clipboard } from '@wailsio/runtime';
@@ -13,7 +13,7 @@ import { ScriptApiService } from '../core/services/script.service';
 import { ScriptPickerDialog } from '../dialogs/script-picker-dialog/script-picker-dialog';
 import { FavouritePickerDialog } from '../dialogs/favourite-picker-dialog/favourite-picker-dialog';
 import { RestoreToCollectionDialog } from '../dialogs/restore-to-collection-dialog/restore-to-collection-dialog';
-import { NewRequestDialog } from '../dialogs/new-request-dialog/new-request-dialog';
+import { CurlImportDialog } from '../dialogs/curl-import-dialog/curl-import-dialog';
 import { DragSessionService } from '../core/services/drag-session.service';
 import { BinApiService, type HttpBinnedRequestSummary, type RestoreInput } from '../core/services/bin.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
@@ -70,7 +70,7 @@ const NAME_COLUMN_MIN_WIDTH = 120;
  */
 @Component({
   selector: 'app-requests-main-list',
-  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog, NewRequestDialog],
+  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog, CurlImportDialog],
   templateUrl: './requests-main-list.html',
   styleUrl: './requests-main-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -92,6 +92,7 @@ export class RequestsMainList {
   private readonly selectionState = inject(SelectionStateService);
   private readonly scriptApi = inject(ScriptApiService);
   private readonly binApi = inject(BinApiService);
+  private readonly injector = inject(Injector);
   private readonly confirm = inject(ConfirmService);
   private readonly contextMenu = inject(ContextMenuService);
   private readonly dragSession = inject(DragSessionService);
@@ -108,8 +109,8 @@ export class RequestsMainList {
   readonly requestSearchQuery = signal('');
   readonly scriptRequests = signal<HttpRequestSummary[]>([]);
   readonly recentRequests = signal<HttpRequestSummary[]>([]);
-  /** The collection the new-request dialog is open for, or null when it is closed. */
-  readonly newRequestFor = signal<Collection | null>(null);
+  /** The collection the cURL import dialog is open for, or null when it is closed. */
+  readonly curlImportFor = signal<Collection | null>(null);
 
   // Selection state
   readonly selectedRowIds = computed(() => this.state.selectedIds());
@@ -679,7 +680,7 @@ export class RequestsMainList {
       this.favouritePickerFor() !== null ||
       this.moveCollectionModalOpen() ||
       this.restorePickerFor() !== null ||
-      this.newRequestFor() !== null
+      this.curlImportFor() !== null
     );
   }
 
@@ -1699,9 +1700,37 @@ export class RequestsMainList {
 
   // ---------- New request ----------
 
-  openNewRequestDialog(): void {
+  /** "+ Request": creates a blank request in the collection and starts renaming it. */
+  async addBlankRequest(collection: Collection): Promise<void> {
     this.contextMenu.close();
-    this.newRequestFor.set(this.state.selectedCollection());
+    this.state.loading.set(true);
+    try {
+      this.revealAndRename(await this.requestApi.createBlank(collection));
+    } catch (err) {
+      console.error('creating request failed', err);
+    } finally {
+      this.state.loading.set(false);
+    }
+  }
+
+  /** Selects a just-created request, scrolls to it and opens its name for editing. */
+  revealAndRename(req: HttpRequestSummary): void {
+    // A search could hide the new row; clear it so the rename field can show.
+    this.requestSearchQuery.set('');
+    this.selectCell(req, 'name');
+    this.startInlineNameEdit(req);
+    // Scroll once the list has drawn the new row, so the offset isn't clamped
+    // to the old list height; the rename field focuses itself when it appears.
+    afterNextRender(
+      () => {
+        const index = this.filteredActiveRequests().findIndex(r => r.id === req.id);
+        if (index < 0 || !this.viewport) return;
+        this.viewport.checkViewportSize();
+        const viewportSize = this.viewport.getViewportSize();
+        this.viewport.scrollToOffset(Math.max(0, index * this.rowHeight - (viewportSize - this.rowHeight) / 2));
+      },
+      { injector: this.injector },
+    );
   }
 
   async sendSelectedRequest(event: Event): Promise<void> {

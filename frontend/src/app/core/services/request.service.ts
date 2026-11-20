@@ -11,6 +11,9 @@ import { FavouriteApiService } from './favourite.service';
 
 export type { HttpRequest, HttpResponse, HttpRequestSummary };
 
+/** Name of a request created with "+ Request"; the user renames it right away. */
+const NEW_REQUEST_NAME = 'My new snappy API';
+
 /**
  * The request service: the app's typed API for every request operation,
  * the in-memory store all views derive from, and the store sync for
@@ -100,6 +103,41 @@ export class RequestApiService {
     const created = await this.commands.execute<HttpRequest>('request.create', req);
     this.addOrReplace(created);
     return created;
+  }
+
+  /** A new empty GET request in the collection, with the default name. */
+  async createBlank(collection: { id: number; project_id: number }): Promise<HttpRequest> {
+    return this.create({
+      collection_id: collection.id,
+      project_id: collection.project_id,
+      name: NEW_REQUEST_NAME,
+      url: '',
+      method: 'GET',
+      body: '',
+      body_type: 'json',
+      body_form: '',
+      request_headers: '',
+      status_code: 0,
+      response_id: 0,
+    });
+  }
+
+  /** A new request in the collection from a cURL command; throws if it can't be parsed. */
+  async createFromCurl(collection: { id: number; project_id: number }, curl: string): Promise<HttpRequest> {
+    const parsed = await this.curlToRequest(collection.id, curl);
+    return this.create({
+      collection_id: collection.id,
+      project_id: collection.project_id,
+      name: parsed.name,
+      url: parsed.url,
+      method: parsed.method,
+      body: parsed.body,
+      body_type: parsed.body_type || 'json',
+      body_form: parsed.body_form || '',
+      request_headers: parsed.request_headers,
+      status_code: 0,
+      response_id: 0,
+    });
   }
 
   async duplicate(id: number): Promise<HttpRequest> {

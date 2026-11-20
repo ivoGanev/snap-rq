@@ -1,0 +1,29 @@
+<div class="overlay-backdrop" (click)="closed.emit()">
+  <div class="overlay-panel curl-import-dialog" (click)="$event.stopPropagation()">
+    <div class="overlay-header">
+      <h3 class="overlay-title">Import cURL</h3>
+      <button class="overlay-close" type="button" (click)="closed.emit()">Close</button>
+    </div>
+
+    <div class="overlay-body">
+      <textarea
+        class="edit-input curl-import-input"
+        rows="12"
+        placeholder="curl https://example.com/api"
+        aria-label="cURL command"
+        selectOnFocus
+        [ngModel]="curl()"
+        (ngModelChange)="curl.set($event); error.set('')"
+        (keydown.control.enter)="import()"
+        (keydown.meta.enter)="import()"
+      ></textarea>
+      @if (error()) {
+        <p class="curl-import-error">{{ error() }}</p>
+      }
+    </div>
+
+    <div class="overlay-footer">
+      <button class="variable-add" type="button" [disabled]="!curl().trim()" (click)="import()">Import</button>
+    </div>
+  </div>
+</div>
