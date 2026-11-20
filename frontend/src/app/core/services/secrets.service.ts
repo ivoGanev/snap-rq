@@ -8,6 +8,8 @@ export interface SecretsStatus {
   state: SecretsState;
   /** Where the key lives: the OS credential store, or a file next to the database. */
   store: 'keyring' | 'file' | 'memory';
+  /** How many variables are marked secret (cookies may have created the key first). */
+  secret_variables: number;
 }
 
 /**
@@ -40,7 +42,7 @@ export class SecretsApiService {
     await this.refresh();
   }
 
-  /** Clears every secret value (names and flags stay) so secrets work again. */
+  /** Clears every secret value (names and flags stay) and every cookie, so secrets work again. */
   async reset(): Promise<void> {
     await this.commands.execute('secrets.reset', {});
     await this.refresh();

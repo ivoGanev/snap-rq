@@ -259,7 +259,8 @@ export class VariablesEditor {
       if (!confirmed) return;
     }
     try {
-      const wasFirst = !variable.secret && this.secretsApi.status()?.state === 'none';
+      // Cookies usually create the key first, so "first" means the first secret variable.
+      const wasFirst = !variable.secret && (await this.secretsApi.refresh()).secret_variables === 0;
       await this.variableApi.setSecret(variable.id, !variable.secret);
       this.setRevealed(variable.id, null);
       const status = await this.secretsApi.refresh();
@@ -286,7 +287,7 @@ export class VariablesEditor {
     const confirmed = await this.confirm.ask({
       title: 'Clear all secret values?',
       message:
-        'Every secret value in every environment is cleared. The variable names stay, and you type the values again.',
+        'Every secret value in every environment is cleared, and so are stored cookies. The variable names stay, and you type the values again.',
       confirmLabel: 'Clear secret values',
     });
     if (!confirmed) return;

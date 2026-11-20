@@ -15,11 +15,11 @@ export class SettingsSecurity {
   protected readonly summary = computed(() => {
     switch (this.secretsApi.status()?.state) {
       case 'unlocked':
-        return 'Secret variable values are encrypted, and unlocked on this computer.';
+        return 'Secret variable values and stored cookies are encrypted, and unlocked on this computer.';
       case 'locked':
         return 'Secret values are locked: the key that encrypted them is missing. Unlock them from Edit variables with your recovery key.';
       case 'none':
-        return 'No secret variables yet. Tick "Secret" on a variable to encrypt its value.';
+        return 'Nothing encrypted yet. Stored cookies are encrypted automatically; tick "Secret" on a variable to encrypt its value.';
       default:
         return '';
     }

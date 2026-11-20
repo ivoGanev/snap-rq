@@ -63,10 +63,27 @@ unless revealed, and only decrypted when a request is sent.
   offered to MCP). A send that fails, e.g. on a locked secret, now shows its error as a
   toast instead of nothing.
 
+## Phase 1b: encrypted cookies (`feat/encrypted-cookies`)
+
+- [x] Cookie **values** are always encrypted with the same key (no setting). Name, domain,
+  path and expiry stay readable, so matching is unchanged; only the few cookies matching a
+  request are decrypted, after the rows are read.
+- [x] A value that can't be decrypted (an old plain one, a key from elsewhere) is dropped.
+  No migration: nobody has stored cookies yet.
+- [x] Missing key and no secret variable has a value → every cookie is cleared and the key
+  check forgotten, silently. With secret variables the key stays locked: no cookies are
+  sent or stored until the user unlocks or starts over (which now clears cookies too).
+- [x] `cookie.save` (hand edits) is no longer undoable: its input would sit in the undo log
+  in plain text. Delete and clear stay undoable; their snapshots hold encrypted values.
+- [x] `secrets.status` counts secret variables: the recovery key is shown on the first secret
+  *variable*, since cookies usually create the key first. The locked banner only shows when
+  there are secret variables.
+
 ## Manual checks
 
 | Step | Check |
 |---|---|
 | S6 | Tick Secret on a variable: the value turns into dots. Reveal shows it; click away hides it. Click into it and type: the value is replaced; click away without typing: unchanged. Send a request using it: the server gets the real value. Hover its `{{chip}}`: tooltip says "secret". Copy as cURL: shows `{{KEY}}`. Untick: asks first, then shows the plain value. Undo a deleted secret variable: it comes back still secret. |
 | S7 | First secret: the recovery key is shown once with Copy / Save. Delete the `SnapRQ` entry from the OS credential store and restart: locked banner; sending a request with that secret fails with a clear message; entering the recovery key unlocks everything. "Start over" clears values but keeps names. |
+| 1b | Log in to a test API: the session cookie works across requests; in `app.db` the cookie value is `v1:…`. The cookies editor shows real values; editing one works. Delete the `SnapRQ` keyring entry with no secret variables: cookies are silently gone, logging in again works, no banner. The first secret variable still shows the recovery key. |
 | all | Open `app.db` in a SQLite viewer: secret values are `v1:…`, never plain. |

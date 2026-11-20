@@ -28,6 +28,10 @@ func (Status) Info() commands.Info {
 type StatusResult struct {
 	State secrets.State `json:"state"` // none | unlocked | locked
 	Store string        `json:"store"` // keyring | file | memory
+	// SecretVariables counts variables marked secret. Cookies usually create
+	// the key first, so this, not the state, tells the editor whether a new
+	// secret is the first one (and the recovery key should be shown).
+	SecretVariables int `json:"secret_variables"`
 }
 
 func (c Status) Run(json.RawMessage) (any, error) {
@@ -36,7 +40,12 @@ func (c Status) Run(json.RawMessage) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return StatusResult{State: state, Store: vault.StoreKind()}, nil
+	result := StatusResult{State: state, Store: vault.StoreKind()}
+	if err := c.tx.QueryRow(`SELECT COUNT(*) FROM environment_variables WHERE secret = 1`).
+		Scan(&result.SecretVariables); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // RecoveryKey returns the key as SNRQ-XXXX-…, to copy or save.
@@ -112,8 +121,9 @@ func (Restore) Changes(_, _ json.RawMessage) []commands.RowChange {
 }
 
 // Reset is "start over" for locked secrets: it clears every secret value
-// (names and the secret flags stay) and forgets the key check, so the next
-// secret works with the key on this computer.
+// (names and the secret flags stay) and every cookie (also encrypted with the
+// key), and forgets the key check, so the next secret works with the key on
+// this computer.
 type Reset struct{ tx *sql.Tx }
 
 func NewReset(tx *sql.Tx) commands.Command { return &Reset{tx: tx} }
@@ -126,9 +136,12 @@ func (c Reset) Run(json.RawMessage) (any, error) {
 	if _, err := c.tx.Exec(`UPDATE environment_variables SET value = '' WHERE secret = 1`); err != nil {
 		return nil, err
 	}
+	if _, err := c.tx.Exec(`DELETE FROM cookies`); err != nil {
+		return nil, err
+	}
 	return nil, secrets.Default().Forget(c.tx)
 }
 
 func (Reset) Changes(_, _ json.RawMessage) []commands.RowChange {
-	return []commands.RowChange{{Component: "variable"}}
+	return []commands.RowChange{{Component: "variable"}, {Component: "cookie"}}
 }

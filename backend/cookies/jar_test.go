@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"snap-rq/backend/secrets"
+
 	_ "modernc.org/sqlite"
 )
 
@@ -20,7 +22,10 @@ func newTestJar(t *testing.T, projectID int64) (*Jar, *sql.DB) {
 	db.SetMaxOpenConns(1) // one in-memory database for every statement
 	t.Cleanup(func() { db.Close() })
 	// Cookies belong to projects (foreign key), so create two.
-	if _, err := db.Exec(`CREATE TABLE projects (id INTEGER PRIMARY KEY); INSERT INTO projects (id) VALUES (1), (2)`); err != nil {
+	secrets.SetDefault(secrets.NewVault(secrets.MemoryKeyStore()))
+	if _, err := db.Exec(`CREATE TABLE projects (id INTEGER PRIMARY KEY); INSERT INTO projects (id) VALUES (1), (2);
+		CREATE TABLE app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+		CREATE TABLE environment_variables (id INTEGER PRIMARY KEY, environment_id INTEGER, key TEXT, value TEXT, secret INTEGER)`); err != nil {
 		t.Fatalf("creating projects: %v", err)
 	}
 	if _, err := db.Exec(Schema); err != nil {
@@ -235,5 +240,69 @@ func TestListHidesExpiredAndOrders(t *testing.T) {
 	}
 	if strings.Join(got, ",") != "a,b" {
 		t.Errorf("List = %v, want [a b]", got)
+	}
+}
+
+func TestCookieValuesAreStoredEncrypted(t *testing.T) {
+	j, db := newTestJar(t, 1)
+	j.SetCookies(mustURL(t, "https://example.com/"), []*http.Cookie{{Name: "session", Value: "abc123"}})
+
+	var stored string
+	db.QueryRow(`SELECT value FROM cookies WHERE name = 'session'`).Scan(&stored)
+	if !secrets.IsEncrypted(stored) || strings.Contains(stored, "abc123") {
+		t.Errorf("stored value %q, want encrypted", stored)
+	}
+	if got := names(j, "https://example.com/"); got != "session=abc123" {
+		t.Errorf("jar returned %q, want the decrypted value", got)
+	}
+}
+
+func TestUnreadableCookieValuesAreDropped(t *testing.T) {
+	j, db := newTestJar(t, 1)
+	j.SetCookies(mustURL(t, "https://example.com/"), []*http.Cookie{{Name: "good", Value: "1"}})
+	db.Exec(`INSERT INTO cookies (project_id, domain, path, name, value) VALUES (1, 'example.com', '/', 'plain', 'not-encrypted')`)
+
+	if got := names(j, "https://example.com/"); got != "good=1" {
+		t.Errorf("jar returned %q, want only the readable cookie", got)
+	}
+	var left int
+	db.QueryRow(`SELECT COUNT(*) FROM cookies WHERE name = 'plain'`).Scan(&left)
+	if left != 0 {
+		t.Error("the unreadable cookie was not deleted")
+	}
+}
+
+func TestLostKeyClearsCookiesWhenNoSecretVariablesNeedIt(t *testing.T) {
+	j, db := newTestJar(t, 1)
+	j.SetCookies(mustURL(t, "https://example.com/"), []*http.Cookie{{Name: "old", Value: "1"}})
+
+	secrets.SetDefault(secrets.NewVault(secrets.MemoryKeyStore())) // the keyring entry is gone
+	if got := names(j, "https://example.com/"); got != "" {
+		t.Errorf("jar returned %q after losing the key, want nothing", got)
+	}
+	j.SetCookies(mustURL(t, "https://example.com/"), []*http.Cookie{{Name: "new", Value: "2"}})
+	if got := names(j, "https://example.com/"); got != "new=2" {
+		t.Errorf("jar returned %q, want the new cookie stored with a fresh key", got)
+	}
+	var n int
+	db.QueryRow(`SELECT COUNT(*) FROM cookies`).Scan(&n)
+	if n != 1 {
+		t.Errorf("%d cookies stored, want only the new one", n)
+	}
+}
+
+func TestLostKeyKeepsCookiesWhileSecretVariablesAreLocked(t *testing.T) {
+	j, db := newTestJar(t, 1)
+	j.SetCookies(mustURL(t, "https://example.com/"), []*http.Cookie{{Name: "kept", Value: "1"}})
+	db.Exec(`INSERT INTO environment_variables (environment_id, key, value, secret) VALUES (1, 'API_KEY', 'v1:x', 1)`)
+
+	secrets.SetDefault(secrets.NewVault(secrets.MemoryKeyStore()))
+	if got := names(j, "https://example.com/"); got != "" {
+		t.Errorf("jar sent %q while locked, want nothing", got)
+	}
+	var n int
+	db.QueryRow(`SELECT COUNT(*) FROM cookies`).Scan(&n)
+	if n != 1 {
+		t.Errorf("%d cookies left, want the locked one kept until the user unlocks", n)
 	}
 }

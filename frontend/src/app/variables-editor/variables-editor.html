@@ -55,7 +55,8 @@
         }
       </div>
 
-      @if (secretsApi.status()?.state === 'locked') {
+      <!-- Only secret variables are worth unlocking; cookies alone are cleared automatically. -->
+      @if (secretsApi.status()?.state === 'locked' && secretsApi.status()!.secret_variables > 0) {
         <div class="secrets-locked" role="alert">
           <p class="secrets-locked-text">
             🔒 Secret values can't be unlocked on this computer: the key that encrypted them is missing.
