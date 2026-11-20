@@ -42,14 +42,7 @@
   @if (selectedRowIds().size > 0) {
     <div class="header-actions">
       @if (!state.showingBin() && selectedRowIds().size === 1 && selectedRequest()) {
-        <button
-          class="send-button send-button--top-bar"
-          type="button"
-          (click)="sendSelectedRequest($event)"
-          aria-label="Send selected request"
-        >
-          Send
-        </button>
+        <app-send-button variant="primary" (send)="sendSelectedRequest($event)" />
       }
       @if (state.showingBin()) {
         <button

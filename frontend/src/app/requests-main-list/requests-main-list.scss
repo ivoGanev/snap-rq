@@ -101,21 +101,6 @@
   gap: var(--s-2);
 }
 
-.send-button--top-bar {
-  min-height: 44px;
-  padding: 12px 36px;
-  font-size: 1.0625rem;
-  font-weight: 700;
-  color: var(--on-accent);
-  background: var(--grad);
-  border: none;
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: filter 0.15s ease;
-  --wails-draggable: no-drag;
-  @include btn.btn-primary;
-}
-
 .restore-button {
   padding: var(--btn-pad-md);
   font-size: 0.8125rem;

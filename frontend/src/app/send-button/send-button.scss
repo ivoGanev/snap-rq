@@ -1,0 +1,89 @@
+@use '../../styles/buttons' as btn;
+
+:host {
+  display: inline-flex;
+}
+
+.send-plane {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--on-accent);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  overflow: hidden; // the plane leaves through the button's edge
+  transition:
+    filter 0.15s ease,
+    transform 0.1s ease;
+  --wails-draggable: no-drag;
+}
+
+.send-plane:active {
+  transform: scale(0.97);
+}
+
+// The request list's main action: large, accent gradient.
+.send-plane--primary {
+  min-height: 44px;
+  padding: 0 28px;
+  background: var(--grad);
+  @include btn.btn-primary;
+}
+
+.send-plane--primary .send-plane-icon {
+  width: 22px;
+  height: 22px;
+}
+
+// Zen mode: the green send.
+.send-plane--success {
+  padding: var(--btn-pad-md);
+  background: var(--grad-success);
+  @include btn.btn-success;
+}
+
+.send-plane--success .send-plane-icon {
+  width: 18px;
+  height: 18px;
+}
+
+// Explicit size above (WebKit doesn't shrink unsized SVGs, see AGENTS.md).
+.send-plane-icon {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+// The plane flies out to the top right and glides back in from the bottom left.
+.is-flying .send-plane-icon {
+  animation: send-plane-flight 450ms ease-in-out;
+}
+
+@keyframes send-plane-flight {
+  0% {
+    transform: translate(0, 0) rotate(0);
+    opacity: 1;
+  }
+  45% {
+    transform: translate(18px, -18px) rotate(-12deg) scale(0.7);
+    opacity: 0;
+  }
+  46% {
+    transform: translate(-18px, 18px) scale(0.7);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(0, 0) rotate(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .is-flying .send-plane-icon {
+    animation: none;
+  }
+}

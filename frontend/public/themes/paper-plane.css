@@ -1,0 +1,103 @@
+/*
+ * Paper Plane theme tokens: warm paper, navy ink, sky-blue accents.
+ * It replaces Daylight and keeps its id ('daylight'), so people who had
+ * Daylight selected move to Paper Plane automatically.
+ */
+[data-theme='daylight'],
+:root[data-theme='daylight'],
+:root:has([data-theme='daylight']) {
+  --ink: #f7f3ea;
+  --text: #1f2a44;
+  --muted: #66708a;
+  --accent: #2f80ed;
+  --accent-2: #1c64c8;
+  --glass: rgba(31, 42, 68, 0.035);
+  --glass-strong: rgba(31, 42, 68, 0.06);
+  --glass-border: rgba(31, 42, 68, 0.12);
+  --radius: 10px;
+  --grad: linear-gradient(135deg, #2f80ed 0%, #56ccf2 100%);
+
+  --background: var(--ink);
+  --surface: rgba(255, 253, 248, 0.82);
+  --menu-bg: #fffdf8;
+  --surface-solid: #fffdf8;
+  --input-bg: rgba(255, 255, 255, 0.75);
+  --row-even-bg: rgba(31, 42, 68, 0.025);
+  --hover-bg: rgba(47, 128, 237, 0.06);
+  --hover-highlight: rgba(47, 128, 237, 0.1);
+  --active-border: rgba(47, 128, 237, 0.35);
+  --selected-bg: rgba(47, 128, 237, 0.12);
+  --selected-border: rgba(47, 128, 237, 0.45);
+  --focus-ring: rgba(47, 128, 237, 0.18);
+  --focus-border: rgba(47, 128, 237, 0.6);
+  --danger-text: #c0392b;
+  --danger-bg: rgba(192, 57, 43, 0.1);
+  --danger-solid: rgba(192, 57, 43, 0.88);
+  --error-text: #c0392b;
+  /* Soft, paper-like shadows instead of glass glows. */
+  --shadow: rgba(31, 42, 68, 0.14);
+  --backdrop: rgba(31, 42, 68, 0.22);
+
+  --accent-3: #e2a03f;
+  --grad-success: linear-gradient(135deg, #27ae60 0%, #2bb8a0 100%);
+  --grad-alt: linear-gradient(135deg, #2f80ed 0%, #e2a03f 160%);
+  --on-accent: #ffffff;
+  --font-display: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --active-tint-bg: rgba(47, 128, 237, 0.1);
+  --active-tint-border: rgba(47, 128, 237, 0.38);
+  --success-text: #1e8449;
+  --scrollbar-thumb-grad: linear-gradient(180deg, #56ccf2 0%, #2f80ed 100%);
+  --scrollbar-thumb-grad-hover: linear-gradient(180deg, #2f80ed 0%, #1c64c8 100%);
+  --btn-glow: rgba(47, 128, 237, 0.2);
+  --btn-glow-strong: rgba(47, 128, 237, 0.32);
+  --btn-glow-success: rgba(39, 174, 96, 0.22);
+  --btn-glow-success-strong: rgba(39, 174, 96, 0.34);
+  --btn-glow-danger: rgba(192, 57, 43, 0.22);
+  --btn-glow-danger-strong: rgba(192, 57, 43, 0.36);
+  --btn-glow-gold: rgba(226, 160, 63, 0.18);
+  --btn-highlight: rgba(255, 255, 255, 0.45);
+  --btn-edge: rgba(31, 42, 68, 0.1);
+  --btn-border-hover: rgba(47, 128, 237, 0.5);
+  --btn-ghost-ring: rgba(47, 128, 237, 0.3);
+  --btn-focus: #1c64c8;
+
+  /* Request colour slots (stored by name in the database; each theme picks the colour). */
+  --label-primary: #2f80ed;
+  --label-secondary: #16a3b8;
+  --label-tertiary: #e2a03f;
+  --label-quaternary: #27ae60;
+  --label-quinary: #8e5bd8;
+  --label-senary: #d9534f;
+
+  --status-2xx: #1e8449;
+  --status-3xx: #b7791f;
+  --status-4xx: #c0392b;
+  --status-5xx: #a93273;
+  --method-get-bg: rgba(47, 128, 237, 0.12);
+  --method-get-fg: #1c64c8;
+  --method-post-bg: rgba(39, 174, 96, 0.14);
+  --method-post-fg: #1e8449;
+  --method-put-bg: rgba(226, 160, 63, 0.18);
+  --method-put-fg: #8a5a12;
+  --method-patch-bg: rgba(142, 91, 216, 0.14);
+  --method-patch-fg: #6c3fb5;
+
+  --scrollbar-track: rgba(31, 42, 68, 0.05);
+  --scrollbar-thumb: rgba(31, 42, 68, 0.2);
+  --scrollbar-thumb-hover: rgba(31, 42, 68, 0.3);
+
+  --syntax-key: #1c64c8;
+  --syntax-string: #1e8449;
+  --syntax-number: #c26a1b;
+  --syntax-boolean: #6c3fb5;
+  --syntax-null: #a93273;
+  --syntax-punctuation: #66708a;
+  --syntax-tag: #1c64c8;
+  --syntax-attribute: #16818f;
+  --syntax-comment: #8a93a8;
+  --syntax-csv-even: #1f2a44;
+  --syntax-csv-odd: #16818f;
+
+  color-scheme: light;
+}
