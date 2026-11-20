@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 
+	"snap-rq/backend/backup"
 	"snap-rq/backend/commands"
 	"snap-rq/backend/models"
 )
@@ -110,4 +112,26 @@ func (c Delete) Undo(snapshot, _ json.RawMessage) error {
 
 func (Delete) Changes(input, _ json.RawMessage) []commands.RowChange {
 	return []commands.RowChange{{Component: "environment", IDs: commands.IDsOf(input, "id")}}
+}
+
+// BackupBefore: deleting an environment that holds variables takes a backup first.
+func (c Delete) BackupBefore(input json.RawMessage) (commands.BackupNeed, bool, error) {
+	var in struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(input, &in); err != nil {
+		return commands.BackupNeed{}, false, err
+	}
+	var name string
+	var count int
+	if err := c.tx.QueryRow(`
+		SELECT e.name, (SELECT COUNT(*) FROM environment_variables v WHERE v.environment_id = e.id)
+		FROM environments e WHERE e.id = ?`, in.ID).Scan(&name, &count); err != nil {
+		return commands.BackupNeed{}, false, err
+	}
+	return commands.BackupNeed{
+		Trigger: string(backup.TriggerDeleteEnvironment),
+		Reason:  fmt.Sprintf("before Delete environment %q (%d variables)", name, count),
+		Items:   count,
+	}, count > 0, nil
 }

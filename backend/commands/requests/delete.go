@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/squirrel"
+	"snap-rq/backend/backup"
 	"snap-rq/backend/commands"
 	"snap-rq/backend/models"
 )
@@ -290,3 +291,17 @@ func (Delete) Changes(input, _ json.RawMessage) []commands.RowChange {
 }
 
 var _ = errors.New
+
+// BackupBefore: deleting many requests at once takes a backup first; the
+// guard compares Items with the threshold in the backup settings.
+func (c Delete) BackupBefore(input json.RawMessage) (commands.BackupNeed, bool, error) {
+	var in deleteInput
+	if err := json.Unmarshal(input, &in); err != nil {
+		return commands.BackupNeed{}, false, err
+	}
+	return commands.BackupNeed{
+		Trigger: string(backup.TriggerDeleteRequests),
+		Reason:  fmt.Sprintf("before Delete %d requests", len(in.IDs)),
+		Items:   len(in.IDs),
+	}, len(in.IDs) > 0, nil
+}

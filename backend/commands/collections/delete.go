@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 
+	"snap-rq/backend/backup"
 	"snap-rq/backend/commands"
 )
 
@@ -60,4 +62,26 @@ func selectRequestIDs(tx *sql.Tx, collectionID int64) ([]int64, error) {
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
+}
+
+// BackupBefore: deleting a collection that holds requests takes a backup first.
+func (c Delete) BackupBefore(input json.RawMessage) (commands.BackupNeed, bool, error) {
+	var in struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(input, &in); err != nil {
+		return commands.BackupNeed{}, false, err
+	}
+	var name string
+	var count int
+	if err := c.tx.QueryRow(`
+		SELECT c.name, (SELECT COUNT(*) FROM http_requests r WHERE r.collection_id = c.id)
+		FROM collections c WHERE c.id = ?`, in.ID).Scan(&name, &count); err != nil {
+		return commands.BackupNeed{}, false, err
+	}
+	return commands.BackupNeed{
+		Trigger: string(backup.TriggerDeleteCollection),
+		Reason:  fmt.Sprintf("before Delete collection %q (%d requests)", name, count),
+		Items:   count,
+	}, count > 0, nil
 }

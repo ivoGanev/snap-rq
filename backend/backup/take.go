@@ -38,6 +38,7 @@ func Complete(db *sql.DB, p *Pending) (Info, error) {
 	if err != nil {
 		return Info{}, err
 	}
+	markTaken()
 	if s, err := LoadSettings(db); err == nil {
 		Prune(s.ResolvedFolder(), s.KeepAutomatic, time.Duration(s.KeepDays)*24*time.Hour)
 	}

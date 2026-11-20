@@ -34,6 +34,30 @@ type UndoableCommand interface {
 	Undo(snapshot, result json.RawMessage) error
 }
 
+// BackupGuarded is a command that can change a lot at once, or can't be
+// undone. Before it runs, the runner asks the backup guard (SetBackupGuard)
+// for a backup of the whole database.
+type BackupGuarded interface {
+	Command
+	// BackupBefore describes this run for the backup. needed=false means
+	// the run is harmless (an empty collection, say). It may read the
+	// database to name and size what it is about to change.
+	BackupBefore(input json.RawMessage) (need BackupNeed, needed bool, err error)
+}
+
+// BackupNeed says why a backup is wanted.
+type BackupNeed struct {
+	Trigger string // a backup.Trigger: the setting that switches it
+	Reason  string // e.g. `before Delete collection "Auth"`
+	Items   int    // how many things it touches (the request-delete threshold)
+}
+
+// BackupGuard takes the backup before a guarded command. It returns finish,
+// which the runner calls afterwards with whether the command committed, or
+// nil when no backup was taken (switched off, too small, a recent backup).
+// An error cancels the command: nothing is changed without its backup.
+type BackupGuard func(need BackupNeed) (finish func(committed bool), err error)
+
 // Info is a command's identity.
 type Info struct {
 	FunctionID string // "request.delete" — the reference key

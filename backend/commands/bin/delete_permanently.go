@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"snap-rq/backend/backup"
 	"snap-rq/backend/commands"
 )
 
@@ -72,4 +73,19 @@ func placeholders(n int) string {
 		out += "?"
 	}
 	return out
+}
+
+// BackupBefore: deleting forever can't be undone, so it always takes a backup first.
+func (c DeletePermanently) BackupBefore(input json.RawMessage) (commands.BackupNeed, bool, error) {
+	var in struct {
+		BinIDs []int64 `json:"bin_ids"`
+	}
+	if err := json.Unmarshal(input, &in); err != nil {
+		return commands.BackupNeed{}, false, err
+	}
+	return commands.BackupNeed{
+		Trigger: string(backup.TriggerPermanentDelete),
+		Reason:  fmt.Sprintf("before Delete forever %d requests", len(in.BinIDs)),
+		Items:   len(in.BinIDs),
+	}, len(in.BinIDs) > 0, nil
 }
