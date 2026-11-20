@@ -52,8 +52,10 @@ func main() {
 	// credential store (a 0600 file when there is none).
 	secrets.SetDefault(secrets.NewVault(secrets.OSKeyStore(filepath.Join(database.DataDir(), "secret.key"))))
 
-	// Open the local SQLite database and run migrations.
-	db, err := database.Open()
+	// Open the local SQLite database and run migrations. After an update a
+	// backup is taken first, since migrations can reshape tables.
+	backup.AppVersion = currentVersion
+	db, err := database.OpenWith(database.Path(), backup.BeforeUpdate(currentVersion))
 	if err != nil {
 		log.Fatalf("failed to open database: %v", err)
 	}
@@ -71,7 +73,6 @@ func main() {
 			log.Fatalf("registering observable commands: %v", err)
 		}
 	}
-	backup.AppVersion = currentVersion
 	// Risky commands (big deletes, imports, anything that can't be undone)
 	// take a whole-database backup first; the window shows a toast once the
 	// file is written.
