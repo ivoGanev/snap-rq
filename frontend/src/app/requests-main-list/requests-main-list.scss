@@ -36,6 +36,22 @@
   cursor: not-allowed;
 }
 
+// "+ Request | cURL": two buttons drawn as one control, each half one click.
+.add-request-split {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.add-request-split .add-request-button:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.add-request-split .add-request-button:last-child {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
 .request-search-input {
   width: 180px;
   padding: 5px var(--s-2);

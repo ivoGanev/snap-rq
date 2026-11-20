@@ -32,8 +32,8 @@
               class="rename-input"
               type="text"
               selectOnFocus
-              [ngModel]="renameValue()"
-              (ngModelChange)="onRenameInput($event)"
+              [value]="renameValue()"
+              (input)="onRenameInput($any($event.target).value)"
               (keydown.enter)="onRenameSubmit()"
               (keydown.escape)="onRenameCancel(); $event.stopPropagation()"
               (blur)="onRenameSubmit()"

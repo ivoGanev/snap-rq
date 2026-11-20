@@ -3,16 +3,18 @@
 }
 
 <div class="column-header column-header--requests">
-  @if (!state.showingBin()) {
-    <button
-      class="add-request-button"
-      type="button"
-      (click)="openNewRequestDialog()"
-      [disabled]="!state.selectedCollection()"
-      aria-label="Add request"
-    >
-      + Request
-    </button>
+  @if (state.selectedCollection(); as collection) {
+    <div class="add-request-split" role="group" aria-label="Add request">
+      <button class="add-request-button" type="button" (click)="addBlankRequest(collection)">+ Request</button>
+      <button
+        class="add-request-button"
+        type="button"
+        (click)="curlImportFor.set(collection)"
+        aria-label="Import request from cURL"
+      >
+        cURL
+      </button>
+    </div>
   }
   <h1 class="column-title">Requests</h1>
   @if (activeGroupName()) {
@@ -257,8 +259,8 @@
               class="inline-name-input"
               type="text"
               selectOnFocus
-              [ngModel]="editingNameValue()"
-              (ngModelChange)="editingNameValue.set($event)"
+              [value]="editingNameValue()"
+              (input)="editingNameValue.set($any($event.target).value)"
               (mousedown)="$event.stopPropagation()"
               (click)="$event.stopPropagation()"
               (dblclick)="$event.stopPropagation()"
@@ -363,8 +365,12 @@
   }
 </ng-template>
 
-@if (newRequestFor(); as collection) {
-  <app-new-request-dialog [collection]="collection" (closed)="newRequestFor.set(null)" />
+@if (curlImportFor(); as collection) {
+  <app-curl-import-dialog
+    [collection]="collection"
+    (imported)="revealAndRename($event)"
+    (closed)="curlImportFor.set(null)"
+  />
 }
 
 @if (editModalOpen()) {
