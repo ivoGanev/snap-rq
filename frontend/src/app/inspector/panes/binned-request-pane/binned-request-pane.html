@@ -22,25 +22,6 @@
   </div>
 }
 
-@if (restoreCollectionModalOpen()) {
-  <div class="overlay-backdrop" (click)="closeRestoreCollectionModal()">
-    <div class="overlay-panel" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Restore to collection</h3>
-        <button class="overlay-close" type="button" (click)="closeRestoreCollectionModal()">Cancel</button>
-      </div>
-      <div class="overlay-body">
-        @if (collectionApi.collections().length === 0) {
-          <div class="state-message">No collections available.</div>
-        }
-        <ul class="collection-list">
-          @for (collection of collectionApi.collections(); track collection.id) {
-            <li class="collection-row" (click)="restoreToCollection(collection)">
-              {{ collection.name }}
-            </li>
-          }
-        </ul>
-      </div>
-    </div>
-  </div>
+@if (restorePickerOpen() && request(); as req) {
+  <app-restore-to-collection-dialog [binIds]="[req.id]" (closed)="restorePickerOpen.set(false)" />
 }

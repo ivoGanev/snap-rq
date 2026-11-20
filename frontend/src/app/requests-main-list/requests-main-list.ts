@@ -11,6 +11,7 @@ import { SelectionStateService, groupKey } from '../core/services/selection-stat
 import { ScriptApiService } from '../core/services/script.service';
 import { ScriptPickerDialog } from '../script-picker-dialog/script-picker-dialog';
 import { FavouritePickerDialog } from '../favourite-picker-dialog/favourite-picker-dialog';
+import { RestoreToCollectionDialog } from '../restore-to-collection-dialog/restore-to-collection-dialog';
 import { DragSessionService } from '../core/services/drag-session.service';
 import { BinApiService, type HttpBinnedRequestSummary, type RestoreInput } from '../core/services/bin.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
@@ -68,7 +69,7 @@ const NAME_COLUMN_MIN_WIDTH = 120;
  */
 @Component({
   selector: 'app-requests-main-list',
-  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog],
+  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog],
   templateUrl: './requests-main-list.html',
   styleUrl: './requests-main-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -235,8 +236,8 @@ export class RequestsMainList {
   readonly moveCollectionModalOpen = signal(false);
 
   // Restore collection picker (used when the original collection is gone).
-  readonly restoreCollectionModalOpen = signal(false);
-  readonly restorePickerBinIds = signal<number[]>([]);
+  /** Bin ids the restore dialog is open for, or null when it is closed. */
+  readonly restorePickerFor = signal<number[] | null>(null);
 
   private loadVersion = 0;
 
@@ -680,7 +681,7 @@ export class RequestsMainList {
       this.scriptPickerFor() !== null ||
       this.favouritePickerFor() !== null ||
       this.moveCollectionModalOpen() ||
-      this.restoreCollectionModalOpen() ||
+      this.restorePickerFor() !== null ||
       this.newRequestPopupOpen()
     );
   }
@@ -739,7 +740,7 @@ export class RequestsMainList {
     this.selectionState.setSelection(key, ids.has(primaryId) ? primaryId : [...ids][0], ids);
   }
 
-  private clearSelection(): void {
+  protected clearSelection(): void {
     this.state.selectedIds.set(new Set());
     this.selectedCell.set(null);
     this.highlightedCell.set(null);
@@ -1573,30 +1574,7 @@ export class RequestsMainList {
       return;
     }
 
-    this.restorePickerBinIds.set(selectedIds);
-    this.restoreCollectionModalOpen.set(true);
-  }
-
-  closeRestoreCollectionModal(): void {
-    this.restoreCollectionModalOpen.set(false);
-    this.restorePickerBinIds.set([]);
-  }
-
-  async restoreSelectedRequestsToCollection(collection: Collection): Promise<void> {
-    const selectedIds = this.restorePickerBinIds();
-    const binned = this.binApi.binnedRequests().filter(r => selectedIds.includes(r.id));
-    const collections = this.collectionApi.collections();
-
-    const inputs: RestoreInput[] = binned.map(r => {
-      const originalExists = collections.some(c => c.id === r.original_collection_id);
-      return {
-        bin_id: r.id,
-        collection_id: originalExists ? r.original_collection_id : collection.id,
-      };
-    });
-
-    await this.doRestore(inputs);
-    this.closeRestoreCollectionModal();
+    this.restorePickerFor.set(selectedIds);
   }
 
   private async doRestore(inputs: RestoreInput[]): Promise<void> {

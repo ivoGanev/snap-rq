@@ -1,0 +1,30 @@
+.restore-to-collection-dialog {
+  width: min(420px, calc(100vw - 2 * var(--s-4)));
+}
+
+.collection-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.collection-row {
+  padding: var(--s-2) var(--s-3);
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.collection-row:hover {
+  background: var(--glass-strong);
+  border-color: var(--active-border);
+}
