@@ -46,7 +46,7 @@ always opens with the current recovery key.
   background), Extract, List, leftover cleanup. Tests.
 - [x] **B2. Settings and history commands**: backup settings in `app_settings`;
   `backup.list`, `backup.create`, `backup.delete`; retention.
-- [ ] **B3. Before risky operations**: commands declare `BackupBefore`; the runner takes the
+- [x] **B3. Before risky operations**: commands declare `BackupBefore`; the runner takes the
   snapshot first; throttle; toast.
 - [ ] **B4. Before app updates**: open the database, back up when the version changed, then
   migrate.

@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 
+	"snap-rq/backend/backup"
 	"snap-rq/backend/commands"
 )
 
@@ -32,4 +34,22 @@ func (c Delete) Run(input json.RawMessage) (any, error) {
 	}
 	_, err := c.tx.Exec(`DELETE FROM projects WHERE id = ?`, in.ID)
 	return nil, err
+}
+
+// BackupBefore: deleting a project always takes a backup first.
+func (c Delete) BackupBefore(input json.RawMessage) (commands.BackupNeed, bool, error) {
+	var in struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(input, &in); err != nil {
+		return commands.BackupNeed{}, false, err
+	}
+	var name string
+	if err := c.tx.QueryRow(`SELECT name FROM projects WHERE id = ?`, in.ID).Scan(&name); err != nil {
+		return commands.BackupNeed{}, false, err
+	}
+	return commands.BackupNeed{
+		Trigger: string(backup.TriggerDeleteProject),
+		Reason:  fmt.Sprintf("before Delete project %q", name),
+	}, true, nil
 }

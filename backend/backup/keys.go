@@ -91,13 +91,13 @@ var (
 
 // dataKeyFor recovers a backup's data key.
 func dataKeyFor(q secrets.Querier, h Header, u Unlock) ([]byte, error) {
-	if current, err := secrets.Default().Fingerprint(q); err == nil && current == h.KeyFingerprint {
+	if current, err := secrets.Default().Fingerprint(q); err == nil && h.AppKey != "" && current == h.KeyFingerprint {
 		if plain, err := secrets.Default().Decrypt(q, h.AppKey); err == nil {
 			return base64.StdEncoding.DecodeString(plain)
 		}
 	}
 	tried := false
-	if u.RecoveryKey != "" {
+	if u.RecoveryKey != "" && h.AppKey != "" {
 		tried = true
 		if plain, err := secrets.DecryptWithRecoveryKey(u.RecoveryKey, h.AppKey); err == nil {
 			return base64.StdEncoding.DecodeString(plain)

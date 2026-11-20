@@ -16,6 +16,8 @@ import (
 	"time"
 
 	_ "modernc.org/sqlite" // the snapshot is checked with its own connection
+
+	"snap-rq/backend/secrets"
 )
 
 // create.go — making a backup in two parts. Begin is what must happen before
@@ -86,7 +88,9 @@ func Begin(db *sql.DB, opts Options) (*Pending, error) {
 		AppVersion:    opts.AppVersion,
 		DatabaseBytes: stat.Size(),
 	}
-	if header.AppKey, header.KeyFingerprint, err = sealWithApp(db, dataKey); err != nil {
+	header.AppKey, header.KeyFingerprint, err = sealWithApp(db, dataKey)
+	if err != nil && !(errors.Is(err, secrets.ErrLocked) && opts.Password != "") {
+		// With the key locked, only a password can seal the backup.
 		os.Remove(snapshot)
 		return nil, err
 	}
