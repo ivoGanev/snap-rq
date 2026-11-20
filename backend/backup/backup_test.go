@@ -154,3 +154,26 @@ func TestFileNamesAreSafe(t *testing.T) {
 		t.Errorf("file name = %q", name)
 	}
 }
+
+func TestPruneKeepsTheNewestAutomaticAndEveryManualBackup(t *testing.T) {
+	secrets.SetDefault(secrets.NewVault(secrets.MemoryKeyStore()))
+	db := newSourceDB(t)
+	dir := t.TempDir()
+	manual, _ := Create(db, Options{Dir: dir, Kind: Manual, Reason: "manual"})
+	var autos []Info
+	for i := 0; i < 3; i++ {
+		info, _ := Create(db, Options{Dir: dir, Kind: Automatic, Reason: "auto"})
+		autos = append(autos, info)
+		time.Sleep(1100 * time.Millisecond)
+	}
+
+	Prune(dir, 2, 24*time.Hour)
+
+	exists := func(p string) bool { _, err := os.Stat(p); return err == nil }
+	if !exists(manual.Path) {
+		t.Error("a manual backup was pruned")
+	}
+	if exists(autos[0].Path) || !exists(autos[1].Path) || !exists(autos[2].Path) {
+		t.Error("prune should drop only the oldest automatic backup")
+	}
+}
