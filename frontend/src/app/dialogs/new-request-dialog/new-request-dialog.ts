@@ -1,9 +1,9 @@
 import { Component, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RequestApiService } from '../core/services/request.service';
-import { WorkspaceStateService } from '../core/services/workspace-state.service';
-import type { Collection } from '../core/services/collection.service';
-import { HTTP_METHODS } from '../core/models/http';
+import { RequestApiService } from '../../core/services/request.service';
+import { WorkspaceStateService } from '../../core/services/workspace-state.service';
+import type { Collection } from '../../core/services/collection.service';
+import { HTTP_METHODS } from '../../core/models/http';
 
 type Mode = 'manual' | 'curl';
 

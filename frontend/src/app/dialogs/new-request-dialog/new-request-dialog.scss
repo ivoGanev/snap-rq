@@ -1,4 +1,4 @@
-@use '../../styles/buttons' as btn;
+@use '../../../styles/buttons' as btn;
 
 .new-request-dialog {
   width: min(420px, calc(100vw - 2 * var(--s-4)));

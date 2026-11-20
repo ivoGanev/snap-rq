@@ -1,8 +1,8 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ScriptApiService, type Script } from '../core/services/script.service';
-import { WorkspaceStateService } from '../core/services/workspace-state.service';
-import type { HttpRequestSummary } from '../core/models/http';
+import { ScriptApiService, type Script } from '../../core/services/script.service';
+import { WorkspaceStateService } from '../../core/services/workspace-state.service';
+import type { HttpRequestSummary } from '../../core/models/http';
 
 /** How many matching scripts the suggestion list shows. */
 const MAX_SUGGESTIONS = 6;

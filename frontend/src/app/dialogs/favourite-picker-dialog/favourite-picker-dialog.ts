@@ -1,8 +1,8 @@
 import { Component, computed, inject, input, output, signal, type OnDestroy, type OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { FavouriteApiService, type FavouriteCollection } from '../core/services/favourite.service';
-import { WorkspaceStateService } from '../core/services/workspace-state.service';
-import type { HttpRequestSummary } from '../core/models/http';
+import { FavouriteApiService, type FavouriteCollection } from '../../core/services/favourite.service';
+import { WorkspaceStateService } from '../../core/services/workspace-state.service';
+import type { HttpRequestSummary } from '../../core/models/http';
 
 /**
  * Add one request or several to favourite groups: a checkbox per group

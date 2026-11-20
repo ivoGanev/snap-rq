@@ -1,7 +1,7 @@
 import { Component, inject, input, output } from '@angular/core';
-import { BinApiService, type RestoreInput } from '../core/services/bin.service';
-import { CollectionApiService, type Collection } from '../core/services/collection.service';
-import { WorkspaceStateService } from '../core/services/workspace-state.service';
+import { BinApiService, type RestoreInput } from '../../core/services/bin.service';
+import { CollectionApiService, type Collection } from '../../core/services/collection.service';
+import { WorkspaceStateService } from '../../core/services/workspace-state.service';
 
 /**
  * Restore deleted requests when at least one of them lost its original

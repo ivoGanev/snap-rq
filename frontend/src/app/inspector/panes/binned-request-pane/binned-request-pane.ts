@@ -4,7 +4,7 @@ import type { InspectorContentOf } from '../../inspector';
 import { WorkspaceStateService } from '../../../core/services/workspace-state.service';
 import { BinApiService, type RestoreInput } from '../../../core/services/bin.service';
 import { CollectionApiService } from '../../../core/services/collection.service';
-import { RestoreToCollectionDialog } from '../../../restore-to-collection-dialog/restore-to-collection-dialog';
+import { RestoreToCollectionDialog } from '../../../dialogs/restore-to-collection-dialog/restore-to-collection-dialog';
 
 /**
  * Inspector pane for a request in the trash bin: shows where it came from and
