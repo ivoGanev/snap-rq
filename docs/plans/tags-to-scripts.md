@@ -244,9 +244,8 @@ and the requests the script is attached to. Scripts are attached from other view
   "Attached to N requests" (reloads after every command).
 - [x] ~~**D3. Drop the script branch of the request list.**~~ Done, then reverted by E2. `scriptRequests`, reorder/colour in a
   script, C2's "Detach from script" delete; `ScriptView` loses `canReorder`/`canColour`.
-- [ ] **D4. Backend clean-up (later, by decision).** `script.reorder`, `script.set_color`, their
-  MCP tools and the `user_sort_order`/`user_color` columns of `request_scripts` are unused by
-  the UI. Kept for now.
+- ~~**D4. Backend clean-up.**~~ Dropped: the Attachments tab (E) uses `script.reorder`,
+  `script.set_color` and the `user_sort_order`/`user_color` columns again.
 
 ### Stage E: Script / Attachments tabs (2026-11-19, refines D)
 
