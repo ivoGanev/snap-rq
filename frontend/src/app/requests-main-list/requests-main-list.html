@@ -345,7 +345,7 @@
     <button class="context-menu-item" type="button" (click)="openScriptPicker(selectedRequests())">
       Scripts…
     </button>
-    <button class="context-menu-item" type="button" (click)="openBulkFavouritesModal()">
+    <button class="context-menu-item" type="button" (click)="openFavouritePicker(selectedRequests())">
       Add to favourites…
     </button>
     <div class="context-menu-divider" aria-hidden="true"></div>
@@ -525,51 +525,8 @@
   <app-script-picker-dialog [requests]="requests" (closed)="scriptPickerFor.set(null)" />
 }
 
-@if (favouritesModalOpen()) {
-  <div class="overlay-backdrop" (click)="closeFavouritesModal()">
-    <div class="overlay-panel favourites-modal" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Favourites</h3>
-        <button class="overlay-close" type="button" (click)="closeFavouritesModal()">Close</button>
-      </div>
-
-      <div class="overlay-body">
-        @for (collection of favouriteCollections(); track collection.id) {
-          <div class="favourite-collection-row">
-            <label class="favourite-checkbox">
-              <input
-                type="checkbox"
-                [checked]="favouriteMembership().has(collection.id)"
-                (change)="toggleFavouriteMembership(collection)"
-              />
-              <span class="favourite-checkmark"></span>
-              <span class="favourite-collection-name">{{ collection.name }}</span>
-            </label>
-            <button
-              class="favourite-collection-delete"
-              type="button"
-              (click)="deleteFavouriteCollection(collection, $event)"
-              aria-label="Delete favourite collection"
-            >
-              Delete
-            </button>
-          </div>
-        }
-      </div>
-
-      <div class="overlay-footer favourite-popup-footer">
-        <input
-          class="variable-input favourite-name-input"
-          type="text"
-          placeholder="New favourite group"
-          [ngModel]="newFavouriteName()"
-          (ngModelChange)="newFavouriteName.set($event)"
-          (keydown.enter)="addFavouriteCollection()"
-        />
-        <button class="variable-add" type="button" (click)="addFavouriteCollection()">Add</button>
-      </div>
-    </div>
-  </div>
+@if (favouritePickerFor(); as requests) {
+  <app-favourite-picker-dialog [requests]="requests" (closed)="favouritePickerFor.set(null)" />
 }
 
 @if (moveCollectionModalOpen()) {
@@ -621,53 +578,6 @@
             </li>
           }
         </ul>
-      </div>
-    </div>
-  </div>
-}
-
-@if (bulkFavouritesModalOpen()) {
-  <div class="overlay-backdrop" (click)="closeBulkFavouritesModal()">
-    <div class="overlay-panel favourites-modal" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Favourites — {{ selectedRowIds().size }} request(s)</h3>
-        <button class="overlay-close" type="button" (click)="closeBulkFavouritesModal()">Close</button>
-      </div>
-
-      <div class="overlay-body">
-        @for (collection of favouriteCollections(); track collection.id) {
-          <div class="favourite-collection-row">
-            <label class="favourite-checkbox">
-              <input
-                type="checkbox"
-                [checked]="isAllSelectedInCollection(collection.id)"
-                (change)="toggleBulkFavouriteMembership(collection)"
-              />
-              <span class="favourite-checkmark"></span>
-              <span class="favourite-collection-name">{{ collection.name }}</span>
-            </label>
-            <button
-              class="favourite-collection-delete"
-              type="button"
-              (click)="deleteFavouriteCollection(collection, $event)"
-              aria-label="Delete favourite collection"
-            >
-              Delete
-            </button>
-          </div>
-        }
-      </div>
-
-      <div class="overlay-footer favourite-popup-footer">
-        <input
-          class="variable-input favourite-name-input"
-          type="text"
-          placeholder="New favourite group"
-          [ngModel]="newFavouriteName()"
-          (ngModelChange)="newFavouriteName.set($event)"
-          (keydown.enter)="addFavouriteCollection()"
-        />
-        <button class="variable-add" type="button" (click)="addFavouriteCollection()">Add</button>
       </div>
     </div>
   </div>

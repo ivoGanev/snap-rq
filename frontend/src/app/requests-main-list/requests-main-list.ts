@@ -5,11 +5,12 @@ import { Clipboard } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { ChangeBus } from '../core/services/change-bus.service';
 import { RequestApiService, type HttpRequest, type HttpRequestSummary } from '../core/services/request.service';
-import { FavouriteApiService, type FavouriteCollection } from '../core/services/favourite.service';
+import { FavouriteApiService } from '../core/services/favourite.service';
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
 import { SelectionStateService, groupKey } from '../core/services/selection-state.service';
 import { ScriptApiService } from '../core/services/script.service';
 import { ScriptPickerDialog } from '../script-picker-dialog/script-picker-dialog';
+import { FavouritePickerDialog } from '../favourite-picker-dialog/favourite-picker-dialog';
 import { DragSessionService } from '../core/services/drag-session.service';
 import { BinApiService, type HttpBinnedRequestSummary, type RestoreInput } from '../core/services/bin.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
@@ -67,7 +68,7 @@ const NAME_COLUMN_MIN_WIDTH = 120;
  */
 @Component({
   selector: 'app-requests-main-list',
-  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog],
+  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog],
   templateUrl: './requests-main-list.html',
   styleUrl: './requests-main-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -99,8 +100,6 @@ export class RequestsMainList {
   protected readonly bottomTabs = BOTTOM_TABS;
   protected readonly httpMethods = HTTP_METHODS;
   protected readonly requestScripts = this.scriptApi.requestScripts;
-  protected readonly favouriteCollections = this.favouriteApi.collections;
-  protected readonly favouriteMembership = this.favouriteApi.membership;
   protected readonly requestFavouriteIds = this.favouriteApi.requestsMembership;
   protected readonly collections = this.collectionApi.collections;
 
@@ -227,15 +226,13 @@ export class RequestsMainList {
   /** The requests the script picker is open for, or null when it is closed. */
   readonly scriptPickerFor = signal<HttpRequestSummary[] | null>(null);
 
-  readonly favouritesModalOpen = signal(false);
-  readonly favouritesModalRequest = signal<HttpRequestSummary | null>(null);
-  readonly newFavouriteName = signal('');
+  /** The requests the favourite picker is open for, or null when it is closed. */
+  readonly favouritePickerFor = signal<HttpRequestSummary[] | null>(null);
 
   readonly newRequestPopupMode = signal<'manual' | 'curl'>('manual');
   readonly newRequestCurl = signal('');
 
   readonly moveCollectionModalOpen = signal(false);
-  readonly bulkFavouritesModalOpen = signal(false);
 
   // Restore collection picker (used when the original collection is gone).
   readonly restoreCollectionModalOpen = signal(false);
@@ -681,9 +678,8 @@ export class RequestsMainList {
       this.editingNameId() !== null ||
       this.editModalOpen() ||
       this.scriptPickerFor() !== null ||
-      this.favouritesModalOpen() ||
+      this.favouritePickerFor() !== null ||
       this.moveCollectionModalOpen() ||
-      this.bulkFavouritesModalOpen() ||
       this.restoreCollectionModalOpen() ||
       this.newRequestPopupOpen()
     );
@@ -702,16 +698,8 @@ export class RequestsMainList {
       this.closeEditModal();
       return;
     }
-    if (this.favouritesModalOpen()) {
-      this.closeFavouritesModal();
-      return;
-    }
     if (this.moveCollectionModalOpen()) {
       this.closeMoveCollectionModal();
-      return;
-    }
-    if (this.bulkFavouritesModalOpen()) {
-      this.closeBulkFavouritesModal();
       return;
     }
     if (this.newRequestPopupOpen()) {
@@ -1665,76 +1653,12 @@ export class RequestsMainList {
     if (requests.length > 0) this.scriptPickerFor.set(requests);
   }
 
-  // ---------- Bulk Favourites ----------
+  // ---------- Favourite picker ----------
 
-  openBulkFavouritesModal(): void {
+  /** Opens the favourite picker for one request or the current selection. */
+  openFavouritePicker(requests: HttpRequestSummary[]): void {
     this.contextMenu.close();
-    const requests = this.selectedRequests();
-    if (requests.length > 0) {
-      void this.favouriteApi.loadMembershipForRequests(requests);
-    }
-    this.bulkFavouritesModalOpen.set(true);
-  }
-
-  closeBulkFavouritesModal(): void {
-    this.bulkFavouritesModalOpen.set(false);
-    this.favouriteApi.clearMembership();
-  }
-
-  isAllSelectedInCollection(collectionId: number): boolean {
-    if (this.state.showingBin()) return false;
-    const requests = this.selectedRequests() as HttpRequestSummary[];
-    if (requests.length === 0) return false;
-    return requests.every((req) => (this.requestFavouriteIds()[req.id] ?? []).includes(collectionId));
-  }
-
-  async toggleBulkFavouriteMembership(collection: FavouriteCollection): Promise<void> {
-    if (this.state.showingBin()) return;
-    const requests = this.selectedRequests() as HttpRequestSummary[];
-    if (requests.length === 0) return;
-
-    const allIn = this.isAllSelectedInCollection(collection.id);
-    this.state.loading.set(true);
-    try {
-      for (const req of requests) {
-        if (allIn) {
-          await this.favouriteApi.removeRequest(collection.id, req.id);
-        } else {
-          await this.favouriteApi.addRequest(collection.id, req.id);
-        }
-      }
-
-      const ids = requests.map(r => r.id);
-      this.favouriteApi.requestsMembership.update(map => {
-        const next = { ...map };
-        for (const id of ids) {
-          const current = next[id] ?? [];
-          next[id] = allIn
-            ? current.filter(cid => cid !== collection.id)
-            : Array.from(new Set([...current, collection.id]));
-        }
-        return next;
-      });
-
-      const currentFavourite = this.state.selectedFavouriteCollection();
-      if (currentFavourite?.id === collection.id) {
-        if (allIn) {
-          this.favouriteApi.requests.update(list => list.filter(r => !ids.includes(r.id)));
-        } else {
-          this.favouriteApi.requests.update(list => {
-            const existingIds = new Set(list.map(r => r.id));
-            const added = requests.filter(r => !existingIds.has(r.id));
-            return added.length > 0
-              ? [...list, ...added].sort((a, b) => a.name.localeCompare(b.name))
-              : list;
-          });
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      this.state.loading.set(false);
-    }
+    if (requests.length > 0) this.favouritePickerFor.set(requests);
   }
 
   // ---------- Sorting ----------
@@ -1911,11 +1835,9 @@ export class RequestsMainList {
   onFavouriteButtonClick(): void {
     if (this.selectedRowIds().size <= 1) {
       const req = this.selectedRequest() ?? this.selectedRequests()[0];
-      if (req) {
-        this.openFavouritesModal(req);
-      }
+      if (req) this.openFavouritePicker([req]);
     } else {
-      this.openBulkFavouritesModal();
+      this.openFavouritePicker(this.selectedRequests());
     }
   }
 
@@ -2014,83 +1936,6 @@ export class RequestsMainList {
     this.contextMenu.close();
     if (method === req.method) return;
     await this.updateRequestField(req, 'method', method);
-  }
-
-  // ---------- Favourites modal (single request) ----------
-
-  openFavouritesModal(req: HttpRequestSummary): void {
-    this.contextMenu.close();
-    this.favouritesModalRequest.set(req);
-    this.newFavouriteName.set('');
-    this.favouritesModalOpen.set(true);
-    void this.favouriteApi.loadMembershipForRequest(req.id);
-  }
-
-  closeFavouritesModal(): void {
-    this.favouritesModalOpen.set(false);
-    this.favouritesModalRequest.set(null);
-    this.favouriteApi.clearMembership();
-  }
-
-  async toggleFavouriteMembership(collection: FavouriteCollection): Promise<void> {
-    const req = this.favouritesModalRequest();
-    if (!req) return;
-
-    const isMember = this.favouriteMembership().has(collection.id);
-    try {
-      if (isMember) {
-        await this.favouriteApi.removeRequest(collection.id, req.id);
-      } else {
-        await this.favouriteApi.addRequest(collection.id, req.id);
-      }
-
-      this.favouriteApi.requestsMembership.update(map => {
-        const current = map[req.id] ?? [];
-        return {
-          ...map,
-          [req.id]: isMember
-            ? current.filter(cid => cid !== collection.id)
-            : Array.from(new Set([...current, collection.id])),
-        };
-      });
-
-      if (this.state.selectedFavouriteCollection()?.id === collection.id) {
-        this.favouriteApi.requests.update(list =>
-          isMember ? list.filter(r => r.id !== req.id) : [...list, req].sort((a, b) => a.name.localeCompare(b.name)),
-        );
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async addFavouriteCollection(): Promise<void> {
-    const name = this.newFavouriteName().trim();
-    const project = this.state.selectedProject();
-    if (!name || !project) return;
-
-    try {
-      await this.favouriteApi.createCollection({ project_id: project.id, name });
-      this.newFavouriteName.set('');
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async deleteFavouriteCollection(
-    collection: FavouriteCollection,
-    event: MouseEvent,
-  ): Promise<void> {
-    event.stopPropagation();
-    try {
-      await this.favouriteApi.deleteCollection(collection.id);
-      if (this.state.selectedFavouriteCollection()?.id === collection.id) {
-        this.state.selectView(null);
-        this.favouriteApi.requests.set([]);
-      }
-    } catch (err) {
-      console.error(err);
-    }
   }
 
   // ---------- Request updates ----------
