@@ -1,4 +1,4 @@
-package tags
+package scripts
 
 import (
 	"database/sql"
@@ -7,28 +7,28 @@ import (
 	"snap-rq/backend/commands"
 )
 
-//  — set (or clear) the colour on many requests' links in one
-// tag. Snapshot saves the old colours; undo restores them.
+// set_color.go — set (or clear) the colour on many requests' links in one
+// script. Snapshot saves the old colours; undo restores them.
 
 type SetColor struct{ tx *sql.Tx }
 
 func NewSetColor(tx *sql.Tx) commands.Command { return &SetColor{tx: tx} }
 
 func (SetColor) Info() commands.Info {
-	return commands.Info{FunctionID: "tag.set_color", Label: "Set Tag Colours"}
+	return commands.Info{FunctionID: "script.set_color", Label: "Set Script Colours"}
 }
 
 func (c SetColor) Snapshot(input json.RawMessage) (any, error) {
 	var in struct {
 		ProjectID  int64   `json:"project_id"`
-		TagName    string  `json:"tag_name"`
+		ScriptName string  `json:"script_name"`
 		RequestIDs []int64 `json:"request_ids"`
 	}
 	if err := json.Unmarshal(input, &in); err != nil {
 		return nil, err
 	}
 	placeholders := ""
-	args := []any{in.ProjectID, in.TagName}
+	args := []any{in.ProjectID, in.ScriptName}
 	for i, id := range in.RequestIDs {
 		if i > 0 {
 			placeholders += ","
@@ -37,8 +37,8 @@ func (c SetColor) Snapshot(input json.RawMessage) (any, error) {
 		args = append(args, id)
 	}
 	rows, err := c.tx.Query(`
-		SELECT rt.id, rt.user_color FROM request_tags rt
-		JOIN tags t ON t.id = rt.tag_id
+		SELECT rt.id, rt.user_color FROM request_scripts rt
+		JOIN scripts t ON t.id = rt.script_id
 		WHERE t.project_id = ? AND t.name = ? AND rt.request_id IN (`+placeholders+`)`, args...)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ type oldColor struct {
 func (c SetColor) Run(input json.RawMessage) (any, error) {
 	var in struct {
 		ProjectID  int64   `json:"project_id"`
-		TagName    string  `json:"tag_name"`
+		ScriptName string  `json:"script_name"`
 		RequestIDs []int64 `json:"request_ids"`
 		Color      *string `json:"color"`
 	}
@@ -81,7 +81,7 @@ func (c SetColor) Run(input json.RawMessage) (any, error) {
 
 	placeholders := ""
 	args := make([]any, 0, len(in.RequestIDs)+3)
-	args = append(args, value, in.ProjectID, in.TagName)
+	args = append(args, value, in.ProjectID, in.ScriptName)
 	for i, id := range in.RequestIDs {
 		if i > 0 {
 			placeholders += ","
@@ -90,8 +90,8 @@ func (c SetColor) Run(input json.RawMessage) (any, error) {
 		args = append(args, id)
 	}
 	_, err = c.tx.Exec(`
-		UPDATE request_tags SET user_color = ? WHERE tag_id =
-		  (SELECT id FROM tags WHERE project_id = ? AND name = ?)
+		UPDATE request_scripts SET user_color = ? WHERE script_id =
+		  (SELECT id FROM scripts WHERE project_id = ? AND name = ?)
 		  AND request_id IN (`+placeholders+`)`, args...)
 	return nil, err
 }
@@ -103,7 +103,7 @@ func (c SetColor) Undo(snapshot, _ json.RawMessage) error {
 	}
 	for _, o := range saved {
 		if _, err := c.tx.Exec(
-			`UPDATE request_tags SET user_color = ? WHERE id = ?`, o.UserColor, o.ID,
+			`UPDATE request_scripts SET user_color = ? WHERE id = ?`, o.UserColor, o.ID,
 		); err != nil {
 			return err
 		}
@@ -112,5 +112,5 @@ func (c SetColor) Undo(snapshot, _ json.RawMessage) error {
 }
 
 func (SetColor) Changes(_, _ json.RawMessage) []commands.RowChange {
-	return []commands.RowChange{{Component: "tag"}}
+	return []commands.RowChange{{Component: "script"}}
 }

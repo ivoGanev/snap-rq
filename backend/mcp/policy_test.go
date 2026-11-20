@@ -23,7 +23,7 @@ func TestOverrideBeatsClassDefault(t *testing.T) {
 	if p.Allowed(ToolMeta{Name: "list_projects", Risk: RiskRead}) {
 		t.Error("a read tool switched off must be refused")
 	}
-	if !p.Allowed(ToolMeta{Name: "list_tags", Risk: RiskRead}) {
+	if !p.Allowed(ToolMeta{Name: "list_scripts", Risk: RiskRead}) {
 		t.Error("tools without an override follow their class")
 	}
 }

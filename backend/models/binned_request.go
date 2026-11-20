@@ -32,7 +32,7 @@ type RestoreBinnedRequestInput struct {
 // binned request is restored.
 type BinnedRequestSnapshot struct {
 	Responses []BinnedResponseSnapshot `json:"responses"`
-	Tags      []BinnedTagSnapshot      `json:"tags"`
+	Scripts   []BinnedScriptSnapshot   `json:"scripts"`
 	Favourites []BinnedFavouriteSnapshot `json:"favourites"`
 }
 
@@ -46,9 +46,9 @@ type BinnedResponseSnapshot struct {
 	DurationMs int64  `json:"duration_ms"`
 }
 
-// BinnedTagSnapshot stores both the tag id and name so we can try to match by
-// name if the original tag was deleted and later recreated.
-type BinnedTagSnapshot struct {
+// BinnedScriptSnapshot stores both the script id and name so we can try to match by
+// name if the original script was deleted and later recreated.
+type BinnedScriptSnapshot struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }

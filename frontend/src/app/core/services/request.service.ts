@@ -6,7 +6,7 @@ import type { EnvironmentVariableValue } from '../models/environment-context';
 import { CommandApiService } from './command.service';
 import { ChangeBus } from './change-bus.service';
 import type { EntityChange } from '../models/change-set';
-import { TagApiService } from './tag.service';
+import { ScriptApiService } from './script.service';
 import { FavouriteApiService } from './favourite.service';
 
 export type { HttpRequest, HttpResponse, HttpRequestSummary };
@@ -20,7 +20,7 @@ export type { HttpRequest, HttpResponse, HttpRequestSummary };
 export class RequestApiService {
   private readonly commands = inject(CommandApiService);
   private readonly bus = inject(ChangeBus);
-  private readonly tagApi = inject(TagApiService);
+  private readonly scriptApi = inject(ScriptApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
 
   // -----------------------------------------------------------------------
@@ -193,7 +193,7 @@ export class RequestApiService {
   async restoreRequest(req: HttpRequestSummary): Promise<void> {
     this.addOrReplace(req);
     await Promise.all([
-      this.tagApi.loadTagsForRequests([req]),
+      this.scriptApi.loadScriptsForRequests([req]),
       this.favouriteApi.loadMembershipForRequests([req]),
     ]);
   }

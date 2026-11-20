@@ -1,0 +1,18 @@
+// Lay the header out as if it were a direct child of the Inspector.
+:host {
+  display: contents;
+}
+
+.tab-header {
+  justify-content: flex-start;
+  gap: var(--s-3);
+}
+
+.panel-title {
+  font-family: var(--font-display);
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+}
+

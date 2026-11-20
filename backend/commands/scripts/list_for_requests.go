@@ -1,4 +1,4 @@
-package tags
+package scripts
 
 import (
 	"database/sql"
@@ -8,14 +8,14 @@ import (
 	"snap-rq/backend/commands"
 )
 
-//  — the tags of many requests at once, as a map.
+// list_for_requests.go — the script names of many requests at once, as a map.
 
 type ListForRequests struct{ tx *sql.Tx }
 
 func NewListForRequests(tx *sql.Tx) commands.Command { return &ListForRequests{tx: tx} }
 
 func (ListForRequests) Info() commands.Info {
-	return commands.Info{FunctionID: "tag.list_for_requests", Label: "List Tags For Requests", ReadOnly: true}
+	return commands.Info{FunctionID: "script.list_for_requests", Label: "List Scripts For Requests", ReadOnly: true}
 }
 
 func (c ListForRequests) Run(input json.RawMessage) (any, error) {
@@ -39,8 +39,8 @@ func (c ListForRequests) Run(input json.RawMessage) (any, error) {
 		args[i] = id
 	}
 	rows, err := c.tx.Query(`
-		SELECT rt.request_id, t.name FROM request_tags rt
-		JOIN tags t ON t.id = rt.tag_id
+		SELECT rt.request_id, t.name FROM request_scripts rt
+		JOIN scripts t ON t.id = rt.script_id
 		WHERE rt.request_id IN (`+placeholders+`) ORDER BY t.name`, args...)
 	if err != nil {
 		return nil, err

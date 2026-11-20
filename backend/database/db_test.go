@@ -170,14 +170,6 @@ func TestMigrateLegacySchemaWithoutUserSortOrder(t *testing.T) {
 			FOREIGN KEY (favourite_collection_id) REFERENCES favourite_collections(id) ON DELETE CASCADE,
 			FOREIGN KEY (http_request_id) REFERENCES http_requests(id) ON DELETE CASCADE
 		);
-		CREATE TABLE tags (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, name TEXT NOT NULL);
-		CREATE TABLE request_tags (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			request_id INTEGER NOT NULL,
-			tag_id INTEGER NOT NULL,
-			FOREIGN KEY (request_id) REFERENCES http_requests(id) ON DELETE CASCADE,
-			FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
-		);
 		INSERT INTO collections (project_id, name) VALUES (1, 'legacy');
 		INSERT INTO http_requests (collection_id, name, url, method) VALUES (1, 'legacy request', 'http://x', 'GET');
 		INSERT INTO favourite_items (favourite_collection_id, http_request_id, sort_order) VALUES (1, 1, 7);
@@ -193,10 +185,8 @@ func TestMigrateLegacySchemaWithoutUserSortOrder(t *testing.T) {
 		t.Fatalf("addUserSortOrderColumns failed: %v", err)
 	}
 
-	for _, table := range []string{"http_requests", "request_tags"} {
-		if !columnExists(db, table, "user_sort_order") {
-			t.Errorf("expected %s.user_sort_order to exist after migration", table)
-		}
+	if !columnExists(db, "http_requests", "user_sort_order") {
+		t.Errorf("expected http_requests.user_sort_order to exist after migration")
 	}
 
 	// favourite_items.sort_order is renamed (not duplicated), values preserved.
@@ -211,7 +201,7 @@ func TestMigrateLegacySchemaWithoutUserSortOrder(t *testing.T) {
 		t.Errorf("expected favourite order value 7 to be preserved, got %d", order)
 	}
 
-	for _, index := range []string{"idx_http_requests_collection_sort", "idx_request_tags_tag_sort"} {
+	for _, index := range []string{"idx_http_requests_collection_sort"} {
 		var count int
 		if err := db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = ?", index).Scan(&count); err != nil {
 			t.Fatalf("checking index %s: %v", index, err)
@@ -418,12 +408,10 @@ func TestMigrateUserColorsToSlots(t *testing.T) {
 	if _, err := db.Exec(`
 		CREATE TABLE http_requests (id INTEGER PRIMARY KEY, user_color TEXT);
 		CREATE TABLE favourite_items (id INTEGER PRIMARY KEY, user_color TEXT);
-		CREATE TABLE request_tags (id INTEGER PRIMARY KEY, user_color TEXT);
 		CREATE TABLE undo_log (id INTEGER PRIMARY KEY, input TEXT, snapshot TEXT, result TEXT);
 
 		INSERT INTO http_requests (user_color) VALUES ('#AECBFA'), ('#b6e2c6'), ('#F7E6A3'), ('primary'), ('#123456'), (NULL);
 		INSERT INTO favourite_items (user_color) VALUES ('#AECBFA');
-		INSERT INTO request_tags (user_color) VALUES ('#B6E2C6');
 		INSERT INTO undo_log (input, snapshot, result) VALUES
 			('{"color":"#AECBFA"}', '[{"id":1,"user_color":"#F7E6A3"},{"id":2,"user_color":null}]', 'null');
 	`); err != nil {
@@ -460,18 +448,15 @@ func TestMigrateUserColorsToSlots(t *testing.T) {
 		}
 	}
 
-	var fav, tag, input, snapshot string
+	var fav, input, snapshot string
 	if err := db.QueryRow(`SELECT user_color FROM favourite_items`).Scan(&fav); err != nil {
-		t.Fatal(err)
-	}
-	if err := db.QueryRow(`SELECT user_color FROM request_tags`).Scan(&tag); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.QueryRow(`SELECT input, snapshot FROM undo_log`).Scan(&input, &snapshot); err != nil {
 		t.Fatal(err)
 	}
-	if fav != "primary" || tag != "secondary" {
-		t.Errorf("favourite/tag colours = %q/%q, want primary/secondary", fav, tag)
+	if fav != "primary" {
+		t.Errorf("favourite colour = %q, want primary", fav)
 	}
 	if input != `{"color":"primary"}` {
 		t.Errorf("undo_log input = %s", input)
@@ -564,5 +549,136 @@ func TestMakeGroupNamesUniqueRenamesDuplicates(t *testing.T) {
 	}
 	if _, err := db.Exec(`INSERT INTO favourite_collections (project_id, name) VALUES (1, 'TODO')`); err == nil {
 		t.Fatal("expected the unique index to reject a duplicate favourite name")
+	}
+}
+
+func TestCreateScriptTables(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "scripts.db")
+
+	// The full startup migration must run twice on the same file.
+	for i := 0; i < 2; i++ {
+		db, err := OpenPath(path)
+		if err != nil {
+			t.Fatalf("OpenPath run %d: %v", i+1, err)
+		}
+		if i == 0 {
+			db.Close()
+		} else {
+			defer db.Close()
+			checkScriptTables(t, db)
+		}
+	}
+}
+
+func checkScriptTables(t *testing.T, db *sql.DB) {
+	t.Helper()
+
+	var projectID, collectionID int64
+	if err := db.QueryRow(`SELECT id, project_id FROM collections LIMIT 1`).Scan(&collectionID, &projectID); err != nil {
+		t.Fatalf("loading default collection: %v", err)
+	}
+	res, err := db.Exec(
+		`INSERT INTO http_requests (collection_id, name, url, method) VALUES (?, 'r', 'http://x', 'GET')`,
+		collectionID,
+	)
+	if err != nil {
+		t.Fatalf("inserting request: %v", err)
+	}
+	requestID, _ := res.LastInsertId()
+
+	res, err = db.Exec(`INSERT INTO scripts (project_id, name) VALUES (?, 'auth')`, projectID)
+	if err != nil {
+		t.Fatalf("inserting script: %v", err)
+	}
+	scriptID, _ := res.LastInsertId()
+
+	var content string
+	if err := db.QueryRow(`SELECT content FROM scripts WHERE id = ?`, scriptID).Scan(&content); err != nil || content != "" {
+		t.Errorf("new script content = %q, %v; want empty", content, err)
+	}
+	if _, err := db.Exec(`INSERT INTO scripts (project_id, name) VALUES (?, 'auth')`, projectID); err == nil {
+		t.Errorf("expected a duplicate script name in one project to be rejected")
+	}
+
+	if _, err := db.Exec(
+		`INSERT INTO request_scripts (request_id, script_id, user_sort_order, user_color) VALUES (?, ?, 3, 'slot-1')`,
+		requestID, scriptID,
+	); err != nil {
+		t.Fatalf("attaching script: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO request_scripts (request_id, script_id) VALUES (?, ?)`, requestID, scriptID); err == nil {
+		t.Errorf("expected attaching the same script twice to be rejected")
+	}
+	if _, err := db.Exec(
+		`INSERT INTO script_appearances (script_id, appearance_type, appearance_value) VALUES (?, 'icon', 'ico_1')`,
+		scriptID,
+	); err != nil {
+		t.Fatalf("adding appearance: %v", err)
+	}
+
+	// Deleting the project removes its scripts, their links and appearances.
+	if _, err := db.Exec(`DELETE FROM projects WHERE id = ?`, projectID); err != nil {
+		t.Fatalf("deleting project: %v", err)
+	}
+	for _, table := range []string{"scripts", "request_scripts", "script_appearances"} {
+		var count int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM ` + table).Scan(&count); err != nil {
+			t.Fatalf("counting %s: %v", table, err)
+		}
+		if count != 0 {
+			t.Errorf("%s has %d rows after deleting the project; want 0", table, count)
+		}
+	}
+}
+
+func TestDropTagTables(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("opening in-memory db: %v", err)
+	}
+	defer db.Close()
+	// One connection, so every statement sees the same in-memory database.
+	db.SetMaxOpenConns(1)
+
+	if _, err := db.Exec(`
+		CREATE TABLE tags (id INTEGER PRIMARY KEY, project_id INTEGER, name TEXT);
+		CREATE TABLE request_tags (id INTEGER PRIMARY KEY, request_id INTEGER, tag_id INTEGER REFERENCES tags(id));
+		CREATE TABLE tag_appearances (id INTEGER PRIMARY KEY, tag_id INTEGER REFERENCES tags(id));
+		CREATE TABLE undo_log (id INTEGER PRIMARY KEY, command TEXT);
+		INSERT INTO tags (id, project_id, name) VALUES (1, 1, 'auth');
+		INSERT INTO request_tags (request_id, tag_id) VALUES (1, 1);
+		INSERT INTO tag_appearances (tag_id) VALUES (1);
+		INSERT INTO undo_log (command) VALUES ('tag.add'), ('request.delete'), ('tag.rename');
+	`); err != nil {
+		t.Fatalf("seeding tags: %v", err)
+	}
+
+	// Running twice proves the step is idempotent.
+	for i := 0; i < 2; i++ {
+		if err := dropTagTables(db); err != nil {
+			t.Fatalf("dropTagTables run %d: %v", i+1, err)
+		}
+	}
+
+	for _, table := range []string{"tags", "request_tags", "tag_appearances"} {
+		if tableExists(db, table) {
+			t.Errorf("%s still exists", table)
+		}
+	}
+	var commands []string
+	rows, err := db.Query(`SELECT command FROM undo_log ORDER BY id`)
+	if err != nil {
+		t.Fatalf("reading undo log: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var command string
+		if err := rows.Scan(&command); err != nil {
+			t.Fatal(err)
+		}
+		commands = append(commands, command)
+	}
+	if len(commands) != 1 || commands[0] != "request.delete" {
+		t.Errorf("undo log commands = %v, want only [request.delete]", commands)
 	}
 }

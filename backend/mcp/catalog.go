@@ -58,8 +58,8 @@ var Catalog = []ToolMeta{
 	{"list_recent_requests", "List the most recently used requests of a project.", RiskRead, "request.list_recent"},
 	{"get_request", "Get one full request: URL, method, headers, body.", RiskRead, "request.get"},
 	{"list_responses", "List the saved response history of a request, newest first.", RiskRead, "response.list_for_request"},
-	{"list_tags", "List the tags of a project.", RiskRead, "tag.list"},
-	{"list_tagged_requests", "List the requests of a project carrying a tag.", RiskRead, "tag.list_requests"},
+	{"list_scripts", "List the scripts of a project (names only; scripts cannot run yet).", RiskRead, "script.list"},
+	{"list_script_requests", "List the requests a script is attached to, in the user's order.", RiskRead, "script.list_requests"},
 	{"list_favourites", "List the favourite collections of a project.", RiskRead, "favourite.list"},
 	{"list_trash", "List the requests in a project's trash.", RiskRead, "bin.list"},
 	{"list_environments", "List the environments of a project.", RiskRead, "environment.list"},
@@ -81,12 +81,12 @@ var Catalog = []ToolMeta{
 	// content: what a request sends. Off by default.
 	{"edit_request_content", "Change the address (URL), method, headers, body, body_type or body_form of many requests. Undoable. The user is asked to approve each call.", RiskContent, "request.bulk_set"},
 
-	// tags
-	{"add_tag", "Tag a request; the tag is created if the project has none with that name.", RiskOrganize, "tag.add"},
-	{"remove_tag", "Remove a tag from a request.", RiskOrganize, "tag.remove"},
-	{"rename_tag", "Rename a tag everywhere in a project.", RiskOrganize, "tag.rename"},
-	{"reorder_tagged_requests", "Set the custom order of the requests inside one tag.", RiskOrganize, "tag.reorder"},
-	{"set_tag_request_colors", "Set or clear the colour of requests as shown inside one tag.", RiskOrganize, "tag.set_color"},
+	// scripts
+	{"attach_script", "Attach a script to a request; the script is created (empty) if the project has none with that name.", RiskOrganize, "script.attach"},
+	{"detach_script", "Detach a script from a request; the script itself stays.", RiskOrganize, "script.detach"},
+	{"rename_script", "Rename a script. Fails if the project already has a script with the new name.", RiskOrganize, "script.rename"},
+	{"reorder_script_requests", "Set the custom order of the requests a script is attached to.", RiskOrganize, "script.reorder"},
+	{"set_script_request_colors", "Set or clear the colour of requests as shown inside one script.", RiskOrganize, "script.set_color"},
 
 	// favourites
 	{"create_favourite", "Create a favourite collection in a project.", RiskOrganize, "favourite.create"},

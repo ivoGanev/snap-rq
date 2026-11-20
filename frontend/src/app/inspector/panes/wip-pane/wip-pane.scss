@@ -1,0 +1,45 @@
+:host {
+  display: contents;
+}
+
+// Fills the Inspector below the header and centres the note both ways.
+.wip {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: var(--s-3);
+}
+
+.wip-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  max-width: 280px;
+  padding: var(--s-4) var(--s-3);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  background: var(--hover-bg);
+  text-align: center;
+}
+
+.wip-badge {
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--on-accent);
+  background: var(--grad);
+}
+
+.wip-text {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.wip-link {
+  color: var(--accent);
+}

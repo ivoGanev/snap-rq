@@ -6,6 +6,7 @@ import { EnvironmentVariableApiService } from './environment-variable.service';
 import { EnvironmentApiService } from './environment.service';
 import { ChangeBus } from './change-bus.service';
 import { EnvironmentContext } from '../models/environment-context';
+import { AllRequestsView, type WorkspaceView } from '../workspace/workspace-view';
 import type { Collection } from './collection.service';
 import type { Project } from './project.service';
 import type { Environment } from './environment.service';
@@ -31,17 +32,33 @@ export class WorkspaceStateService {
   readonly loading = signal(false);
   readonly selectedProject = signal<Project | null>(null);
   readonly selectedEnvironment = signal<Environment | null>(null);
-  readonly selectedCollection = signal<Collection | null>(null);
-  readonly selectedFavouriteCollection = signal<FavouriteCollection | null>(null);
-  readonly selectedTag = signal<string | null>(null);
-  readonly showingAllRequests = signal(false);
-  readonly showingFamousRequests = signal(false);
+  private readonly openView = signal<WorkspaceView | null>(null);
+  /** The view the workspace is showing, or null when none is open. Change it with `selectView`. */
+  readonly view = this.openView.asReadonly();
+
+  // Read-only shortcuts derived from `view`, kept so existing readers don't
+  // have to change at once (step A3 of docs/plans/tags-to-scripts.md).
+  readonly selectedCollection = computed<Collection | null>(() => {
+    const view = this.openView();
+    return view?.kind === 'collection' ? view.collection : null;
+  });
+  readonly selectedFavouriteCollection = computed<FavouriteCollection | null>(() => {
+    const view = this.openView();
+    return view?.kind === 'favourite' ? view.favourite : null;
+  });
+  readonly selectedScript = computed<string | null>(() => {
+    const view = this.openView();
+    return view?.kind === 'script' ? view.name : null;
+  });
+  readonly showingAllRequests = computed(() => this.openView()?.kind === 'all');
+  readonly showingFamousRequests = computed(() => this.openView()?.kind === 'recent');
+  readonly showingBin = computed(() => this.openView()?.kind === 'bin');
+
   readonly selectedIds = signal<Set<number>>(new Set());
   readonly selectedRequest = signal<HttpRequest | null>(null);
   readonly selectedResponse = signal<HttpResponse | null>(null);
   readonly responsesLoading = signal(false);
   readonly selectedBinnedRequest = signal<HttpBinnedRequestSummary | null>(null);
-  readonly showingBin = signal(false);
   readonly sidebarExpanded = signal(false);
   readonly sidebarListOpen = signal(false);
   readonly multiSelectionActive = signal(false);
@@ -123,21 +140,37 @@ export class WorkspaceStateService {
     }
   }
 
-  enterBinView(): void {
-    this.selectedCollection.set(null);
-    this.selectedFavouriteCollection.set(null);
-    this.selectedTag.set(null);
-    this.showingAllRequests.set(false);
-    this.showingFamousRequests.set(false);
-    this.showingBin.set(true);
-    this.selectedRequest.set(null);
-    this.selectedResponse.set(null);
-    this.selectedBinnedRequest.set(null);
+  /**
+   * Switch to `view`. Entering the trash bin clears the open request (its
+   * rows are not live requests); leaving it clears the selected binned row.
+   */
+  selectView(view: WorkspaceView | null): void {
+    const leavingBin = this.openView()?.kind === 'bin' && view?.kind !== 'bin';
+    this.openView.set(view);
+
+    if (view?.kind === 'bin' || view?.main === 'script') {
+      // Neither shows live requests: drop the open one.
+      this.selectedRequest.set(null);
+      this.selectedResponse.set(null);
+      this.selectedBinnedRequest.set(null);
+      if (view.main === 'script') {
+        // The request list is not shown, so nothing in it can stay selected.
+        this.selectedIds.set(new Set());
+        this.multiSelectionActive.set(false);
+      }
+    } else if (leavingBin) {
+      this.selectedBinnedRequest.set(null);
+    }
   }
 
-  exitBinView(): void {
-    this.showingBin.set(false);
-    this.selectedBinnedRequest.set(null);
+  /**
+   * After switching project: views that exist in every project (all, recent,
+   * trash) stay open; a view of one of the old project's groups falls back
+   * to all requests.
+   */
+  selectViewForNewProject(): void {
+    const current = this.openView();
+    this.selectView(current?.survivesProjectSwitch ? current : new AllRequestsView());
   }
 
   async loadBinnedRequests(projectId: number): Promise<void> {

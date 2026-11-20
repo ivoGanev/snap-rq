@@ -1,0 +1,30 @@
+.script-tabs {
+  display: flex;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3) 0;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.script-tab {
+  padding: var(--s-2) var(--s-3);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.script-tab:hover {
+  color: var(--text);
+}
+
+.script-tab.is-active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}

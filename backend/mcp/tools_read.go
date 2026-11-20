@@ -26,9 +26,9 @@ type requestIDInput struct {
 	RequestID int64 `json:"request_id" jsonschema:"id of the request"`
 }
 
-type taggedInput struct {
-	ProjectID int64  `json:"project_id" jsonschema:"id of the project"`
-	TagName   string `json:"tag_name" jsonschema:"name of the tag"`
+type scriptRequestsInput struct {
+	ProjectID  int64  `json:"project_id" jsonschema:"id of the project"`
+	ScriptName string `json:"script_name" jsonschema:"name of the script"`
 }
 
 // bindings is every tool's typed registration; validateBindings keeps it in
@@ -41,8 +41,8 @@ var bindings = []binding{
 	{"list_recent_requests", addTool[recentInput]},
 	{"get_request", addTool[idInput]},
 	{"list_responses", addTool[requestIDInput]},
-	{"list_tags", addTool[projectInput]},
-	{"list_tagged_requests", addTool[taggedInput]},
+	{"list_scripts", addTool[projectInput]},
+	{"list_script_requests", addTool[scriptRequestsInput]},
 	{"list_favourites", addTool[projectInput]},
 	{"list_trash", addTool[projectInput]},
 }

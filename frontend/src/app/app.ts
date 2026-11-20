@@ -18,7 +18,7 @@ import { CollectionApiService } from './core/services/collection.service';
 import { RequestApiService } from './core/services/request.service';
 import { FavouriteApiService } from './core/services/favourite.service';
 import { SelectionStateService } from './core/services/selection-state.service';
-import { TagApiService } from './core/services/tag.service';
+import { ScriptApiService } from './core/services/script.service';
 import { ThemeService, type Theme } from './core/services/theme.service';
 import { SettingsApiService } from './core/services/settings.service';
 import { IconManifestService } from './core/services/icon-manifest.service';
@@ -26,7 +26,8 @@ import { IconApiService } from './core/services/icon-api.service';
 import { CommandApiService } from './core/services/command.service';
 import { RequestGroups } from './request-groups/request-groups';
 import { RequestsMainList } from './requests-main-list/requests-main-list';
-import { RequestPanel } from './request-panel/request-panel';
+import { ScriptEditor } from './script-editor/script-editor';
+import { Inspector } from './inspector/inspector';
 import { VariablesEditor } from './variables-editor/variables-editor';
 import { CookiesEditor } from './cookies-editor/cookies-editor';
 import { SettingsDialog } from './settings-dialog/settings-dialog';
@@ -46,7 +47,8 @@ import { UndoPanel } from './undo-panel/undo-panel';
     FormsModule,
     RequestGroups,
     RequestsMainList,
-    RequestPanel,
+    ScriptEditor,
+    Inspector,
     VariablesEditor,
     CookiesEditor,
     SettingsDialog,
@@ -73,7 +75,7 @@ export class App implements OnInit, AfterViewInit {
   private readonly collectionApi = inject(CollectionApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
   private readonly selectionState = inject(SelectionStateService);
-  private readonly tagApi = inject(TagApiService);
+  private readonly scriptApi = inject(ScriptApiService);
   private readonly iconManifest = inject(IconManifestService);
   private readonly iconApi = inject(IconApiService);
   private readonly cookieApi = inject(CookieApiService);
@@ -87,7 +89,7 @@ export class App implements OnInit, AfterViewInit {
 
   /**
    * Collapsed rail is fixed; expanded without a group list shrinks to fit the
-   * nav buttons; expanded with a list uses the resizable percentage.
+   * nav buttons; expanded with a list uses the resizable percenscripte.
    */
   readonly leftSidebarWidth = computed(() => {
     if (!this.state.sidebarExpanded()) return '72px';
@@ -281,17 +283,14 @@ export class App implements OnInit, AfterViewInit {
       } else {
         this.state.selectedProject.set(null);
         this.state.selectedEnvironment.set(null);
-        this.state.selectedCollection.set(null);
-        this.state.selectedFavouriteCollection.set(null);
-        this.state.selectedTag.set(null);
-        this.state.showingAllRequests.set(false);
+        this.state.selectView(null);
         this.state.selectedRequest.set(null);
         this.state.selectedResponse.set(null);
         this.collectionApi.collections.set([]);
         this.requestApi.allRequests.set({});
         this.favouriteApi.collections.set([]);
         this.favouriteApi.requests.set([]);
-        this.tagApi.allTags.set([]);
+        this.scriptApi.allScripts.set([]);
       }
     } catch (err) {
       console.error(err);
@@ -302,20 +301,17 @@ export class App implements OnInit, AfterViewInit {
 
   async selectProject(project: Project): Promise<void> {
     this.state.selectedProject.set(project);
-    this.state.selectedCollection.set(null);
-    this.state.selectedFavouriteCollection.set(null);
-    this.state.selectedTag.set(null);
-    this.state.showingAllRequests.set(true);
+    this.state.selectViewForNewProject();
     this.state.selectedRequest.set(null);
     this.state.selectedResponse.set(null);
     this.requestApi.allRequests.set({});
     this.favouriteApi.requests.set([]);
-    this.tagApi.requestTags.set({});
+    this.scriptApi.requestScripts.set({});
 
     await this.loadEnvironments(project.id);
     await this.favouriteApi.loadCollectionsForProject(project.id);
     await this.collectionApi.loadForProject(project.id);
-    await this.tagApi.loadTagsForProject(project.id);
+    await this.scriptApi.loadScriptsForProject(project.id);
     await this.requestApi.loadAll();
   }
 
@@ -442,17 +438,14 @@ export class App implements OnInit, AfterViewInit {
         } else {
           this.state.selectedProject.set(null);
           this.state.selectedEnvironment.set(null);
-          this.state.selectedCollection.set(null);
-          this.state.selectedFavouriteCollection.set(null);
-          this.state.selectedTag.set(null);
-          this.state.showingAllRequests.set(false);
+          this.state.selectView(null);
           this.state.selectedRequest.set(null);
           this.state.selectedResponse.set(null);
           this.collectionApi.collections.set([]);
           this.requestApi.allRequests.set({});
           this.favouriteApi.collections.set([]);
           this.favouriteApi.requests.set([]);
-          this.tagApi.allTags.set([]);
+          this.scriptApi.allScripts.set([]);
           this.environmentApi.environments.set([]);
         }
       }

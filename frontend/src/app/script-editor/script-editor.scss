@@ -1,0 +1,35 @@
+.script-editor-header {
+  justify-content: flex-start;
+  gap: var(--s-3);
+}
+
+.panel-title {
+  font-family: var(--font-display);
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.script-save-error {
+  font-size: 0.75rem;
+  color: var(--error-text);
+}
+
+// Framed like the request body editor and the Name / URL fields, so it
+// reads as a text field: border, input fill, focus ring.
+.script-editor-code {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0 var(--s-3) var(--s-3);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  overflow: hidden;
+  cursor: text;
+}
+
+.script-editor-code:focus-within {
+  border-color: var(--focus-border);
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}

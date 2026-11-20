@@ -11,13 +11,13 @@ import (
 // this list on purpose.
 func TestExposedToolNames(t *testing.T) {
 	want := []string{
-		"add_tag", "add_to_favourite", "bulk_edit_requests", "create_collection", "create_favourite",
-		"create_request", "delete_requests", "duplicate_request", "edit_request_content", "get_request", "import_openapi",
+		"add_to_favourite", "attach_script", "bulk_edit_requests", "create_collection", "create_favourite",
+		"create_request", "delete_requests", "detach_script", "duplicate_request", "edit_request_content", "get_request", "import_openapi",
 		"list_collections", "list_environments", "list_favourites", "list_profiles", "list_projects", "list_recent_requests", "list_requests",
-		"list_responses", "list_tagged_requests", "list_tags", "list_trash", "list_variables", "move_requests",
-		"remove_from_favourite", "remove_tag", "rename_collection", "rename_favourite", "rename_tag",
-		"reorder_favourite_requests", "reorder_requests", "reorder_tagged_requests",
-		"restore_from_trash", "set_favourite_request_colors", "set_tag_request_colors",
+		"list_responses", "list_script_requests", "list_scripts", "list_trash", "list_variables", "move_requests",
+		"remove_from_favourite", "rename_collection", "rename_favourite", "rename_script",
+		"reorder_favourite_requests", "reorder_requests", "reorder_script_requests",
+		"restore_from_trash", "set_favourite_request_colors", "set_script_request_colors",
 	}
 	var got []string
 	for _, m := range Catalog {
