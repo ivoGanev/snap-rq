@@ -93,12 +93,11 @@ func TestDeleteOnlyTouchesBackupsInTheBackupFolder(t *testing.T) {
 	}
 }
 
-// guarded returns a runner with the backup guard on, backups going to a
-// fresh folder, and no throttle.
+// guarded returns a runner with the backup guard on and backups going to a
+// fresh folder.
 func guarded(t *testing.T) (*commands.Runner, *sql.DB, string) {
 	t.Helper()
 	secrets.SetDefault(secrets.NewVault(secrets.MemoryKeyStore()))
-	backup.Throttle = 0
 	db, err := database.OpenPath(filepath.Join(t.TempDir(), "app.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -175,6 +174,20 @@ func TestDeletingACollectionWithRequestsBacksUpFirst(t *testing.T) {
 	old.QueryRow(`SELECT COUNT(*) FROM http_requests WHERE collection_id = ?`, full).Scan(&n)
 	if n != 3 {
 		t.Errorf("the backup has %d of the collection's requests, want 3", n)
+	}
+}
+
+func TestEveryRiskyChangeGetsItsOwnBackupEvenRightAfterAnother(t *testing.T) {
+	r, db, folder := guarded(t)
+	first := newCollection(t, db, "First", 1)
+	second := newCollection(t, db, "Second", 1)
+
+	run(t, r, "collection.delete", map[string]any{"id": first})
+	backupsIn(t, folder, 1)
+	run(t, r, "collection.delete", map[string]any{"id": second})
+	got := backupsIn(t, folder, 2)
+	if len(got) != 2 {
+		t.Fatalf("two deletes in a row made %d backups, want 2 (no throttle)", len(got))
 	}
 }
 

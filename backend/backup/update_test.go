@@ -45,7 +45,7 @@ func TestAnUpdateBacksUpOnceBeforeMigrating(t *testing.T) {
 	db, _ = database.OpenWith(path, backup.BeforeUpdate("1.1.0"))
 	db.Close()
 	list, _ := backup.List(folder)
-	if len(list) != 1 || !strings.Contains(list[0].Header.Reason, "from 1.0.0 to 1.1.0") {
+	if len(list) != 1 || list[0].Header.Kind != backup.Update || !strings.Contains(list[0].Header.Reason, "from 1.0.0 to 1.1.0") {
 		t.Fatalf("after the update: %+v", list)
 	}
 

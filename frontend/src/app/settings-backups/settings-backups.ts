@@ -81,7 +81,7 @@ export class SettingsBackups {
 
   /** Number fields keep their limits; an empty or invalid entry snaps back. */
   protected async setNumber(
-    field: 'request_delete_threshold' | 'keep_automatic' | 'keep_days',
+    field: 'request_delete_threshold' | 'keep_risky' | 'keep_updates',
     event: Event,
     max: number,
   ): Promise<void> {

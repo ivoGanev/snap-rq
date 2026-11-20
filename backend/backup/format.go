@@ -37,8 +37,9 @@ const (
 type Kind string
 
 const (
-	Automatic Kind = "automatic" // before a risky operation or an update; rotated
-	Manual    Kind = "manual"    // "Back up now"; never deleted automatically
+	Automatic Kind = "automatic" // before a risky operation; the newest KeepRisky are kept
+	Update    Kind = "update"    // before an update's migrations; the newest KeepUpdates are kept
+	Manual    Kind = "manual"    // "Back up now" and "before restore"; never deleted automatically
 )
 
 // Header is the readable part of a backup: what it is, and the sealed data

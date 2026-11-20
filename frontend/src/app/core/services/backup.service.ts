@@ -21,8 +21,10 @@ export interface BackupSettings {
   triggers: Partial<Record<BackupTrigger, boolean>>;
   request_delete_threshold: number;
   folder: string;
-  keep_automatic: number;
-  keep_days: number;
+  /** Backups taken before risky changes that are kept (default 10). */
+  keep_risky: number;
+  /** Backups taken before updates that are kept, counted separately (default 5). */
+  keep_updates: number;
   has_password: boolean;
   default_folder: string;
   all_triggers: BackupTrigger[];
@@ -30,7 +32,8 @@ export interface BackupSettings {
 
 export interface BackupHeader {
   created_at: string;
-  kind: 'automatic' | 'manual';
+  /** automatic: before a risky change · update: before an update · manual: never deleted automatically. */
+  kind: 'automatic' | 'update' | 'manual';
   reason: string;
   app_version: string;
   database_bytes: number;

@@ -156,26 +156,30 @@ func TestFileNamesAreSafe(t *testing.T) {
 	}
 }
 
-func TestPruneKeepsTheNewestAutomaticAndEveryManualBackup(t *testing.T) {
+func TestPruneKeepsEachKindSeparatelyAndEveryManualBackup(t *testing.T) {
 	secrets.SetDefault(secrets.NewVault(secrets.MemoryKeyStore()))
 	db := newSourceDB(t)
 	dir := t.TempDir()
 	manual, _ := Create(db, Options{Dir: dir, Kind: Manual, Reason: "manual"})
-	var autos []Info
+	update, _ := Create(db, Options{Dir: dir, Kind: Update, Reason: "update"})
+	var risky []Info
 	for i := 0; i < 3; i++ {
-		info, _ := Create(db, Options{Dir: dir, Kind: Automatic, Reason: "auto"})
-		autos = append(autos, info)
-		time.Sleep(1100 * time.Millisecond)
+		time.Sleep(1100 * time.Millisecond) // CreatedAt has second precision
+		info, _ := Create(db, Options{Dir: dir, Kind: Automatic, Reason: "risky"})
+		risky = append(risky, info)
 	}
 
-	Prune(dir, 2, 24*time.Hour)
+	Prune(dir, 2, 1)
 
 	exists := func(p string) bool { _, err := os.Stat(p); return err == nil }
 	if !exists(manual.Path) {
 		t.Error("a manual backup was pruned")
 	}
-	if exists(autos[0].Path) || !exists(autos[1].Path) || !exists(autos[2].Path) {
-		t.Error("prune should drop only the oldest automatic backup")
+	if !exists(update.Path) {
+		t.Error("newer risky-change backups pushed out the update backup; they are counted separately")
+	}
+	if exists(risky[0].Path) || !exists(risky[1].Path) || !exists(risky[2].Path) {
+		t.Error("prune should drop only the oldest risky-change backup")
 	}
 }
 

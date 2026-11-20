@@ -14,16 +14,18 @@ secrets key).
 - **D3. Risky operations** (each switchable in Settings → Backups): delete project, delete
   collection with requests, delete environment with variables, delete **10 or more**
   requests at once (threshold adjustable), permanent delete / empty Trash, OpenAPI import,
-  "Start over" for secrets. Skipped when a backup was taken in the last 2 minutes. If the
-  backup fails, the operation is cancelled.
+  "Start over" for secrets. **Every** risky change gets its own backup, however recent the
+  last one (a 2-minute throttle was tried and removed: it skipped backups silently and could
+  miss changes). If the backup fails, the operation is cancelled.
 - **D4. Encrypted with the existing secrets key.** Each backup has its own data key, sealed
   with the secrets key and, when the optional backup password is set, also with a key
   derived from it (Argon2id). Either opens it. The header records the key's fingerprint.
 - **D5. The files are the source of truth.** The history is read from the backup folder, so
   it works even when the database is broken. File name: `<date time> – <reason>.snaprq-backup`.
   The reason is readable (also in the header); the data is not.
-- **D6. Retention:** keep the last 20 automatic backups, at most 90 days. Manual backups are
-  never deleted automatically.
+- **D6. Retention by count, per kind:** the newest **10** backups before risky changes and,
+  separately, the newest **5** before updates (both adjustable). Manual and "before restore"
+  backups are never deleted automatically. No age limit.
 - **D7. Restore** checks the backup, takes a "before restore" backup, and swaps the database
   in on the next start, before it is opened. Backups from a newer format are refused.
 
@@ -63,5 +65,5 @@ always opens with the current recovery key.
 | Step | Check |
 |---|---|
 | B6 | Back up now: a file appears in the folder; the history shows it. |
-| B3 | Delete a collection with requests: toast "Backup saved…"; a second delete within 2 minutes: no new backup. Delete 9 requests: no backup; 10: backup. |
+| B3 | Delete a collection with requests: toast "Backup saved…". Delete another right after: a second backup. Delete 9 requests: no backup; 10: backup. |
 | B5 | Restore a backup: the app restarts with that data; a "before restore" backup exists. On another computer: asks for the recovery key. |

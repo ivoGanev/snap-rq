@@ -47,9 +47,11 @@ type Settings struct {
 	RequestDeleteThreshold int `json:"request_delete_threshold"`
 	// Folder is where backups go; empty means DefaultFolder.
 	Folder string `json:"folder"`
-	// KeepAutomatic and KeepDays limit automatic backups; manual ones stay.
-	KeepAutomatic int `json:"keep_automatic"`
-	KeepDays      int `json:"keep_days"`
+	// KeepRisky is how many backups taken before risky changes are kept;
+	// KeepUpdates, separately, how many taken before updates. Manual ones
+	// are always kept.
+	KeepRisky   int `json:"keep_risky"`
+	KeepUpdates int `json:"keep_updates"`
 	// HasPassword says a backup password is set (it is never returned).
 	HasPassword bool `json:"has_password"`
 	// PasswordSealed is the backup password, encrypted by the secrets vault:
@@ -66,8 +68,8 @@ func DefaultSettings() Settings {
 		Enabled:                true,
 		Triggers:               map[Trigger]bool{},
 		RequestDeleteThreshold: 10,
-		KeepAutomatic:          20,
-		KeepDays:               90,
+		KeepRisky:              10,
+		KeepUpdates:            5,
 	}
 }
 
@@ -148,11 +150,11 @@ func (s Settings) withLimits() Settings {
 	if s.RequestDeleteThreshold < 1 {
 		s.RequestDeleteThreshold = 10
 	}
-	if s.KeepAutomatic < 1 {
-		s.KeepAutomatic = 20
+	if s.KeepRisky < 1 {
+		s.KeepRisky = 10
 	}
-	if s.KeepDays < 1 {
-		s.KeepDays = 90
+	if s.KeepUpdates < 1 {
+		s.KeepUpdates = 5
 	}
 	return s
 }
