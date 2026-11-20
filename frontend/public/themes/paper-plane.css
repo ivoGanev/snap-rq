@@ -30,7 +30,8 @@
   --surface: rgba(255, 253, 248, 0.82);
   --menu-bg: #fffdf8;
   --surface-solid: #fffdf8;
-  --input-bg: rgba(255, 255, 255, 0.75);
+  /* Fields sit a shade darker than the paper, like a pressed-in box. */
+  --input-bg: #ece5d6;
   --row-even-bg: rgba(31, 42, 68, 0.025);
   --hover-bg: rgba(47, 128, 237, 0.06);
   --hover-highlight: rgba(47, 128, 237, 0.1);
@@ -185,7 +186,7 @@
 :root[data-theme='daylight'] .backups-input,
 :root[data-theme='daylight'] .settings-number {
   border: 1.5px solid var(--pencil);
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--input-bg);
 }
 
 :root[data-theme='daylight'] .edit-input:focus,
