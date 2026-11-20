@@ -26,6 +26,12 @@ secrets key).
 - **D6. Retention by count, per kind:** the newest **10** backups before risky changes and,
   separately, the newest **5** before updates (both adjustable). Manual and "before restore"
   backups are never deleted automatically. No age limit.
+- **D8. Snappy: only freezing blocks.** Before a risky command the backup only freezes a
+  snapshot (a read transaction on its own connection, 1–2 ms in WAL mode). The command commits
+  at once (a collection delete: ~20 ms instead of ~300 ms). In the background, one at a time,
+  the snapshot is copied with SQLite's online backup API, the copy is compacted (VACUUM, which
+  also drops leftovers of deleted data) and checked, then compressed, encrypted and written.
+  A failure after the change is reported with a toast; a failure to freeze cancels the change.
 - **D7. Restore** checks the backup, takes a "before restore" backup, and swaps the database
   in on the next start, before it is opened. Backups from a newer format are refused.
 

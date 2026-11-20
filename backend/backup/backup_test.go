@@ -149,9 +149,9 @@ func TestListIsNewestFirstAndCleansUpLeftovers(t *testing.T) {
 }
 
 func TestFileNamesAreSafe(t *testing.T) {
-	h := Header{CreatedAt: time.Date(2026, 11, 20, 15, 30, 5, 0, time.Local), Reason: `before Delete collection a/b:c*"d"`}
+	h := Header{CreatedAt: time.Date(2026, 11, 20, 15, 30, 5, 0, time.Local), Reason: `before Delete collection "a/b:c*d" (3 requests)`}
 	name := fileName(h)
-	if name != "2026-11-20 15-30-05 – before Delete collection a b c d"+Extension {
+	if name != "2026-11-20 15-30-05 – before Delete collection a b c d (3 requests)"+Extension {
 		t.Errorf("file name = %q", name)
 	}
 }
@@ -252,5 +252,48 @@ func TestNewerVersion(t *testing.T) {
 		if got := newerVersion(c.a, c.b); got != c.want {
 			t.Errorf("newerVersion(%q, %q) = %v", c.a, c.b, got)
 		}
+	}
+}
+
+func TestTheBackupHoldsTheDataFromBeforeAChangeThatCommittedFirst(t *testing.T) {
+	secrets.SetDefault(secrets.NewVault(secrets.MemoryKeyStore()))
+	db := newSourceDB(t)
+	dir := t.TempDir()
+
+	pending, err := Begin(db, Options{Dir: dir, Kind: Automatic, Reason: "before a change"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The change commits while the snapshot is frozen, before any copying.
+	if _, err := db.Exec(`DELETE FROM notes`); err != nil {
+		t.Fatal(err)
+	}
+	info, err := pending.Finish()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dest := filepath.Join(t.TempDir(), "restored.db")
+	if _, err := Extract(info.Path, dest, db, Unlock{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := notes(t, dest); got != "the-quick-brown-fox,jumps-over" {
+		t.Errorf("backup notes = %q, want them as they were before the delete", got)
+	}
+}
+
+func TestDiscardReleasesTheSnapshot(t *testing.T) {
+	secrets.SetDefault(secrets.NewVault(secrets.MemoryKeyStore()))
+	db := newSourceDB(t)
+	pending, err := Begin(db, Options{Dir: t.TempDir(), Kind: Automatic})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pending.Discard()
+	pending.Discard() // twice is harmless
+	// With the read transaction gone, a checkpoint can complete fully.
+	var busy, logged, done int
+	if err := db.QueryRow(`PRAGMA wal_checkpoint(TRUNCATE)`).Scan(&busy, &logged, &done); err != nil || busy != 0 {
+		t.Errorf("checkpoint busy=%d err=%v: the snapshot was not released", busy, err)
 	}
 }

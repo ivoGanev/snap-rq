@@ -77,6 +77,11 @@ export class BackupApiService {
       });
       void this.loadBackups();
     });
+    // The change has already happened by then; say so plainly.
+    Events.On('backup:failed', (ev) => {
+      const { reason, error } = ev.data as { reason: string; error: string };
+      this.toasts.show(`Backup ${reason} failed: ${error}`, null, 10000);
+    });
   }
 
   async loadSettings(): Promise<BackupSettings> {

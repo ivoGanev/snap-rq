@@ -14,11 +14,15 @@ import (
 
 // Guard returns the runner's backup guard. Every risky command gets its own
 // backup, no matter how recent the last one is: retention (KeepRisky) limits
-// how many are kept. The snapshot is taken before the command (about a third
-// of a second for 50 MB); compressing, encrypting and writing the file happen
-// in the background afterwards, and saved is called with the result (for the
-// "Backup saved" toast).
-func Guard(db *sql.DB, saved func(Info)) commands.BackupGuard {
+// how many are kept.
+//
+// Only freezing the snapshot happens before the command (a millisecond or
+// two); if that fails, the command is cancelled. Copying, compressing,
+// encrypting and writing happen in the background once the command has
+// committed, one backup at a time. saved or failed is called with the
+// outcome (the "Backup saved" or "Backup failed" toast): by then the change
+// has happened, so a failure can only be reported.
+func Guard(db *sql.DB, saved func(Info), failed func(reason string, err error)) commands.BackupGuard {
 	return func(need commands.BackupNeed) (func(bool), error) {
 		s, err := LoadSettings(db)
 		if err != nil {
@@ -48,7 +52,10 @@ func Guard(db *sql.DB, saved func(Info)) commands.BackupGuard {
 			}
 			go func() {
 				info, err := Complete(db, pending)
-				if err == nil && saved != nil {
+				switch {
+				case err != nil && failed != nil:
+					failed(need.Reason, err)
+				case err == nil && saved != nil:
 					saved(info)
 				}
 			}()
