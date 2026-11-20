@@ -50,7 +50,7 @@ always opens with the current recovery key.
   snapshot first; throttle; toast.
 - [x] **B4. Before app updates**: open the database, back up when the version changed, then
   migrate.
-- [ ] **B5. Restore**: pending restore, swap on start, asking for the recovery key or password.
+- [x] **B5. Restore**: pending restore, swap on start, asking for the recovery key or password.
 - [ ] **B6. Settings → Backups UI.**
 
 ## Manual checks

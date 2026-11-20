@@ -5,7 +5,10 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"time"
@@ -55,6 +58,13 @@ func main() {
 	// Open the local SQLite database and run migrations. After an update a
 	// backup is taken first, since migrations can reshape tables.
 	backup.AppVersion = currentVersion
+	// A restore prepared before the last restart is swapped in before the
+	// database is opened.
+	if name, err := backup.ApplyPendingRestore(database.DataDir(), database.Path()); err != nil {
+		log.Printf("restore: %v", err)
+	} else if name != "" {
+		log.Printf("restored backup %s", name)
+	}
 	db, err := database.OpenWith(database.Path(), backup.BeforeUpdate(currentVersion))
 	if err != nil {
 		log.Fatalf("failed to open database: %v", err)
@@ -68,7 +78,7 @@ func main() {
 	if err := runner.Register(catalog.All...); err != nil {
 		log.Fatalf("registering commands: %v", err)
 	}
-	for _, f := range []commands.ObservableFactory{requests.NewSend, backups.NewCreate} {
+	for _, f := range []commands.ObservableFactory{requests.NewSend, backups.NewCreate, backups.NewRestore} {
 		if err := runner.RegisterObservable(f); err != nil {
 			log.Fatalf("registering observable commands: %v", err)
 		}
@@ -102,6 +112,7 @@ func main() {
 	defer mcpServer.Stop()
 
 	updaterService := &UpdaterService{}
+	appService := &AppService{}
 
 	app := application.New(application.Options{
 		Name:        "snap-rq-wails-v3",
@@ -109,6 +120,7 @@ func main() {
 		Services: []application.Service{
 			application.NewService(commands.NewCommandService(runner)),
 			application.NewService(updaterService),
+			application.NewService(appService),
 			application.NewService(mcp.NewSettingsService(mcpServer, mcpStore)),
 		},
 		Assets: application.AssetOptions{
@@ -120,6 +132,7 @@ func main() {
 	})
 
 	updaterService.app = app
+	appService.app = app
 	// win is set once the window exists. An approval request flashes its
 	// taskbar button until the user comes back, and restores it if minimised;
 	// it does not take focus, so it never interrupts typing elsewhere.
@@ -174,6 +187,28 @@ func main() {
 }
 func jsonUnmarshal(raw string, dest any) error {
 	return json.Unmarshal([]byte(raw), dest)
+}
+
+// AppService exposes app-level actions to the frontend.
+type AppService struct {
+	app *application.App
+}
+
+// Restart starts a new SnapRQ and quits this one, e.g. to finish restoring a
+// backup (the new process swaps the database in before opening it).
+func (s *AppService) Restart() error {
+	if s.app == nil {
+		return errors.New("the app is not ready yet")
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	if err := exec.Command(exe, os.Args[1:]...).Start(); err != nil {
+		return fmt.Errorf("starting SnapRQ again: %w", err)
+	}
+	s.app.Quit()
+	return nil
 }
 
 // UpdaterService exposes the self-updater to the frontend. The native

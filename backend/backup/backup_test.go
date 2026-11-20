@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -175,5 +176,77 @@ func TestPruneKeepsTheNewestAutomaticAndEveryManualBackup(t *testing.T) {
 	}
 	if exists(autos[0].Path) || !exists(autos[1].Path) || !exists(autos[2].Path) {
 		t.Error("prune should drop only the oldest automatic backup")
+	}
+}
+
+func TestRestoreSwapsTheBackupInOnTheNextStart(t *testing.T) {
+	secrets.SetDefault(secrets.NewVault(secrets.MemoryKeyStore()))
+	dataDir := t.TempDir()
+	dbPath := filepath.Join(dataDir, "app.db")
+	db, err := sql.Open("sqlite", dbPath+"?_pragma=journal_mode(WAL)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.Exec(`CREATE TABLE app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+		CREATE TABLE notes (id INTEGER PRIMARY KEY, body TEXT);
+		INSERT INTO notes (body) VALUES ('original');`)
+	folder := t.TempDir()
+	s := DefaultSettings()
+	s.Folder = folder
+	SaveSettings(db, s)
+
+	saved, err := Take(db, Manual, "manual")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.Exec(`UPDATE notes SET body = 'changed later'`)
+
+	if _, err := PrepareRestore(db, dataDir, saved.Path, Unlock{}); err != nil {
+		t.Fatal(err)
+	}
+	list, _ := List(folder)
+	if len(list) != 2 || !strings.HasPrefix(list[0].Header.Reason, "before restore of") {
+		t.Fatalf("want a 'before restore' backup next to the original: %+v", list)
+	}
+	db.Close() // the app restarts
+
+	name, err := ApplyPendingRestore(dataDir, dbPath)
+	if err != nil || name != filepath.Base(saved.Path) {
+		t.Fatalf("apply = %q, %v", name, err)
+	}
+	if got := notes(t, dbPath); got != "original" {
+		t.Errorf("after restore notes = %q, want original", got)
+	}
+	if again, _ := ApplyPendingRestore(dataDir, dbPath); again != "" {
+		t.Error("a restore was applied twice")
+	}
+}
+
+func TestBackupsFromANewerVersionAreRefused(t *testing.T) {
+	secrets.SetDefault(secrets.NewVault(secrets.MemoryKeyStore()))
+	db := newSourceDB(t)
+	info, err := Create(db, Options{Dir: t.TempDir(), Kind: Manual, AppVersion: "9.0.0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := AppVersion
+	AppVersion = "1.0.0"
+	defer func() { AppVersion = old }()
+	if _, err := PrepareRestore(db, t.TempDir(), info.Path, Unlock{}); !errors.Is(err, ErrNewerBackup) {
+		t.Errorf("err = %v, want ErrNewerBackup", err)
+	}
+}
+
+func TestNewerVersion(t *testing.T) {
+	for _, c := range []struct {
+		a, b string
+		want bool
+	}{
+		{"1.2.0", "1.1.9", true}, {"v2.0.0", "1.9.9", true}, {"1.0.0", "1.0.0", false},
+		{"1.0.0", "1.0.1", false}, {"0.0.0-dev", "1.0.0", false}, {"2.0.0", "0.0.0-dev", false},
+	} {
+		if got := newerVersion(c.a, c.b); got != c.want {
+			t.Errorf("newerVersion(%q, %q) = %v", c.a, c.b, got)
+		}
 	}
 }
