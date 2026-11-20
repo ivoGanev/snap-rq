@@ -9,6 +9,7 @@ import (
 
 	"snap-rq/backend/commands"
 	"snap-rq/backend/commands/catalog"
+	"snap-rq/backend/commands/vault"
 	"snap-rq/backend/database"
 	"snap-rq/backend/models"
 	"snap-rq/backend/secrets"
@@ -153,5 +154,38 @@ func TestUndoingADeleteKeepsTheSecretEncrypted(t *testing.T) {
 	}
 	if got := f.run("variable.reveal", map[string]any{"id": created.ID}); got != "s3cr3t" {
 		t.Errorf("reveal after undo = %v", got)
+	}
+}
+
+func TestLockedSecretsCanBeRestoredOrReset(t *testing.T) {
+	f := newFixture(t)
+	created := f.createSecret("API_KEY", "s3cr3t")
+	recovery := f.run("secrets.recovery_key", nil).(string)
+
+	// The keyring entry is lost (new computer, keyring reset).
+	secrets.SetDefault(secrets.NewVault(secrets.MemoryKeyStore()))
+	status := f.run("secrets.status", nil).(vault.StatusResult)
+	if status.State != secrets.StateLocked {
+		t.Fatalf("status = %q, want locked", status.State)
+	}
+	raw, _ := json.Marshal(map[string]any{"id": created.ID})
+	if _, err := f.runner.Run("variable.reveal", raw); err == nil {
+		t.Error("revealing a locked secret must fail")
+	}
+
+	f.run("secrets.restore", map[string]any{"recovery_key": recovery})
+	if got := f.run("variable.reveal", map[string]any{"id": created.ID}); got != "s3cr3t" {
+		t.Errorf("after restore reveal = %v", got)
+	}
+
+	// Lost again, and this time the user starts over.
+	secrets.SetDefault(secrets.NewVault(secrets.MemoryKeyStore()))
+	f.run("secrets.reset", nil)
+	if value, secret := f.stored(created.ID); value != "" || !secret {
+		t.Errorf("after reset stored %q secret=%v; want an empty value, still secret", value, secret)
+	}
+	f.run("variable.update", map[string]any{"id": created.ID, "key": "API_KEY", "value": "n3w"})
+	if got := f.run("variable.reveal", map[string]any{"id": created.ID}); got != "n3w" {
+		t.Errorf("after reset and a new value, reveal = %v", got)
 	}
 }

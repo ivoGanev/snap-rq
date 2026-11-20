@@ -38,6 +38,9 @@ var (
 	ErrLocked = errors.New("secret values are locked: the encryption key is missing on this computer")
 	// ErrWrongRecoveryKey means a recovery key doesn't decrypt this database.
 	ErrWrongRecoveryKey = errors.New("that recovery key doesn't match these secrets")
+	// ErrNoSecrets means nothing has been encrypted yet, so there is no key
+	// to read or show.
+	ErrNoSecrets = errors.New("there are no secret values yet")
 )
 
 // Querier is what the vault needs from the database: the caller's
@@ -173,24 +176,38 @@ func (v *Vault) Forget(q Querier) error {
 	return nil
 }
 
-// unlock returns the key, loading and checking it on first use. With create
-// it makes a key when none exists and nothing has been encrypted yet.
+// unlock returns the key, loading and checking it on first use. Only with
+// create (encrypting) does it make a key or write the key check: reads may
+// run in a transaction that is rolled back.
+//
+// The key check is read every time (one indexed row, and only for secret
+// operations): if a transaction that wrote it was rolled back, the next
+// encrypt writes it again instead of trusting the cached key alone.
 func (v *Vault) unlock(q Querier, create bool) ([]byte, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	if v.key != nil {
-		return v.key, nil
-	}
 
 	check, err := readCheck(q)
 	if err != nil {
 		return nil, err
 	}
+	if check == "" && !create {
+		return nil, ErrNoSecrets
+	}
+	if v.key != nil {
+		if check == "" {
+			if err := writeCheck(q, v.key); err != nil {
+				return nil, err
+			}
+		}
+		return v.key, nil
+	}
+
 	key, err := v.store.Load()
 	switch {
 	case errors.Is(err, ErrNoKey):
 		// Never replace a lost key while values encrypted with it exist.
-		if check != "" || !create {
+		if check != "" {
 			return nil, ErrLocked
 		}
 		if key, err = newKey(); err != nil {

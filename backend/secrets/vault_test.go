@@ -167,3 +167,37 @@ func TestFileKeyStoreIsPrivate(t *testing.T) {
 		t.Fatalf("load = %v, %v", got, err)
 	}
 }
+
+func TestARolledBackFirstEncryptDoesNotLoseTheKeyCheck(t *testing.T) {
+	db := newDB(t)
+	v := NewVault(MemoryKeyStore())
+
+	tx, _ := db.Begin()
+	if _, err := v.Encrypt(tx, "lost"); err != nil {
+		t.Fatal(err)
+	}
+	tx.Rollback() // the command failed after encrypting: the key check is gone too
+
+	stored, err := v.Encrypt(db, "kept")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state, _ := NewVault(v.store).Status(db); state != StateUnlocked {
+		t.Fatalf("status = %q, want unlocked: the key check must be written again", state)
+	}
+	if plain, _ := NewVault(v.store).Decrypt(db, stored); plain != "kept" {
+		t.Errorf("decrypt in a new session = %q", plain)
+	}
+}
+
+func TestReadsNeverCreateAKey(t *testing.T) {
+	db := newDB(t)
+	store := MemoryKeyStore()
+	v := NewVault(store)
+	if _, err := v.RecoveryKey(db); !errors.Is(err, ErrNoSecrets) {
+		t.Errorf("recovery key before any secret: %v, want ErrNoSecrets", err)
+	}
+	if _, err := store.Load(); !errors.Is(err, ErrNoKey) {
+		t.Error("a read created a key")
+	}
+}
