@@ -8,7 +8,8 @@ import { RequestApiService, type HttpRequest, type HttpRequestSummary } from '..
 import { FavouriteApiService, type FavouriteCollection } from '../core/services/favourite.service';
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
 import { SelectionStateService, groupKey } from '../core/services/selection-state.service';
-import { ScriptApiService, type Script } from '../core/services/script.service';
+import { ScriptApiService } from '../core/services/script.service';
+import { ScriptPickerDialog } from '../script-picker-dialog/script-picker-dialog';
 import { DragSessionService } from '../core/services/drag-session.service';
 import { BinApiService, type HttpBinnedRequestSummary, type RestoreInput } from '../core/services/bin.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
@@ -66,7 +67,7 @@ const NAME_COLUMN_MIN_WIDTH = 120;
  */
 @Component({
   selector: 'app-requests-main-list',
-  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, SelectOnFocusDirective, ScriptTabs],
+  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog],
   templateUrl: './requests-main-list.html',
   styleUrl: './requests-main-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -223,9 +224,8 @@ export class RequestsMainList {
   private readonly nameHeaderCell = viewChild<ElementRef<HTMLElement>>('nameHeaderCell');
 
 
-  readonly scriptsModalOpen = signal(false);
-  readonly scriptsModalRequest = signal<HttpRequestSummary | null>(null);
-  readonly scriptsModalNewScriptName = signal('');
+  /** The requests the script picker is open for, or null when it is closed. */
+  readonly scriptPickerFor = signal<HttpRequestSummary[] | null>(null);
 
   readonly favouritesModalOpen = signal(false);
   readonly favouritesModalRequest = signal<HttpRequestSummary | null>(null);
@@ -235,8 +235,6 @@ export class RequestsMainList {
   readonly newRequestCurl = signal('');
 
   readonly moveCollectionModalOpen = signal(false);
-  readonly bulkScriptModalOpen = signal(false);
-  readonly bulkScriptName = signal('');
   readonly bulkFavouritesModalOpen = signal(false);
 
   // Restore collection picker (used when the original collection is gone).
@@ -406,34 +404,11 @@ export class RequestsMainList {
     return this.activeRequests().filter((r) => ids.has(r.id));
   });
 
-  readonly scriptSuggestions = computed<Script[]>(() => {
-    const req = this.scriptsModalRequest();
-    if (!req) return [];
-
-    const query = this.scriptsModalNewScriptName().trim().toLowerCase();
-    const scripts = this.scriptApi.allScripts();
-    const existing = new Set(this.requestScripts()[req.id] ?? []);
-
-    if (!query) {
-      return scripts.filter((script) => !existing.has(script.name)).slice(0, 6);
-    }
-    return scripts
-      .filter((script) => script.name.toLowerCase().includes(query) && !existing.has(script.name))
-      .slice(0, 6);
-  });
-
   /** What Delete does in the current view, shown in the context menu. */
   readonly deleteLabel = computed(() => {
     if (this.state.selectedFavouriteCollection()) return 'Remove from favourites';
     if (this.state.selectedScript()) return 'Detach from script';
     return 'Move to Trash';
-  });
-
-  readonly bulkScriptSuggestions = computed<Script[]>(() => {
-    const query = this.bulkScriptName().trim().toLowerCase();
-    const scripts = this.scriptApi.allScripts();
-    if (!query) return scripts.slice(0, 6);
-    return scripts.filter((script) => script.name.toLowerCase().includes(query)).slice(0, 6);
   });
 
   readonly availableCollectionsForMove = computed<Collection[]>(() => {
@@ -705,10 +680,9 @@ export class RequestsMainList {
       this.contextMenu.isOpen() ||
       this.editingNameId() !== null ||
       this.editModalOpen() ||
-      this.scriptsModalOpen() ||
+      this.scriptPickerFor() !== null ||
       this.favouritesModalOpen() ||
       this.moveCollectionModalOpen() ||
-      this.bulkScriptModalOpen() ||
       this.bulkFavouritesModalOpen() ||
       this.restoreCollectionModalOpen() ||
       this.newRequestPopupOpen()
@@ -728,20 +702,12 @@ export class RequestsMainList {
       this.closeEditModal();
       return;
     }
-    if (this.scriptsModalOpen()) {
-      this.closeScriptsModal();
-      return;
-    }
     if (this.favouritesModalOpen()) {
       this.closeFavouritesModal();
       return;
     }
     if (this.moveCollectionModalOpen()) {
       this.closeMoveCollectionModal();
-      return;
-    }
-    if (this.bulkScriptModalOpen()) {
-      this.closeBulkScriptModal();
       return;
     }
     if (this.bulkFavouritesModalOpen()) {
@@ -1691,39 +1657,12 @@ export class RequestsMainList {
     }
   }
 
-  // ---------- Bulk Script ----------
+  // ---------- Script picker ----------
 
-  openBulkScriptModal(): void {
+  /** Opens the script picker for one request or the current selection. */
+  openScriptPicker(requests: HttpRequestSummary[]): void {
     this.contextMenu.close();
-    this.bulkScriptName.set('');
-    this.bulkScriptModalOpen.set(true);
-  }
-
-  closeBulkScriptModal(): void {
-    this.bulkScriptModalOpen.set(false);
-    this.bulkScriptName.set('');
-  }
-
-  async addBulkScript(scriptName: string): Promise<void> {
-    if (this.state.showingBin()) return;
-    const name = scriptName.trim();
-    const project = this.state.selectedProject();
-    if (!name || !project) return;
-
-    const requests = this.selectedRequests() as HttpRequestSummary[];
-    if (requests.length === 0) return;
-
-    this.state.loading.set(true);
-    try {
-      for (const req of requests) {
-        await this.scriptApi.attachScript(req.id, project.id, name);
-      }
-      this.bulkScriptName.set('');
-    } catch (err) {
-      console.error(err);
-    } finally {
-      this.state.loading.set(false);
-    }
+    if (requests.length > 0) this.scriptPickerFor.set(requests);
   }
 
   // ---------- Bulk Favourites ----------
@@ -1996,7 +1935,7 @@ export class RequestsMainList {
       return;
     }
     if (column === 'scripts') {
-      this.openScriptsModal(request);
+      this.openScriptPicker([request]);
       return;
     }
     this.openEditModal(request, column);
@@ -2075,43 +2014,6 @@ export class RequestsMainList {
     this.contextMenu.close();
     if (method === req.method) return;
     await this.updateRequestField(req, 'method', method);
-  }
-
-  // ---------- Scripts modal (single request) ----------
-
-  openScriptsModal(req: HttpRequestSummary): void {
-    this.contextMenu.close();
-    this.scriptsModalRequest.set(req);
-    this.scriptsModalNewScriptName.set('');
-    this.scriptsModalOpen.set(true);
-  }
-
-  closeScriptsModal(): void {
-    this.scriptsModalOpen.set(false);
-    this.scriptsModalRequest.set(null);
-    this.scriptsModalNewScriptName.set('');
-  }
-
-  async addScriptToRequest(req: HttpRequestSummary, scriptName: string): Promise<void> {
-    const name = scriptName.trim();
-    const project = this.state.selectedProject();
-    if (!name || !project) return;
-
-    try {
-      await this.scriptApi.attachScript(req.id, project.id, name);
-      this.scriptsModalNewScriptName.set('');
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async removeScriptFromRequest(req: HttpRequestSummary, scriptName: string, event: MouseEvent): Promise<void> {
-    event.stopPropagation();
-    try {
-      await this.scriptApi.detachScript(req.id, scriptName);
-    } catch (err) {
-      console.error(err);
-    }
   }
 
   // ---------- Favourites modal (single request) ----------

@@ -342,7 +342,7 @@
     <button class="context-menu-item" type="button" (click)="openMoveCollectionModal()">
       Move to collection…
     </button>
-    <button class="context-menu-item" type="button" (click)="openBulkScriptModal()">
+    <button class="context-menu-item" type="button" (click)="openScriptPicker(selectedRequests())">
       Scripts…
     </button>
     <button class="context-menu-item" type="button" (click)="openBulkFavouritesModal()">
@@ -521,57 +521,8 @@
   }
 </ng-template>
 
-@if (scriptsModalOpen()) {
-  <div class="overlay-backdrop" (click)="closeScriptsModal()">
-    <div class="overlay-panel scripts-modal" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Scripts</h3>
-        <button class="overlay-close" type="button" (click)="closeScriptsModal()">Close</button>
-      </div>
-
-      <div class="overlay-body">
-        <div class="request-scripts request-scripts--editable">
-          @for (script of requestScripts()[scriptsModalRequest()!.id] ?? []; track script) {
-            <span class="script-chip script-chip--editable">
-              {{ script }}
-              <button
-                class="script-chip-remove"
-                type="button"
-                (click)="removeScriptFromRequest(scriptsModalRequest()!, script, $event)"
-                aria-label="Detach script"
-              >
-                ×
-              </button>
-            </span>
-          }
-        </div>
-
-        <div class="script-input-wrap">
-          <input
-            class="script-input"
-            type="text"
-            placeholder="Attach script…"
-            [ngModel]="scriptsModalNewScriptName()"
-            (ngModelChange)="scriptsModalNewScriptName.set($event)"
-            (keydown.enter)="addScriptToRequest(scriptsModalRequest()!, scriptsModalNewScriptName())"
-          />
-          @if (scriptSuggestions().length && scriptsModalNewScriptName().trim()) {
-            <div class="script-suggestions">
-              @for (script of scriptSuggestions(); track script.id) {
-                <button
-                  class="script-suggestion"
-                  type="button"
-                  (click)="addScriptToRequest(scriptsModalRequest()!, script.name)"
-                >
-                  {{ script.name }}
-                </button>
-              }
-            </div>
-          }
-        </div>
-      </div>
-    </div>
-  </div>
+@if (scriptPickerFor(); as requests) {
+  <app-script-picker-dialog [requests]="requests" (closed)="scriptPickerFor.set(null)" />
 }
 
 @if (favouritesModalOpen()) {
@@ -670,47 +621,6 @@
             </li>
           }
         </ul>
-      </div>
-    </div>
-  </div>
-}
-
-@if (bulkScriptModalOpen()) {
-  <div class="overlay-backdrop" (click)="closeBulkScriptModal()">
-    <div class="overlay-panel scripts-modal" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Attach script to {{ selectedRowIds().size }} request(s)</h3>
-        <button class="overlay-close" type="button" (click)="closeBulkScriptModal()">Close</button>
-      </div>
-
-      <div class="overlay-body">
-        <div class="script-input-wrap">
-          <input
-            class="script-input"
-            type="text"
-            placeholder="Script name"
-            [ngModel]="bulkScriptName()"
-            (ngModelChange)="bulkScriptName.set($event)"
-            (keydown.enter)="addBulkScript(bulkScriptName())"
-          />
-          @if (bulkScriptSuggestions().length && bulkScriptName().trim()) {
-            <div class="script-suggestions">
-              @for (script of bulkScriptSuggestions(); track script.id) {
-                <button
-                  class="script-suggestion"
-                  type="button"
-                  (click)="addBulkScript(script.name)"
-                >
-                  {{ script.name }}
-                </button>
-              }
-            </div>
-          }
-        </div>
-      </div>
-
-      <div class="overlay-footer">
-        <button class="variable-add" type="button" (click)="addBulkScript(bulkScriptName())">Attach script</button>
       </div>
     </div>
   </div>
