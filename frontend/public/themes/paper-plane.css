@@ -14,7 +14,16 @@
   --glass: rgba(31, 42, 68, 0.035);
   --glass-strong: rgba(31, 42, 68, 0.06);
   --glass-border: rgba(31, 42, 68, 0.12);
-  --radius: 10px;
+  /*
+   * Hand-drawn corners: uneven radii make every box look drawn with a pen.
+   * (Rules that compute with calc(var(--radius) ...) fall back to square
+   * corners in this theme, which suits it too.)
+   */
+  --radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  /* Pen and pencil for strokes; Caveat for handwritten titles. */
+  --pen: #1f2a44;
+  --pencil: rgba(31, 42, 68, 0.45);
+  --font-hand: 'Caveat', 'Segoe Print', 'Bradley Hand', cursive;
   --grad: linear-gradient(135deg, #2f80ed 0%, #56ccf2 100%);
 
   --background: var(--ink);
@@ -100,4 +109,168 @@
   --syntax-csv-odd: #16818f;
 
   color-scheme: light;
+}
+
+/*
+ * Sketch layer: what makes Paper Plane look drawn on paper. Structural rules,
+ * not just colours, so they live here, scoped to this theme. ':root' raises
+ * the specificity above components' own (scoped) styles.
+ */
+
+/* Paper grain: a faint noise pattern, no image files. */
+:root[data-theme='daylight'] body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.16 0 0 0 0 0.27 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Handwritten titles; body text stays Figtree, code IBM Plex Mono. */
+:root[data-theme='daylight'] .panel-title,
+:root[data-theme='daylight'] .column-title,
+:root[data-theme='daylight'] .overlay-title,
+:root[data-theme='daylight'] .zen-pane-title,
+:root[data-theme='daylight'] .section-title,
+:root[data-theme='daylight'] .undo-title {
+  font-family: var(--font-hand);
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+/* Dialogs and menus: a pen outline and a drawn, offset shadow. */
+:root[data-theme='daylight'] .overlay-panel,
+:root[data-theme='daylight'] .context-menu-panel {
+  border: 2px solid var(--pen);
+  box-shadow: 5px 5px 0 var(--pen);
+}
+
+/* Buttons: pen outline, drawn shadow, pressed into the shadow on click. */
+:root[data-theme='daylight'] .variable-add,
+:root[data-theme='daylight'] .settings-button,
+:root[data-theme='daylight'] .add-request-button,
+:root[data-theme='daylight'] .send-plane,
+:root[data-theme='daylight'] .restore-button,
+:root[data-theme='daylight'] .delete-button,
+:root[data-theme='daylight'] .mcp-button,
+:root[data-theme='daylight'] .variable-add-button,
+:root[data-theme='daylight'] .cookie-add-button,
+:root[data-theme='daylight'] .settings-updates-button {
+  border: 1.5px solid var(--pen);
+  box-shadow: 2px 2px 0 var(--pen);
+  transition:
+    transform 0.08s ease,
+    box-shadow 0.08s ease,
+    filter 0.15s ease;
+}
+
+:root[data-theme='daylight'] .variable-add:active,
+:root[data-theme='daylight'] .settings-button:active,
+:root[data-theme='daylight'] .add-request-button:active,
+:root[data-theme='daylight'] .send-plane:active,
+:root[data-theme='daylight'] .restore-button:active,
+:root[data-theme='daylight'] .delete-button:active,
+:root[data-theme='daylight'] .mcp-button:active,
+:root[data-theme='daylight'] .variable-add-button:active,
+:root[data-theme='daylight'] .cookie-add-button:active,
+:root[data-theme='daylight'] .settings-updates-button:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--pen);
+}
+
+/* Inputs: pencil outline, pen when focused. */
+:root[data-theme='daylight'] .edit-input,
+:root[data-theme='daylight'] .edit-select,
+:root[data-theme='daylight'] .request-search-input,
+:root[data-theme='daylight'] .script-input,
+:root[data-theme='daylight'] .variable-input,
+:root[data-theme='daylight'] .backups-input,
+:root[data-theme='daylight'] .settings-number {
+  border: 1.5px solid var(--pencil);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+:root[data-theme='daylight'] .edit-input:focus,
+:root[data-theme='daylight'] .edit-select:focus,
+:root[data-theme='daylight'] .request-search-input:focus,
+:root[data-theme='daylight'] .script-input:focus,
+:root[data-theme='daylight'] .variable-input:focus,
+:root[data-theme='daylight'] .backups-input:focus,
+:root[data-theme='daylight'] .settings-number:focus {
+  border-color: var(--pen);
+  box-shadow: 2px 2px 0 var(--pencil);
+}
+
+/* Chips and method badges: thin pencil outline. */
+:root[data-theme='daylight'] .script-chip,
+:root[data-theme='daylight'] .request-method,
+:root[data-theme='daylight'] .environment-chip {
+  border: 1px solid var(--pencil);
+}
+
+/* Column headers: a pencil line instead of a hairline. */
+:root[data-theme='daylight'] .column-header {
+  border-bottom: 1.5px dashed var(--pencil);
+}
+
+/*
+ * Selection: a highlighter stroke across the row instead of a tinted block
+ * with an outline. !important: the request list merges neighbouring selected
+ * rows with several outline rules that would otherwise win.
+ */
+:root[data-theme='daylight'] .spreadsheet-row.is-selected {
+  background: linear-gradient(
+    transparent 14%,
+    rgba(255, 214, 92, 0.55) 14%,
+    rgba(255, 214, 92, 0.45) 86%,
+    transparent 86%
+  ) !important;
+  box-shadow: none !important;
+}
+
+:root[data-theme='daylight'] .group-list-item.is-selected {
+  background: linear-gradient(
+    transparent 12%,
+    rgba(255, 214, 92, 0.5) 12%,
+    rgba(255, 214, 92, 0.42) 88%,
+    transparent 88%
+  );
+}
+
+/* The paper plane leaves a dashed trail as it flies. */
+:root[data-theme='daylight'] .send-plane {
+  position: relative;
+}
+
+:root[data-theme='daylight'] .send-plane.is-flying::after {
+  content: '';
+  position: absolute;
+  left: 30%;
+  top: 60%;
+  width: 40%;
+  border-top: 2px dashed currentColor;
+  transform: rotate(-45deg);
+  transform-origin: left;
+  opacity: 0;
+  animation: paper-plane-trail 450ms ease-out;
+  pointer-events: none;
+}
+
+@keyframes paper-plane-trail {
+  0% {
+    opacity: 0;
+    width: 0;
+  }
+  40% {
+    opacity: 0.8;
+    width: 40%;
+  }
+  100% {
+    opacity: 0;
+    width: 40%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme='daylight'] .send-plane.is-flying::after {
+    animation: none;
+  }
 }
