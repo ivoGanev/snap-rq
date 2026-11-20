@@ -246,11 +246,11 @@
 
 // Idle: a slow look around, and a blink every few seconds.
 .send-eye-iris {
-  animation: send-eye-look 6s ease-in-out infinite;
+  animation: send-eye-look 3s ease-in-out infinite;
 }
 
 .send-eye-lid {
-  animation: send-eye-blink 4.2s ease-in-out infinite;
+  animation: send-eye-blink 2.6s ease-in-out infinite;
 }
 
 @keyframes send-eye-look {
@@ -288,7 +288,7 @@
 
 // Sending: searching, a quick scan from side to side.
 .is-sending .send-eye-iris {
-  animation: send-eye-scan 0.7s ease-in-out infinite alternate;
+  animation: send-eye-scan 0.35s ease-in-out infinite alternate;
 }
 
 .is-sending .send-eye-lid {
