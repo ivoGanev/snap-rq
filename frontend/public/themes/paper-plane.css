@@ -42,8 +42,8 @@
   --grad-success: linear-gradient(135deg, #27ae60 0%, #2bb8a0 100%);
   --grad-alt: linear-gradient(135deg, #2f80ed 0%, #e2a03f 160%);
   --on-accent: #ffffff;
-  --font-display: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --font-display: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
   --active-tint-bg: rgba(47, 128, 237, 0.1);
   --active-tint-border: rgba(47, 128, 237, 0.38);
   --success-text: #1e8449;
