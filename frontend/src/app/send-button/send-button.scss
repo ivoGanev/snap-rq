@@ -1,0 +1,195 @@
+@use '../../styles/buttons' as btn;
+
+:host {
+  display: inline-flex;
+}
+
+.send-plane {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--on-accent);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  overflow: hidden; // the plane and the wind leave through the button's edge
+  transition:
+    filter 0.15s ease,
+    transform 0.1s ease;
+  --wails-draggable: no-drag;
+}
+
+.send-plane:active {
+  transform: scale(0.97);
+}
+
+// The request list's main action: large, accent gradient.
+.send-plane--primary {
+  min-height: 44px;
+  padding: 0 36px;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  background: var(--grad);
+  @include btn.btn-primary;
+}
+
+.send-plane--primary .send-plane-icon {
+  width: 22px;
+  height: 22px;
+}
+
+// Zen mode: the green send.
+.send-plane--success {
+  padding: var(--btn-pad-md);
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: var(--grad-success);
+  @include btn.btn-success;
+}
+
+// By default the button reads "Send"; the plane and its wind belong to the
+// Paper Plane theme, which shows them (and hides the text) in paper-plane.css.
+.send-plane-icon,
+.send-plane-wind {
+  display: none;
+}
+
+.send-plane--success .send-plane-icon {
+  width: 18px;
+  height: 18px;
+}
+
+// Explicit size above (WebKit doesn't shrink unsized SVGs, see AGENTS.md).
+.send-plane-icon {
+  position: relative; // above the wind
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+// ---------- In flight: the plane glides, wind streams past ----------
+
+.is-gliding .send-plane-icon {
+  animation: send-plane-glide 1.2s ease-in-out infinite;
+}
+
+@keyframes send-plane-glide {
+  0%,
+  100% {
+    transform: translate(0, 1px) rotate(-3deg);
+  }
+  50% {
+    transform: translate(1px, -2px) rotate(4deg);
+  }
+}
+
+.send-plane-wind {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.is-gliding .send-plane-wind {
+  opacity: 1;
+}
+
+// Three wind lines at different heights and speeds, streaming to the left.
+.send-plane-wind i {
+  position: absolute;
+  right: -30%;
+  width: 26%;
+  height: 0;
+  border-top: 1.5px solid currentColor;
+  border-radius: 2px;
+  opacity: 0.55;
+}
+
+.is-gliding .send-plane-wind i {
+  animation: send-plane-wind 0.9s linear infinite;
+}
+
+.send-plane-wind i:nth-child(1) {
+  top: 30%;
+}
+
+.send-plane-wind i:nth-child(2) {
+  top: 52%;
+  width: 18%;
+  animation-delay: 0.3s;
+  animation-duration: 0.7s;
+}
+
+.send-plane-wind i:nth-child(3) {
+  top: 72%;
+  animation-delay: 0.55s;
+  animation-duration: 1s;
+}
+
+@keyframes send-plane-wind {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-560%);
+  }
+}
+
+// ---------- Landing ----------
+
+// Response arrived: the plane flies out to the top right and glides back in.
+// Listed after the glide so it wins while both apply (another send still
+// in flight).
+.is-flying .send-plane-icon {
+  animation: send-plane-flight 450ms ease-in-out;
+}
+
+@keyframes send-plane-flight {
+  0% {
+    transform: translate(0, 0) rotate(0);
+    opacity: 1;
+  }
+  45% {
+    transform: translate(18px, -18px) rotate(-12deg) scale(0.7);
+    opacity: 0;
+  }
+  46% {
+    transform: translate(-18px, 18px) scale(0.7);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(0, 0) rotate(0) scale(1);
+    opacity: 1;
+  }
+}
+
+// No response (network error): a short wobble.
+.is-wobbling .send-plane-icon {
+  animation: send-plane-wobble 450ms ease-in-out;
+}
+
+@keyframes send-plane-wobble {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0);
+  }
+  20% {
+    transform: translateX(-3px) rotate(-10deg);
+  }
+  40% {
+    transform: translateX(3px) rotate(8deg);
+  }
+  60% {
+    transform: translateX(-2px) rotate(-6deg);
+  }
+  80% {
+    transform: translateX(1px) rotate(3deg);
+  }
+}

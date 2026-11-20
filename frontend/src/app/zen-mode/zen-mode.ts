@@ -3,10 +3,11 @@ import { FormsModule } from '@angular/forms';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { RequestEditor } from '../request-editor/request-editor';
 import { ResponseViewer } from '../response-viewer/response-viewer';
+import { SendButton } from '../send-button/send-button';
 
 @Component({
   selector: 'app-zen-mode',
-  imports: [FormsModule, RequestEditor, ResponseViewer],
+  imports: [FormsModule, RequestEditor, ResponseViewer, SendButton],
   templateUrl: './zen-mode.html',
   styleUrl: './zen-mode.scss',
   host: {

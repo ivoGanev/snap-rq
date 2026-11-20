@@ -1,0 +1,286 @@
+/*
+ * Paper Plane theme tokens: warm paper, navy ink, sky-blue accents.
+ * It replaces Daylight and keeps its id ('daylight'), so people who had
+ * Daylight selected move to Paper Plane automatically.
+ */
+[data-theme='daylight'],
+:root[data-theme='daylight'],
+:root:has([data-theme='daylight']) {
+  --ink: #f7f3ea;
+  --text: #1f2a44;
+  --muted: #66708a;
+  --accent: #2f80ed;
+  --accent-2: #1c64c8;
+  --glass: rgba(31, 42, 68, 0.035);
+  --glass-strong: rgba(31, 42, 68, 0.06);
+  --glass-border: rgba(31, 42, 68, 0.12);
+  /*
+   * Hand-drawn corners: uneven radii make every box look drawn with a pen.
+   * (Rules that compute with calc(var(--radius) ...) fall back to square
+   * corners in this theme, which suits it too.)
+   */
+  --radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  /* Pen and pencil for strokes; Caveat for handwritten titles. */
+  --pen: #1f2a44;
+  --pencil: rgba(31, 42, 68, 0.45);
+  --font-hand: 'Caveat', 'Segoe Print', 'Bradley Hand', cursive;
+  --grad: linear-gradient(135deg, #2f80ed 0%, #56ccf2 100%);
+
+  --background: var(--ink);
+  --surface: rgba(255, 253, 248, 0.82);
+  --menu-bg: #fffdf8;
+  --surface-solid: #fffdf8;
+  /* Fields sit a shade darker than the paper, like a pressed-in box. */
+  --input-bg: #ece5d6;
+  --row-even-bg: rgba(31, 42, 68, 0.025);
+  --hover-bg: rgba(47, 128, 237, 0.06);
+  --hover-highlight: rgba(47, 128, 237, 0.1);
+  --active-border: rgba(47, 128, 237, 0.35);
+  --selected-bg: rgba(47, 128, 237, 0.12);
+  --selected-border: rgba(47, 128, 237, 0.45);
+  --focus-ring: rgba(47, 128, 237, 0.18);
+  --focus-border: rgba(47, 128, 237, 0.6);
+  --danger-text: #c0392b;
+  --danger-bg: rgba(192, 57, 43, 0.1);
+  --danger-solid: rgba(192, 57, 43, 0.88);
+  --error-text: #c0392b;
+  /* Soft, paper-like shadows instead of glass glows. */
+  --shadow: rgba(31, 42, 68, 0.14);
+  --backdrop: rgba(31, 42, 68, 0.22);
+
+  --accent-3: #e2a03f;
+  --grad-success: linear-gradient(135deg, #27ae60 0%, #2bb8a0 100%);
+  --grad-alt: linear-gradient(135deg, #2f80ed 0%, #e2a03f 160%);
+  --on-accent: #ffffff;
+  --font-display: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  --active-tint-bg: rgba(47, 128, 237, 0.1);
+  --active-tint-border: rgba(47, 128, 237, 0.38);
+  --success-text: #1e8449;
+  --scrollbar-thumb-grad: linear-gradient(180deg, #56ccf2 0%, #2f80ed 100%);
+  --scrollbar-thumb-grad-hover: linear-gradient(180deg, #2f80ed 0%, #1c64c8 100%);
+  --btn-glow: rgba(47, 128, 237, 0.2);
+  --btn-glow-strong: rgba(47, 128, 237, 0.32);
+  --btn-glow-success: rgba(39, 174, 96, 0.22);
+  --btn-glow-success-strong: rgba(39, 174, 96, 0.34);
+  --btn-glow-danger: rgba(192, 57, 43, 0.22);
+  --btn-glow-danger-strong: rgba(192, 57, 43, 0.36);
+  --btn-glow-gold: rgba(226, 160, 63, 0.18);
+  --btn-highlight: rgba(255, 255, 255, 0.45);
+  --btn-edge: rgba(31, 42, 68, 0.1);
+  --btn-border-hover: rgba(47, 128, 237, 0.5);
+  --btn-ghost-ring: rgba(47, 128, 237, 0.3);
+  --btn-focus: #1c64c8;
+
+  /* Request colour slots (stored by name in the database; each theme picks the colour). */
+  --label-primary: #2f80ed;
+  --label-secondary: #16a3b8;
+  --label-tertiary: #e2a03f;
+  --label-quaternary: #27ae60;
+  --label-quinary: #8e5bd8;
+  --label-senary: #d9534f;
+
+  --status-2xx: #1e8449;
+  --status-3xx: #b7791f;
+  --status-4xx: #c0392b;
+  --status-5xx: #a93273;
+  --method-get-bg: rgba(47, 128, 237, 0.12);
+  --method-get-fg: #1c64c8;
+  --method-post-bg: rgba(39, 174, 96, 0.14);
+  --method-post-fg: #1e8449;
+  --method-put-bg: rgba(226, 160, 63, 0.18);
+  --method-put-fg: #8a5a12;
+  --method-patch-bg: rgba(142, 91, 216, 0.14);
+  --method-patch-fg: #6c3fb5;
+
+  --scrollbar-track: rgba(31, 42, 68, 0.05);
+  --scrollbar-thumb: rgba(31, 42, 68, 0.2);
+  --scrollbar-thumb-hover: rgba(31, 42, 68, 0.3);
+
+  --syntax-key: #1c64c8;
+  --syntax-string: #1e8449;
+  --syntax-number: #c26a1b;
+  --syntax-boolean: #6c3fb5;
+  --syntax-null: #a93273;
+  --syntax-punctuation: #66708a;
+  --syntax-tag: #1c64c8;
+  --syntax-attribute: #16818f;
+  --syntax-comment: #8a93a8;
+  --syntax-csv-even: #1f2a44;
+  --syntax-csv-odd: #16818f;
+
+  color-scheme: light;
+}
+
+/*
+ * Sketch layer: what makes Paper Plane look drawn on paper. Structural rules,
+ * not just colours, so they live here, scoped to this theme. ':root' raises
+ * the specificity above components' own (scoped) styles.
+ */
+
+/* Paper grain: a faint noise pattern, no image files. */
+:root[data-theme='daylight'] body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.16 0 0 0 0 0.27 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Handwritten titles; body text stays Figtree, code IBM Plex Mono. */
+:root[data-theme='daylight'] .panel-title,
+:root[data-theme='daylight'] .column-title,
+:root[data-theme='daylight'] .overlay-title,
+:root[data-theme='daylight'] .zen-pane-title,
+:root[data-theme='daylight'] .section-title,
+:root[data-theme='daylight'] .undo-title {
+  font-family: var(--font-hand);
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+/* Dialogs and menus: a pen outline and a drawn, offset shadow. */
+:root[data-theme='daylight'] .overlay-panel,
+:root[data-theme='daylight'] .context-menu-panel {
+  border: 2px solid var(--pen);
+  box-shadow: 5px 5px 0 var(--pen);
+}
+
+/* Buttons: pen outline, drawn shadow, pressed into the shadow on click. */
+:root[data-theme='daylight'] .variable-add,
+:root[data-theme='daylight'] .settings-button,
+:root[data-theme='daylight'] .add-request-button,
+:root[data-theme='daylight'] .send-plane,
+:root[data-theme='daylight'] .restore-button,
+:root[data-theme='daylight'] .delete-button,
+:root[data-theme='daylight'] .mcp-button,
+:root[data-theme='daylight'] .variable-add-button,
+:root[data-theme='daylight'] .cookie-add-button,
+:root[data-theme='daylight'] .settings-updates-button {
+  border: 1.5px solid var(--pen);
+  box-shadow: 2px 2px 0 var(--pen);
+  transition:
+    transform 0.08s ease,
+    box-shadow 0.08s ease,
+    filter 0.15s ease;
+}
+
+:root[data-theme='daylight'] .variable-add:active,
+:root[data-theme='daylight'] .settings-button:active,
+:root[data-theme='daylight'] .add-request-button:active,
+:root[data-theme='daylight'] .send-plane:active,
+:root[data-theme='daylight'] .restore-button:active,
+:root[data-theme='daylight'] .delete-button:active,
+:root[data-theme='daylight'] .mcp-button:active,
+:root[data-theme='daylight'] .variable-add-button:active,
+:root[data-theme='daylight'] .cookie-add-button:active,
+:root[data-theme='daylight'] .settings-updates-button:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--pen);
+}
+
+/* Inputs: pencil outline, pen when focused. */
+:root[data-theme='daylight'] .edit-input,
+:root[data-theme='daylight'] .edit-select,
+:root[data-theme='daylight'] .request-search-input,
+:root[data-theme='daylight'] .script-input,
+:root[data-theme='daylight'] .variable-input,
+:root[data-theme='daylight'] .backups-input,
+:root[data-theme='daylight'] .settings-number {
+  border: 1.5px solid var(--pencil);
+  background: var(--input-bg);
+}
+
+:root[data-theme='daylight'] .edit-input:focus,
+:root[data-theme='daylight'] .edit-select:focus,
+:root[data-theme='daylight'] .request-search-input:focus,
+:root[data-theme='daylight'] .script-input:focus,
+:root[data-theme='daylight'] .variable-input:focus,
+:root[data-theme='daylight'] .backups-input:focus,
+:root[data-theme='daylight'] .settings-number:focus {
+  border-color: var(--pen);
+  box-shadow: 2px 2px 0 var(--pencil);
+}
+
+/* Chips and method badges: thin pencil outline. */
+:root[data-theme='daylight'] .script-chip,
+:root[data-theme='daylight'] .request-method,
+:root[data-theme='daylight'] .environment-chip {
+  border: 1px solid var(--pencil);
+}
+
+/* Column headers: a pencil line instead of a hairline. */
+:root[data-theme='daylight'] .column-header {
+  border-bottom: 1.5px dashed var(--pencil);
+}
+
+/*
+ * Selection: a highlighter stroke across the row instead of a tinted block
+ * with an outline. !important: the request list merges neighbouring selected
+ * rows with several outline rules that would otherwise win.
+ */
+:root[data-theme='daylight'] .spreadsheet-row.is-selected {
+  background: linear-gradient(
+    transparent 14%,
+    rgba(255, 214, 92, 0.55) 14%,
+    rgba(255, 214, 92, 0.45) 86%,
+    transparent 86%
+  ) !important;
+  box-shadow: none !important;
+}
+
+:root[data-theme='daylight'] .group-list-item.is-selected {
+  background: linear-gradient(
+    transparent 12%,
+    rgba(255, 214, 92, 0.5) 12%,
+    rgba(255, 214, 92, 0.42) 88%,
+    transparent 88%
+  );
+}
+
+/* Send is a paper plane in this theme (the other themes read "Send"). */
+:root[data-theme='daylight'] .send-plane-text {
+  display: none;
+}
+
+:root[data-theme='daylight'] .send-plane-icon,
+:root[data-theme='daylight'] .send-plane-wind {
+  display: block;
+}
+
+/* In flight, the wind behind the plane is drawn in dashed pencil. */
+:root[data-theme='daylight'] .send-plane-wind i {
+  border-top-style: dashed;
+}
+
+/* The paper plane leaves a dashed trail as it flies. */
+:root[data-theme='daylight'] .send-plane {
+  position: relative;
+}
+
+:root[data-theme='daylight'] .send-plane.is-flying::after {
+  content: '';
+  position: absolute;
+  left: 30%;
+  top: 60%;
+  width: 40%;
+  border-top: 2px dashed currentColor;
+  transform: rotate(-45deg);
+  transform-origin: left;
+  opacity: 0;
+  animation: paper-plane-trail 450ms ease-out;
+  pointer-events: none;
+}
+
+@keyframes paper-plane-trail {
+  0% {
+    opacity: 0;
+    width: 0;
+  }
+  40% {
+    opacity: 0.8;
+    width: 40%;
+  }
+  100% {
+    opacity: 0;
+    width: 40%;
+  }
+}
