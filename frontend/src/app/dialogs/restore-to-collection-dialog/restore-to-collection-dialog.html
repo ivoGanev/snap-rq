@@ -1,0 +1,19 @@
+<div class="overlay-backdrop" (click)="closed.emit()">
+  <div class="overlay-panel restore-to-collection-dialog" (click)="$event.stopPropagation()">
+    <div class="overlay-header">
+      <h3 class="overlay-title">Restore to collection</h3>
+      <button class="overlay-close" type="button" (click)="closed.emit()">Cancel</button>
+    </div>
+
+    <div class="overlay-body">
+      @if (collections().length === 0) {
+        <div class="state-message">No collections available.</div>
+      }
+      <ul class="collection-list">
+        @for (collection of collections(); track collection.id) {
+          <li class="collection-row" (click)="restoreTo(collection)">{{ collection.name }}</li>
+        }
+      </ul>
+    </div>
+  </div>
+</div>

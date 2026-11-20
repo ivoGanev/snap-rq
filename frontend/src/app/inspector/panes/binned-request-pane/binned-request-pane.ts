@@ -3,7 +3,8 @@ import { InspectorHeader } from '../../inspector-header/inspector-header';
 import type { InspectorContentOf } from '../../inspector';
 import { WorkspaceStateService } from '../../../core/services/workspace-state.service';
 import { BinApiService, type RestoreInput } from '../../../core/services/bin.service';
-import { CollectionApiService, type Collection } from '../../../core/services/collection.service';
+import { CollectionApiService } from '../../../core/services/collection.service';
+import { RestoreToCollectionDialog } from '../../../dialogs/restore-to-collection-dialog/restore-to-collection-dialog';
 
 /**
  * Inspector pane for a request in the trash bin: shows where it came from and
@@ -12,21 +13,22 @@ import { CollectionApiService, type Collection } from '../../../core/services/co
  */
 @Component({
   selector: 'app-binned-request-pane',
-  imports: [InspectorHeader],
+  imports: [InspectorHeader, RestoreToCollectionDialog],
   templateUrl: './binned-request-pane.html',
   styleUrl: './binned-request-pane.scss',
 })
 export class BinnedRequestPane {
   private readonly state = inject(WorkspaceStateService);
   private readonly binApi = inject(BinApiService);
-  protected readonly collectionApi = inject(CollectionApiService);
+  private readonly collectionApi = inject(CollectionApiService);
 
   readonly content = input.required<InspectorContentOf<'binned-request'>>();
 
   protected readonly request = computed(
     () => this.binApi.binnedRequests().find(r => r.id === this.content().binId) ?? null,
   );
-  protected readonly restoreCollectionModalOpen = signal(false);
+  /** Open when the request's original collection is gone and the user must pick one. */
+  protected readonly restorePickerOpen = signal(false);
 
   openRestorePicker(): void {
     const req = this.request();
@@ -40,19 +42,7 @@ export class BinnedRequestPane {
       return;
     }
 
-    this.restoreCollectionModalOpen.set(true);
-  }
-
-  closeRestoreCollectionModal(): void {
-    this.restoreCollectionModalOpen.set(false);
-  }
-
-  async restoreToCollection(collection: Collection): Promise<void> {
-    const req = this.request();
-    if (!req) return;
-
-    await this.doRestore([{ bin_id: req.id, collection_id: collection.id }]);
-    this.closeRestoreCollectionModal();
+    this.restorePickerOpen.set(true);
   }
 
   private async doRestore(inputs: RestoreInput[]): Promise<void> {

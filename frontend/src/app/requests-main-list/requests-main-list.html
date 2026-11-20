@@ -7,7 +7,7 @@
     <button
       class="add-request-button"
       type="button"
-      (click)="openNewRequestPopup()"
+      (click)="openNewRequestDialog()"
       [disabled]="!state.selectedCollection()"
       aria-label="Add request"
     >
@@ -342,10 +342,10 @@
     <button class="context-menu-item" type="button" (click)="openMoveCollectionModal()">
       Move to collection…
     </button>
-    <button class="context-menu-item" type="button" (click)="openBulkScriptModal()">
+    <button class="context-menu-item" type="button" (click)="openScriptPicker(selectedRequests())">
       Scripts…
     </button>
-    <button class="context-menu-item" type="button" (click)="openBulkFavouritesModal()">
+    <button class="context-menu-item" type="button" (click)="openFavouritePicker(selectedRequests())">
       Add to favourites…
     </button>
     <div class="context-menu-divider" aria-hidden="true"></div>
@@ -363,102 +363,8 @@
   }
 </ng-template>
 
-@if (newRequestPopupOpen()) {
-  <div class="overlay-backdrop" (click)="closeNewRequestPopup()">
-    <div class="overlay-panel new-request-popup" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Add new request</h3>
-        <button class="overlay-close" type="button" (click)="closeNewRequestPopup()">Close</button>
-      </div>
-
-      <div class="overlay-body">
-        <div class="request-mode-toggle">
-          <button
-            class="request-mode-button"
-            type="button"
-            [class.is-active]="newRequestPopupMode() === 'manual'"
-            (click)="setNewRequestPopupMode('manual')"
-          >
-            Manual
-          </button>
-          <button
-            class="request-mode-button"
-            type="button"
-            [class.is-active]="newRequestPopupMode() === 'curl'"
-            (click)="setNewRequestPopupMode('curl')"
-          >
-            cURL
-          </button>
-        </div>
-
-        @if (newRequestPopupMode() === 'curl') {
-          <label class="edit-field">
-            <span class="edit-label">Name</span>
-            <input
-              class="edit-input"
-              type="text"
-              placeholder="Imported curl"
-              [ngModel]="newRequestName()"
-              (ngModelChange)="newRequestName.set($event)"
-            />
-          </label>
-
-          <label class="edit-field">
-            <span class="edit-label">cURL command</span>
-            <textarea
-              class="edit-input edit-input--textarea"
-              rows="8"
-              placeholder="curl https://example.com/api"
-              [ngModel]="newRequestCurl()"
-              (ngModelChange)="newRequestCurl.set($event)"
-            ></textarea>
-          </label>
-        } @else {
-          <label class="edit-field">
-            <span class="edit-label">Name</span>
-            <input
-              class="edit-input"
-              type="text"
-              [ngModel]="newRequestName()"
-              (ngModelChange)="newRequestName.set($event)"
-              (keydown.enter)="addRequest()"
-            />
-          </label>
-
-          <label class="edit-field">
-            <span class="edit-label">URL</span>
-            <input
-              class="edit-input"
-              type="text"
-              placeholder="https://you-are-the.boss"
-              [ngModel]="newRequestUrl()"
-              (ngModelChange)="newRequestUrl.set($event)"
-              (keydown.enter)="addRequest()"
-            />
-          </label>
-
-          <label class="edit-field">
-            <span class="edit-label">Method</span>
-            <select
-              class="edit-select"
-              [ngModel]="newRequestMethod()"
-              (ngModelChange)="newRequestMethod.set($event)"
-            >
-              @for (method of httpMethods; track method) {
-                <option>{{ method }}</option>
-              }
-            </select>
-          </label>
-        }
-      </div>
-
-      <div class="overlay-footer">
-        <button class="variable-add" type="button" (click)="addRequest()">
-          {{ newRequestPopupMode() === 'curl' ? 'Import' : 'Add request' }}
-        </button>
-      </div>
-    </div>
-  </div>
+@if (newRequestFor(); as collection) {
+  <app-new-request-dialog [collection]="collection" (closed)="newRequestFor.set(null)" />
 }
 
 @if (editModalOpen()) {
@@ -521,104 +427,12 @@
   }
 </ng-template>
 
-@if (scriptsModalOpen()) {
-  <div class="overlay-backdrop" (click)="closeScriptsModal()">
-    <div class="overlay-panel scripts-modal" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Scripts</h3>
-        <button class="overlay-close" type="button" (click)="closeScriptsModal()">Close</button>
-      </div>
-
-      <div class="overlay-body">
-        <div class="request-scripts request-scripts--editable">
-          @for (script of requestScripts()[scriptsModalRequest()!.id] ?? []; track script) {
-            <span class="script-chip script-chip--editable">
-              {{ script }}
-              <button
-                class="script-chip-remove"
-                type="button"
-                (click)="removeScriptFromRequest(scriptsModalRequest()!, script, $event)"
-                aria-label="Detach script"
-              >
-                ×
-              </button>
-            </span>
-          }
-        </div>
-
-        <div class="script-input-wrap">
-          <input
-            class="script-input"
-            type="text"
-            placeholder="Attach script…"
-            [ngModel]="scriptsModalNewScriptName()"
-            (ngModelChange)="scriptsModalNewScriptName.set($event)"
-            (keydown.enter)="addScriptToRequest(scriptsModalRequest()!, scriptsModalNewScriptName())"
-          />
-          @if (scriptSuggestions().length && scriptsModalNewScriptName().trim()) {
-            <div class="script-suggestions">
-              @for (script of scriptSuggestions(); track script.id) {
-                <button
-                  class="script-suggestion"
-                  type="button"
-                  (click)="addScriptToRequest(scriptsModalRequest()!, script.name)"
-                >
-                  {{ script.name }}
-                </button>
-              }
-            </div>
-          }
-        </div>
-      </div>
-    </div>
-  </div>
+@if (scriptPickerFor(); as requests) {
+  <app-script-picker-dialog [requests]="requests" (closed)="scriptPickerFor.set(null)" />
 }
 
-@if (favouritesModalOpen()) {
-  <div class="overlay-backdrop" (click)="closeFavouritesModal()">
-    <div class="overlay-panel favourites-modal" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Favourites</h3>
-        <button class="overlay-close" type="button" (click)="closeFavouritesModal()">Close</button>
-      </div>
-
-      <div class="overlay-body">
-        @for (collection of favouriteCollections(); track collection.id) {
-          <div class="favourite-collection-row">
-            <label class="favourite-checkbox">
-              <input
-                type="checkbox"
-                [checked]="favouriteMembership().has(collection.id)"
-                (change)="toggleFavouriteMembership(collection)"
-              />
-              <span class="favourite-checkmark"></span>
-              <span class="favourite-collection-name">{{ collection.name }}</span>
-            </label>
-            <button
-              class="favourite-collection-delete"
-              type="button"
-              (click)="deleteFavouriteCollection(collection, $event)"
-              aria-label="Delete favourite collection"
-            >
-              Delete
-            </button>
-          </div>
-        }
-      </div>
-
-      <div class="overlay-footer favourite-popup-footer">
-        <input
-          class="variable-input favourite-name-input"
-          type="text"
-          placeholder="New favourite group"
-          [ngModel]="newFavouriteName()"
-          (ngModelChange)="newFavouriteName.set($event)"
-          (keydown.enter)="addFavouriteCollection()"
-        />
-        <button class="variable-add" type="button" (click)="addFavouriteCollection()">Add</button>
-      </div>
-    </div>
-  </div>
+@if (favouritePickerFor(); as requests) {
+  <app-favourite-picker-dialog [requests]="requests" (closed)="favouritePickerFor.set(null)" />
 }
 
 @if (moveCollectionModalOpen()) {
@@ -648,117 +462,10 @@
   </div>
 }
 
-@if (restoreCollectionModalOpen()) {
-  <div class="overlay-backdrop" (click)="closeRestoreCollectionModal()">
-    <div class="overlay-panel move-collection-modal" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Restore to collection</h3>
-        <button class="overlay-close" type="button" (click)="closeRestoreCollectionModal()">Cancel</button>
-      </div>
-
-      <div class="overlay-body">
-        @if (availableCollectionsForMove().length === 0) {
-          <div class="state-message">No collections available.</div>
-        }
-        <ul class="collection-list">
-          @for (collection of availableCollectionsForMove(); track collection.id) {
-            <li
-              class="collection-row"
-              (click)="restoreSelectedRequestsToCollection(collection)"
-            >
-              {{ collection.name }}
-            </li>
-          }
-        </ul>
-      </div>
-    </div>
-  </div>
-}
-
-@if (bulkScriptModalOpen()) {
-  <div class="overlay-backdrop" (click)="closeBulkScriptModal()">
-    <div class="overlay-panel scripts-modal" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Attach script to {{ selectedRowIds().size }} request(s)</h3>
-        <button class="overlay-close" type="button" (click)="closeBulkScriptModal()">Close</button>
-      </div>
-
-      <div class="overlay-body">
-        <div class="script-input-wrap">
-          <input
-            class="script-input"
-            type="text"
-            placeholder="Script name"
-            [ngModel]="bulkScriptName()"
-            (ngModelChange)="bulkScriptName.set($event)"
-            (keydown.enter)="addBulkScript(bulkScriptName())"
-          />
-          @if (bulkScriptSuggestions().length && bulkScriptName().trim()) {
-            <div class="script-suggestions">
-              @for (script of bulkScriptSuggestions(); track script.id) {
-                <button
-                  class="script-suggestion"
-                  type="button"
-                  (click)="addBulkScript(script.name)"
-                >
-                  {{ script.name }}
-                </button>
-              }
-            </div>
-          }
-        </div>
-      </div>
-
-      <div class="overlay-footer">
-        <button class="variable-add" type="button" (click)="addBulkScript(bulkScriptName())">Attach script</button>
-      </div>
-    </div>
-  </div>
-}
-
-@if (bulkFavouritesModalOpen()) {
-  <div class="overlay-backdrop" (click)="closeBulkFavouritesModal()">
-    <div class="overlay-panel favourites-modal" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Favourites — {{ selectedRowIds().size }} request(s)</h3>
-        <button class="overlay-close" type="button" (click)="closeBulkFavouritesModal()">Close</button>
-      </div>
-
-      <div class="overlay-body">
-        @for (collection of favouriteCollections(); track collection.id) {
-          <div class="favourite-collection-row">
-            <label class="favourite-checkbox">
-              <input
-                type="checkbox"
-                [checked]="isAllSelectedInCollection(collection.id)"
-                (change)="toggleBulkFavouriteMembership(collection)"
-              />
-              <span class="favourite-checkmark"></span>
-              <span class="favourite-collection-name">{{ collection.name }}</span>
-            </label>
-            <button
-              class="favourite-collection-delete"
-              type="button"
-              (click)="deleteFavouriteCollection(collection, $event)"
-              aria-label="Delete favourite collection"
-            >
-              Delete
-            </button>
-          </div>
-        }
-      </div>
-
-      <div class="overlay-footer favourite-popup-footer">
-        <input
-          class="variable-input favourite-name-input"
-          type="text"
-          placeholder="New favourite group"
-          [ngModel]="newFavouriteName()"
-          (ngModelChange)="newFavouriteName.set($event)"
-          (keydown.enter)="addFavouriteCollection()"
-        />
-        <button class="variable-add" type="button" (click)="addFavouriteCollection()">Add</button>
-      </div>
-    </div>
-  </div>
+@if (restorePickerFor(); as binIds) {
+  <app-restore-to-collection-dialog
+    [binIds]="binIds"
+    (restored)="clearSelection()"
+    (closed)="restorePickerFor.set(null)"
+  />
 }

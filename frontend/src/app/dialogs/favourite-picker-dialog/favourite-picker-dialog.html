@@ -1,0 +1,40 @@
+<div class="overlay-backdrop" (click)="closed.emit()">
+  <div class="overlay-panel favourite-picker-dialog" (click)="$event.stopPropagation()">
+    <div class="overlay-header">
+      <h3 class="overlay-title">{{ title() }}</h3>
+      <button class="overlay-close" type="button" (click)="closed.emit()">Close</button>
+    </div>
+
+    <div class="overlay-body">
+      @for (collection of collections(); track collection.id) {
+        <div class="favourite-collection-row">
+          <label class="favourite-checkbox">
+            <input type="checkbox" [checked]="containsAll(collection.id)" (change)="toggle(collection)" />
+            <span class="favourite-checkmark"></span>
+            <span class="favourite-collection-name">{{ collection.name }}</span>
+          </label>
+          <button
+            class="favourite-collection-delete"
+            type="button"
+            (click)="deleteGroup(collection, $event)"
+            aria-label="Delete favourite collection"
+          >
+            Delete
+          </button>
+        </div>
+      }
+    </div>
+
+    <div class="overlay-footer favourite-popup-footer">
+      <input
+        class="variable-input favourite-name-input"
+        type="text"
+        placeholder="New favourite group"
+        [ngModel]="newGroupName()"
+        (ngModelChange)="newGroupName.set($event)"
+        (keydown.enter)="addGroup()"
+      />
+      <button class="variable-add" type="button" (click)="addGroup()">Add</button>
+    </div>
+  </div>
+</div>

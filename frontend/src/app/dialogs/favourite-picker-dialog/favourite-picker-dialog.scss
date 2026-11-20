@@ -1,0 +1,102 @@
+@use '../../../styles/buttons' as btn;
+
+.favourite-picker-dialog {
+  width: min(420px, calc(100vw - 2 * var(--s-4)));
+}
+
+.favourite-popup-footer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--s-2);
+  align-items: center;
+}
+
+.favourite-name-input {
+  width: 100%;
+}
+
+.favourite-collection-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+}
+
+.favourite-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: 1 1 auto;
+  cursor: pointer;
+  --wails-draggable: no-drag;
+}
+
+.favourite-checkbox input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.favourite-checkmark {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--glass-border);
+  border-radius: 4px;
+  background: var(--input-bg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.favourite-checkbox input:checked + .favourite-checkmark {
+  background: var(--grad-alt);
+  border-color: transparent;
+}
+
+.favourite-checkmark::after {
+  content: '';
+  width: 5px;
+  height: 9px;
+  border: solid var(--on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-1px, -1px);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.favourite-checkbox input:checked + .favourite-checkmark::after {
+  opacity: 1;
+}
+
+.favourite-collection-name {
+  flex: 1 1 auto;
+  color: var(--text);
+  font-size: 0.9375rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.favourite-collection-delete {
+  flex: 0 0 auto;
+  padding: var(--s-1) var(--s-2);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--on-accent);
+  background: var(--danger-solid);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: filter 0.15s ease;
+  --wails-draggable: no-drag;
+  @include btn.btn-danger;
+}

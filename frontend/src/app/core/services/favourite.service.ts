@@ -37,7 +37,6 @@ export class FavouriteApiService {
   
   readonly collections = signal<FavouriteCollection[]>([]);
   readonly requests = signal<HttpRequestSummary[]>([]);
-  readonly membership = signal<Set<number>>(new Set());
   readonly requestsMembership = signal<Record<number, number[]>>({});
 
   constructor() {
@@ -114,14 +113,6 @@ export class FavouriteApiService {
     return ids.map((id) => Number(id)).includes(collectionId);
   }
 
-  async loadMembershipForRequest(requestId: number): Promise<void> {
-    const result = await this.commands.execute<Record<string, number[]>>('favourite.list_memberships', {
-      request_ids: [requestId],
-    });
-    const all = result ?? {};
-    const ids: number[] = all[`${requestId}`] ?? [];
-    this.membership.set(new Set(ids.map(id => Number(id))));
-  }
 
   /** Membership for many requests at once, keyed by request id. */
   async loadMembershipForRequests(requests: HttpRequestSummary[]): Promise<void> {
@@ -152,7 +143,6 @@ export class FavouriteApiService {
   }
 
   clearMembership(): void {
-    this.membership.set(new Set());
     this.requestsMembership.set({});
   }
 

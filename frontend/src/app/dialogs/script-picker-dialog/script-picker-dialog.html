@@ -1,0 +1,47 @@
+<div class="overlay-backdrop" (click)="closed.emit()">
+  <div class="overlay-panel script-picker-dialog" (click)="$event.stopPropagation()">
+    <div class="overlay-header">
+      <h3 class="overlay-title">{{ title() }}</h3>
+      <button class="overlay-close" type="button" (click)="closed.emit()">Close</button>
+    </div>
+
+    <div class="overlay-body">
+      @if (attached().length > 0) {
+        <div class="request-scripts request-scripts--editable">
+          @for (script of attached(); track script) {
+            <span class="script-chip script-chip--editable">
+              {{ script }}
+              <button class="script-chip-remove" type="button" (click)="detach(script)" aria-label="Detach script">
+                ×
+              </button>
+            </span>
+          }
+        </div>
+      }
+
+      <div class="script-input-wrap">
+        <input
+          class="script-input"
+          type="text"
+          placeholder="Attach script…"
+          [ngModel]="query()"
+          (ngModelChange)="query.set($event)"
+          (keydown.enter)="attach(query())"
+        />
+        @if (suggestions().length) {
+          <div class="script-suggestions">
+            @for (script of suggestions(); track script.id) {
+              <button class="script-suggestion" type="button" (click)="attach(script.name)">
+                {{ script.name }}
+              </button>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="overlay-footer">
+      <button class="variable-add" type="button" (click)="attach(query())">Attach script</button>
+    </div>
+  </div>
+</div>

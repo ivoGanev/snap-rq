@@ -5,10 +5,15 @@ import { Clipboard } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { ChangeBus } from '../core/services/change-bus.service';
 import { RequestApiService, type HttpRequest, type HttpRequestSummary } from '../core/services/request.service';
-import { FavouriteApiService, type FavouriteCollection } from '../core/services/favourite.service';
+import { HTTP_METHODS } from '../core/models/http';
+import { FavouriteApiService } from '../core/services/favourite.service';
 import { CollectionApiService, type Collection } from '../core/services/collection.service';
 import { SelectionStateService, groupKey } from '../core/services/selection-state.service';
-import { ScriptApiService, type Script } from '../core/services/script.service';
+import { ScriptApiService } from '../core/services/script.service';
+import { ScriptPickerDialog } from '../dialogs/script-picker-dialog/script-picker-dialog';
+import { FavouritePickerDialog } from '../dialogs/favourite-picker-dialog/favourite-picker-dialog';
+import { RestoreToCollectionDialog } from '../dialogs/restore-to-collection-dialog/restore-to-collection-dialog';
+import { NewRequestDialog } from '../dialogs/new-request-dialog/new-request-dialog';
 import { DragSessionService } from '../core/services/drag-session.service';
 import { BinApiService, type HttpBinnedRequestSummary, type RestoreInput } from '../core/services/bin.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
@@ -53,7 +58,6 @@ const BOTTOM_TABS: BottomTab[] = [
   { id: 'headers', label: 'Headers', icon: 'headers', component: RequestHeadersTab },
 ];
 
-const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
 const DRAG_THRESHOLD_PX = 5;
 const REORDER_EDGE_SCROLL_PX = 44;
 const REORDER_EDGE_SCROLL_STEP_PX = 10;
@@ -66,7 +70,7 @@ const NAME_COLUMN_MIN_WIDTH = 120;
  */
 @Component({
   selector: 'app-requests-main-list',
-  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, SelectOnFocusDirective, ScriptTabs],
+  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog, NewRequestDialog],
   templateUrl: './requests-main-list.html',
   styleUrl: './requests-main-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -98,18 +102,14 @@ export class RequestsMainList {
   protected readonly bottomTabs = BOTTOM_TABS;
   protected readonly httpMethods = HTTP_METHODS;
   protected readonly requestScripts = this.scriptApi.requestScripts;
-  protected readonly favouriteCollections = this.favouriteApi.collections;
-  protected readonly favouriteMembership = this.favouriteApi.membership;
   protected readonly requestFavouriteIds = this.favouriteApi.requestsMembership;
   protected readonly collections = this.collectionApi.collections;
 
   readonly requestSearchQuery = signal('');
   readonly scriptRequests = signal<HttpRequestSummary[]>([]);
   readonly recentRequests = signal<HttpRequestSummary[]>([]);
-  readonly newRequestPopupOpen = signal(false);
-  readonly newRequestName = signal('My new snappy API');
-  readonly newRequestUrl = signal('');
-  readonly newRequestMethod = signal('GET');
+  /** The collection the new-request dialog is open for, or null when it is closed. */
+  readonly newRequestFor = signal<Collection | null>(null);
 
   // Selection state
   readonly selectedRowIds = computed(() => this.state.selectedIds());
@@ -223,25 +223,18 @@ export class RequestsMainList {
   private readonly nameHeaderCell = viewChild<ElementRef<HTMLElement>>('nameHeaderCell');
 
 
-  readonly scriptsModalOpen = signal(false);
-  readonly scriptsModalRequest = signal<HttpRequestSummary | null>(null);
-  readonly scriptsModalNewScriptName = signal('');
+  /** The requests the script picker is open for, or null when it is closed. */
+  readonly scriptPickerFor = signal<HttpRequestSummary[] | null>(null);
 
-  readonly favouritesModalOpen = signal(false);
-  readonly favouritesModalRequest = signal<HttpRequestSummary | null>(null);
-  readonly newFavouriteName = signal('');
+  /** The requests the favourite picker is open for, or null when it is closed. */
+  readonly favouritePickerFor = signal<HttpRequestSummary[] | null>(null);
 
-  readonly newRequestPopupMode = signal<'manual' | 'curl'>('manual');
-  readonly newRequestCurl = signal('');
 
   readonly moveCollectionModalOpen = signal(false);
-  readonly bulkScriptModalOpen = signal(false);
-  readonly bulkScriptName = signal('');
-  readonly bulkFavouritesModalOpen = signal(false);
 
   // Restore collection picker (used when the original collection is gone).
-  readonly restoreCollectionModalOpen = signal(false);
-  readonly restorePickerBinIds = signal<number[]>([]);
+  /** Bin ids the restore dialog is open for, or null when it is closed. */
+  readonly restorePickerFor = signal<number[] | null>(null);
 
   private loadVersion = 0;
 
@@ -406,34 +399,11 @@ export class RequestsMainList {
     return this.activeRequests().filter((r) => ids.has(r.id));
   });
 
-  readonly scriptSuggestions = computed<Script[]>(() => {
-    const req = this.scriptsModalRequest();
-    if (!req) return [];
-
-    const query = this.scriptsModalNewScriptName().trim().toLowerCase();
-    const scripts = this.scriptApi.allScripts();
-    const existing = new Set(this.requestScripts()[req.id] ?? []);
-
-    if (!query) {
-      return scripts.filter((script) => !existing.has(script.name)).slice(0, 6);
-    }
-    return scripts
-      .filter((script) => script.name.toLowerCase().includes(query) && !existing.has(script.name))
-      .slice(0, 6);
-  });
-
   /** What Delete does in the current view, shown in the context menu. */
   readonly deleteLabel = computed(() => {
     if (this.state.selectedFavouriteCollection()) return 'Remove from favourites';
     if (this.state.selectedScript()) return 'Detach from script';
     return 'Move to Trash';
-  });
-
-  readonly bulkScriptSuggestions = computed<Script[]>(() => {
-    const query = this.bulkScriptName().trim().toLowerCase();
-    const scripts = this.scriptApi.allScripts();
-    if (!query) return scripts.slice(0, 6);
-    return scripts.filter((script) => script.name.toLowerCase().includes(query)).slice(0, 6);
   });
 
   readonly availableCollectionsForMove = computed<Collection[]>(() => {
@@ -705,13 +675,11 @@ export class RequestsMainList {
       this.contextMenu.isOpen() ||
       this.editingNameId() !== null ||
       this.editModalOpen() ||
-      this.scriptsModalOpen() ||
-      this.favouritesModalOpen() ||
+      this.scriptPickerFor() !== null ||
+      this.favouritePickerFor() !== null ||
       this.moveCollectionModalOpen() ||
-      this.bulkScriptModalOpen() ||
-      this.bulkFavouritesModalOpen() ||
-      this.restoreCollectionModalOpen() ||
-      this.newRequestPopupOpen()
+      this.restorePickerFor() !== null ||
+      this.newRequestFor() !== null
     );
   }
 
@@ -728,28 +696,8 @@ export class RequestsMainList {
       this.closeEditModal();
       return;
     }
-    if (this.scriptsModalOpen()) {
-      this.closeScriptsModal();
-      return;
-    }
-    if (this.favouritesModalOpen()) {
-      this.closeFavouritesModal();
-      return;
-    }
     if (this.moveCollectionModalOpen()) {
       this.closeMoveCollectionModal();
-      return;
-    }
-    if (this.bulkScriptModalOpen()) {
-      this.closeBulkScriptModal();
-      return;
-    }
-    if (this.bulkFavouritesModalOpen()) {
-      this.closeBulkFavouritesModal();
-      return;
-    }
-    if (this.newRequestPopupOpen()) {
-      this.closeNewRequestPopup();
       return;
     }
   }
@@ -785,7 +733,7 @@ export class RequestsMainList {
     this.selectionState.setSelection(key, ids.has(primaryId) ? primaryId : [...ids][0], ids);
   }
 
-  private clearSelection(): void {
+  protected clearSelection(): void {
     this.state.selectedIds.set(new Set());
     this.selectedCell.set(null);
     this.highlightedCell.set(null);
@@ -1619,30 +1567,7 @@ export class RequestsMainList {
       return;
     }
 
-    this.restorePickerBinIds.set(selectedIds);
-    this.restoreCollectionModalOpen.set(true);
-  }
-
-  closeRestoreCollectionModal(): void {
-    this.restoreCollectionModalOpen.set(false);
-    this.restorePickerBinIds.set([]);
-  }
-
-  async restoreSelectedRequestsToCollection(collection: Collection): Promise<void> {
-    const selectedIds = this.restorePickerBinIds();
-    const binned = this.binApi.binnedRequests().filter(r => selectedIds.includes(r.id));
-    const collections = this.collectionApi.collections();
-
-    const inputs: RestoreInput[] = binned.map(r => {
-      const originalExists = collections.some(c => c.id === r.original_collection_id);
-      return {
-        bin_id: r.id,
-        collection_id: originalExists ? r.original_collection_id : collection.id,
-      };
-    });
-
-    await this.doRestore(inputs);
-    this.closeRestoreCollectionModal();
+    this.restorePickerFor.set(selectedIds);
   }
 
   private async doRestore(inputs: RestoreInput[]): Promise<void> {
@@ -1691,111 +1616,20 @@ export class RequestsMainList {
     }
   }
 
-  // ---------- Bulk Script ----------
+  // ---------- Script picker ----------
 
-  openBulkScriptModal(): void {
+  /** Opens the script picker for one request or the current selection. */
+  openScriptPicker(requests: HttpRequestSummary[]): void {
     this.contextMenu.close();
-    this.bulkScriptName.set('');
-    this.bulkScriptModalOpen.set(true);
+    if (requests.length > 0) this.scriptPickerFor.set(requests);
   }
 
-  closeBulkScriptModal(): void {
-    this.bulkScriptModalOpen.set(false);
-    this.bulkScriptName.set('');
-  }
+  // ---------- Favourite picker ----------
 
-  async addBulkScript(scriptName: string): Promise<void> {
-    if (this.state.showingBin()) return;
-    const name = scriptName.trim();
-    const project = this.state.selectedProject();
-    if (!name || !project) return;
-
-    const requests = this.selectedRequests() as HttpRequestSummary[];
-    if (requests.length === 0) return;
-
-    this.state.loading.set(true);
-    try {
-      for (const req of requests) {
-        await this.scriptApi.attachScript(req.id, project.id, name);
-      }
-      this.bulkScriptName.set('');
-    } catch (err) {
-      console.error(err);
-    } finally {
-      this.state.loading.set(false);
-    }
-  }
-
-  // ---------- Bulk Favourites ----------
-
-  openBulkFavouritesModal(): void {
+  /** Opens the favourite picker for one request or the current selection. */
+  openFavouritePicker(requests: HttpRequestSummary[]): void {
     this.contextMenu.close();
-    const requests = this.selectedRequests();
-    if (requests.length > 0) {
-      void this.favouriteApi.loadMembershipForRequests(requests);
-    }
-    this.bulkFavouritesModalOpen.set(true);
-  }
-
-  closeBulkFavouritesModal(): void {
-    this.bulkFavouritesModalOpen.set(false);
-    this.favouriteApi.clearMembership();
-  }
-
-  isAllSelectedInCollection(collectionId: number): boolean {
-    if (this.state.showingBin()) return false;
-    const requests = this.selectedRequests() as HttpRequestSummary[];
-    if (requests.length === 0) return false;
-    return requests.every((req) => (this.requestFavouriteIds()[req.id] ?? []).includes(collectionId));
-  }
-
-  async toggleBulkFavouriteMembership(collection: FavouriteCollection): Promise<void> {
-    if (this.state.showingBin()) return;
-    const requests = this.selectedRequests() as HttpRequestSummary[];
-    if (requests.length === 0) return;
-
-    const allIn = this.isAllSelectedInCollection(collection.id);
-    this.state.loading.set(true);
-    try {
-      for (const req of requests) {
-        if (allIn) {
-          await this.favouriteApi.removeRequest(collection.id, req.id);
-        } else {
-          await this.favouriteApi.addRequest(collection.id, req.id);
-        }
-      }
-
-      const ids = requests.map(r => r.id);
-      this.favouriteApi.requestsMembership.update(map => {
-        const next = { ...map };
-        for (const id of ids) {
-          const current = next[id] ?? [];
-          next[id] = allIn
-            ? current.filter(cid => cid !== collection.id)
-            : Array.from(new Set([...current, collection.id]));
-        }
-        return next;
-      });
-
-      const currentFavourite = this.state.selectedFavouriteCollection();
-      if (currentFavourite?.id === collection.id) {
-        if (allIn) {
-          this.favouriteApi.requests.update(list => list.filter(r => !ids.includes(r.id)));
-        } else {
-          this.favouriteApi.requests.update(list => {
-            const existingIds = new Set(list.map(r => r.id));
-            const added = requests.filter(r => !existingIds.has(r.id));
-            return added.length > 0
-              ? [...list, ...added].sort((a, b) => a.name.localeCompare(b.name))
-              : list;
-          });
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      this.state.loading.set(false);
-    }
+    if (requests.length > 0) this.favouritePickerFor.set(requests);
   }
 
   // ---------- Sorting ----------
@@ -1865,89 +1699,9 @@ export class RequestsMainList {
 
   // ---------- New request ----------
 
-  openNewRequestPopup(): void {
+  openNewRequestDialog(): void {
     this.contextMenu.close();
-    this.newRequestName.set('My new snappy API');
-    this.newRequestUrl.set('');
-    this.newRequestMethod.set('GET');
-    this.newRequestCurl.set('');
-    this.newRequestPopupMode.set('manual');
-    this.newRequestPopupOpen.set(true);
-  }
-
-  closeNewRequestPopup(): void {
-    this.newRequestPopupOpen.set(false);
-  }
-
-  setNewRequestPopupMode(mode: 'manual' | 'curl'): void {
-    this.newRequestName.set(mode === 'curl' ? '' : 'My new snappy API');
-    this.newRequestPopupMode.set(mode);
-  }
-
-  async addRequest(): Promise<void> {
-    const collection = this.state.selectedCollection();
-    if (!collection) return;
-
-    const mode = this.newRequestPopupMode();
-    if (mode === 'curl') {
-      await this.addRequestFromCurl(collection.id);
-      return;
-    }
-
-    const name = this.newRequestName().trim();
-    if (!name) return;
-
-    this.state.loading.set(true);
-    try {
-      await this.requestApi.create({
-        collection_id: collection.id,
-        project_id: collection.project_id,
-        name,
-        url: this.newRequestUrl().trim(),
-        method: this.newRequestMethod(),
-        body: '',
-        body_type: 'json',
-        body_form: '',
-        request_headers: '',
-        status_code: 0,
-        response_id: 0,
-      });
-      this.closeNewRequestPopup();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      this.state.loading.set(false);
-    }
-  }
-
-  private async addRequestFromCurl(collectionId: number): Promise<void> {
-    const curl = this.newRequestCurl().trim();
-    if (!curl) return;
-
-    this.state.loading.set(true);
-    try {
-      const projectId = this.state.selectedProject()?.id ?? 0;
-      const req = await this.requestApi.curlToRequest(collectionId, curl);
-      const name = this.newRequestName().trim() || req.name;
-      await this.requestApi.create({
-        collection_id: collectionId,
-        project_id: projectId,
-        name,
-        url: req.url,
-        method: req.method,
-        body: req.body,
-        body_type: req.body_type || 'json',
-        body_form: req.body_form || '',
-        request_headers: req.request_headers,
-        status_code: 0,
-        response_id: 0,
-      });
-      this.closeNewRequestPopup();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      this.state.loading.set(false);
-    }
+    this.newRequestFor.set(this.state.selectedCollection());
   }
 
   async sendSelectedRequest(event: Event): Promise<void> {
@@ -1972,11 +1726,9 @@ export class RequestsMainList {
   onFavouriteButtonClick(): void {
     if (this.selectedRowIds().size <= 1) {
       const req = this.selectedRequest() ?? this.selectedRequests()[0];
-      if (req) {
-        this.openFavouritesModal(req);
-      }
+      if (req) this.openFavouritePicker([req]);
     } else {
-      this.openBulkFavouritesModal();
+      this.openFavouritePicker(this.selectedRequests());
     }
   }
 
@@ -1996,7 +1748,7 @@ export class RequestsMainList {
       return;
     }
     if (column === 'scripts') {
-      this.openScriptsModal(request);
+      this.openScriptPicker([request]);
       return;
     }
     this.openEditModal(request, column);
@@ -2075,120 +1827,6 @@ export class RequestsMainList {
     this.contextMenu.close();
     if (method === req.method) return;
     await this.updateRequestField(req, 'method', method);
-  }
-
-  // ---------- Scripts modal (single request) ----------
-
-  openScriptsModal(req: HttpRequestSummary): void {
-    this.contextMenu.close();
-    this.scriptsModalRequest.set(req);
-    this.scriptsModalNewScriptName.set('');
-    this.scriptsModalOpen.set(true);
-  }
-
-  closeScriptsModal(): void {
-    this.scriptsModalOpen.set(false);
-    this.scriptsModalRequest.set(null);
-    this.scriptsModalNewScriptName.set('');
-  }
-
-  async addScriptToRequest(req: HttpRequestSummary, scriptName: string): Promise<void> {
-    const name = scriptName.trim();
-    const project = this.state.selectedProject();
-    if (!name || !project) return;
-
-    try {
-      await this.scriptApi.attachScript(req.id, project.id, name);
-      this.scriptsModalNewScriptName.set('');
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async removeScriptFromRequest(req: HttpRequestSummary, scriptName: string, event: MouseEvent): Promise<void> {
-    event.stopPropagation();
-    try {
-      await this.scriptApi.detachScript(req.id, scriptName);
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  // ---------- Favourites modal (single request) ----------
-
-  openFavouritesModal(req: HttpRequestSummary): void {
-    this.contextMenu.close();
-    this.favouritesModalRequest.set(req);
-    this.newFavouriteName.set('');
-    this.favouritesModalOpen.set(true);
-    void this.favouriteApi.loadMembershipForRequest(req.id);
-  }
-
-  closeFavouritesModal(): void {
-    this.favouritesModalOpen.set(false);
-    this.favouritesModalRequest.set(null);
-    this.favouriteApi.clearMembership();
-  }
-
-  async toggleFavouriteMembership(collection: FavouriteCollection): Promise<void> {
-    const req = this.favouritesModalRequest();
-    if (!req) return;
-
-    const isMember = this.favouriteMembership().has(collection.id);
-    try {
-      if (isMember) {
-        await this.favouriteApi.removeRequest(collection.id, req.id);
-      } else {
-        await this.favouriteApi.addRequest(collection.id, req.id);
-      }
-
-      this.favouriteApi.requestsMembership.update(map => {
-        const current = map[req.id] ?? [];
-        return {
-          ...map,
-          [req.id]: isMember
-            ? current.filter(cid => cid !== collection.id)
-            : Array.from(new Set([...current, collection.id])),
-        };
-      });
-
-      if (this.state.selectedFavouriteCollection()?.id === collection.id) {
-        this.favouriteApi.requests.update(list =>
-          isMember ? list.filter(r => r.id !== req.id) : [...list, req].sort((a, b) => a.name.localeCompare(b.name)),
-        );
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async addFavouriteCollection(): Promise<void> {
-    const name = this.newFavouriteName().trim();
-    const project = this.state.selectedProject();
-    if (!name || !project) return;
-
-    try {
-      await this.favouriteApi.createCollection({ project_id: project.id, name });
-      this.newFavouriteName.set('');
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async deleteFavouriteCollection(
-    collection: FavouriteCollection,
-    event: MouseEvent,
-  ): Promise<void> {
-    event.stopPropagation();
-    try {
-      await this.favouriteApi.deleteCollection(collection.id);
-      if (this.state.selectedFavouriteCollection()?.id === collection.id) {
-        this.state.selectView(null);
-        this.favouriteApi.requests.set([]);
-      }
-    } catch (err) {
-      console.error(err);
-    }
   }
 
   // ---------- Request updates ----------
