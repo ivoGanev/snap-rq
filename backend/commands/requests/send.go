@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -19,6 +20,7 @@ import (
 	"snap-rq/backend/commands/responses"
 	"snap-rq/backend/cookies"
 	"snap-rq/backend/models"
+	"snap-rq/backend/secrets"
 )
 
 // send.go — execute a request against the outside world. Observable: it
@@ -45,6 +47,9 @@ func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 	var in struct {
 		Request   models.HttpRequest `json:"request"`
 		Variables []sendVariable     `json:"variables"`
+		// EnvironmentID names the environment whose secret variables are
+		// filled in here: the frontend never has their values.
+		EnvironmentID int64 `json:"environment_id"`
 	}
 	if err := json.Unmarshal(input, &in); err != nil {
 		obs.Finish(nil, err)
@@ -57,6 +62,14 @@ func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 	}
 
 	req := in.Request
+	secretValues, err := c.secretsFor(in.EnvironmentID, req)
+	if err != nil {
+		obs.Finish(nil, err)
+		return
+	}
+	for key, value := range secretValues {
+		values[key] = value
+	}
 	req.URL = interpolate(req.URL, values)
 	req.Body = interpolate(req.Body, values)
 	req.RequestHeaders = interpolate(req.RequestHeaders, values)
@@ -78,6 +91,11 @@ func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 
 	result := c.doHTTP(req, values)
 	close(done)
+	if result.StatusCode == 0 {
+		// A local failure (bad host, timeout…): Go's message quotes the URL,
+		// and the message is saved as the response body.
+		result.Body = hideSecrets(result.Body, secretValues)
+	}
 	result.DurationMs = time.Since(start).Milliseconds()
 
 	stored, err := c.persist(req.ID, result)
@@ -86,6 +104,68 @@ func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 		return
 	}
 	obs.Finish(stored, nil)
+}
+
+// secretsFor decrypts the environment's secret variables that the request
+// actually uses, and only those. A locked one is an error naming it, rather
+// than sending "{{KEY}}" to the server.
+func (c Send) secretsFor(environmentID int64, req models.HttpRequest) (map[string]string, error) {
+	if environmentID == 0 {
+		return nil, nil
+	}
+	used := map[string]bool{}
+	for _, text := range []string{req.URL, req.Body, req.RequestHeaders, req.BodyForm} {
+		for _, match := range variablePattern.FindAllString(text, -1) {
+			used[strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(match, "{{"), "}}"))] = true
+		}
+	}
+	if len(used) == 0 {
+		return nil, nil
+	}
+
+	rows, err := c.db.Query(`SELECT key, value FROM environment_variables
+		WHERE environment_id = ? AND secret = 1 AND value != ''`, environmentID)
+	if err != nil {
+		return nil, err
+	}
+	stored := map[string]string{}
+	for rows.Next() {
+		var key, value string
+		if err := rows.Scan(&key, &value); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		if used[key] {
+			stored[key] = value
+		}
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	values := make(map[string]string, len(stored))
+	for key, encrypted := range stored {
+		plain, err := secrets.Default().Decrypt(c.db, encrypted)
+		if errors.Is(err, secrets.ErrLocked) {
+			return nil, fmt.Errorf("the secret variable %s is locked: restore your recovery key or enter its value again", key)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("decrypting the secret variable %s: %w", key, err)
+		}
+		values[key] = plain
+	}
+	return values, nil
+}
+
+// hideSecrets replaces secret values in a locally made message.
+func hideSecrets(text string, values map[string]string) string {
+	for key, value := range values {
+		if value != "" {
+			text = strings.ReplaceAll(text, value, "{{"+key+"}}")
+		}
+	}
+	return text
 }
 
 // interpolate resolves {{ key }} placeholders; unknown keys stay untouched.

@@ -51,7 +51,7 @@ unless revealed, and only decrypted when a request is sent.
 - [x] **S1. Vault** (`backend/secrets`): key stores (OS keyring, file, memory for tests),
   encrypt/decrypt, key check, locked states, recovery key format. Tests.
 - [x] **S2. Secret column and variable commands.** Tests.
-- [ ] **S3. Send fills in secrets** from `environment_id`. Test.
+- [x] **S3. Send fills in secrets** from `environment_id`. Test.
 - [ ] **S4. Status / recovery / restore / reset commands.** Tests.
 - [ ] **S5. MCP masks secret values.** Test.
 - [ ] **S6. Variables editor:** Secret tick box, masked value, reveal, write-only typing;
