@@ -1,11 +1,19 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
+import { RequestApiService } from '../core/services/request.service';
 
-/** How long the plane's fly-off lasts; keep in sync with the keyframes. */
-const FLIGHT_MS = 450;
+/** Keep in sync with the keyframes in send-button.scss. */
+const LANDING_MS = 450;
+/** Fast requests answer before this and only get the landing, no glide. */
+const GLIDE_DELAY_MS = 150;
+
+type Landing = 'fly' | 'wobble';
 
 /**
- * The Send button: a paper plane that flies off when clicked. "primary" is
- * the request list's main action, "success" the green one in Zen mode.
+ * The Send button: a paper plane. While its request is in flight (from this
+ * button, Ctrl+S or anywhere else) the plane glides with wind lines behind
+ * it; when the response arrives it flies off and back, or wobbles when the
+ * request failed (no response: status 0). Sending again while in flight is
+ * fine. "primary" is the request list's main action, "success" Zen mode's.
  */
 @Component({
   selector: 'app-send-button',
@@ -15,11 +23,15 @@ const FLIGHT_MS = 450;
       type="button"
       [class.send-plane--primary]="variant() === 'primary'"
       [class.send-plane--success]="variant() === 'success'"
-      [class.is-flying]="flying()"
-      [attr.aria-label]="label()"
-      [title]="label()"
-      (click)="onClick($event)"
+      [class.is-gliding]="gliding()"
+      [class.is-flying]="landing() === 'fly'"
+      [class.is-wobbling]="landing() === 'wobble'"
+      [attr.aria-busy]="inFlight()"
+      [attr.aria-label]="inFlight() ? 'Sending…' : label()"
+      [title]="inFlight() ? 'Sending…' : label()"
+      (click)="send.emit($event)"
     >
+      <span class="send-plane-wind" aria-hidden="true"><i></i><i></i><i></i></span>
       <svg class="send-plane-icon" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M22 2 11 13" />
         <path d="M22 2 15 22l-4-9-9-4 20-7z" />
@@ -29,15 +41,63 @@ const FLIGHT_MS = 450;
   styleUrl: './send-button.scss',
 })
 export class SendButton {
+  private readonly requestApi = inject(RequestApiService);
+
+  /** The request this button sends; its in-flight state drives the plane. */
+  readonly requestId = input<number | null>(null);
   readonly variant = input<'primary' | 'success'>('primary');
   readonly label = input('Send (Ctrl+S)');
   readonly send = output<MouseEvent>();
 
-  protected readonly flying = signal(false);
+  protected readonly inFlight = computed(() => {
+    const id = this.requestId();
+    return id !== null && this.requestApi.sending()[id] !== undefined;
+  });
+  protected readonly gliding = signal(false);
+  protected readonly landing = signal<Landing | null>(null);
 
-  protected onClick(event: MouseEvent): void {
-    this.flying.set(true);
-    setTimeout(() => this.flying.set(false), FLIGHT_MS);
-    this.send.emit(event);
+  private glideTimer: ReturnType<typeof setTimeout> | null = null;
+  private landingTimer: ReturnType<typeof setTimeout> | null = null;
+
+  constructor() {
+    // Glide only once a request has been in flight a moment, so quick
+    // responses don't flicker.
+    effect(() => {
+      const flying = this.inFlight();
+      untracked(() => {
+        this.clearGlideTimer();
+        if (!flying) {
+          this.gliding.set(false);
+          return;
+        }
+        this.glideTimer = setTimeout(() => this.gliding.set(this.inFlight()), GLIDE_DELAY_MS);
+      });
+    });
+
+    const landed = this.requestApi.finished$.subscribe((response) => {
+      if (response.request_id !== this.requestId()) return;
+      this.land(response.status_code === 0 ? 'wobble' : 'fly');
+    });
+
+    inject(DestroyRef).onDestroy(() => {
+      landed.unsubscribe();
+      this.clearGlideTimer();
+      if (this.landingTimer) clearTimeout(this.landingTimer);
+    });
+  }
+
+  private land(kind: Landing): void {
+    if (this.landingTimer) clearTimeout(this.landingTimer);
+    // Restart the animation even if one is already playing.
+    this.landing.set(null);
+    requestAnimationFrame(() => {
+      this.landing.set(kind);
+      this.landingTimer = setTimeout(() => this.landing.set(null), LANDING_MS);
+    });
+  }
+
+  private clearGlideTimer(): void {
+    if (this.glideTimer) clearTimeout(this.glideTimer);
+    this.glideTimer = null;
   }
 }

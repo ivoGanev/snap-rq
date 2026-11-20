@@ -235,6 +235,11 @@
   );
 }
 
+/* In flight, the wind behind the plane is drawn in dashed pencil. */
+:root[data-theme='daylight'] .send-plane-wind i {
+  border-top-style: dashed;
+}
+
 /* The paper plane leaves a dashed trail as it flies. */
 :root[data-theme='daylight'] .send-plane {
   position: relative;

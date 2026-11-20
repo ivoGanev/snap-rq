@@ -17,7 +17,11 @@
       </svg>
     </button>
     <h2 class="zen-pane-title">Request</h2>
-    <app-send-button variant="success" (send)="state.sendRequest(state.selectedRequest()!, $event)" />
+    <app-send-button
+      variant="success"
+      [requestId]="state.selectedRequest()?.id ?? null"
+      (send)="state.sendRequest(state.selectedRequest()!, $event)"
+    />
   </div>
   <div class="zen-header-col zen-header-col--response">
     <h2 class="zen-pane-title">Response</h2>

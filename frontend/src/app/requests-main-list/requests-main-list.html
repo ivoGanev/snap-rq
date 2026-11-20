@@ -42,7 +42,7 @@
   @if (selectedRowIds().size > 0) {
     <div class="header-actions">
       @if (!state.showingBin() && selectedRowIds().size === 1 && selectedRequest()) {
-        <app-send-button variant="primary" (send)="sendSelectedRequest($event)" />
+        <app-send-button variant="primary" [requestId]="selectedRequest()!.id" (send)="sendSelectedRequest($event)" />
       }
       @if (state.showingBin()) {
         <button
