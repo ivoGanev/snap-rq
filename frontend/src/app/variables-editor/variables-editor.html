@@ -135,9 +135,6 @@
                   }
                 </span>
               </th>
-              <th class="variables-header variables-header--secret" title="Encrypted, and hidden unless revealed">
-                Secret
-              </th>
               <th class="variables-header variables-header--action" aria-hidden="true"></th>
             </tr>
           </thead>
@@ -204,16 +201,31 @@
                     </div>
                   }
                 </td>
-                <td class="variables-cell variables-cell--secret">
-                  <input
-                    class="secret-toggle"
-                    type="checkbox"
-                    [checked]="variable.secret"
-                    (click)="$event.preventDefault(); toggleSecret(variable)"
-                    [attr.aria-label]="'Secret: ' + (variable.key || 'variable')"
-                  />
-                </td>
                 <td class="variables-cell variables-cell--action">
+                  <!-- Secret toggle: a closed lock stays (dimmed) on secrets; an open lock appears on hover. -->
+                  <button
+                    class="row-secret"
+                    type="button"
+                    [class.is-secret]="variable.secret"
+                    [attr.aria-pressed]="variable.secret"
+                    [attr.aria-label]="variable.secret ? 'Make plain' : 'Make secret'"
+                    [title]="variable.secret ? 'Secret: encrypted, hidden unless revealed. Click to make plain.' : 'Make secret'"
+                    (click)="toggleSecret(variable)"
+                  >
+                    @if (variable.secret) {
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M17 9V7A5 5 0 0 0 7 7v2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zM9 7a3 3 0 0 1 6 0v2H9V7zm3 10a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"
+                        />
+                      </svg>
+                    } @else {
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M17 9H9V7a3 3 0 0 1 5.83-1h2.07A5 5 0 0 0 7 7v2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2zm-5 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"
+                        />
+                      </svg>
+                    }
+                  </button>
                   <button
                     class="row-delete"
                     type="button"
@@ -227,7 +239,7 @@
             }
             @if (sortedVariables().length === 0) {
               <tr>
-                <td class="variables-empty" colspan="4">No variables for this environment.</td>
+                <td class="variables-empty" colspan="3">No variables for this environment.</td>
               </tr>
             }
           </tbody>

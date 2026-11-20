@@ -83,7 +83,7 @@ unless revealed, and only decrypted when a request is sent.
 
 | Step | Check |
 |---|---|
-| S6 | Tick Secret on a variable: the value turns into dots. Reveal shows it; click away hides it. Click into it and type: the value is replaced; click away without typing: unchanged. Send a request using it: the server gets the real value. Hover its `{{chip}}`: tooltip says "secret". Copy as cURL: shows `{{KEY}}`. Untick: asks first, then shows the plain value. Undo a deleted secret variable: it comes back still secret. |
+| S6 | Hover a row and click the open lock: the value turns into dots and a dimmed closed lock stays. Reveal shows it; click away hides it. Click into it and type: the value is replaced; click away without typing: unchanged. Send a request using it: the server gets the real value. Hover its `{{chip}}`: tooltip says "secret". Copy as cURL: shows `{{KEY}}`. Click the closed lock: it becomes plain right away (no confirmation). Undo a deleted secret variable: it comes back still secret. |
 | S7 | First secret: the recovery key is shown once with Copy / Save. Delete the `SnapRQ` entry from the OS credential store and restart: locked banner; sending a request with that secret fails with a clear message; entering the recovery key unlocks everything. "Start over" clears values but keeps names. |
 | 1b | Log in to a test API: the session cookie works across requests; in `app.db` the cookie value is `v1:…`. The cookies editor shows real values; editing one works. Delete the `SnapRQ` keyring entry with no secret variables: cookies are silently gone, logging in again works, no banner. The first secret variable still shows the recovery key. |
 | all | Open `app.db` in a SQLite viewer: secret values are `v1:…`, never plain. |

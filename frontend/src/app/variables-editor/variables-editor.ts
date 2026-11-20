@@ -250,14 +250,6 @@ export class VariablesEditor {
   }
 
   async toggleSecret(variable: EnvironmentVariable): Promise<void> {
-    if (variable.secret) {
-      const confirmed = await this.confirm.ask({
-        title: 'Store as plain text?',
-        message: `${variable.key || 'This variable'} will no longer be encrypted, and its value will show in the editor.`,
-        confirmLabel: 'Make plain',
-      });
-      if (!confirmed) return;
-    }
     try {
       // Cookies usually create the key first, so "first" means the first secret variable.
       const wasFirst = !variable.secret && (await this.secretsApi.refresh()).secret_variables === 0;
