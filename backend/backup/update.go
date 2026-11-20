@@ -35,7 +35,7 @@ func BeforeUpdate(version string) func(*sql.DB) {
 			if last != "" {
 				reason = fmt.Sprintf("before update from %s to %s", last, version)
 			}
-			if _, err := Take(db, Automatic, reason); err != nil {
+			if _, err := Take(db, Update, reason); err != nil {
 				log.Printf("backup before the update failed: %v", err)
 			}
 		}

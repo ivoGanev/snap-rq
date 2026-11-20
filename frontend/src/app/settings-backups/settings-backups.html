@@ -69,31 +69,42 @@
   <div class="settings-option settings-option--info">
     <span class="settings-option-copy">
       <span class="settings-option-label">Keep</span>
-      <span class="settings-option-help">Older automatic backups are deleted. Manual backups are always kept.</span>
+      <span class="settings-option-help">
+        The newest of each kind are kept; older ones are deleted. Manual backups are always kept.
+      </span>
     </span>
-    <span class="backups-keep">
-      last
-      <input
-        class="settings-number"
-        type="number"
-        min="1"
-        max="500"
-        aria-label="Automatic backups to keep"
-        [value]="s.keep_automatic"
-        (change)="setNumber('keep_automatic', $event, 500)"
-      />
-      for
-      <input
-        class="settings-number"
-        type="number"
-        min="1"
-        max="3650"
-        aria-label="Days to keep automatic backups"
-        [value]="s.keep_days"
-        (change)="setNumber('keep_days', $event, 3650)"
-      />
-      days
-    </span>
+  </div>
+  <div class="backups-triggers">
+    <div class="settings-option settings-option--info">
+      <span class="settings-option-help backups-trigger-label">Before risky changes</span>
+      <span class="backups-keep">
+        last
+        <input
+          class="settings-number"
+          type="number"
+          min="1"
+          max="500"
+          aria-label="Backups before risky changes to keep"
+          [value]="s.keep_risky"
+          (change)="setNumber('keep_risky', $event, 500)"
+        />
+      </span>
+    </div>
+    <div class="settings-option settings-option--info">
+      <span class="settings-option-help backups-trigger-label">Before updates</span>
+      <span class="backups-keep">
+        last
+        <input
+          class="settings-number"
+          type="number"
+          min="1"
+          max="500"
+          aria-label="Backups before updates to keep"
+          [value]="s.keep_updates"
+          (change)="setNumber('keep_updates', $event, 500)"
+        />
+      </span>
+    </div>
   </div>
 
   <div class="settings-option settings-option--info">
@@ -155,6 +166,8 @@
               {{ date(b) }}
               @if (b.header.kind === 'manual') {
                 <span class="backups-kind">kept</span>
+              } @else if (b.header.kind === 'update') {
+                <span class="backups-kind">update</span>
               }
             </span>
             <span class="backups-item-reason">{{ b.header.reason || 'Backup' }} · {{ size(b.bytes) }}</span>

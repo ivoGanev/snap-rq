@@ -3,7 +3,6 @@ package backup
 import (
 	"database/sql"
 	"os"
-	"time"
 
 	"snap-rq/backend/secrets"
 )
@@ -38,9 +37,8 @@ func Complete(db *sql.DB, p *Pending) (Info, error) {
 	if err != nil {
 		return Info{}, err
 	}
-	markTaken()
 	if s, err := LoadSettings(db); err == nil {
-		Prune(s.ResolvedFolder(), s.KeepAutomatic, time.Duration(s.KeepDays)*24*time.Hour)
+		Prune(s.ResolvedFolder(), s.KeepRisky, s.KeepUpdates)
 	}
 	return info, nil
 }
@@ -54,22 +52,25 @@ func Take(db *sql.DB, kind Kind, reason string) (Info, error) {
 	return Complete(db, p)
 }
 
-// Prune deletes automatic backups beyond the newest keep, and those older
-// than maxAge. Manual backups are never deleted.
-func Prune(dir string, keep int, maxAge time.Duration) {
+// Prune keeps the newest keepRisky backups taken before risky changes and,
+// separately, the newest keepUpdates taken before updates; older ones of each
+// kind are deleted. Manual backups are never deleted.
+func Prune(dir string, keepRisky, keepUpdates int) {
 	list, err := List(dir)
 	if err != nil {
 		return
 	}
-	kept := 0
+	limit := map[Kind]int{Automatic: keepRisky, Update: keepUpdates}
+	kept := map[Kind]int{}
 	for _, b := range list { // newest first
-		if b.Header.Kind != Automatic {
+		max, rotated := limit[b.Header.Kind]
+		if !rotated {
 			continue
 		}
-		if kept >= keep || time.Since(b.Header.CreatedAt) > maxAge {
+		if kept[b.Header.Kind] >= max {
 			os.Remove(b.Path)
 			continue
 		}
-		kept++
+		kept[b.Header.Kind]++
 	}
 }
