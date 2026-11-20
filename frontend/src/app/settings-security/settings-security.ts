@@ -1,8 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { SecretsApiService } from '../core/services/secrets.service';
+import { SettingsApiService } from '../core/services/settings.service';
 import { RecoveryKeyDialog } from '../dialogs/recovery-key-dialog/recovery-key-dialog';
 
-/** Settings → Security: where the secrets key lives, and its recovery key. */
+/** Settings → Security: certificate checks, where the secrets key lives, and its recovery key. */
 @Component({
   selector: 'app-settings-security',
   imports: [RecoveryKeyDialog],
@@ -10,6 +11,7 @@ import { RecoveryKeyDialog } from '../dialogs/recovery-key-dialog/recovery-key-d
 })
 export class SettingsSecurity {
   protected readonly secretsApi = inject(SecretsApiService);
+  protected readonly settingsApi = inject(SettingsApiService);
   protected readonly recoveryKeyOpen = signal(false);
 
   protected readonly summary = computed(() => {
@@ -28,4 +30,18 @@ export class SettingsSecurity {
   constructor() {
     void this.secretsApi.refresh();
   }
+
+  protected async onSslValidationChange(event: Event): Promise<void> {
+    const checked = (event.target as HTMLInputElement).checked;
+    try {
+      await this.settingsApi.update({
+        ...this.settingsApi.settings(),
+        validate_ssl_certificates: checked,
+      });
+    } catch (err) {
+      console.error('Failed to update settings:', err);
+      this.settingsApi.settings.update((current) => ({ ...current }));
+    }
+  }
+
 }

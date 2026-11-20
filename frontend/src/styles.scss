@@ -822,13 +822,39 @@ body.reorder-dragging * {
   cursor: grabbing !important;
 }
 
-// Shared by the settings panels (General, MCP server, Updates).
+// Shared by the settings panels (General, Security, MCP server, Updates).
 .settings-option {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--s-3);
   cursor: pointer;
+}
+
+// A row that only shows information (no tick box to click), or holds its own button.
+.settings-option--info {
+  cursor: default;
+}
+
+// Small secondary button inside a settings row.
+.settings-button {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  --wails-draggable: no-drag;
+}
+
+.settings-button:hover {
+  background: var(--hover-bg);
+  border-color: var(--accent);
 }
 
 .settings-option-copy {

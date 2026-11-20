@@ -1,26 +1,13 @@
 import { Component, inject } from '@angular/core';
 import { SettingsApiService } from '../core/services/settings.service';
 
-/** The everyday request settings: SSL, cookies, timeout and undo history. */
+/** The everyday request settings: cookies, timeout and undo history. */
 @Component({
   selector: 'app-settings-general',
   templateUrl: './settings-general.html',
 })
 export class SettingsGeneral {
   protected readonly settingsApi = inject(SettingsApiService);
-
-  protected async onSslValidationChange(event: Event): Promise<void> {
-    const checked = (event.target as HTMLInputElement).checked;
-    try {
-      await this.settingsApi.update({
-        ...this.settingsApi.settings(),
-        validate_ssl_certificates: checked,
-      });
-    } catch (err) {
-      console.error('Failed to update settings:', err);
-      this.settingsApi.settings.update((current) => ({ ...current }));
-    }
-  }
 
   protected async onCookieJarChange(event: Event): Promise<void> {
     const checked = (event.target as HTMLInputElement).checked;

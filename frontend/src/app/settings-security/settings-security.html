@@ -1,4 +1,18 @@
-<div class="settings-option">
+<label class="settings-option">
+  <span class="settings-option-copy">
+    <span class="settings-option-label">Validate SSL certificates</span>
+    <span class="settings-option-help">
+      Disable to allow invalid, expired, or mismatched HTTPS certificates.
+    </span>
+  </span>
+  <input
+    class="settings-toggle"
+    type="checkbox"
+    [checked]="settingsApi.settings().validate_ssl_certificates"
+    (change)="onSslValidationChange($event)"
+  />
+</label>
+<div class="settings-option settings-option--info">
   <span class="settings-option-copy">
     <span class="settings-option-label">Secret variables</span>
     <span class="settings-option-help">{{ summary() }}</span>
@@ -12,7 +26,7 @@
 </div>
 
 @if (secretsApi.status()?.state === 'unlocked') {
-  <div class="settings-option">
+  <div class="settings-option settings-option--info">
     <span class="settings-option-copy">
       <span class="settings-option-label">Recovery key</span>
       <span class="settings-option-help">
@@ -20,7 +34,7 @@
         computer. Keep it in a password manager.
       </span>
     </span>
-    <button class="variable-add" type="button" (click)="recoveryKeyOpen.set(true)">Show recovery key</button>
+    <button class="settings-button" type="button" (click)="recoveryKeyOpen.set(true)">Show recovery key</button>
   </div>
 }
 
