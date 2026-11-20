@@ -1,5 +1,8 @@
 .context-menu-panel {
   position: fixed;
+  // Measured from the top-left corner, then moved into place by the outlet.
+  left: 0;
+  top: 0;
   z-index: 91;
   min-width: 160px;
   padding: var(--s-1) 0;

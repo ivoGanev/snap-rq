@@ -1,8 +1,7 @@
 @if (menu.isOpen() && menu.template() && menu.position()) {
   <div
+    #panel
     class="context-menu context-menu-panel"
-    [style.left.px]="menu.position()!.x"
-    [style.top.px]="menu.position()!.y"
     (click)="onMenuClick($event)"
     (contextmenu)="onMenuContextMenu($event)"
   >
