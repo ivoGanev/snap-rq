@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	"snap-rq/backend/secrets"
 )
 
 // The MCP settings live in app_settings next to the other preferences, as
@@ -47,6 +49,33 @@ type Store struct {
 
 // NewStore returns a store on the app database.
 func NewStore(db *sql.DB) *Store { return &Store{db: db} }
+
+// SecretValues decrypts every secret variable's value, so tool output can be
+// scrubbed of them. Only called while MCP serves a tool call; values that
+// can't be decrypted (locked) can't be known, so they are skipped.
+func (s *Store) SecretValues() []string {
+	rows, err := s.db.Query(`SELECT value FROM environment_variables WHERE secret = 1 AND value != ''`)
+	if err != nil {
+		return nil
+	}
+	var encrypted []string
+	for rows.Next() {
+		var value string
+		if rows.Scan(&value) == nil {
+			encrypted = append(encrypted, value)
+		}
+	}
+	rows.Close()
+
+	vault := secrets.Default()
+	values := make([]string, 0, len(encrypted))
+	for _, e := range encrypted {
+		if plain, err := vault.Decrypt(s.db, e); err == nil && plain != "" {
+			values = append(values, plain)
+		}
+	}
+	return values
+}
 
 func (s *Store) get(key string, dest any) bool {
 	var raw string

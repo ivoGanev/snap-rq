@@ -53,7 +53,7 @@ unless revealed, and only decrypted when a request is sent.
 - [x] **S2. Secret column and variable commands.** Tests.
 - [x] **S3. Send fills in secrets** from `environment_id`. Test.
 - [x] **S4. Status / recovery / restore / reset commands.** Tests.
-- [ ] **S5. MCP masks secret values.** Test.
+- [x] **S5. MCP masks secret values.** Test.
 - [ ] **S6. Variables editor:** Secret tick box, masked value, reveal, write-only typing;
   chip tooltip says "secret"; send passes `environment_id`.
 - [ ] **S7. Locked banner and recovery key UI** (first-time prompt, Settings → Security).
