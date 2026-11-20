@@ -8,9 +8,13 @@ export interface SecretsStatus {
   state: SecretsState;
   /** Where the key lives: the OS credential store, or a file next to the database. */
   store: 'keyring' | 'file' | 'memory';
-  /** How many variables are marked secret (cookies may have created the key first). */
+  /** How many variables are marked secret: the locked banner needs some to unlock. */
   secret_variables: number;
+  recovery_key: RecoveryKeyState;
 }
+
+/** Whether the current recovery key was shown: never, yes, or an older key was. */
+export type RecoveryKeyState = 'unseen' | 'seen' | 'changed';
 
 /**
  * The key that encrypts secret variable values: its status and the recovery
@@ -26,6 +30,19 @@ export class SecretsApiService {
     const status = await this.commands.execute<SecretsStatus>('secrets.status', {});
     this.status.set(status);
     return status;
+  }
+
+  /**
+   * The startup check: 'changed' means the key was replaced since the user
+   * saw a recovery key. Doesn't read the key unless one was seen before.
+   */
+  async recoveryKeyState(): Promise<RecoveryKeyState> {
+    return this.commands.execute<RecoveryKeyState>('secrets.recovery_key_state', {});
+  }
+
+  /** Remembers that the current recovery key was shown, so it isn't announced again. */
+  async markRecoveryKeySeen(): Promise<void> {
+    await this.commands.execute('secrets.mark_recovery_key_seen', {});
   }
 
   async recoveryKey(): Promise<string> {

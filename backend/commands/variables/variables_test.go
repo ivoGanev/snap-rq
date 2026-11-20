@@ -189,3 +189,44 @@ func TestLockedSecretsCanBeRestoredOrReset(t *testing.T) {
 		t.Errorf("after reset and a new value, reveal = %v", got)
 	}
 }
+
+func TestRecoveryKeyIsAnnouncedOnceAndAgainOnlyForANewKey(t *testing.T) {
+	f := newFixture(t)
+	store := secrets.MemoryKeyStore()
+	secrets.SetDefault(secrets.NewVault(store))
+
+	state := func() vault.RecoveryKeyState {
+		t.Helper()
+		return f.run("secrets.recovery_key_state", nil).(vault.RecoveryKeyState)
+	}
+
+	// Fresh install: nothing seen, and checking doesn't create or read a key.
+	if got := state(); got != vault.RecoveryKeyUnseen {
+		t.Fatalf("fresh install = %q, want unseen", got)
+	}
+	if _, err := store.Load(); err == nil {
+		t.Error("checking the reminder created a key")
+	}
+
+	// First secret: shown in the editor, then marked.
+	f.createSecret("API_KEY", "s3cr3t")
+	if got := state(); got != vault.RecoveryKeyUnseen {
+		t.Fatalf("after the first secret = %q, want unseen (the editor shows it)", got)
+	}
+	f.run("secrets.mark_recovery_key_seen", nil)
+	if got := state(); got != vault.RecoveryKeySeen {
+		t.Fatalf("after marking = %q, want seen", got)
+	}
+
+	// The key is lost and the user starts over: the next secret makes a new key.
+	secrets.SetDefault(secrets.NewVault(secrets.MemoryKeyStore()))
+	f.run("secrets.reset", nil)
+	f.createSecret("TOKEN", "n3w")
+	if got := state(); got != vault.RecoveryKeyChanged {
+		t.Fatalf("after a new key = %q, want changed (announce at startup)", got)
+	}
+	f.run("secrets.mark_recovery_key_seen", nil)
+	if got := state(); got != vault.RecoveryKeySeen {
+		t.Errorf("after marking the new key = %q, want seen", got)
+	}
+}

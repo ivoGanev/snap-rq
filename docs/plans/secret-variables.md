@@ -75,9 +75,17 @@ unless revealed, and only decrypted when a request is sent.
   sent or stored until the user unlocks or starts over (which now clears cookies too).
 - [x] `cookie.save` (hand edits) is no longer undoable: its input would sit in the undo log
   in plain text. Delete and clear stay undoable; their snapshots hold encrypted values.
-- [x] `secrets.status` counts secret variables: the recovery key is shown on the first secret
-  *variable*, since cookies usually create the key first. The locked banner only shows when
-  there are secret variables.
+- [x] The locked banner only shows when there are secret variables (`secrets.status` counts
+  them).
+- [x] **Recovery key reminder, once per key.** `app_settings.secrets_recovery_key_seen` holds
+  the fingerprint (first 8 bytes of SHA-256, hex) of the key the user was shown.
+  - Never seen → the dialog opens in the variables editor when a variable becomes secret.
+  - Seen, same key → nothing, ever.
+  - Seen, key replaced (Start over, or a silent reset) → the dialog opens once at app
+    start: "your saved recovery key no longer works".
+  - Showing the key (any of the above, or Settings → Show recovery key) stores the current
+    fingerprint. The startup check (`secrets.recovery_key_state`) reads the key only when a
+    fingerprint is stored, so a fresh install touches nothing.
 
 ## Manual checks
 

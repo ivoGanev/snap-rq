@@ -58,7 +58,7 @@ export class VariablesEditor {
   protected readonly revealed = signal<ReadonlyMap<number, string>>(new Map());
   /** The masked secret field being typed into, which hints that typing replaces it. */
   protected readonly focusedSecret = signal<number | null>(null);
-  /** Shown once, right after the very first secret is created. */
+  /** Shown once ever, after a variable becomes secret while the recovery key is unseen. */
   protected readonly recoveryKeyOpen = signal(false);
   protected readonly recoveryInput = signal('');
   protected readonly unlockError = signal('');
@@ -251,13 +251,14 @@ export class VariablesEditor {
 
   async toggleSecret(variable: EnvironmentVariable): Promise<void> {
     try {
-      // Cookies usually create the key first, so "first" means the first secret variable.
-      const wasFirst = !variable.secret && (await this.secretsApi.refresh()).secret_variables === 0;
-      await this.variableApi.setSecret(variable.id, !variable.secret);
+      const makingSecret = !variable.secret;
+      await this.variableApi.setSecret(variable.id, makingSecret);
       this.setRevealed(variable.id, null);
       const status = await this.secretsApi.refresh();
-      // The first secret just created the key: show the recovery key once.
-      if (wasFirst && status.state === 'unlocked') this.recoveryKeyOpen.set(true);
+      // The recovery key is shown once ever; the dialog marks it seen.
+      if (makingSecret && status.state === 'unlocked' && status.recovery_key === 'unseen') {
+        this.recoveryKeyOpen.set(true);
+      }
     } catch (err) {
       console.error(err);
     }

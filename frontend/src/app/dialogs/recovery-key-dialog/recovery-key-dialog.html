@@ -6,11 +6,16 @@
     </div>
 
     <div class="overlay-body">
-      @if (firstTime()) {
+      @if (reason() === 'first') {
         <p class="recovery-text">
           Secret values are encrypted with a key kept in this computer's credential store. Save this
           recovery key somewhere safe, such as a password manager. You'll need it if that key is lost,
           or to use these secrets on another computer.
+        </p>
+      } @else if (reason() === 'changed') {
+        <p class="recovery-text">
+          Your encryption key changed, so the recovery key you saved before no longer works. Save this
+          new one somewhere safe, such as a password manager.
         </p>
       } @else {
         <p class="recovery-text">
@@ -32,7 +37,7 @@
       <button class="variable-add" type="button" [disabled]="!recoveryKey()" (click)="save()">Save to file…</button>
       <span class="recovery-spacer"></span>
       <button class="variable-add" type="button" (click)="closed.emit()">
-        {{ firstTime() ? "I've saved it" : 'Done' }}
+        {{ reason() === 'manual' ? 'Done' : "I've saved it" }}
       </button>
     </div>
   </div>

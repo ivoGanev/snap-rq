@@ -250,7 +250,7 @@
 </div>
 
 @if (recoveryKeyOpen()) {
-  <app-recovery-key-dialog [firstTime]="true" (closed)="recoveryKeyOpen.set(false)" />
+  <app-recovery-key-dialog reason="first" (closed)="recoveryKeyOpen.set(false)" />
 }
 
 <!-- Environment delete confirmation -->

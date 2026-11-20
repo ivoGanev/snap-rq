@@ -254,6 +254,10 @@
   ></app-openapi-import-dialog>
 }
 
+@if (newRecoveryKeyOpen()) {
+  <app-recovery-key-dialog reason="changed" (closed)="newRecoveryKeyOpen.set(false)" />
+}
+
 @if (settingsOpen()) {
   <app-settings-dialog (close)="closeSettings()"></app-settings-dialog>
 }

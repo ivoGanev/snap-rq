@@ -12,9 +12,11 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/base32"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -125,6 +127,18 @@ func (v *Vault) Status(q Querier) (State, error) {
 		return "", err
 	}
 	return StateUnlocked, nil
+}
+
+// Fingerprint identifies the current key without revealing it: the first 8
+// bytes of its SHA-256, in hex. Used to remember which recovery key the user
+// has seen, so a replaced key can be announced.
+func (v *Vault) Fingerprint(q Querier) (string, error) {
+	key, err := v.unlock(q, false)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(key)
+	return hex.EncodeToString(sum[:8]), nil
 }
 
 // RecoveryKey returns the key in its readable form (SNRQ-XXXX-…).

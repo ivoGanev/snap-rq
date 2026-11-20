@@ -2,9 +2,13 @@ import { Component, inject, input, output, signal, type OnInit } from '@angular/
 import { Clipboard, Dialogs } from '@wailsio/runtime';
 import { SecretsApiService } from '../../core/services/secrets.service';
 
+/** Why the recovery key is shown: the first secret, a replaced key, or asked for in Settings. */
+export type RecoveryKeyReason = 'first' | 'changed' | 'manual';
+
 /**
- * Shows the recovery key with Copy and Save, either right after the first
- * secret is created or from Settings → Security.
+ * Shows the recovery key with Copy and Save: once after the first secret, once
+ * at startup after the key was replaced, or from Settings → Security. Showing
+ * it marks it seen, so it isn't announced again.
  */
 @Component({
   selector: 'app-recovery-key-dialog',
@@ -17,8 +21,7 @@ import { SecretsApiService } from '../../core/services/secrets.service';
 export class RecoveryKeyDialog implements OnInit {
   private readonly secretsApi = inject(SecretsApiService);
 
-  /** True right after the first secret: the text explains why the key matters. */
-  readonly firstTime = input(false);
+  readonly reason = input<RecoveryKeyReason>('manual');
   readonly closed = output<void>();
 
   protected readonly recoveryKey = signal('');
@@ -27,6 +30,7 @@ export class RecoveryKeyDialog implements OnInit {
   async ngOnInit(): Promise<void> {
     try {
       this.recoveryKey.set(await this.secretsApi.recoveryKey());
+      await this.secretsApi.markRecoveryKeySeen();
     } catch (err) {
       console.error('loading the recovery key failed', err);
       this.notice.set("The recovery key can't be shown right now.");

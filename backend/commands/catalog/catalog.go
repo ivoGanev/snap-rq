@@ -106,6 +106,8 @@ var All = []commands.Factory{
 	vault.NewStatus,
 	vault.NewRecoveryKey,
 	vault.NewSaveRecoveryKey,
+	vault.NewRecoveryKeyReminder,
+	vault.NewMarkRecoveryKeySeen,
 	vault.NewRestore,
 	vault.NewReset,
 

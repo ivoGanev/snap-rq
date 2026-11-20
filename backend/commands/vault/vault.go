@@ -28,10 +28,87 @@ func (Status) Info() commands.Info {
 type StatusResult struct {
 	State secrets.State `json:"state"` // none | unlocked | locked
 	Store string        `json:"store"` // keyring | file | memory
-	// SecretVariables counts variables marked secret. Cookies usually create
-	// the key first, so this, not the state, tells the editor whether a new
-	// secret is the first one (and the recovery key should be shown).
+	// SecretVariables counts variables marked secret: the locked banner only
+	// shows when there are some to unlock.
 	SecretVariables int `json:"secret_variables"`
+	// RecoveryKey says whether the user has seen the current recovery key:
+	// unseen (never), seen (this key), changed (an older key: announce it).
+	RecoveryKey RecoveryKeyState `json:"recovery_key"`
+}
+
+// RecoveryKeyState is whether the user has seen the current recovery key.
+type RecoveryKeyState string
+
+const (
+	RecoveryKeyUnseen  RecoveryKeyState = "unseen"
+	RecoveryKeySeen    RecoveryKeyState = "seen"
+	RecoveryKeyChanged RecoveryKeyState = "changed"
+)
+
+// seenSetting holds the fingerprint of the recovery key the user was last
+// shown (see secrets.Vault.Fingerprint), as a JSON string in app_settings.
+const seenSetting = "secrets_recovery_key_seen"
+
+// recoveryKeyState compares the fingerprint of the key the user saw with the
+// current key. With nothing seen yet it doesn't touch the key at all, so a
+// fresh install reads nothing from the keyring at startup. A locked key can't
+// be compared and counts as seen: the locked banner handles that case.
+func recoveryKeyState(tx *sql.Tx) (RecoveryKeyState, error) {
+	var raw, seen string
+	err := tx.QueryRow(`SELECT value FROM app_settings WHERE key = ?`, seenSetting).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return RecoveryKeyUnseen, nil
+	}
+	if err != nil {
+		return "", err
+	}
+	if err := json.Unmarshal([]byte(raw), &seen); err != nil || seen == "" {
+		return RecoveryKeyUnseen, nil
+	}
+	current, err := secrets.Default().Fingerprint(tx)
+	if err != nil {
+		return RecoveryKeySeen, nil
+	}
+	if current != seen {
+		return RecoveryKeyChanged, nil
+	}
+	return RecoveryKeySeen, nil
+}
+
+// RecoveryKeyReminder is the startup check: should the app announce a new
+// recovery key? Separate from secrets.status so starting the app doesn't
+// unlock the key unless a recovery key was seen before.
+type RecoveryKeyReminder struct{ tx *sql.Tx }
+
+func NewRecoveryKeyReminder(tx *sql.Tx) commands.Command { return &RecoveryKeyReminder{tx: tx} }
+
+func (RecoveryKeyReminder) Info() commands.Info {
+	return commands.Info{FunctionID: "secrets.recovery_key_state", Label: "Recovery Key State", ReadOnly: true}
+}
+
+func (c RecoveryKeyReminder) Run(json.RawMessage) (any, error) {
+	return recoveryKeyState(c.tx)
+}
+
+// MarkRecoveryKeySeen records that the user was shown the current recovery
+// key (its fingerprint), so it isn't announced again.
+type MarkRecoveryKeySeen struct{ tx *sql.Tx }
+
+func NewMarkRecoveryKeySeen(tx *sql.Tx) commands.Command { return &MarkRecoveryKeySeen{tx: tx} }
+
+func (MarkRecoveryKeySeen) Info() commands.Info {
+	return commands.Info{FunctionID: "secrets.mark_recovery_key_seen", Label: "Mark Recovery Key Seen"}
+}
+
+func (c MarkRecoveryKeySeen) Run(json.RawMessage) (any, error) {
+	fingerprint, err := secrets.Default().Fingerprint(c.tx)
+	if err != nil {
+		return nil, err
+	}
+	raw, _ := json.Marshal(fingerprint)
+	_, err = c.tx.Exec(`INSERT INTO app_settings (key, value) VALUES (?, ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value`, seenSetting, string(raw))
+	return nil, err
 }
 
 func (c Status) Run(json.RawMessage) (any, error) {
@@ -43,6 +120,9 @@ func (c Status) Run(json.RawMessage) (any, error) {
 	result := StatusResult{State: state, Store: vault.StoreKind()}
 	if err := c.tx.QueryRow(`SELECT COUNT(*) FROM environment_variables WHERE secret = 1`).
 		Scan(&result.SecretVariables); err != nil {
+		return nil, err
+	}
+	if result.RecoveryKey, err = recoveryKeyState(c.tx); err != nil {
 		return nil, err
 	}
 	return result, nil
