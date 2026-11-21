@@ -42,6 +42,8 @@ type savedScriptLink struct {
 	ScriptID      int64   `json:"script_id"`
 	UserSortOrder int     `json:"user_sort_order"`
 	UserColor     *string `json:"user_color"`
+	RunOrder      int     `json:"run_order"`
+	Enabled       bool    `json:"enabled"`
 }
 
 type savedFavLink struct {
@@ -67,31 +69,34 @@ func (c Delete) Snapshot(input json.RawMessage) (any, error) {
 		one := savedRequest{Request: req}
 
 		rows, err := c.tx.Query(
-			`SELECT id, request_id, COALESCE(headers, ''), status_code, COALESCE(body, ''), created_at, duration_ms
+			`SELECT id, request_id, COALESCE(headers, ''), status_code, COALESCE(body, ''), created_at, duration_ms, script_log
 			 FROM responses WHERE request_id = ? ORDER BY id`, id)
 		if err != nil {
 			return nil, fmt.Errorf("loading responses: %w", err)
 		}
 		for rows.Next() {
 			var resp models.HttpResponse
+			var scriptLog string
 			if err := rows.Scan(&resp.ID, &resp.RequestID, &resp.Headers, &resp.StatusCode,
-				&resp.Body, &resp.CreatedAt, &resp.DurationMs); err != nil {
+				&resp.Body, &resp.CreatedAt, &resp.DurationMs, &scriptLog); err != nil {
 				rows.Close()
 				return nil, err
 			}
+			resp.ScriptLog = models.ParseScriptLog(scriptLog)
 			one.Responses = append(one.Responses, resp)
 		}
 		rows.Close()
 
 		rows, err = c.tx.Query(
-			`SELECT id, request_id, script_id, user_sort_order, user_color
+			`SELECT id, request_id, script_id, user_sort_order, user_color, run_order, enabled
 			 FROM request_scripts WHERE request_id = ? ORDER BY id`, id)
 		if err != nil {
 			return nil, fmt.Errorf("loading script links: %w", err)
 		}
 		for rows.Next() {
 			var link savedScriptLink
-			if err := rows.Scan(&link.ID, &link.RequestID, &link.ScriptID, &link.UserSortOrder, &link.UserColor); err != nil {
+			if err := rows.Scan(&link.ID, &link.RequestID, &link.ScriptID, &link.UserSortOrder, &link.UserColor,
+				&link.RunOrder, &link.Enabled); err != nil {
 				rows.Close()
 				return nil, err
 			}
@@ -248,19 +253,19 @@ func (c Delete) Undo(snapshot, _ json.RawMessage) error {
 		}
 		for _, resp := range one.Responses {
 			if _, err := c.tx.Exec(`
-				INSERT INTO responses (id, request_id, headers, status_code, body, created_at, duration_ms)
-				VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				INSERT INTO responses (id, request_id, headers, status_code, body, created_at, duration_ms, script_log)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 				resp.ID, resp.RequestID, resp.Headers, resp.StatusCode, resp.Body,
-				resp.CreatedAt, resp.DurationMs,
+				resp.CreatedAt, resp.DurationMs, models.FormatScriptLog(resp.ScriptLog),
 			); err != nil {
 				return err
 			}
 		}
 		for _, link := range one.ScriptLinks {
 			if _, err := c.tx.Exec(`
-				INSERT INTO request_scripts (id, request_id, script_id, user_sort_order, user_color)
-				VALUES (?, ?, ?, ?, ?)`,
-				link.ID, link.RequestID, link.ScriptID, link.UserSortOrder, link.UserColor,
+				INSERT INTO request_scripts (id, request_id, script_id, user_sort_order, user_color, run_order, enabled)
+				VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				link.ID, link.RequestID, link.ScriptID, link.UserSortOrder, link.UserColor, link.RunOrder, link.Enabled,
 			); err != nil {
 				return err
 			}
