@@ -2,6 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { CommandApiService } from './command.service';
 import { ChangeBus } from './change-bus.service';
 import type { HttpRequestSummary } from '../models/http';
+import type { ScriptProblem } from '../models/script-problem';
 
 export interface ScriptAppearance {
   id: number;
@@ -65,6 +66,11 @@ export class ScriptApiService {
   }
 
   /** Saves a script's code. Not undoable: the editor has its own undo. */
+  /** Syntax errors in a script's code, from the engine that runs it (nothing runs). */
+  async check(content: string): Promise<ScriptProblem[]> {
+    return (await this.commands.execute<ScriptProblem[]>('script.check', { content })) ?? [];
+  }
+
   async setContent(id: number, content: string): Promise<void> {
     await this.commands.execute('script.set_content', { id, content });
   }
