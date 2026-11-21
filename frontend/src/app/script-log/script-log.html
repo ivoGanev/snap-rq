@@ -1,0 +1,57 @@
+<button
+  class="script-log-header"
+  type="button"
+  [attr.aria-expanded]="expanded()"
+  (click)="expanded.set(!expanded())"
+>
+  <h3 class="section-title">
+    <svg class="script-log-chevron" [class.is-open]="expanded()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+    Scripts
+  </h3>
+  <span class="script-log-summary">
+    @if (summary().passed) {
+      <span class="is-passed">{{ summary().passed }} passed</span>
+    }
+    @if (summary().failed) {
+      <span class="is-failed">{{ summary().failed }} failed</span>
+    }
+    @if (summary().errors) {
+      <span class="is-failed">{{ summary().errors }} {{ summary().errors === 1 ? 'error' : 'errors' }}</span>
+    }
+  </span>
+</button>
+
+@if (expanded()) {
+<ul class="script-runs">
+  @for (run of runs(); track $index) {
+    <li class="script-run">
+      <div class="script-run-title">
+        <span class="script-run-name">{{ run.script }}</span>
+        <span class="script-run-phase">{{ run.phase }}</span>
+        <span class="script-run-duration">{{ run.duration_ms }} ms</span>
+      </div>
+
+      @for (test of run.tests ?? []; track $index) {
+        <div class="script-test" [class.is-failed]="!test.passed">
+          <span class="script-test-mark" aria-hidden="true">{{ test.passed ? '✓' : '✗' }}</span>
+          <span class="script-test-name">{{ test.name }}</span>
+          @if (test.error) {
+            <span class="script-test-error">{{ test.error }}</span>
+          }
+        </div>
+      }
+
+      @if (run.console?.length) {
+        <pre class="script-console">@for (line of run.console; track $index) {<span class="script-console-line" [attr.data-level]="line.level">{{ line.text }}
+</span>}</pre>
+      }
+
+      @if (run.error) {
+        <pre class="script-error">{{ run.error }}</pre>
+      }
+    </li>
+  }
+</ul>
+}

@@ -17,7 +17,7 @@
   flex-direction: column;
   align-items: center;
   gap: var(--s-2);
-  max-width: 280px;
+  max-width: 320px;
   padding: var(--s-4) var(--s-3);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
@@ -42,4 +42,41 @@
 
 .wip-link {
   color: var(--accent);
+}
+
+.wip-code {
+  align-self: stretch;
+  margin: 0;
+  padding: var(--s-2);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  text-align: left;
+  white-space: pre;
+  overflow-x: auto;
+  user-select: text;
+  color: var(--text);
+  background: var(--input-bg);
+  border-radius: var(--radius);
+}
+
+.wip-api {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px var(--s-2);
+  align-self: stretch;
+  margin: 0;
+  font-size: 0.75rem;
+  text-align: left;
+}
+
+.wip-api dt {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.wip-api dd {
+  margin: 0;
+  color: var(--muted);
 }

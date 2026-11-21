@@ -242,6 +242,12 @@
   max-height: 160px;
 }
 
+// The headers keep their height (up to the cap above): when the panel is
+// short it scrolls, rather than squeezing them under the body.
+.response-headers-section {
+  flex-shrink: 0;
+}
+
 .response-body {
   min-height: 120px;
 }
@@ -393,4 +399,12 @@
 .request-error-duration {
   font-size: 0.8125rem;
   color: var(--muted);
+}
+
+// The scripts' log under a failed request's message (e.g. the script that
+// stopped the send), full width and left-aligned.
+.request-error-scripts {
+  align-self: stretch;
+  margin-top: var(--s-3);
+  text-align: left;
 }

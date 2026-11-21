@@ -10,10 +10,11 @@ import {
 import { csvColumnWidths } from '../core/prettifiers/csv-prettifier';
 import { highlightLine, type SyntaxLanguage, type SyntaxToken } from '../core/highlighters/highlight';
 import { httpStatusClass, httpStatusText, isRequestError } from '../core/http-status';
+import { ScriptLog } from '../script-log/script-log';
 
 @Component({
   selector: 'app-response-viewer',
-  imports: [CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll],
+  imports: [CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, ScriptLog],
   templateUrl: './response-viewer.html',
   styleUrl: './response-viewer.scss',
 })

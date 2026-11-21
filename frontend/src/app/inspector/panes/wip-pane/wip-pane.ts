@@ -7,8 +7,8 @@ import type { InspectorContentOf } from '../../inspector';
 const DONATE_URL = 'https://example.com/donate';
 
 /**
- * Inspector pane for work in progress: scripts can't run yet. Centred note
- * with a link to support development.
+ * Inspector pane of the script views: a quick reference for writing scripts
+ * (they're in beta), with a link to support development.
  */
 @Component({
   selector: 'app-wip-pane',

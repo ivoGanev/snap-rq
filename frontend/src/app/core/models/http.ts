@@ -50,6 +50,19 @@ export interface HttpResponse {
   body: string;
   created_at: string;
   duration_ms: number;
+  /** What the request's scripts did in this send, in run order (null when none ran). */
+  script_log: ScriptRun[] | null;
+}
+
+/** One script in one phase of a send (see backend/scripting). */
+export interface ScriptRun {
+  script_id: number;
+  script: string;
+  phase: 'beforeRequest' | 'afterResponse';
+  duration_ms: number;
+  console: { level: 'log' | 'info' | 'warn' | 'error'; text: string }[] | null;
+  tests: { name: string; passed: boolean; error?: string }[] | null;
+  error?: string;
 }
 
 /** A request sitting in the trash bin. */
