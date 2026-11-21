@@ -1,13 +1,102 @@
-<app-inspector-header />
+<app-inspector-header title="Try it">
+  <span class="beta-badge">Beta</span>
+</app-inspector-header>
 
-<div class="wip">
-  <div class="wip-card" role="note">
-    <span class="wip-badge">Beta</span>
-    <p class="wip-text">
-      Scripts run when you send a request they're attached to, in the order they were attached.
-      Their tests and console output appear under <strong>Scripts</strong> in the response.
-    </p>
-    <pre class="wip-code">function beforeRequest(req, ctx) {{ '{' }}
+<div class="script-pane">
+  @if (attached().length === 0 && others().length === 0) {
+    <p class="try-note">This project has no requests yet: create one to try the script against.</p>
+  } @else {
+    <label class="try-field">
+      <span class="try-label">Request</span>
+      <select class="try-select" (change)="selectRequest($any($event.target).value)">
+        @if (attached().length) {
+          <optgroup label="Attached to this script">
+            @for (r of attached(); track r.id) {
+              <option [value]="r.id" [selected]="r.id === requestId()">{{ r.method }} {{ r.name }}</option>
+            }
+          </optgroup>
+        }
+        @if (others().length) {
+          <optgroup label="Other requests">
+            @for (r of others(); track r.id) {
+              <option [value]="r.id" [selected]="r.id === requestId()">{{ r.method }} {{ r.name }}</option>
+            }
+          </optgroup>
+        }
+      </select>
+    </label>
+
+    <div class="try-actions">
+      <button class="try-button" type="button" [disabled]="busy()" (click)="run('beforeRequest')">
+        ▶ beforeRequest
+      </button>
+      <button class="try-button" type="button" [disabled]="busy()" (click)="run('afterResponse')">
+        ▶ afterResponse
+      </button>
+      <button class="try-button try-button--send" type="button" [disabled]="busy()" (click)="sendForReal($event)">
+        Send for real
+      </button>
+    </div>
+    <p class="try-hint">Runs the code in the editor. Nothing is sent, except with Send for real.</p>
+  }
+
+  @if (failure()) {
+    <pre class="try-error">{{ failure() }}</pre>
+  }
+
+  @if (outcome(); as o) {
+    <section class="try-result" aria-live="polite">
+      @if (o.kind === 'try') {
+        @let r = o.result;
+        <h3 class="section-title">
+          {{ o.phase === 'beforeRequest' ? 'The request it would send' : 'afterResponse on the last response' }}
+        </h3>
+        @for (p of r.problems ?? []; track $index) {
+          <pre class="try-error">Line {{ p.line }}, column {{ p.column }}: {{ p.message }}</pre>
+        }
+        @if (r.stopped) {
+          <pre class="try-error">Not sent: {{ r.stopped }}</pre>
+        }
+        @if (r.response) {
+          <p class="try-meta">Response {{ r.response.status_code || 'none' }} · {{ r.response.created_at }}</p>
+        }
+        @if (r.note) {
+          <p class="try-note">{{ r.note }}</p>
+        }
+        @if (r.request) {
+          <div class="try-request">
+            <div class="try-request-line"><strong>{{ r.request.method }}</strong> {{ r.request.url }}</div>
+            @if (r.request.headers) {
+              <pre class="try-request-part">{{ r.request.headers }}</pre>
+            }
+            @if (r.request.body) {
+              <pre class="try-request-part">{{ r.request.body }}</pre>
+            }
+          </div>
+        }
+        @if (r.log?.length) {
+          <app-script-log [runs]="r.log!" />
+        }
+        @if (!r.problems?.length) {
+          <p class="try-hint">Only this script ran: values earlier scripts set in ctx.vars aren't here.</p>
+        }
+      } @else {
+        <h3 class="section-title">Sent: response {{ o.response.status_code || '(none)' }}</h3>
+        @if (!o.response.status_code) {
+          <pre class="try-error">{{ o.response.body }}</pre>
+        }
+        @if (o.response.script_log?.length) {
+          <app-script-log [runs]="o.response.script_log!" />
+        } @else {
+          <p class="try-note">No script printed, tested or failed in this send.</p>
+        }
+      }
+    </section>
+  }
+
+  <details class="script-reference">
+    <summary>Reference</summary>
+    <pre class="reference-code">function beforeRequest(req, ctx) {{ '{' }}
   req.headers.set('Authorization',
     'Bearer ' + ctx.env.get('TOKEN'));
 {{ '}' }}
@@ -16,7 +105,7 @@ function afterResponse(res, ctx) {{ '{' }}
   ctx.test('status is 200', () =>
     ctx.expect(res.status).toBe(200));
 {{ '}' }}</pre>
-    <dl class="wip-api">
+    <dl class="reference-api">
       <dt>req</dt>
       <dd>method, url, body, headers.get / set / remove / all</dd>
       <dt>res</dt>
@@ -26,9 +115,11 @@ function afterResponse(res, ctx) {{ '{' }}
       <dt>console</dt>
       <dd>log, info, warn, error</dd>
     </dl>
-    <p class="wip-text">
-      Ordering scripts per request and writing variables are still in progress. To see them sooner,
-      consider <a class="wip-link" [href]="donateUrl" (click)="openDonate($event)">supporting development</a>.
+    <p class="try-hint">
+      Scripts run when a request they're attached to is sent, in the order they were attached; results appear
+      under Scripts in its response. Ordering scripts per request and writing variables are still in progress.
+      To see them sooner, consider
+      <a class="reference-link" [href]="donateUrl" (click)="openDonate($event)">supporting development</a>.
     </p>
-  </div>
+  </details>
 </div>

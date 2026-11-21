@@ -248,6 +248,13 @@ Built (phases 1 and 2):
   phase), also under a failed request's message. The script views' Inspector is a quick
   reference.
 
+- The script view's Inspector is **Try it**: pick a request, run `beforeRequest` (shows the request
+  it would send, variables filled in, secret values masked) or `afterResponse` (against the request's
+  last saved response) on the editor's current code, without sending (`script.try`); or send for
+  real and see that send's script log. The reference folds out below.
+- The script editor completes the API (`script-api.ts`) and underlines syntax errors from goja
+  (`script.check`).
+
 Not yet: ordering and switching scripts per request in the UI (phase 3), `ctx.env.set` and
 `ctx.crypto` (phase 4), and everything in phase 5. Script logs are not kept when a request is
 restored from the trash bin.
