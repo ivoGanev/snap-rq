@@ -52,8 +52,15 @@ func init() {
 
 func main() {
 	// Secret variable values are encrypted with a key kept in the OS
-	// credential store (a 0600 file when there is none).
-	secrets.SetDefault(secrets.NewVault(secrets.OSKeyStore(filepath.Join(database.DataDir(), "secret.key"))))
+	// credential store (a 0600 file when there is none). A moved data folder
+	// (the e2e tests' throwaway one) keeps its own key file and never touches
+	// the credential store, so it can't overwrite the real profile's key.
+	keyFile := filepath.Join(database.DataDir(), "secret.key")
+	keyStore := secrets.OSKeyStore(keyFile)
+	if database.CustomDataDir() {
+		keyStore = secrets.FileKeyStore(keyFile)
+	}
+	secrets.SetDefault(secrets.NewVault(keyStore))
 
 	// Open the local SQLite database and run migrations. After an update a
 	// backup is taken first, since migrations can reshape tables.

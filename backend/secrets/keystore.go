@@ -91,6 +91,10 @@ func (keyringKeyStore) Save(key []byte) error {
 
 func (keyringKeyStore) Kind() string { return StoreKeyring }
 
+// FileKeyStore keeps the key in a file readable only by the user, e.g. for
+// a data folder that must not share the OS credential store's key.
+func FileKeyStore(path string) KeyStore { return fileKeyStore{path: path} }
+
 type fileKeyStore struct{ path string }
 
 func (s fileKeyStore) Load() ([]byte, error) {

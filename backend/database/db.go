@@ -25,9 +25,23 @@ func Open() (*sql.DB, error) {
 // Path is where the app's database lives.
 func Path() string { return filepath.Join(DataDir(), "app.db") }
 
+// DataDirEnv names an environment variable that moves the data folder, e.g.
+// to a throwaway folder for the end-to-end tests.
+const DataDirEnv = "SNAPRQ_DATA_DIR"
+
 // DataDir is the folder holding the app's database (and, without an OS
-// keyring, the secrets key file).
-func DataDir() string { return filepath.Join(xdg.DataHome, "snap-rq-wails-v3") }
+// keyring, the secrets key file): $SNAPRQ_DATA_DIR when set.
+func DataDir() string {
+	if dir := os.Getenv(DataDirEnv); dir != "" {
+		return dir
+	}
+	return filepath.Join(xdg.DataHome, "snap-rq-wails-v3")
+}
+
+// CustomDataDir reports whether the data folder was moved with
+// $SNAPRQ_DATA_DIR. Such a folder is a separate profile: its secrets key
+// lives in the folder, never in the OS credential store.
+func CustomDataDir() bool { return os.Getenv(DataDirEnv) != "" }
 
 // OpenPath is Open for a database file at an explicit path (tests use a temp file).
 func OpenPath(dbPath string) (*sql.DB, error) { return OpenWith(dbPath, nil) }
