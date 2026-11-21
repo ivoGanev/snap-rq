@@ -1,0 +1,447 @@
+/*
+ * Flora theme: pixel-art florist. Mint panels on cream, plum ink, rose and
+ * leaf-green accents, a dusty brown-rose button. Pixelify Sans for headings
+ * and buttons, Nunito for text, IBM Plex Mono for code.
+ */
+[data-theme='flora'],
+:root[data-theme='flora'],
+:root:has([data-theme='flora']) {
+  --ink: #ffffe1; /* cream */
+  --text: #8b1e3b; /* plum */
+  --muted: #8a6470;
+  --accent: #d6336c; /* flower rose */
+  --accent-2: #2fae8e; /* leaf green */
+  --accent-3: #ecce37; /* smiley yellow */
+  --glass: rgba(139, 30, 59, 0.04);
+  --glass-strong: rgba(139, 30, 59, 0.08);
+  --glass-border: rgba(139, 30, 59, 0.22);
+
+  /* Pixel art: square corners, hard shadows. */
+  --radius: 0;
+  --pen: #333333; /* the tablet bezel */
+  --pencil: rgba(51, 51, 51, 0.45);
+  --mint: #87d6c6;
+  --mint-deep: #5fbfae;
+  --button: #8f6362;
+  --petal: #f48fb1;
+  --grad: linear-gradient(#8f6362, #8f6362);
+  --grad-success: linear-gradient(#2fae8e, #2fae8e);
+  --grad-alt: linear-gradient(135deg, #d6336c 0%, #ecce37 160%);
+  --on-accent: #ffffe1;
+
+  --font-display: 'Pixelify Sans', 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-hand: 'Pixelify Sans', 'Nunito', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+
+  --background: var(--ink);
+  --surface: #87d6c6;
+  --menu-bg: #ffffe1;
+  --surface-solid: #ffffe1;
+  --input-bg: #f4f1c2;
+  --row-even-bg: rgba(135, 214, 198, 0.18);
+  --hover-bg: rgba(214, 51, 108, 0.08);
+  --hover-highlight: rgba(214, 51, 108, 0.14);
+  --active-border: rgba(214, 51, 108, 0.45);
+  --selected-bg: rgba(214, 51, 108, 0.16);
+  --selected-border: rgba(214, 51, 108, 0.6);
+  --focus-ring: rgba(47, 174, 142, 0.3);
+  --focus-border: #2fae8e;
+  --active-tint-bg: rgba(47, 174, 142, 0.2);
+  --active-tint-border: rgba(47, 174, 142, 0.6);
+  --danger-text: #b3123f;
+  --danger-bg: rgba(179, 18, 63, 0.12);
+  --danger-solid: rgba(179, 18, 63, 0.9);
+  --error-text: #b3123f;
+  --success-text: #17795f;
+  --shadow: rgba(51, 51, 51, 0.3);
+  --backdrop: rgba(51, 51, 51, 0.35);
+
+  --scrollbar-track: rgba(139, 30, 59, 0.08);
+  --scrollbar-thumb: #d6336c;
+  --scrollbar-thumb-hover: #b3123f;
+  --scrollbar-thumb-grad: linear-gradient(#d6336c, #d6336c);
+  --scrollbar-thumb-grad-hover: linear-gradient(#b3123f, #b3123f);
+
+  --btn-glow: rgba(51, 51, 51, 0.25);
+  --btn-glow-strong: rgba(51, 51, 51, 0.35);
+  --btn-glow-success: rgba(51, 51, 51, 0.25);
+  --btn-glow-success-strong: rgba(51, 51, 51, 0.35);
+  --btn-glow-danger: rgba(51, 51, 51, 0.25);
+  --btn-glow-danger-strong: rgba(51, 51, 51, 0.35);
+  --btn-glow-gold: rgba(51, 51, 51, 0.2);
+  --btn-highlight: rgba(255, 255, 225, 0.35);
+  --btn-edge: rgba(51, 51, 51, 0.3);
+  --btn-border-hover: #333333;
+  --btn-ghost-ring: rgba(139, 30, 59, 0.4);
+  --btn-focus: #2fae8e;
+
+  /* Request colour slots: the flower-shop palette. */
+  --label-primary: #d6336c;
+  --label-secondary: #2fae8e;
+  --label-tertiary: #e0b800;
+  --label-quaternary: #4fa3d1;
+  --label-quinary: #8b5bb8;
+  --label-senary: #e8743b;
+
+  --status-2xx: #17795f;
+  --status-3xx: #9a7b00;
+  --status-4xx: #b3123f;
+  --status-5xx: #8b1e3b;
+  --method-get-bg: rgba(47, 174, 142, 0.22);
+  --method-get-fg: #0f6b53;
+  --method-post-bg: rgba(214, 51, 108, 0.16);
+  --method-post-fg: #b3123f;
+  --method-put-bg: rgba(236, 206, 55, 0.35);
+  --method-put-fg: #7a6200;
+  --method-patch-bg: rgba(139, 91, 184, 0.2);
+  --method-patch-fg: #6a3f94;
+
+  --syntax-key: #0f6b53;
+  --syntax-string: #b3123f;
+  --syntax-number: #8a6a00;
+  --syntax-boolean: #6a3f94;
+  --syntax-null: #d6336c;
+  --syntax-punctuation: #8a6470;
+  --syntax-tag: #0f6b53;
+  --syntax-attribute: #6a3f94;
+  --syntax-comment: #a58a93;
+  --syntax-csv-even: #8b1e3b;
+  --syntax-csv-odd: #0f6b53;
+
+  color-scheme: light;
+}
+
+/*
+ * Pixel layer: structural rules scoped to this theme. ':root' raises the
+ * specificity above components' own (scoped) styles.
+ */
+
+/* Cream workspace with a faint scatter of drifting pixel squares. */
+:root[data-theme='flora'] body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' shape-rendering='crispEdges'%3E%3Crect x='8' y='12' width='4' height='4' fill='%2387d6c6' fill-opacity='.55'/%3E%3Crect x='52' y='6' width='4' height='4' fill='%23f48fb1' fill-opacity='.5'/%3E%3Crect x='76' y='40' width='4' height='4' fill='%2387d6c6' fill-opacity='.45'/%3E%3Crect x='28' y='58' width='4' height='4' fill='%23ecce37' fill-opacity='.5'/%3E%3Crect x='64' y='80' width='4' height='4' fill='%23f48fb1' fill-opacity='.4'/%3E%3Crect x='12' y='84' width='4' height='4' fill='%2387d6c6' fill-opacity='.4'/%3E%3C/svg%3E");
+}
+
+/* Pixel headings. Body text stays Nunito, code IBM Plex Mono. */
+:root[data-theme='flora'] .panel-title,
+:root[data-theme='flora'] .column-title,
+:root[data-theme='flora'] .overlay-title,
+:root[data-theme='flora'] .zen-pane-title,
+:root[data-theme='flora'] .section-title,
+:root[data-theme='flora'] .undo-title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+  color: #8b1e3b;
+}
+
+/* Dialogs and menus: the tablet bezel, with a hard shadow. */
+:root[data-theme='flora'] .overlay-panel,
+:root[data-theme='flora'] .context-menu-panel {
+  border: 3px solid var(--pen);
+  box-shadow: 6px 6px 0 var(--pen);
+  background: var(--ink);
+}
+
+/* Buttons: pixel outline, hard shadow, pressed into the shadow on click. */
+:root[data-theme='flora'] .variable-add,
+:root[data-theme='flora'] .settings-button,
+:root[data-theme='flora'] .add-request-button,
+:root[data-theme='flora'] .send-plane,
+:root[data-theme='flora'] .restore-button,
+:root[data-theme='flora'] .delete-button,
+:root[data-theme='flora'] .mcp-button,
+:root[data-theme='flora'] .variable-add-button,
+:root[data-theme='flora'] .cookie-add-button,
+:root[data-theme='flora'] .settings-updates-button {
+  border: 2px solid var(--pen);
+  box-shadow: 3px 3px 0 var(--pen);
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+  transition:
+    transform 0.06s steps(2),
+    box-shadow 0.06s steps(2),
+    filter 0.15s ease;
+}
+
+:root[data-theme='flora'] .variable-add:active,
+:root[data-theme='flora'] .settings-button:active,
+:root[data-theme='flora'] .add-request-button:active,
+:root[data-theme='flora'] .send-plane:active,
+:root[data-theme='flora'] .restore-button:active,
+:root[data-theme='flora'] .delete-button:active,
+:root[data-theme='flora'] .mcp-button:active,
+:root[data-theme='flora'] .variable-add-button:active,
+:root[data-theme='flora'] .cookie-add-button:active,
+:root[data-theme='flora'] .settings-updates-button:active {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 var(--pen);
+}
+
+/* Inputs: square, plum outline, green when focused. */
+:root[data-theme='flora'] .edit-input,
+:root[data-theme='flora'] .edit-select,
+:root[data-theme='flora'] .request-search-input,
+:root[data-theme='flora'] .script-input,
+:root[data-theme='flora'] .variable-input,
+:root[data-theme='flora'] .backups-input,
+:root[data-theme='flora'] .settings-number {
+  border: 2px solid rgba(139, 30, 59, 0.5);
+  background: var(--input-bg);
+}
+
+:root[data-theme='flora'] .edit-input:focus,
+:root[data-theme='flora'] .edit-select:focus,
+:root[data-theme='flora'] .request-search-input:focus,
+:root[data-theme='flora'] .script-input:focus,
+:root[data-theme='flora'] .variable-input:focus,
+:root[data-theme='flora'] .backups-input:focus,
+:root[data-theme='flora'] .settings-number:focus {
+  border-color: #2fae8e;
+  box-shadow: 3px 3px 0 var(--mint-deep);
+}
+
+/* Chips and method badges: pixel outline, Pixelify lettering. */
+:root[data-theme='flora'] .script-chip,
+:root[data-theme='flora'] .request-method,
+:root[data-theme='flora'] .environment-chip {
+  border: 2px solid rgba(139, 30, 59, 0.5);
+  font-family: var(--font-display);
+}
+
+/* Column headers: a dotted pixel rule. */
+:root[data-theme='flora'] .column-header {
+  border-bottom: 3px dotted var(--mint-deep);
+}
+
+/*
+ * Selection: a rose wash with a chunky left bar. !important: the request list
+ * merges neighbouring selected rows with several outline rules that would
+ * otherwise win.
+ */
+:root[data-theme='flora'] .spreadsheet-row.is-selected {
+  background: rgba(214, 51, 108, 0.16) !important;
+  box-shadow: inset 4px 0 0 #d6336c !important;
+}
+
+:root[data-theme='flora'] .group-list-item.is-selected {
+  background: rgba(214, 51, 108, 0.16);
+  box-shadow: inset 4px 0 0 #d6336c;
+}
+
+/*
+ * Send: a "SHOP NOW" style pill. Dusty brown-rose, cream pixel lettering.
+ * The label stays "Send"; the plane and eye icons stay hidden.
+ */
+:root[data-theme='flora'] .send-plane {
+  position: relative;
+  background: var(--button);
+  color: #ffffe1;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+:root[data-theme='flora'] .send-plane:hover {
+  filter: brightness(1.08);
+}
+
+/* Pixel petals drift down the button while the request is in flight. */
+:root[data-theme='flora'] .send-plane::before,
+:root[data-theme='flora'] .send-plane::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+:root[data-theme='flora'] .send-plane.is-sending::before {
+  left: 18%;
+  top: -4px;
+  background: var(--petal);
+  box-shadow:
+    40px 6px 0 #87d6c6,
+    90px -2px 0 #ecce37;
+  animation: flora-petals 1s steps(6) infinite;
+}
+
+:root[data-theme='flora'] .send-plane.is-sending::after {
+  left: 48%;
+  top: -4px;
+  background: #87d6c6;
+  box-shadow:
+    -30px 4px 0 #ecce37,
+    46px 2px 0 var(--petal);
+  animation: flora-petals 1.2s steps(6) infinite 0.45s;
+}
+
+@keyframes flora-petals {
+  0% {
+    transform: translate(0, 0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-14px, 54px);
+    opacity: 0;
+  }
+}
+
+/* No response (network error): the button shakes in pixel steps. */
+:root[data-theme='flora'] .send-plane.is-failed {
+  animation: flora-shake 450ms steps(6) 1;
+}
+
+@keyframes flora-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+  75% {
+    transform: translateX(-2px);
+  }
+}
+
+/* Response arrived: a small bloom of pixel petals. Listed after the sending
+ * rule so it wins while both apply. */
+:root[data-theme='flora'] .send-plane.is-done::after {
+  left: 50%;
+  top: 50%;
+  background: #f48fb1;
+  box-shadow:
+    -14px -8px 0 #d6336c,
+    14px -8px 0 #ecce37,
+    -18px 6px 0 #87d6c6,
+    16px 8px 0 #f48fb1,
+    0 -14px 0 #d6336c,
+    0 14px 0 #ecce37;
+  animation: flora-bloom 450ms steps(5) 1;
+}
+
+@keyframes flora-bloom {
+  0% {
+    transform: scale(0.2);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(1.4);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+/*
+ * Left drawer (icon rail and the expanded nav): the component styles tint the
+ * icons with the accent-3 yellow on a transparent button, which vanishes on
+ * mint. Here they are real buttons like the rest: cream fill, pixel outline,
+ * hard shadow, plum icons; the active view is filled rose. !important because
+ * the components' own hover/active rules are more specific.
+ */
+:root[data-theme='flora'] .rail-button,
+:root[data-theme='flora'] .nav-button,
+:root[data-theme='flora'] .nav-toggle {
+  color: #8b1e3b !important;
+  background: #ffffe1 !important;
+  border: 2px solid var(--pen) !important;
+  box-shadow: 3px 3px 0 var(--pen) !important;
+  transition:
+    transform 0.06s steps(2),
+    box-shadow 0.06s steps(2),
+    background 0.1s steps(2);
+}
+
+:root[data-theme='flora'] .nav-button {
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+}
+
+:root[data-theme='flora'] .nav-button__icon,
+:root[data-theme='flora'] .nav-button:hover:not(:disabled) .nav-button__icon {
+  color: #8b1e3b !important;
+}
+
+/* The gold side bar is replaced by the fill below. */
+:root[data-theme='flora'] .rail-button::before,
+:root[data-theme='flora'] .nav-button::before,
+:root[data-theme='flora'] .nav-toggle::before {
+  display: none;
+}
+
+:root[data-theme='flora'] .rail-button:hover:not(:disabled),
+:root[data-theme='flora'] .nav-button:hover:not(:disabled),
+:root[data-theme='flora'] .nav-toggle:hover:not(:disabled) {
+  color: #8b1e3b !important;
+  background: #fff6a8 !important;
+  box-shadow: 3px 3px 0 var(--pen) !important;
+}
+
+/* Active view: rose fill, cream icon and label. */
+:root[data-theme='flora'] .rail-button.is-active,
+:root[data-theme='flora'] .rail-button.is-active:hover:not(:disabled),
+:root[data-theme='flora'] .rail-button--trash.is-active,
+:root[data-theme='flora'] .rail-button--trash.is-active:hover:not(:disabled),
+:root[data-theme='flora'] .nav-button.is-active,
+:root[data-theme='flora'] .nav-button.is-active:hover:not(:disabled),
+:root[data-theme='flora'] .nav-button--trash.is-active,
+:root[data-theme='flora'] .nav-button--trash.is-active:hover:not(:disabled) {
+  color: #ffffe1 !important;
+  background: #d6336c !important;
+  box-shadow: 3px 3px 0 var(--pen) !important;
+}
+
+:root[data-theme='flora'] .nav-button.is-active .nav-button__icon,
+:root[data-theme='flora'] .nav-button--trash.is-active .nav-button__icon {
+  color: #ffffe1 !important;
+}
+
+/* Pressed into the shadow on click, like the other buttons. */
+:root[data-theme='flora'] .rail-button:active:not(:disabled),
+:root[data-theme='flora'] .nav-button:active:not(:disabled),
+:root[data-theme='flora'] .nav-toggle:active:not(:disabled) {
+  transform: translate(3px, 3px) !important;
+  box-shadow: 0 0 0 var(--pen) !important;
+  border: 2px solid var(--pen) !important;
+}
+
+/* Keyboard focus: a green pixel ring. */
+:root[data-theme='flora'] .rail-button:focus-visible,
+:root[data-theme='flora'] .nav-button:focus-visible,
+:root[data-theme='flora'] .nav-toggle:focus-visible {
+  box-shadow:
+    3px 3px 0 var(--pen),
+    0 0 0 3px #2fae8e !important;
+}
+
+/* Dividers between the groups read as a dotted pixel rule. */
+:root[data-theme='flora'] .rail-divider,
+:root[data-theme='flora'] .sidebar-divider {
+  height: 0;
+  background: none;
+  border-top: 3px dotted var(--pen);
+  opacity: 0.5;
+}
+
+/* Small add / close buttons in the panel headers. */
+:root[data-theme='flora'] .add-button,
+:root[data-theme='flora'] .overlay-close {
+  border: 2px solid var(--pen);
+  box-shadow: 2px 2px 0 var(--pen);
+  background: #ffffe1;
+  color: #8b1e3b;
+}
+
+:root[data-theme='flora'] .add-button:active,
+:root[data-theme='flora'] .overlay-close:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--pen);
+}
