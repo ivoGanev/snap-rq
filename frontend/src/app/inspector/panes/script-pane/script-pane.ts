@@ -9,6 +9,7 @@ import { CommandApiService } from '../../../core/services/command.service';
 import { WorkspaceStateService } from '../../../core/services/workspace-state.service';
 import type { HttpResponse } from '../../../core/models/http';
 import type { TryOutcome, TryPhase } from '../../../core/models/script-try';
+import { SCRIPT_EXAMPLES } from './script-examples';
 
 /** Placeholder until there is a real donation page (plan D4). */
 const DONATE_URL = 'https://example.com/donate';
@@ -17,7 +18,7 @@ const DONATE_URL = 'https://example.com/donate';
  * Inspector pane of a script view: try the script against a request without
  * sending anything (beforeRequest shows the request it would produce,
  * afterResponse runs against the request's last response), or send it for
- * real. A quick reference folds out below.
+ * real. A reference (the API, and examples in tabs) folds out below.
  */
 @Component({
   selector: 'app-script-pane',
@@ -47,6 +48,13 @@ export class ScriptPane {
   protected readonly failure = signal('');
 
   protected readonly donateUrl = DONATE_URL;
+
+  /** The reference: the API list, or one of the examples. */
+  protected readonly examples = SCRIPT_EXAMPLES;
+  protected readonly referenceTab = signal('api');
+  protected readonly example = computed(() => this.examples.find((e) => e.id === this.referenceTab()) ?? null);
+  protected readonly copied = signal(false);
+  private copiedTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     // A different script: its attachments, a fresh result.
@@ -97,6 +105,18 @@ export class ScriptPane {
       });
       if (latest) this.outcome.set({ kind: 'sent', response: latest });
     });
+  }
+
+  /** Copies an example, to paste into the editor. */
+  protected async copy(code: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(code);
+      this.copied.set(true);
+      if (this.copiedTimer) clearTimeout(this.copiedTimer);
+      this.copiedTimer = setTimeout(() => this.copied.set(false), 1500);
+    } catch (err) {
+      console.error('copying the example failed', err);
+    }
   }
 
   protected openDonate(event: MouseEvent): void {

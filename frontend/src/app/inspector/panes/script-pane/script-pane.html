@@ -96,30 +96,59 @@
 
   <details class="script-reference">
     <summary>Reference</summary>
-    <pre class="reference-code">function beforeRequest(req, ctx) {{ '{' }}
-  req.headers.set('Authorization',
-    'Bearer ' + ctx.env.get('TOKEN'));
-{{ '}' }}
 
-function afterResponse(res, ctx) {{ '{' }}
-  ctx.test('status is 200', () =>
-    ctx.expect(res.status).toBe(200));
-{{ '}' }}</pre>
-    <dl class="reference-api">
-      <dt>req</dt>
-      <dd>method, url, body, headers.get / set / remove / all</dd>
-      <dt>res</dt>
-      <dd>status, body, json(), headers.get / all, durationMs</dd>
-      <dt>ctx</dt>
-      <dd>env.get, vars.get / set, test, expect, skip</dd>
-      <dt>console</dt>
-      <dd>log, info, warn, error</dd>
-    </dl>
-    <p class="try-hint">
-      Scripts run when a request they're attached to is sent, in the order they were attached; results appear
-      under Scripts in its response. Ordering scripts per request and writing variables are still in progress.
-      To see them sooner, consider
-      <a class="reference-link" [href]="donateUrl" (click)="openDonate($event)">supporting development</a>.
-    </p>
+    <div class="reference-tabs" role="tablist" aria-label="Reference">
+      <button
+        class="reference-tab"
+        type="button"
+        role="tab"
+        [class.is-active]="referenceTab() === 'api'"
+        [attr.aria-selected]="referenceTab() === 'api'"
+        (click)="referenceTab.set('api')"
+      >
+        API
+      </button>
+      @for (example of examples; track example.id) {
+        <button
+          class="reference-tab"
+          type="button"
+          role="tab"
+          [class.is-active]="referenceTab() === example.id"
+          [attr.aria-selected]="referenceTab() === example.id"
+          (click)="referenceTab.set(example.id)"
+        >
+          {{ example.title }}
+        </button>
+      }
+    </div>
+
+    @if (example(); as ex) {
+      <p class="try-hint">{{ ex.note }}</p>
+      <div class="reference-example">
+        <pre class="reference-code">{{ ex.code }}</pre>
+        <button class="reference-copy" type="button" (click)="copy(ex.code)">
+          {{ copied() ? 'Copied' : 'Copy' }}
+        </button>
+      </div>
+    } @else {
+      <dl class="reference-api">
+        <dt>req</dt>
+        <dd>method, url, body, headers.get / set / remove / all</dd>
+        <dt>res</dt>
+        <dd>status, body, json(), headers.get / all, durationMs</dd>
+        <dt>ctx</dt>
+        <dd>env.get, vars.get / set, test, expect, skip</dd>
+        <dt>expect</dt>
+        <dd>toBe, toEqual, toBeTruthy, toBeFalsy, toContain, toBeGreaterThan, toBeLessThan</dd>
+        <dt>console</dt>
+        <dd>log, info, warn, error</dd>
+      </dl>
+      <p class="try-hint">
+        Scripts run when a request they're attached to is sent, in the order they were attached; results appear
+        under Scripts in its response. Ordering scripts per request and writing variables are still in progress.
+        To see them sooner, consider
+        <a class="reference-link" [href]="donateUrl" (click)="openDonate($event)">supporting development</a>.
+      </p>
+    }
   </details>
 </div>
