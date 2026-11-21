@@ -40,6 +40,30 @@ On few occasions, we may have to rebuild our bindings
 
 - wails3 generate bindings -ts -i -clean=true
 
+## Running the tests
+
+End-to-end tests run the real frontend services against the real Go backend
+(Wails server mode) and a throwaway database. Nothing is mocked. They live in
+`frontend/e2e`.
+
+One-time setup:
+
+```
+cd frontend
+npm install
+npx playwright install chromium
+```
+
+Run them from the repository root:
+
+```
+wails3 task test:e2e
+```
+
+This builds the e2e frontend, builds a server-mode binary (`bin/snaprq-e2e`)
+and runs Playwright. Each run uses a fresh temporary data folder, deleted
+afterwards; your own database and secret key are never touched.
+
 ## Seed mock collection
 
 `tools/seed_scale_test.py` creates an idempotent **Mock Server** collection in the app's database, pre-filled with one request per mock-server endpoint (content-type mocks, status mocks, delay/empty, and echo).
