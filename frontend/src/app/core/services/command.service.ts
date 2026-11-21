@@ -59,40 +59,49 @@ export class CommandApiService {
     return result.result as T;
   }
 
-  /** Starts an observable command and returns its run id. */
-  async begin(name: string, payload: object): Promise<string> {
-    return Commands.CommandService.Begin(name, JSON.stringify(payload));
-  }
-
   /**
-   * Runs an observable command and resolves with its result when it
-   * finishes (rejects with its error). The finish event can arrive before
-   * Begin returns the run id, so early events are kept until it does.
+   * Runs an observable command: progress goes to onUpdate, and the promise
+   * resolves with its result when it finishes (rejects with its error).
+   * Events can arrive before Begin returns the run id (they travel on
+   * another channel), so early events are kept until it does.
    */
-  run<T>(name: string, payload: object): Promise<T> {
+  run<T>(name: string, payload: object, onUpdate?: (data: unknown) => void): Promise<T> {
     return new Promise<T>((resolve, reject) => {
-      type Finish = { runId: string; result?: unknown; error?: string };
+      type RunEvent =
+        | { kind: 'update'; runId: string; data: unknown }
+        | { kind: 'finish'; runId: string; result?: unknown; error?: string };
       let runId: string | null = null;
-      const early: Finish[] = [];
-      const settle = (f: Finish): boolean => {
-        if (f.runId !== runId) return false;
-        off();
-        if (f.error) reject(new Error(f.error));
-        else resolve(f.result as T);
-        return true;
+      const early: RunEvent[] = [];
+
+      const deliver = (e: RunEvent): void => {
+        if (e.runId !== runId) return;
+        if (e.kind === 'update') {
+          onUpdate?.(e.data);
+          return;
+        }
+        stop();
+        if (e.error) reject(new Error(e.error));
+        else resolve(e.result as T);
       };
-      const off = Events.On('command:finish', (ev) => {
-        const f = ev.data as Finish;
-        if (runId === null) early.push(f);
-        else settle(f);
-      });
-      this.begin(name, payload).then(
+      const receive = (e: RunEvent): void => {
+        if (runId === null) early.push(e);
+        else deliver(e);
+      };
+
+      const offUpdate = Events.On('command:update', (ev) => receive({ kind: 'update', ...ev.data }));
+      const offFinish = Events.On('command:finish', (ev) => receive({ kind: 'finish', ...ev.data }));
+      const stop = (): void => {
+        offUpdate();
+        offFinish();
+      };
+
+      Commands.CommandService.Begin(name, JSON.stringify(payload)).then(
         (id) => {
           runId = id;
-          early.some(settle);
+          early.splice(0).forEach(deliver);
         },
         (err) => {
-          off();
+          stop();
           reject(err);
         },
       );

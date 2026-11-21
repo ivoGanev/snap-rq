@@ -206,19 +206,32 @@ func (r *Runner) Begin(name string, input json.RawMessage) (string, error) {
 	}
 	cmd := f(r.db)
 	runID := fmt.Sprintf("run-%d", atomic.AddInt64(&r.runSeq, 1))
+	// The runner guarantees the lifecycle: exactly one finish per run, even
+	// when the command calls Finish twice or panics.
+	var finishOnce sync.Once
 	obs := Observer{
 		Update: func(data any) {
 			emit([]event{{EventUpdate, Update{RunID: runID, Command: name, Data: data}}})
 		},
 		Finish: func(result any, err error) {
-			finish := Finish{RunID: runID, Command: name, Result: result}
-			if err != nil {
-				finish.Error = err.Error()
-			}
-			emit([]event{{EventFinish, finish}})
+			finishOnce.Do(func() {
+				finish := Finish{RunID: runID, Command: name, Result: result}
+				if err != nil {
+					finish.Error = err.Error()
+				}
+				emit([]event{{EventFinish, finish}})
+			})
 		},
 	}
-	go cmd.Run(input, obs)
+	go func() {
+		// A panicking command still finishes, and doesn't take the app down.
+		defer func() {
+			if p := recover(); p != nil {
+				obs.Finish(nil, fmt.Errorf("%s failed unexpectedly: %v", name, p))
+			}
+		}()
+		cmd.Run(input, obs)
+	}()
 	return runID, nil
 }
 
