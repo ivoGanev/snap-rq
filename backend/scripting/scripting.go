@@ -21,6 +21,16 @@ const (
 // TimeLimit bounds each script's loading and each hook.
 const TimeLimit = 5 * time.Second
 
+// Boilerplate is a new script's code: both hooks, empty.
+const Boilerplate = `// Runs before the request is sent: change the request here.
+function beforeRequest(req, ctx) {
+}
+
+// Runs after the response arrives: test it here.
+function afterResponse(res, ctx) {
+}
+`
+
 // Script is one script attached to the request, in run order.
 type Script struct {
 	ID     int64
@@ -154,8 +164,7 @@ func (s *Session) BeforeRequest(req *Request) (skipped string, err error) {
 		if err != nil {
 			run.Error = err.Error()
 		}
-		// Keep the run when the hook ran, or loading printed or failed.
-		if err != nil || len(run.Console) > 0 || (program != nil && program.Has(PhaseBefore)) {
+		if hasOutput(run) {
 			s.log = append(s.log, run)
 		}
 		if err != nil {
@@ -183,7 +192,9 @@ func (s *Session) AfterResponse(res *Response) {
 			run.Error = err.Error()
 		}
 		run.DurationMs = time.Since(start).Milliseconds()
-		s.log = append(s.log, run)
+		if hasOutput(run) {
+			s.log = append(s.log, run)
+		}
 	}
 }
 
@@ -202,6 +213,12 @@ func (s *Session) Log(mask func(string) string) []models.ScriptRun {
 		}
 	}
 	return s.log
+}
+
+// hasOutput reports whether a run has anything to show; a hook that ran
+// silently (like the boilerplate's empty ones) stays out of the log.
+func hasOutput(r models.ScriptRun) bool {
+	return r.Error != "" || len(r.Console) > 0 || len(r.Tests) > 0
 }
 
 func (s *Session) context(run *models.ScriptRun) *Context {

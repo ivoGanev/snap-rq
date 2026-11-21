@@ -8,10 +8,12 @@ import (
 
 	"snap-rq/backend/commands"
 	"snap-rq/backend/models"
+	"snap-rq/backend/scripting"
 )
 
 // attach.go — attach a script to a request, creating the script (with the
-// default appearance) when the project has none with that name. With
+// default appearance and the two empty hooks as its code) when the project
+// has none with that name. With
 // request_id 0 it only creates the script. Snapshot saves whether the script
 // and the link existed; undo removes exactly what was created.
 
@@ -74,7 +76,8 @@ func (c Attach) Run(input json.RawMessage) (any, error) {
 	).Scan(&scriptID)
 	if err == sql.ErrNoRows {
 		result, err := c.tx.Exec(
-			`INSERT INTO scripts (project_id, name) VALUES (?, ?)`, in.ProjectID, name)
+			`INSERT INTO scripts (project_id, name, content) VALUES (?, ?, ?)`,
+			in.ProjectID, name, scripting.Boilerplate)
 		if err != nil {
 			return nil, fmt.Errorf("creating script: %w", err)
 		}
