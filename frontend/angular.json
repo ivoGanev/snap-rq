@@ -82,6 +82,17 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "e2e": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "fileReplacements": [
+                {
+                  "replace": "src/app/core/testing/e2e-hook.ts",
+                  "with": "src/app/core/testing/e2e-hook.e2e.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"

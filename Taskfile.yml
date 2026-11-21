@@ -45,6 +45,18 @@ tasks:
     cmds:
       - task: common:setup:docker
 
+  test:e2e:
+    summary: >-
+      End-to-end tests: the real frontend services against the real Go backend
+      (server mode) and a throwaway database. See frontend/playwright.config.ts.
+    cmds:
+      - task: common:generate:bindings
+      - cmd: npx ng build --configuration e2e
+        dir: frontend
+      - go build -tags server -o {{.BIN_DIR}}/snaprq-e2e{{exeExt}} .
+      - cmd: npx playwright test {{.CLI_ARGS}}
+        dir: frontend
+
   build:server:
     summary: Builds the application in server mode (no GUI, HTTP server only)
     cmds:
