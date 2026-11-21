@@ -27,7 +27,7 @@ func (c List) Run(input json.RawMessage) (any, error) {
 		return nil, err
 	}
 	rows, err := c.tx.Query(
-		`SELECT id, request_id, COALESCE(headers, ''), status_code, COALESCE(body, ''), created_at, duration_ms
+		`SELECT id, request_id, COALESCE(headers, ''), status_code, COALESCE(body, ''), created_at, duration_ms, script_log
 		 FROM responses WHERE request_id = ? ORDER BY id DESC`, in.RequestID)
 	if err != nil {
 		return nil, fmt.Errorf("listing responses: %w", err)
@@ -37,10 +37,12 @@ func (c List) Run(input json.RawMessage) (any, error) {
 	var responses []models.HttpResponse
 	for rows.Next() {
 		var resp models.HttpResponse
+		var scriptLog string
 		if err := rows.Scan(&resp.ID, &resp.RequestID, &resp.Headers, &resp.StatusCode,
-			&resp.Body, &resp.CreatedAt, &resp.DurationMs); err != nil {
+			&resp.Body, &resp.CreatedAt, &resp.DurationMs, &scriptLog); err != nil {
 			return nil, fmt.Errorf("reading a response: %w", err)
 		}
+		resp.ScriptLog = models.ParseScriptLog(scriptLog)
 		responses = append(responses, resp)
 	}
 	return responses, rows.Err()

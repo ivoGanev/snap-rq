@@ -8,25 +8,30 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"snap-rq/backend/commands"
 	"snap-rq/backend/commands/responses"
 	"snap-rq/backend/cookies"
 	"snap-rq/backend/models"
+	"snap-rq/backend/scripting"
 	"snap-rq/backend/secrets"
 )
 
 // send.go — execute a request against the outside world. Observable: it
-// interpolates, times the request, does the HTTP round trip outside the
-// writer lock, and reports elapsed time until it finishes by persisting the
-// response and the request's status/recency in one short transaction.
+// runs the request's scripts' beforeRequest hooks, interpolates, times the
+// request, does the HTTP round trip outside the writer lock, runs the
+// afterResponse hooks, and reports elapsed time until it finishes by
+// persisting the response (with the scripts' log) and the request's
+// status/recency in one short transaction.
 
 type Send struct{ db *sql.DB }
 
@@ -56,26 +61,16 @@ func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 		return
 	}
 
-	values := make(map[string]string, len(in.Variables))
+	plain := make(map[string]string, len(in.Variables))
 	for _, v := range in.Variables {
-		values[v.Key] = v.Value
+		plain[v.Key] = v.Value
 	}
-
 	req := in.Request
-	secretValues, err := c.secretsFor(in.EnvironmentID, req)
-	if err != nil {
-		obs.Finish(nil, err)
-		return
-	}
-	for key, value := range secretValues {
-		values[key] = value
-	}
-	req.URL = interpolate(req.URL, values)
-	req.Body = interpolate(req.Body, values)
-	req.RequestHeaders = interpolate(req.RequestHeaders, values)
 
 	start := time.Now()
 	done := make(chan struct{})
+	stopTicking := sync.OnceFunc(func() { close(done) })
+	defer stopTicking()
 	go func() {
 		ticker := time.NewTicker(100 * time.Millisecond)
 		defer ticker.Stop()
@@ -89,21 +84,144 @@ func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 		}
 	}()
 
+	// The request's scripts run first: beforeRequest may change the request,
+	// {{placeholders}} included, before variables are filled in.
+	scripts, err := c.scriptsFor(req.ID)
+	if err != nil {
+		obs.Finish(nil, err)
+		return
+	}
+	env := &scriptEnv{send: c, environmentID: in.EnvironmentID, plain: plain, revealed: map[string]string{}}
+	session := scripting.NewSession(scripts, env)
+	if len(scripts) > 0 {
+		scripted := scripting.Request{
+			Method: req.Method, URL: req.URL, Body: req.Body,
+			Headers: scripting.ParseHeaders(req.RequestHeaders),
+		}
+		skipped, err := session.BeforeRequest(&scripted)
+		req.Method, req.URL, req.Body = scripted.Method, scripted.URL, scripted.Body
+		if scripted.Headers.Changed() {
+			req.RequestHeaders = scripted.Headers.String()
+		}
+		if err != nil || skipped != "" {
+			// Not sent: saved like any failed request, with the scripts' log.
+			reason := skipped
+			if err != nil {
+				reason = err.Error()
+			}
+			c.finish(obs, models.HttpResponse{
+				RequestID:  req.ID,
+				Body:       hideSecrets(reason, env.revealed),
+				DurationMs: time.Since(start).Milliseconds(),
+				ScriptLog:  session.Log(func(text string) string { return hideSecrets(text, env.revealed) }),
+			})
+			return
+		}
+	}
+
+	secretValues, err := c.secretsFor(in.EnvironmentID, req)
+	if err != nil {
+		obs.Finish(nil, err)
+		return
+	}
+	values := make(map[string]string, len(plain)+len(secretValues))
+	maps.Copy(values, plain)
+	maps.Copy(values, secretValues)
+	req.URL = interpolate(req.URL, values)
+	req.Body = interpolate(req.Body, values)
+	req.RequestHeaders = interpolate(req.RequestHeaders, values)
+
+	sent := time.Now()
 	result := c.doHTTP(req, values)
-	close(done)
+	result.DurationMs = time.Since(sent).Milliseconds()
 	if result.StatusCode == 0 {
 		// A local failure (bad host, timeout…): Go's message quotes the URL,
 		// and the message is saved as the response body.
 		result.Body = hideSecrets(result.Body, secretValues)
+	} else if len(scripts) > 0 {
+		session.AfterResponse(&scripting.Response{
+			Status: result.StatusCode, Headers: scripting.ParseHeaders(result.Headers),
+			Body: result.Body, DurationMs: result.DurationMs,
+		})
 	}
-	result.DurationMs = time.Since(start).Milliseconds()
+	stopTicking()
 
-	stored, err := c.persist(req.ID, result)
+	// Mask every secret value a script could have printed: the ones sent and
+	// the ones scripts read.
+	shown := make(map[string]string, len(secretValues)+len(env.revealed))
+	maps.Copy(shown, secretValues)
+	maps.Copy(shown, env.revealed)
+	result.ScriptLog = session.Log(func(text string) string { return hideSecrets(text, shown) })
+	c.finish(obs, result)
+}
+
+// finish saves the response and ends the run with it.
+func (c Send) finish(obs commands.Observer, result models.HttpResponse) {
+	stored, err := c.persist(result.RequestID, result)
 	if err != nil {
 		obs.Finish(nil, err)
 		return
 	}
 	obs.Finish(stored, nil)
+}
+
+// scriptsFor lists the request's enabled scripts with code, in run order.
+func (c Send) scriptsFor(requestID int64) ([]scripting.Script, error) {
+	if requestID == 0 {
+		return nil, nil
+	}
+	rows, err := c.db.Query(`
+		SELECT s.id, s.name, s.content FROM request_scripts rs
+		JOIN scripts s ON s.id = rs.script_id
+		WHERE rs.request_id = ? AND rs.enabled = 1 AND TRIM(s.content) != ''
+		ORDER BY rs.run_order, rs.id`, requestID)
+	if err != nil {
+		return nil, fmt.Errorf("loading the request's scripts: %w", err)
+	}
+	defer rows.Close()
+	var scripts []scripting.Script
+	for rows.Next() {
+		var s scripting.Script
+		if err := rows.Scan(&s.ID, &s.Name, &s.Source); err != nil {
+			return nil, err
+		}
+		scripts = append(scripts, s)
+	}
+	return scripts, rows.Err()
+}
+
+// scriptEnv is ctx.env for scripts: the environment's plain variables as the
+// frontend sent them, and its secret ones, decrypted only when a script asks
+// (and remembered, so the run log can mask them).
+type scriptEnv struct {
+	send          Send
+	environmentID int64
+	plain         map[string]string
+	revealed      map[string]string
+}
+
+func (e *scriptEnv) Get(key string) (string, bool) {
+	if v, ok := e.plain[key]; ok {
+		return v, true
+	}
+	if v, ok := e.revealed[key]; ok {
+		return v, true
+	}
+	if e.environmentID == 0 {
+		return "", false
+	}
+	var encrypted string
+	if err := e.send.db.QueryRow(`SELECT value FROM environment_variables
+		WHERE environment_id = ? AND key = ? AND secret = 1 AND value != ''`,
+		e.environmentID, key).Scan(&encrypted); err != nil {
+		return "", false
+	}
+	value, err := secrets.Default().Decrypt(e.send.db, encrypted)
+	if err != nil {
+		return "", false // locked or damaged: as if unset
+	}
+	e.revealed[key] = value
+	return value, true
 }
 
 // secretsFor decrypts the environment's secret variables that the request

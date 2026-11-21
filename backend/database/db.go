@@ -132,6 +132,10 @@ func OpenWith(dbPath string, beforeMigrate func(*sql.DB)) (*sql.DB, error) {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
+	if err := addScriptRunColumns(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
 	if err := makeGroupNamesUnique(db); err != nil {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
@@ -893,6 +897,34 @@ func addVariableSecretColumn(db *sql.DB) error {
 	}
 	if _, err := db.Exec("ALTER TABLE environment_variables ADD COLUMN secret INTEGER NOT NULL DEFAULT 0"); err != nil {
 		return fmt.Errorf("adding secret column to environment_variables: %w", err)
+	}
+	return nil
+}
+
+// addScriptRunColumns lets scripts run on send (see backend/scripting):
+//   - request_scripts.run_order: the order a request's scripts run in
+//     (user_sort_order orders requests inside a script's Attachments list);
+//     existing links run in the order they were attached.
+//   - request_scripts.enabled: a script can be switched off for one request.
+//   - responses.script_log: what the scripts did in that send (JSON).
+func addScriptRunColumns(db *sql.DB) error {
+	if !columnExists(db, "request_scripts", "run_order") {
+		if _, err := db.Exec(`ALTER TABLE request_scripts ADD COLUMN run_order INTEGER NOT NULL DEFAULT 0`); err != nil {
+			return fmt.Errorf("adding run_order to request_scripts: %w", err)
+		}
+		if _, err := db.Exec(`UPDATE request_scripts SET run_order = id`); err != nil {
+			return fmt.Errorf("ordering existing script links: %w", err)
+		}
+	}
+	if !columnExists(db, "request_scripts", "enabled") {
+		if _, err := db.Exec(`ALTER TABLE request_scripts ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1`); err != nil {
+			return fmt.Errorf("adding enabled to request_scripts: %w", err)
+		}
+	}
+	if !columnExists(db, "responses", "script_log") {
+		if _, err := db.Exec(`ALTER TABLE responses ADD COLUMN script_log TEXT NOT NULL DEFAULT ''`); err != nil {
+			return fmt.Errorf("adding script_log to responses: %w", err)
+		}
 	}
 	return nil
 }

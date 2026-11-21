@@ -9,4 +9,6 @@ type HttpResponse struct {
 	Body       string `json:"body"`
 	CreatedAt  string `json:"created_at"`
 	DurationMs int64  `json:"duration_ms"`
+	// ScriptLog is what the request's scripts did in this send, in run order.
+	ScriptLog []ScriptRun `json:"script_log"`
 }

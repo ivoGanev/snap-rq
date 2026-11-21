@@ -59,8 +59,8 @@ func (c Duplicate) Run(input json.RawMessage) (any, error) {
 
 	// copy the script and favourite memberships as new rows
 	if _, err := c.tx.Exec(`
-		INSERT INTO request_scripts (request_id, script_id, user_color)
-		SELECT ?, script_id, user_color FROM request_scripts WHERE request_id = ?`, newID, in.ID); err != nil {
+		INSERT INTO request_scripts (request_id, script_id, user_color, run_order, enabled)
+		SELECT ?, script_id, user_color, run_order, enabled FROM request_scripts WHERE request_id = ?`, newID, in.ID); err != nil {
 		return nil, err
 	}
 	if _, err := c.tx.Exec(`

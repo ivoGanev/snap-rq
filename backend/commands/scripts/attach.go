@@ -92,8 +92,9 @@ func (c Attach) Run(input json.RawMessage) (any, error) {
 
 	if in.RequestID != 0 {
 		if _, err := c.tx.Exec(
-			`INSERT OR IGNORE INTO request_scripts (request_id, script_id) VALUES (?, ?)`,
-			in.RequestID, scriptID); err != nil {
+			`INSERT OR IGNORE INTO request_scripts (request_id, script_id, run_order)
+			 VALUES (?, ?, (SELECT COALESCE(MAX(run_order), 0) + 1 FROM request_scripts WHERE request_id = ?))`,
+			in.RequestID, scriptID, in.RequestID); err != nil {
 			return nil, fmt.Errorf("attaching script: %w", err)
 		}
 	}
