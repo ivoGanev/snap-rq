@@ -1,0 +1,793 @@
+/*
+ * Collage theme: vintage cut-out photographs pasted on paper. Pale sky blue
+ * panels on cream, sepia ink, vintage red, and a navy starfield drawer.
+ * Abril Fatface for headings, Special Elite (typewriter) for labels and
+ * buttons, Figtree for text, IBM Plex Mono for code.
+ * Photo sprites (archer, fish) live in /collage/.
+ */
+[data-theme='collage'],
+:root[data-theme='collage'],
+:root:has([data-theme='collage']) {
+  --ink: #f3ead6; /* cream paper */
+  --text: #3a2b25; /* sepia ink */
+  --muted: #6f5d52;
+  --accent: #c8392b; /* vintage red */
+  --accent-2: #3d7fc1; /* denim */
+  --accent-3: #e0a63a; /* gold */
+  --glass: rgba(58, 43, 37, 0.05);
+  --glass-strong: rgba(58, 43, 37, 0.09);
+  --glass-border: rgba(58, 43, 37, 0.28);
+
+  --radius: 2px;
+  --pen: #3a2b25;
+  --paper: #fffaf0; /* the white cut edge of a photo */
+  --paper-2: #fbf5e6;
+  --sky: #b6d8de;
+  --sky-deep: #8fc0ca;
+  --navy: #0b1226;
+  --grad: linear-gradient(#c8392b, #c8392b);
+  --grad-success: linear-gradient(#4a9a6b, #4a9a6b);
+  --grad-alt: linear-gradient(135deg, #c8392b 0%, #e0a63a 160%);
+  --on-accent: #fff8ea;
+
+  --font-display: 'Special Elite', 'Courier New', monospace;
+  --font-hand: 'Abril Fatface', Georgia, serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+
+  --background: var(--ink);
+  --surface: #b6d8de;
+  --menu-bg: #fbf5e6;
+  --surface-solid: #fbf5e6;
+  --input-bg: #fbf5e6;
+  --row-even-bg: rgba(255, 250, 240, 0.35);
+  --hover-bg: rgba(200, 57, 43, 0.08);
+  --hover-highlight: rgba(200, 57, 43, 0.14);
+  --active-border: rgba(200, 57, 43, 0.45);
+  --selected-bg: rgba(200, 57, 43, 0.16);
+  --selected-border: rgba(200, 57, 43, 0.6);
+  --focus-ring: rgba(61, 127, 193, 0.28);
+  --focus-border: #3d7fc1;
+  --active-tint-bg: rgba(61, 127, 193, 0.2);
+  --active-tint-border: rgba(61, 127, 193, 0.6);
+  --danger-text: #a8261b;
+  --danger-bg: rgba(168, 38, 27, 0.12);
+  --danger-solid: rgba(168, 38, 27, 0.9);
+  --error-text: #a8261b;
+  --success-text: #25704f;
+  --shadow: rgba(40, 30, 20, 0.35);
+  --backdrop: rgba(11, 18, 38, 0.5);
+
+  --scrollbar-track: rgba(58, 43, 37, 0.08);
+  --scrollbar-thumb: rgba(58, 43, 37, 0.45);
+  --scrollbar-thumb-hover: rgba(58, 43, 37, 0.65);
+  --scrollbar-thumb-grad: linear-gradient(rgba(58, 43, 37, 0.5), rgba(58, 43, 37, 0.5));
+  --scrollbar-thumb-grad-hover: linear-gradient(rgba(58, 43, 37, 0.7), rgba(58, 43, 37, 0.7));
+
+  --btn-glow: rgba(40, 30, 20, 0.25);
+  --btn-glow-strong: rgba(40, 30, 20, 0.35);
+  --btn-glow-success: rgba(40, 30, 20, 0.25);
+  --btn-glow-success-strong: rgba(40, 30, 20, 0.35);
+  --btn-glow-danger: rgba(40, 30, 20, 0.25);
+  --btn-glow-danger-strong: rgba(40, 30, 20, 0.35);
+  --btn-glow-gold: rgba(40, 30, 20, 0.2);
+  --btn-highlight: rgba(255, 250, 240, 0.35);
+  --btn-edge: rgba(58, 43, 37, 0.3);
+  --btn-border-hover: #3a2b25;
+  --btn-ghost-ring: rgba(58, 43, 37, 0.4);
+  --btn-focus: #3d7fc1;
+
+  /* Request colour slots. */
+  --label-primary: #c8392b;
+  --label-secondary: #3d7fc1;
+  --label-tertiary: #d99a1f;
+  --label-quaternary: #4a9a6b;
+  --label-quinary: #8a5fb0;
+  --label-senary: #e0793a;
+
+  --status-2xx: #25704f;
+  --status-3xx: #8a6410;
+  --status-4xx: #a8261b;
+  --status-5xx: #7a2d6b;
+  --method-get-bg: rgba(61, 127, 193, 0.2);
+  --method-get-fg: #25598f;
+  --method-post-bg: rgba(74, 154, 107, 0.22);
+  --method-post-fg: #25704f;
+  --method-put-bg: rgba(224, 166, 58, 0.3);
+  --method-put-fg: #7a5410;
+  --method-patch-bg: rgba(138, 95, 176, 0.2);
+  --method-patch-fg: #6a3f94;
+
+  --syntax-key: #25598f;
+  --syntax-string: #a8472f;
+  --syntax-number: #8a6410;
+  --syntax-boolean: #6a3f94;
+  --syntax-null: #c8392b;
+  --syntax-punctuation: #7a6a5f;
+  --syntax-tag: #25598f;
+  --syntax-attribute: #8a5f2f;
+  --syntax-comment: #9a8a7d;
+  --syntax-csv-even: #3a2b25;
+  --syntax-csv-odd: #25598f;
+
+  color-scheme: light;
+}
+
+/*
+ * Collage layer: structural rules scoped to this theme. ':root' raises the
+ * specificity above components' own (scoped) styles.
+ */
+
+/* Cream paper with a faint grain. */
+:root[data-theme='collage'] body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.25 0 0 0 0 0.18 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Sky-blue panels get a faint halftone print dot pattern. */
+:root[data-theme='collage'] .sidebar-right,
+:root[data-theme='collage'] .request-group-list {
+  background-image: radial-gradient(rgba(58, 43, 37, 0.1) 1px, transparent 1.4px);
+  background-size: 6px 6px;
+}
+
+/* The left drawer is deep space: a starfield behind the paper buttons. */
+:root[data-theme='collage'] app-request-groups {
+  background:
+    radial-gradient(1.2px 1.2px at 18px 30px, #ffffff, transparent 60%) 0 0 / 110px 110px,
+    radial-gradient(1px 1px at 70px 80px, #7fd8ff, transparent 60%) 0 0 / 150px 150px,
+    radial-gradient(1.6px 1.6px at 40px 120px, #ffe9a8, transparent 60%) 0 0 / 190px 190px,
+    radial-gradient(ellipse 80% 40% at 20% 100%, rgba(61, 127, 193, 0.35), transparent 70%),
+    linear-gradient(170deg, #17224a 0%, #0b1226 70%);
+}
+
+/* Headings: poster serif. Body stays Figtree, code IBM Plex Mono. */
+:root[data-theme='collage'] .panel-title,
+:root[data-theme='collage'] .column-title,
+:root[data-theme='collage'] .overlay-title,
+:root[data-theme='collage'] .zen-pane-title,
+:root[data-theme='collage'] .section-title,
+:root[data-theme='collage'] .undo-title {
+  font-family: var(--font-hand);
+  font-size: 1.35rem;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+  color: #3a2b25;
+}
+
+/* Typewriter labels. */
+:root[data-theme='collage'] .group-list-title,
+:root[data-theme='collage'] .edit-label {
+  font-family: var(--font-display);
+  letter-spacing: 0.08em;
+}
+
+/* Dialogs and menus: a photo print with a white edge, taped at the corners. */
+:root[data-theme='collage'] .overlay-panel,
+:root[data-theme='collage'] .context-menu-panel {
+  background: var(--paper-2);
+  border: 6px solid var(--paper);
+  box-shadow:
+    0 0 0 1px rgba(58, 43, 37, 0.2),
+    0 14px 30px rgba(40, 30, 20, 0.45);
+}
+
+:root[data-theme='collage'] .overlay-panel::before,
+:root[data-theme='collage'] .overlay-panel::after {
+  content: '';
+  position: absolute;
+  width: 74px;
+  height: 20px;
+  background: rgba(236, 214, 140, 0.8);
+  box-shadow: 0 1px 2px rgba(40, 30, 20, 0.25);
+  pointer-events: none;
+  z-index: 2;
+}
+
+:root[data-theme='collage'] .overlay-panel::before {
+  top: 8px;
+  left: -28px;
+  transform: rotate(-45deg);
+}
+
+:root[data-theme='collage'] .overlay-panel::after {
+  bottom: 8px;
+  right: -28px;
+  transform: rotate(-45deg);
+}
+
+/* Buttons: cream paper label, thin ink edge, offset paper shadow. */
+:root[data-theme='collage'] .variable-add,
+:root[data-theme='collage'] .settings-button,
+:root[data-theme='collage'] .add-request-button,
+:root[data-theme='collage'] .restore-button,
+:root[data-theme='collage'] .delete-button,
+:root[data-theme='collage'] .mcp-button,
+:root[data-theme='collage'] .variable-add-button,
+:root[data-theme='collage'] .cookie-add-button,
+:root[data-theme='collage'] .settings-updates-button,
+:root[data-theme='collage'] .add-button,
+:root[data-theme='collage'] .overlay-close {
+  border: 1.5px solid var(--pen);
+  box-shadow: 2px 3px 0 rgba(58, 43, 37, 0.4);
+  font-family: var(--font-display);
+  transition:
+    transform 0.08s ease,
+    box-shadow 0.08s ease,
+    filter 0.15s ease;
+}
+
+:root[data-theme='collage'] .variable-add:active,
+:root[data-theme='collage'] .settings-button:active,
+:root[data-theme='collage'] .add-request-button:active,
+:root[data-theme='collage'] .restore-button:active,
+:root[data-theme='collage'] .delete-button:active,
+:root[data-theme='collage'] .mcp-button:active,
+:root[data-theme='collage'] .variable-add-button:active,
+:root[data-theme='collage'] .cookie-add-button:active,
+:root[data-theme='collage'] .settings-updates-button:active,
+:root[data-theme='collage'] .add-button:active,
+:root[data-theme='collage'] .overlay-close:active {
+  transform: translate(2px, 3px);
+  box-shadow: 0 0 0 rgba(58, 43, 37, 0.4);
+}
+
+/* Inputs: pressed-in paper. */
+:root[data-theme='collage'] .edit-input,
+:root[data-theme='collage'] .edit-select,
+:root[data-theme='collage'] .request-search-input,
+:root[data-theme='collage'] .script-input,
+:root[data-theme='collage'] .variable-input,
+:root[data-theme='collage'] .backups-input,
+:root[data-theme='collage'] .settings-number {
+  border: 1.5px solid rgba(58, 43, 37, 0.5);
+  background: var(--input-bg);
+}
+
+:root[data-theme='collage'] .edit-input:focus,
+:root[data-theme='collage'] .edit-select:focus,
+:root[data-theme='collage'] .request-search-input:focus,
+:root[data-theme='collage'] .script-input:focus,
+:root[data-theme='collage'] .variable-input:focus,
+:root[data-theme='collage'] .backups-input:focus,
+:root[data-theme='collage'] .settings-number:focus {
+  border-color: #3d7fc1;
+  box-shadow: 2px 2px 0 rgba(61, 127, 193, 0.4);
+}
+
+/* Chips and method badges: small typewriter stickers. */
+:root[data-theme='collage'] .script-chip,
+:root[data-theme='collage'] .request-method,
+:root[data-theme='collage'] .environment-chip {
+  border: 1px solid rgba(58, 43, 37, 0.5);
+  font-family: var(--font-display);
+}
+
+/* Column headers: a dashed scissor-cut line. */
+:root[data-theme='collage'] .column-header {
+  border-bottom: 2px dashed rgba(58, 43, 37, 0.5);
+}
+
+/* Selection: a paper strip pasted over the row. */
+:root[data-theme='collage'] .spreadsheet-row.is-selected {
+  background: var(--paper) !important;
+  box-shadow:
+    inset 4px 0 0 #c8392b,
+    1px 2px 0 rgba(58, 43, 37, 0.3) !important;
+}
+
+:root[data-theme='collage'] .group-list-item.is-selected {
+  background: var(--paper);
+  box-shadow:
+    inset 4px 0 0 #c8392b,
+    1px 2px 0 rgba(58, 43, 37, 0.3);
+}
+
+/*
+ * Left drawer (icon rail and expanded nav): paper buttons on the starfield,
+ * ink icons, the active view filled red. A slight tilt on each, as if pasted
+ * on by hand. !important because the components' own hover/active rules are
+ * more specific.
+ */
+:root[data-theme='collage'] .rail-button,
+:root[data-theme='collage'] .nav-button,
+:root[data-theme='collage'] .nav-toggle {
+  color: #3a2b25 !important;
+  background: var(--paper) !important;
+  border: 2px solid var(--paper) !important;
+  box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.5) !important;
+  transform: rotate(-1.5deg);
+  transition:
+    transform 0.1s ease,
+    background 0.1s ease;
+}
+
+:root[data-theme='collage'] .rail-button:nth-of-type(even),
+:root[data-theme='collage'] .nav-button:nth-of-type(even) {
+  transform: rotate(1.2deg);
+}
+
+:root[data-theme='collage'] .nav-button {
+  font-family: var(--font-display);
+  letter-spacing: 0.03em;
+}
+
+:root[data-theme='collage'] .nav-button__icon,
+:root[data-theme='collage'] .nav-button:hover:not(:disabled) .nav-button__icon {
+  color: #3a2b25 !important;
+}
+
+/* The gold side bar is replaced by the fill below. */
+:root[data-theme='collage'] .rail-button::before,
+:root[data-theme='collage'] .nav-button::before,
+:root[data-theme='collage'] .nav-toggle::before {
+  display: none;
+}
+
+:root[data-theme='collage'] .rail-button:hover:not(:disabled),
+:root[data-theme='collage'] .nav-button:hover:not(:disabled),
+:root[data-theme='collage'] .nav-toggle:hover:not(:disabled) {
+  color: #3a2b25 !important;
+  background: #ffe9a8 !important;
+  box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.5) !important;
+  transform: rotate(0deg) scale(1.04);
+}
+
+/* Active view: red fill, cream icon and label. */
+:root[data-theme='collage'] .rail-button.is-active,
+:root[data-theme='collage'] .rail-button.is-active:hover:not(:disabled),
+:root[data-theme='collage'] .rail-button--trash.is-active,
+:root[data-theme='collage'] .rail-button--trash.is-active:hover:not(:disabled),
+:root[data-theme='collage'] .nav-button.is-active,
+:root[data-theme='collage'] .nav-button.is-active:hover:not(:disabled),
+:root[data-theme='collage'] .nav-button--trash.is-active,
+:root[data-theme='collage'] .nav-button--trash.is-active:hover:not(:disabled) {
+  color: #fff8ea !important;
+  background: #c8392b !important;
+  border-color: var(--paper) !important;
+}
+
+:root[data-theme='collage'] .nav-button.is-active .nav-button__icon,
+:root[data-theme='collage'] .nav-button--trash.is-active .nav-button__icon {
+  color: #fff8ea !important;
+}
+
+:root[data-theme='collage'] .rail-button svg,
+:root[data-theme='collage'] .nav-button__icon svg,
+:root[data-theme='collage'] .nav-toggle svg {
+  color: #3a2b25 !important;
+  fill: #3a2b25 !important;
+}
+
+:root[data-theme='collage'] .rail-button.is-active svg,
+:root[data-theme='collage'] .rail-button--trash.is-active svg,
+:root[data-theme='collage'] .nav-button.is-active .nav-button__icon svg,
+:root[data-theme='collage'] .nav-button--trash.is-active .nav-button__icon svg {
+  color: #fff8ea !important;
+  fill: #fff8ea !important;
+}
+
+:root[data-theme='collage'] .rail-button:active:not(:disabled),
+:root[data-theme='collage'] .nav-button:active:not(:disabled),
+:root[data-theme='collage'] .nav-toggle:active:not(:disabled) {
+  transform: translate(2px, 3px) !important;
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0.5) !important;
+  border: 2px solid var(--paper) !important;
+}
+
+:root[data-theme='collage'] .rail-button:focus-visible,
+:root[data-theme='collage'] .nav-button:focus-visible,
+:root[data-theme='collage'] .nav-toggle:focus-visible {
+  box-shadow:
+    2px 3px 0 rgba(0, 0, 0, 0.5),
+    0 0 0 3px #7fd8ff !important;
+}
+
+/* Dividers on the starfield: a dashed cut line. */
+:root[data-theme='collage'] .rail-divider,
+:root[data-theme='collage'] .sidebar-divider {
+  height: 0;
+  background: none;
+  border-top: 2px dashed rgba(255, 250, 240, 0.5);
+}
+
+/*
+ * Send: "shoot the fish". A pale-blue paper label with a white disc behind a
+ * cut-out archer, two fish on threads, and the arrow in between. The photo
+ * sprites are in /collage/. Everything inside is sized in em, so the Zen mode
+ * button (smaller font) scales down as a whole.
+ */
+:root[data-theme='collage'] .send-plane {
+  --u: 16px;
+  position: relative;
+  width: 11.75em;
+  height: 4em;
+  min-height: 0;
+  padding: 0 4em 0 3.9em;
+  font-size: var(--u);
+  color: #3a2b25;
+  background: var(--sky);
+  border: 3px solid var(--paper);
+  border-radius: 3px;
+  box-shadow:
+    0 0 0 1px rgba(58, 43, 37, 0.25),
+    3px 4px 0 rgba(58, 43, 37, 0.4);
+  transform: rotate(-1deg);
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease,
+    filter 0.15s ease;
+}
+
+:root[data-theme='collage'] .send-plane--success {
+  --u: 12px;
+}
+
+:root[data-theme='collage'] .send-plane:hover {
+  filter: brightness(1.04);
+  transform: rotate(-1deg) translateY(-1px);
+}
+
+:root[data-theme='collage'] .send-plane:active {
+  transform: translate(2px, 3px) rotate(-1deg);
+  box-shadow:
+    0 0 0 1px rgba(58, 43, 37, 0.25),
+    0 0 0 rgba(58, 43, 37, 0.4);
+}
+
+/* The label reads "Fire!". */
+:root[data-theme='collage'] .send-plane-text {
+  position: relative;
+  z-index: 3;
+  font-size: 0;
+}
+
+:root[data-theme='collage'] .send-plane-text::after {
+  content: 'Fire!';
+  font-family: var(--font-hand);
+  font-size: calc(var(--u) * 1.2);
+  letter-spacing: 0.02em;
+  color: #3a2b25;
+  text-shadow: 1px 1px 0 rgba(255, 250, 240, 0.9);
+}
+
+:root[data-theme='collage'] .send-scene {
+  display: block;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* The white disc behind the archer, like the moon in the reference. */
+:root[data-theme='collage'] .send-scene::before {
+  content: '';
+  position: absolute;
+  left: -0.4em;
+  top: 0.05em;
+  width: 3.9em;
+  height: 3.9em;
+  border-radius: 50%;
+  background: var(--paper);
+}
+
+/* The burst when the arrow hits. */
+:root[data-theme='collage'] .send-scene::after {
+  content: '';
+  position: absolute;
+  left: 8.1em;
+  top: 1.5em;
+  width: 1.8em;
+  height: 1.8em;
+  margin: -0.9em 0 0 -0.9em;
+  background: #f0b43c;
+  clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  opacity: 0;
+}
+
+:root[data-theme='collage'] .send-archer {
+  position: absolute;
+  left: 0.375em;
+  bottom: -0.55em;
+  height: 3.625em;
+  width: 2.55em;
+  background: url('/collage/archer.webp') center / 100% 100% no-repeat;
+  filter: drop-shadow(1px 1px 0 rgba(58, 43, 37, 0.3));
+}
+
+/* The bow: an arc in front of the hand, with its string. */
+:root[data-theme='collage'] .send-bow {
+  position: absolute;
+  left: 2.8em;
+  top: 0.2em;
+  width: 0.8em;
+  height: 2.6em;
+  border-right: 0.11em solid #6b4a36;
+  border-radius: 0 100% 100% 0 / 0 50% 50% 0;
+}
+
+:root[data-theme='collage'] .send-bow::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(58, 43, 37, 0.55);
+}
+
+/* The arrow rests nocked at the hand. */
+:root[data-theme='collage'] .send-arrow {
+  position: absolute;
+  left: 1.7em;
+  top: 1.45em;
+  width: 2.3em;
+  height: 0.09em;
+  background: #6b4a36;
+  transform-origin: 50% 50%;
+}
+
+:root[data-theme='collage'] .send-arrow::after {
+  content: '';
+  position: absolute;
+  right: -0.28em;
+  top: 50%;
+  margin-top: -0.17em;
+  border-left: 0.3em solid #3a2b25;
+  border-top: 0.17em solid transparent;
+  border-bottom: 0.17em solid transparent;
+}
+
+:root[data-theme='collage'] .send-arrow::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  margin-top: -0.14em;
+  width: 0.3em;
+  height: 0.28em;
+  background: #c8392b;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+/* Fish hang by their threads; the thread is the fish's ::before. */
+:root[data-theme='collage'] .send-fish {
+  position: absolute;
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  filter: drop-shadow(1px 1px 0 rgba(58, 43, 37, 0.3));
+  transform-origin: 50% calc(var(--thread) * -1);
+  animation: collage-sway 3.4s ease-in-out infinite;
+}
+
+:root[data-theme='collage'] .send-fish::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  width: 1px;
+  height: var(--thread);
+  background: rgba(58, 43, 37, 0.6);
+}
+
+:root[data-theme='collage'] .send-fish--a {
+  --thread: 0.45em;
+  left: 7.55em;
+  top: 0.45em;
+  width: 1.1em;
+  height: 2.55em;
+  background-image: url('/collage/fish-a.webp');
+}
+
+:root[data-theme='collage'] .send-fish--b {
+  --thread: 0.9em;
+  left: 9.95em;
+  top: 0.9em;
+  width: 1em;
+  height: 2.2em;
+  background-image: url('/collage/fish-b.webp');
+  animation-duration: 4.1s;
+  animation-delay: -1.2s;
+}
+
+@keyframes collage-sway {
+  0%,
+  100% {
+    transform: rotate(-5deg);
+  }
+  50% {
+    transform: rotate(5deg);
+  }
+}
+
+/* Sending: the bow looses arrow after arrow, the fish swing nervously. */
+:root[data-theme='collage'] .send-plane.is-sending .send-arrow {
+  animation: collage-shoot 0.85s linear infinite;
+}
+
+:root[data-theme='collage'] .send-plane.is-sending .send-fish {
+  animation: collage-sway 0.55s ease-in-out infinite;
+}
+
+@keyframes collage-shoot {
+  0% {
+    transform: translateX(-0.5em);
+    opacity: 0;
+  }
+  12% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  75% {
+    transform: translateX(3.8em);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(3.8em);
+    opacity: 0;
+  }
+}
+
+/* Response arrived (2xx/3xx): a hit. The arrow sticks, the fish jolts. Listed
+ * after the sending rules so it wins while both apply. */
+:root[data-theme='collage'] .send-plane.is-done .send-arrow {
+  animation: collage-hit 450ms ease-out forwards;
+}
+
+:root[data-theme='collage'] .send-plane.is-done .send-fish--a {
+  animation: collage-jolt 450ms ease-out;
+}
+
+:root[data-theme='collage'] .send-plane.is-done .send-scene::after {
+  animation: collage-burst 450ms steps(6) 1;
+}
+
+@keyframes collage-hit {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  35% {
+    transform: translateX(3.8em);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(3.8em);
+    opacity: 1;
+  }
+}
+
+@keyframes collage-jolt {
+  0%,
+  30% {
+    transform: rotate(0);
+  }
+  45% {
+    transform: rotate(-22deg);
+  }
+  65% {
+    transform: rotate(16deg);
+  }
+  85% {
+    transform: rotate(-8deg);
+  }
+  100% {
+    transform: rotate(0);
+  }
+}
+
+@keyframes collage-burst {
+  0%,
+  30% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  45% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* 4xx: the fish dodges, the arrow sails past and out. */
+:root[data-theme='collage'] .send-plane.is-done.is-client-error .send-arrow {
+  animation: collage-miss 450ms ease-in forwards;
+}
+
+:root[data-theme='collage'] .send-plane.is-done.is-client-error .send-fish--a {
+  animation: collage-dodge 450ms ease-out;
+}
+
+:root[data-theme='collage'] .send-plane.is-done.is-client-error .send-scene::after {
+  animation: none;
+}
+
+@keyframes collage-miss {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(8.5em);
+    opacity: 0;
+  }
+}
+
+@keyframes collage-dodge {
+  0%,
+  25% {
+    transform: translateY(0) rotate(0);
+  }
+  45% {
+    transform: translateY(-0.9em) rotate(12deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+}
+
+/* 5xx: the arrow boomerangs back at the archer, who flinches. */
+:root[data-theme='collage'] .send-plane.is-done.is-server-error .send-arrow {
+  animation: collage-boomerang 450ms ease-in-out forwards;
+}
+
+:root[data-theme='collage'] .send-plane.is-done.is-server-error .send-archer {
+  animation: collage-flinch 450ms ease-out;
+}
+
+:root[data-theme='collage'] .send-plane.is-done.is-server-error .send-scene::after {
+  animation: none;
+}
+
+@keyframes collage-boomerang {
+  0% {
+    transform: translateX(0) scaleX(1);
+    opacity: 1;
+  }
+  45% {
+    transform: translateX(3.8em) scaleX(1);
+  }
+  46% {
+    transform: translateX(3.8em) scaleX(-1);
+  }
+  100% {
+    transform: translateX(0.3em) scaleX(-1);
+    opacity: 1;
+  }
+}
+
+@keyframes collage-flinch {
+  0%,
+  80% {
+    transform: translateX(0);
+  }
+  90% {
+    transform: translateX(-0.2em) rotate(-4deg);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* No response at all: the arrow drops, the fish wiggles cheekily. */
+:root[data-theme='collage'] .send-plane.is-failed .send-arrow {
+  animation: collage-drop 450ms ease-in forwards;
+}
+
+:root[data-theme='collage'] .send-plane.is-failed .send-fish--b {
+  animation: collage-sway 0.2s ease-in-out 2;
+}
+
+@keyframes collage-drop {
+  0% {
+    transform: translate(0, 0) rotate(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(1em, 2.2em) rotate(70deg);
+    opacity: 0;
+  }
+}
