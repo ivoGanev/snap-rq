@@ -51,11 +51,21 @@ tasks:
       (server mode) and a throwaway database. See frontend/playwright.config.ts.
     cmds:
       - task: common:generate:bindings
-      - cmd: npx ng build --configuration e2e
-        dir: frontend
+      - task: test:e2e:build-frontend
       - go build -tags server -o {{.BIN_DIR}}/snaprq-e2e{{exeExt}} .
-      - cmd: npx playwright test {{.CLI_ARGS}}
-        dir: frontend
+      - task: test:e2e:playwright
+
+  test:e2e:build-frontend:
+    internal: true
+    dir: frontend
+    cmds:
+      - npx ng build --configuration e2e
+
+  test:e2e:playwright:
+    internal: true
+    dir: frontend
+    cmds:
+      - npx playwright test {{.CLI_ARGS}}
 
   build:server:
     summary: Builds the application in server mode (no GUI, HTTP server only)
