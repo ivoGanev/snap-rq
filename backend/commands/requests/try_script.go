@@ -105,42 +105,45 @@ func (c TryScript) Run(input json.RawMessage) (any, error) {
 	return result, nil
 }
 
-// tryBefore runs beforeRequest, then fills in variables as sending would.
+// tryBefore fills in variables, runs beforeRequest and fills in the
+// placeholders it wrote, as sending does; secret values are masked for
+// display.
 func (c TryScript) tryBefore(result *TryResult, session *scripting.Session, env *tryEnv, req models.HttpRequest) {
+	values := env.all() // secrets decrypted here, as sending does
+	mask := func(text string) string { return hideSecrets(text, env.revealed) }
+	req = fillIn(req, values)
+
 	scripted := scripting.Request{
 		Method: req.Method, URL: req.URL, Body: req.Body,
 		Headers: scripting.ParseHeaders(req.RequestHeaders),
 	}
 	stopped, err := session.BeforeRequest(&scripted)
 	if err != nil {
-		result.Stopped = hideSecrets(err.Error(), env.revealed)
+		result.Stopped = mask(err.Error())
 		return
 	}
 	if stopped != "" {
-		result.Stopped = hideSecrets(stopped, env.revealed)
+		result.Stopped = mask(stopped)
 		return
 	}
 	if !session.Defines(scripting.PhaseBefore) {
 		result.Note = "This script has no beforeRequest, so the request is sent as it is."
 	}
-	headers := req.RequestHeaders
+	req.Method, req.URL, req.Body = scripted.Method, scripted.URL, scripted.Body
 	if scripted.Headers.Changed() {
-		headers = scripted.Headers.String()
+		req.RequestHeaders = scripted.Headers.String()
 	}
+	req = fillIn(req, values)
 
-	// Fill in every variable, secrets too (decrypted here, as sending does),
-	// then mask the secret values again for display.
-	values := env.all()
-	body := scripted.Body
+	body := req.Body
 	if normalizeBodyType(req.BodyType) == "form-data" {
 		body = "(form data, filled in when sent)"
 	}
-	mask := func(text string) string { return hideSecrets(text, env.revealed) }
 	result.Request = &TriedRequest{
-		Method:  scripted.Method,
-		URL:     mask(ensureScheme(interpolate(scripted.URL, values))),
-		Headers: mask(interpolate(headers, values)),
-		Body:    mask(interpolate(body, values)),
+		Method:  req.Method,
+		URL:     mask(ensureScheme(req.URL)),
+		Headers: mask(req.RequestHeaders),
+		Body:    mask(body),
 	}
 }
 

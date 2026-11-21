@@ -40,8 +40,9 @@ type Script struct {
 	Source string
 }
 
-// Request is the request as beforeRequest sees and changes it. Variables are
-// not filled in yet: scripts see and may write {{placeholders}}.
+// Request is the request as beforeRequest sees and changes it, variables
+// already filled in. A script may still write {{placeholders}}: they are
+// filled in after the scripts.
 type Request struct {
 	Method  string
 	URL     string

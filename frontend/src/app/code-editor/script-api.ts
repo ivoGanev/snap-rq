@@ -20,7 +20,7 @@ const headersRead: ScriptApiMember[] = [
 export const SCRIPT_API: Record<string, ScriptApiMember[]> = {
   req: [
     { label: 'method', type: 'property', detail: 'string', info: 'GET, POST… Change it in beforeRequest.' },
-    { label: 'url', type: 'property', detail: 'string', info: 'The URL; {{placeholders}} are filled in after the scripts.' },
+    { label: 'url', type: 'property', detail: 'string', info: 'The URL, variables filled in. {{placeholders}} you write are filled in too.' },
     { label: 'body', type: 'property', detail: 'string', info: 'The request body.' },
     { label: 'headers', type: 'property', detail: 'Headers', info: 'get / set / remove / all' },
   ],
