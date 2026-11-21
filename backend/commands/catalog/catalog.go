@@ -27,6 +27,7 @@ import (
 var All = []commands.Factory{
 	// requests
 	requests.NewGet,
+	requests.NewTryScript,
 	requests.NewListSummaries,
 	requests.NewListForCollection,
 	requests.NewListForProject,

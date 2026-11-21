@@ -12,10 +12,12 @@ import (
 	"snap-rq/backend/models"
 )
 
-// The two phases of a send a script can hook into.
+// The two phases of a send a script can hook into, and loading (its
+// top-level code), which a run log shows when it prints or fails.
 const (
 	PhaseBefore = "beforeRequest"
 	PhaseAfter  = "afterResponse"
+	PhaseLoad   = "load"
 )
 
 // TimeLimit bounds each script's loading and each hook.
@@ -153,7 +155,10 @@ func (s *Session) BeforeRequest(req *Request) (skipped string, err error) {
 		ctx := s.context(&run)
 		start := time.Now()
 
-		program, err := s.engine.Load(script, ctx)
+		program := s.programs[i]
+		if program == nil {
+			program, err = s.engine.Load(script, ctx)
+		}
 		if err == nil {
 			s.programs[i] = program
 			if program.Has(PhaseBefore) {
@@ -175,6 +180,42 @@ func (s *Session) BeforeRequest(req *Request) (skipped string, err error) {
 		}
 	}
 	return "", nil
+}
+
+// Load loads every script without running a hook, e.g. to try afterResponse
+// on its own. Output of a script's top-level code is logged as phase "load".
+// An error names the script; nothing more can run then.
+func (s *Session) Load() error {
+	for i, script := range s.scripts {
+		if s.programs[i] != nil {
+			continue
+		}
+		run := models.ScriptRun{ScriptID: script.ID, Script: script.Name, Phase: PhaseLoad}
+		start := time.Now()
+		program, err := s.engine.Load(script, s.context(&run))
+		run.DurationMs = time.Since(start).Milliseconds()
+		if err != nil {
+			run.Error = err.Error()
+		}
+		if hasOutput(run) {
+			s.log = append(s.log, run)
+		}
+		if err != nil {
+			return fmt.Errorf("script %q failed to load: %s", script.Name, run.Error)
+		}
+		s.programs[i] = program
+	}
+	return nil
+}
+
+// Defines reports whether any loaded script defines the phase's hook.
+func (s *Session) Defines(phase string) bool {
+	for _, program := range s.programs {
+		if program != nil && program.Has(phase) {
+			return true
+		}
+	}
+	return false
 }
 
 // AfterResponse runs each script's afterResponse in order. An error counts
