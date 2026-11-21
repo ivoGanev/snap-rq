@@ -89,6 +89,7 @@ var All = []commands.Factory{
 	scripts.NewDelete,
 	scripts.NewRename,
 	scripts.NewSetContent,
+	scripts.NewCheck,
 	scripts.NewSetAppearance,
 	scripts.NewReorder,
 	scripts.NewSetColor,
