@@ -61,6 +61,7 @@ export class ScriptEditor {
   protected onTextChange(text: string): void {
     const id = this.scriptId();
     if (id === null) return;
+    this.scriptApi.editing.set({ id, text });
     this.pending = { id, text };
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => void this.flush(), SAVE_DELAY_MS);
@@ -75,6 +76,7 @@ export class ScriptEditor {
       const script = await this.scriptApi.get(id);
       if (this.scriptId() !== id) return;
       this.loadedText.set(script.content ?? '');
+      this.scriptApi.editing.set({ id, text: script.content ?? '' });
       this.loaded.set(true);
     } catch (err) {
       console.error('loading script failed', err);

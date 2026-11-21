@@ -3,6 +3,7 @@ import { CommandApiService } from './command.service';
 import { ChangeBus } from './change-bus.service';
 import type { HttpRequestSummary } from '../models/http';
 import type { ScriptProblem } from '../models/script-problem';
+import type { ScriptTryResult, TryPhase } from '../models/script-try';
 
 export interface ScriptAppearance {
   id: number;
@@ -66,6 +67,29 @@ export class ScriptApiService {
   }
 
   /** Saves a script's code. Not undoable: the editor has its own undo. */
+  /**
+   * The script open in the editor and its current text, saved or not: what
+   * "Try it" runs.
+   */
+  readonly editing = signal<{ id: number; text: string } | null>(null);
+
+  /** Runs one hook of a script's code against a request, without sending anything. */
+  async try(input: {
+    content: string;
+    scriptName: string;
+    requestId: number;
+    phase: TryPhase;
+    environmentId: number | null;
+  }): Promise<ScriptTryResult> {
+    return this.commands.execute<ScriptTryResult>('script.try', {
+      content: input.content,
+      script_name: input.scriptName,
+      request_id: input.requestId,
+      phase: input.phase,
+      environment_id: input.environmentId ?? 0,
+    });
+  }
+
   /** Syntax errors in a script's code, from the engine that runs it (nothing runs). */
   async check(content: string): Promise<ScriptProblem[]> {
     return (await this.commands.execute<ScriptProblem[]>('script.check', { content })) ?? [];

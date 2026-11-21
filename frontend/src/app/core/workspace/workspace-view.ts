@@ -160,8 +160,8 @@ export class ScriptView implements ViewBehaviour {
     return this.script.name;
   }
 
-  /** On both tabs: the Inspector shows how to write scripts. */
+  /** On both tabs: the Inspector tries the script (and has a reference). */
   inspect(): InspectorContent {
-    return { kind: 'wip' };
+    return { kind: 'script', script: this.script };
   }
 }
