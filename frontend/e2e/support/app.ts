@@ -21,8 +21,8 @@ export async function openApp(page: Page): Promise<void> {
 }
 
 /** Creates a GET request to `url` in the first collection; returns its id. */
-export async function createRequest(page: Page, url: string): Promise<number> {
-  return page.evaluate(async (url) => {
+export async function createRequest(page: Page, url: string, headers = ''): Promise<number> {
+  return page.evaluate(async ({ url, headers }) => {
     const { commands, requests } = window.snaprq;
     const [project] = await commands.execute<{ id: number }[]>('project.list', {});
     const [collection] = await commands.execute<{ id: number; project_id: number }[]>('collection.list', {
@@ -37,12 +37,20 @@ export async function createRequest(page: Page, url: string): Promise<number> {
       body: '',
       body_type: 'json',
       body_form: '',
-      request_headers: '',
+      request_headers: headers,
       status_code: 0,
       response_id: 0,
     });
     return created.id;
-  }, url);
+  }, { url, headers });
+}
+
+/** Opens the request in the workspace, as clicking its row does. */
+export async function openRequest(page: Page, id: number): Promise<void> {
+  await page.evaluate(async (id) => {
+    const { requests, workspace } = window.snaprq;
+    workspace.selectedRequest.set(await requests.getFull(id));
+  }, id);
 }
 
 /** Whether the frontend still shows the request as in flight. */
