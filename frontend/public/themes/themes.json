@@ -46,6 +46,29 @@
     "preview": "linear-gradient(135deg, #f7f3ea 0%, #f7f3ea 55%, #56ccf2 100%)"
   },
   {
+    "id": "flora",
+    "name": "Flora",
+    "css": "/themes/flora.css",
+    "iconSet": {
+      "features": {
+        "collections": {
+          "pack": "standard",
+          "version": 1
+        },
+        "favourites": {
+          "pack": "standard",
+          "version": 1
+        },
+        "scripts": {
+          "pack": "standard",
+          "version": 1
+        }
+      }
+    },
+    "fontFamily": "Nunito, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+    "preview": "linear-gradient(135deg, #87d6c6 0%, #ffffe1 50%, #d6336c 100%)"
+  },
+  {
     "id": "neutral-dark",
     "name": "Neutral Dark",
     "css": "/themes/neutral-dark.css",
