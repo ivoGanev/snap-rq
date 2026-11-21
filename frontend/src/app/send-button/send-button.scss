@@ -34,9 +34,11 @@
   @include btn.btn-primary;
 }
 
+// Themes resize the icon through these variables: a theme rule targeting the
+// icon directly would tie with this scoped rule and lose (it loads later).
 .send-plane--primary .send-plane-icon {
-  width: 22px;
-  height: 22px;
+  width: var(--send-icon-primary-width, 22px);
+  height: var(--send-icon-primary-height, 22px);
 }
 
 // Zen mode: the green send.
@@ -60,8 +62,8 @@
 }
 
 .send-plane--success .send-plane-icon {
-  width: 18px;
-  height: 18px;
+  width: var(--send-icon-success-width, 18px);
+  height: var(--send-icon-success-height, 18px);
 }
 
 // Explicit size above (WebKit doesn't shrink unsized SVGs, see AGENTS.md).
