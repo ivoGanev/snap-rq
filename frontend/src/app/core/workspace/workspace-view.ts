@@ -160,7 +160,7 @@ export class ScriptView implements ViewBehaviour {
     return this.script.name;
   }
 
-  /** On both tabs: scripts can't run yet, so the Inspector says so. */
+  /** On both tabs: the Inspector shows how to write scripts. */
   inspect(): InspectorContent {
     return { kind: 'wip' };
   }

@@ -2,9 +2,32 @@
 
 <div class="wip">
   <div class="wip-card" role="note">
-    <span class="wip-badge">WIP</span>
+    <span class="wip-badge">Beta</span>
     <p class="wip-text">
-      Scripts can't run yet. This feature is in progress, so if you'd like to see it sooner,
+      Scripts run when you send a request they're attached to, in the order they were attached.
+      Their tests and console output appear under <strong>Scripts</strong> in the response.
+    </p>
+    <pre class="wip-code">function beforeRequest(req, ctx) {{ '{' }}
+  req.headers.set('Authorization',
+    'Bearer ' + ctx.env.get('TOKEN'));
+{{ '}' }}
+
+function afterResponse(res, ctx) {{ '{' }}
+  ctx.test('status is 200', () =>
+    ctx.expect(res.status).toBe(200));
+{{ '}' }}</pre>
+    <dl class="wip-api">
+      <dt>req</dt>
+      <dd>method, url, body, headers.get / set / remove / all</dd>
+      <dt>res</dt>
+      <dd>status, body, json(), headers.get / all, durationMs</dd>
+      <dt>ctx</dt>
+      <dd>env.get, vars.get / set, test, expect, skip</dd>
+      <dt>console</dt>
+      <dd>log, info, warn, error</dd>
+    </dl>
+    <p class="wip-text">
+      Ordering scripts per request and writing variables are still in progress. To see them sooner,
       consider <a class="wip-link" [href]="donateUrl" (click)="openDonate($event)">supporting development</a>.
     </p>
   </div>

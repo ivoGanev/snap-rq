@@ -22,7 +22,7 @@ export type InspectorContent =
   | { kind: 'response'; requestId: number }
   /** A request in the trash bin. */
   | { kind: 'binned-request'; binId: number }
-  /** A feature that is not ready yet (scripts can't run). */
+  /** The script views' quick reference (scripts are in beta). */
   | { kind: 'wip' };
 
 /** The content member for one kind, e.g. `InspectorContentOf<'response'>`. */

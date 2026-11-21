@@ -36,6 +36,9 @@
     <h3 class="request-error-title">Couldn't send the request</h3>
     <pre class="request-error-message">{{ errorMessage() }}</pre>
     <span class="request-error-duration">Failed after {{ failed.duration_ms }} ms</span>
+    @if (failed.script_log?.length) {
+      <app-script-log class="request-error-scripts" [runs]="failed.script_log!" />
+    }
   </div>
 } @else if (state.selectedResponse()) {
   <div class="response-detail">
@@ -84,7 +87,11 @@
       <span class="response-duration">Duration: {{ state.selectedResponse()!.duration_ms }} ms</span>
     </div>
 
-    <div class="response-section">
+    @if (state.selectedResponse()!.script_log?.length) {
+      <app-script-log [runs]="state.selectedResponse()!.script_log!" />
+    }
+
+    <div class="response-section response-headers-section">
       <h3 class="section-title">Headers</h3>
       <pre
         class="response-block response-headers"

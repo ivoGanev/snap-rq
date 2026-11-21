@@ -12,7 +12,7 @@
   <app-code-editor
     class="script-editor-code"
     language="javascript"
-    placeholder="// Write your script here…"
+    placeholder="function beforeRequest(req, ctx) { … }  ·  function afterResponse(res, ctx) { … }"
     [text]="loadedText()"
     (textChange)="onTextChange($event)"
   />
