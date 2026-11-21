@@ -77,3 +77,12 @@ const STATUS_TEXT: Record<number, string> = {
 export function httpStatusText(code: number): string {
   return STATUS_TEXT[code] ?? '';
 }
+
+/**
+ * Whether a saved response is a request that failed before any response
+ * arrived (bad URL or header, unknown host, refused, timeout). The backend
+ * stores those with status 0 and the error message as the body.
+ */
+export function isRequestError(code: number): boolean {
+  return code === 0;
+}
