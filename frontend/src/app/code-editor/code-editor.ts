@@ -34,13 +34,19 @@ import {
   WidgetType,
 } from '@codemirror/view';
 import { json, jsonParseLinter } from '@codemirror/lang-json';
-import { javascript } from '@codemirror/lang-javascript';
+import { javascript, javascriptLanguage } from '@codemirror/lang-javascript';
+import { autocompletion, startCompletion } from '@codemirror/autocomplete';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
-import { linter, type Diagnostic } from '@codemirror/lint';
+import { linter, lintGutter, type Diagnostic } from '@codemirror/lint';
 import { defaultKeymap, history, historyKeymap, redo } from '@codemirror/commands';
+import { scriptCompletions } from './script-completions';
+import type { ScriptProblem } from '../core/models/script-problem';
 
 export type EditorLanguage = 'json' | 'text' | 'javascript';
+
+/** Checks a script's code; the JavaScript editor underlines what it returns. */
+export type ScriptCheck = (code: string) => Promise<ScriptProblem[]>;
 
 export interface EditorVariable {
   key: string;
@@ -191,6 +197,8 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
   readonly singleLine = input(false);
   /** Faded hint shown while the editor is empty (read once, at creation). */
   readonly placeholder = input('');
+  /** JavaScript only: checks the code as you type (syntax errors are underlined). */
+  readonly check = input<ScriptCheck | null>(null);
 
   readonly textChange = output<string>();
   /** Emitted when Enter is pressed in single-line mode (where newlines are blocked). */
@@ -325,19 +333,14 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
       keymap.of([...defaultKeymap, ...historyKeymap]),
       Prec.highest(
         keymap.of([
+          // Scripts complete code; the other editors pick a {{variable}}.
           {
             mac: 'Cmd-Space',
-            run: () => {
-              this.openDropdown();
-              return true;
-            },
+            run: (view) => this.completeOrPickVariable(view),
           },
           {
             key: 'Ctrl-Space',
-            run: () => {
-              this.openDropdown();
-              return true;
-            },
+            run: (view) => this.completeOrPickVariable(view),
           },
           {
             key: 'Tab',
@@ -404,8 +407,14 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
     ];
   }
 
+  private completeOrPickVariable(view: EditorView): boolean {
+    if (this.language() === 'javascript') return startCompletion(view);
+    this.openDropdown();
+    return true;
+  }
+
   private languageExtension(language: EditorLanguage): Extension {
-    if (language === 'javascript') return [javascript(), syntaxHighlighting(CODE_HIGHLIGHT)];
+    if (language === 'javascript') return this.scriptExtensions();
     if (language !== 'json') return [];
     const parse = jsonParseLinter();
     return [
@@ -420,6 +429,42 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
         { delay: 100 },
       ),
     ];
+  }
+
+  /**
+   * Scripts: completions for the script API (with the environment's variable
+   * names in ctx.env.get('…')), JavaScript's own (keywords, snippets, the
+   * script's variables), and the check's problems underlined.
+   */
+  private scriptExtensions(): Extension {
+    return [
+      javascript(),
+      syntaxHighlighting(CODE_HIGHLIGHT),
+      javascriptLanguage.data.of({
+        autocomplete: scriptCompletions(() => this.variables().map((v) => v.key)),
+      }),
+      autocompletion({ icons: false }),
+      linter((view) => this.checkScript(view), { delay: 400 }),
+      lintGutter(),
+    ];
+  }
+
+  private async checkScript(view: EditorView): Promise<Diagnostic[]> {
+    const check = this.check();
+    const doc = view.state.doc;
+    if (!check || doc.toString().trim() === '') return [];
+    try {
+      const problems = await check(doc.toString());
+      return problems.map((problem) => {
+        const line = doc.line(Math.min(Math.max(problem.line, 1), doc.lines));
+        let from = Math.min(line.from + Math.max(problem.column - 1, 0), line.to);
+        // At a line's end (e.g. "unexpected end of input"): mark its last character.
+        if (from === line.to && line.length > 0) from = line.to - 1;
+        return { from, to: Math.min(from + 1, line.to), severity: 'error', message: problem.message };
+      });
+    } catch {
+      return []; // couldn't check (e.g. the backend is busy): show nothing rather than a wrong error
+    }
   }
 
   /**
@@ -519,6 +564,37 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
         },
         '.cm-lint-marker': {
           color: 'var(--error-text)',
+        },
+        // Script completions: theme colours, the signature muted, the side
+        // note readable.
+        '.cm-tooltip.cm-tooltip-autocomplete > ul': {
+          fontFamily: 'var(--font-mono)',
+          fontSize: '0.8125rem',
+          maxHeight: '14em',
+        },
+        '.cm-tooltip.cm-tooltip-autocomplete > ul > li': {
+          padding: '2px 8px',
+          color: 'var(--text)',
+        },
+        '.cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]': {
+          color: 'var(--text)',
+          background: 'var(--selected-bg)',
+        },
+        '.cm-completionMatchedText': {
+          textDecoration: 'none',
+          fontWeight: '700',
+          color: 'var(--accent)',
+        },
+        '.cm-completionDetail': {
+          marginLeft: '12px',
+          fontStyle: 'normal',
+          color: 'var(--muted)',
+        },
+        '.cm-tooltip.cm-completionInfo': {
+          maxWidth: '280px',
+          padding: '6px 8px',
+          fontSize: '0.8125rem',
+          color: 'var(--text)',
         },
         // Variable chips are created dynamically by the widget, so they must
         // be styled from the editor theme (Angular-scoped selectors cannot

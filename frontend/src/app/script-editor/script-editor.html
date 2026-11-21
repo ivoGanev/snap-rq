@@ -14,6 +14,8 @@
     language="javascript"
     placeholder="function beforeRequest(req, ctx) { … }  ·  function afterResponse(res, ctx) { … }"
     [text]="loadedText()"
+    [variables]="environmentVariables()"
+    [check]="check"
     (textChange)="onTextChange($event)"
   />
 }

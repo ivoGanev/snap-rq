@@ -37,6 +37,11 @@ export class ScriptEditor {
     const id = this.scriptId();
     return this.scriptApi.allScripts().find(s => s.id === id)?.name ?? this.state.view()?.title ?? '';
   });
+  /** For ctx.env.get('…') completions: the selected environment's variables. */
+  protected readonly environmentVariables = this.state.environmentVariables;
+  /** Syntax errors as you type, from the engine that runs scripts. */
+  protected readonly check = (code: string) => this.scriptApi.check(code);
+
   /** The text the editor starts from; typing does not write back to it. */
   protected readonly loadedText = signal('');
   protected readonly loaded = signal(false);
