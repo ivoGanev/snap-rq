@@ -1,5 +1,4 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Events } from '@wailsio/runtime';
 import { Subject } from 'rxjs';
 import type { HttpRequest, HttpRequestSummary, HttpResponse } from '../models/http';
 import type { EnvironmentVariableValue } from '../models/environment-context';
@@ -48,8 +47,8 @@ export class RequestApiService {
   /** Emits the saved response once per finished send. */
   readonly finished$ = new Subject<HttpResponse>();
 
-  private readonly runToRequest = new Map<string, number>();
-  private readonly activeRuns = new Map<number, Set<string>>();
+  /** Sends in flight per request id (sending again while in flight is fine). */
+  private readonly inFlight = new Map<number, number>();
 
   get(id: number): HttpRequestSummary | undefined {
     return this.allRequests()[id];
@@ -242,19 +241,46 @@ export class RequestApiService {
   // Send flow
   // -----------------------------------------------------------------------
 
-  /** Starts a send; progress and the saved response arrive via events. */
-  /** Sends a request; secret variables are filled in by the backend from `environmentId`. */
+  /**
+   * Sends a request and resolves once its response is saved; secret
+   * variables are filled in by the backend from `environmentId`. The request
+   * is in flight until its run finishes, whatever the outcome.
+   */
   async send(req: HttpRequest, variables: EnvironmentVariableValue[], environmentId: number | null): Promise<void> {
-    const runId = await this.commands.begin('request.send', {
-      request: req,
-      variables,
-      environment_id: environmentId ?? 0,
-    });
-    this.runToRequest.set(runId, req.id);
-    const runs = this.activeRuns.get(req.id) ?? new Set<string>();
-    runs.add(runId);
-    this.activeRuns.set(req.id, runs);
-    this.sending.update(s => ({ ...s, [req.id]: 0 }));
+    this.startSending(req.id);
+    try {
+      const result = await this.commands.run<HttpResponse>(
+        'request.send',
+        { request: req, variables, environment_id: environmentId ?? 0 },
+        data => this.setElapsed(req.id, (data as { elapsed_ms: number }).elapsed_ms),
+      );
+      this.patch(req.id, { status_code: result.status_code, response_id: result.id });
+      this.finished$.next(result);
+    } catch (err) {
+      // A send that couldn't run, e.g. a locked secret variable.
+      this.toasts.show(err instanceof Error ? err.message : String(err));
+    } finally {
+      this.stopSending(req.id);
+    }
+  }
+
+  private startSending(id: number): void {
+    this.inFlight.set(id, (this.inFlight.get(id) ?? 0) + 1);
+    this.sending.update(s => ({ ...s, [id]: s[id] ?? 0 }));
+  }
+
+  private setElapsed(id: number, ms: number): void {
+    if (this.inFlight.has(id)) this.sending.update(s => ({ ...s, [id]: ms }));
+  }
+
+  private stopSending(id: number): void {
+    const left = (this.inFlight.get(id) ?? 1) - 1;
+    if (left > 0) {
+      this.inFlight.set(id, left);
+      return;
+    }
+    this.inFlight.delete(id);
+    this.sending.update(({ [id]: _, ...rest }) => rest);
   }
 
   async loadResponsesForRequest(requestId: number): Promise<void> {
@@ -352,43 +378,6 @@ export class RequestApiService {
 
   constructor() {
     this.bus.changesFor('request').subscribe(change => void this.applyChange(change));
-
-    Events.On('command:update', ev => {
-      const { runId, data } = ev.data as {
-        runId: string;
-        data?: { request_id?: number; elapsed_ms?: number };
-      };
-      const requestId = this.runToRequest.get(runId);
-      const elapsed = data?.elapsed_ms;
-      if (requestId !== undefined && elapsed !== undefined) {
-        this.sending.update(s => ({ ...s, [requestId]: elapsed }));
-      }
-    });
-
-    Events.On('command:finish', ev => {
-      const { runId, result, error } = ev.data as { runId: string; result?: HttpResponse; error?: string };
-      const requestId = this.runToRequest.get(runId);
-      if (requestId === undefined) return;
-
-      this.runToRequest.delete(runId);
-      const runs = this.activeRuns.get(requestId);
-      runs?.delete(runId);
-      if (!runs?.size) {
-        this.activeRuns.delete(requestId);
-        this.sending.update(s => {
-          const next = { ...s };
-          delete next[requestId];
-          return next;
-        });
-      }
-
-      if (result) {
-        this.patch(requestId, { status_code: result.status_code, response_id: result.id });
-        this.finished$.next(result);
-      }
-      // A send that couldn't start, e.g. a locked secret variable.
-      if (error) this.toasts.show(error);
-    });
   }
 
   /**

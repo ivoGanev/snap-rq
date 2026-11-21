@@ -9,7 +9,7 @@ import {
 } from '../core/prettifiers/response-prettifier';
 import { csvColumnWidths } from '../core/prettifiers/csv-prettifier';
 import { highlightLine, type SyntaxLanguage, type SyntaxToken } from '../core/highlighters/highlight';
-import { httpStatusClass, httpStatusText } from '../core/http-status';
+import { httpStatusClass, httpStatusText, isRequestError } from '../core/http-status';
 
 @Component({
   selector: 'app-response-viewer',
@@ -24,7 +24,19 @@ export class ResponseViewer {
   protected readonly responses = this.requestApi.responses;
   protected readonly statusClass = httpStatusClass;
   protected readonly statusText = httpStatusText;
+  protected readonly isRequestError = isRequestError;
   protected readonly prettifyEnabled = signal(true);
+
+  /** The selected response when it is a request that failed (no response arrived). */
+  protected readonly failedResponse = computed(() => {
+    const response = this.state.selectedResponse();
+    return response && isRequestError(response.status_code) ? response : null;
+  });
+
+  /** A failed request's message, without the backend's "request failed: " (the title says it). */
+  protected readonly errorMessage = computed(() =>
+    (this.failedResponse()?.body ?? '').replace(/^request failed:\s*/, ''),
+  );
 
   /** Set-Cookie lines of the selected response, parsed for display. */
   protected readonly responseCookies = computed(() => {

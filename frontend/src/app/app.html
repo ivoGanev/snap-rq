@@ -225,26 +225,29 @@
       </svg>
       <span>Theme</span>
     </button>
-
-    @if (themeSelectorOpen()) {
-      <div class="theme-selector-backdrop" (click)="closeThemeSelector()">
-        <div class="theme-selector-popup" (click)="$event.stopPropagation()">
-          @for (theme of theme.registry(); track theme.id) {
-            <button
-              class="theme-option"
-              [class.is-active]="isActiveTheme(theme)"
-              type="button"
-              (click)="selectTheme(theme)"
-            >
-              <span class="theme-option-thumb" [style.background]="theme.preview"></span>
-              <span class="theme-option-label">{{ theme.name }}</span>
-            </button>
-          }
-        </div>
-      </div>
-    }
   </div>
 </footer>
+
+<!-- Outside the footer: its backdrop-filter would make it the containing
+     block for position: fixed, shrinking the click-outside backdrop to the
+     footer's 32px. -->
+@if (themeSelectorOpen()) {
+  <div class="theme-selector-backdrop" (click)="closeThemeSelector()">
+    <div class="theme-selector-popup" (click)="$event.stopPropagation()">
+      @for (theme of theme.registry(); track theme.id) {
+        <button
+          class="theme-option"
+          [class.is-active]="isActiveTheme(theme)"
+          type="button"
+          (click)="selectTheme(theme)"
+        >
+          <span class="theme-option-thumb" [style.background]="theme.preview"></span>
+          <span class="theme-option-label">{{ theme.name }}</span>
+        </button>
+      }
+    </div>
+  </div>
+}
 
 @if (importPrompt.active(); as prompt) {
   <app-openapi-import-dialog
