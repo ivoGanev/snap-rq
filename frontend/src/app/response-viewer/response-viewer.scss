@@ -69,6 +69,10 @@
   color: var(--status-5xx);
 }
 
+.chip-status[data-status='error'] {
+  color: var(--error-text);
+}
+
 .response-detail {
   flex: 1 1 auto;
   display: flex;
@@ -337,5 +341,56 @@
 }
 
 .response-cookie-attrs {
+  color: var(--muted);
+}
+
+// A request that failed before any response arrived: centred, the message
+// readable and selectable (long URLs wrap).
+.request-error {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: 0;
+  padding: var(--s-4);
+  text-align: center;
+}
+
+.request-error-icon {
+  width: 32px;
+  height: 32px;
+  color: var(--error-text);
+}
+
+.request-error-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.request-error-message {
+  max-width: 100%;
+  max-height: 50%;
+  margin: 0;
+  padding: var(--s-2) var(--s-3);
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  color: var(--error-text);
+  background: var(--danger-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+}
+
+.request-error-duration {
+  font-size: 0.8125rem;
   color: var(--muted);
 }

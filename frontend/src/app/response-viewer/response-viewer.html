@@ -16,13 +16,28 @@
         [title]="formatTime(resp.created_at)"
       >
         {{ formatTime(resp.created_at) }}
-        <span class="chip-status" [class.is-error]="resp.status_code >= 400" [attr.data-status]="statusClass(resp.status_code)">{{ resp.status_code }}</span>
+        @if (isRequestError(resp.status_code)) {
+          <span class="chip-status is-error" data-status="error">Error</span>
+        } @else {
+          <span class="chip-status" [class.is-error]="resp.status_code >= 400" [attr.data-status]="statusClass(resp.status_code)">{{ resp.status_code }}</span>
+        }
       </button>
     }
   </div>
 }
 
-@if (state.selectedResponse()) {
+<!-- No response arrived: nothing to show but what went wrong. -->
+@if (failedResponse(); as failed) {
+  <div class="request-error" role="alert">
+    <svg class="request-error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 4l9.5 16.5h-19z" />
+      <path d="M12 10v4.5M12 17.6v.01" />
+    </svg>
+    <h3 class="request-error-title">Couldn't send the request</h3>
+    <pre class="request-error-message">{{ errorMessage() }}</pre>
+    <span class="request-error-duration">Failed after {{ failed.duration_ms }} ms</span>
+  </div>
+} @else if (state.selectedResponse()) {
   <div class="response-detail">
     <div class="response-meta">
       @let status = state.selectedResponse()!.status_code;
