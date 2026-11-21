@@ -49,6 +49,7 @@ tasks:
     summary: >-
       End-to-end tests: the real frontend services against the real Go backend
       (server mode) and a throwaway database. See frontend/playwright.config.ts.
+      Playwright options go in ARGS, e.g. wails3 task test:e2e ARGS='-g "theme picker"'.
     cmds:
       - task: common:generate:bindings
       - task: test:e2e:build-frontend
@@ -65,7 +66,7 @@ tasks:
     internal: true
     dir: frontend
     cmds:
-      - npx playwright test {{.CLI_ARGS}}
+      - npx playwright test {{.ARGS}}
 
   build:server:
     summary: Builds the application in server mode (no GUI, HTTP server only)
