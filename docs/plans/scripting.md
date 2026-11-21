@@ -1,6 +1,7 @@
 # Scripting: design notes
 
-Written 2026-11-20 as a design record before the work starts. Nothing here is built yet.
+Written 2026-11-20 as a design record before the work starts. Phases 1 and 2 were built
+on 2026-11-21 (see "Status" at the end).
 Scripts exist today as named code attached to requests (see `tags-to-scripts.md`); this
 document is about **running** them.
 
@@ -223,11 +224,30 @@ tests (often in CI via Newman), passing values between requests, request signing
 5. **Later**: calling other requests, "test against request", MCP access to run logs, a
    collection runner.
 
-## Open decisions
+## Decisions
 
-1. **Script shape**: one script with two optional hooks (recommended), or a phase chosen per
-   attachment ("pre-request" / "test")?
-2. **`afterResponse` order**: the same as `beforeRequest` (simplest, as Postman), or reversed
-   ("onion", like middleware)?
-3. **Engine**: goja (recommended) or QuickJS (more modern JS, needs native code or WASM)?
-4. **Secret variables**: may scripts write them (stored encrypted), or read only?
+1. **Script shape**: one script with two optional hooks, `beforeRequest` and `afterResponse`.
+2. **`afterResponse` order**: the same as `beforeRequest` (as Postman).
+3. **Engine**: goja, pinned to a version that still builds with Go 1.25.
+4. **Secret variables**: scripts read them (`ctx.env.get`); writing variables is phase 4.
+
+## Status
+
+Built (phases 1 and 2):
+
+- `backend/scripting`: the `Engine` interface, the goja engine (`javascript.go`) and a `Session`
+  that runs one send's scripts. Each script gets its own runtime for the whole send; loading and
+  each hook are limited to 5 seconds.
+- `request.send` runs the enabled scripts with code, in `run_order`: `beforeRequest`, then
+  variables and secrets, the HTTP call, then `afterResponse` (not when no response arrived).
+- A `beforeRequest` error or `ctx.skip(reason)` stops the send; it is saved like a failed request
+  (status 0, the reason as the message), with the scripts' log.
+- `responses.script_log` keeps the log; secret values a script read or the request used are
+  masked in it. `request_scripts` has `run_order` (attach order) and `enabled`.
+- The response view shows a collapsible **Scripts** section (tests, console, errors per script and
+  phase), also under a failed request's message. The script views' Inspector is a quick
+  reference.
+
+Not yet: ordering and switching scripts per request in the UI (phase 3), `ctx.env.set` and
+`ctx.crypto` (phase 4), and everything in phase 5. Script logs are not kept when a request is
+restored from the trash bin.
