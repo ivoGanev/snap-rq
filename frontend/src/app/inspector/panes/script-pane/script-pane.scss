@@ -176,12 +176,59 @@
   }
 }
 
-.reference-code {
+.reference-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
   margin-bottom: var(--s-2);
+}
+
+.reference-tab {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text);
+  }
+
+  &.is-active {
+    color: var(--on-accent);
+    background: var(--grad);
+    border-color: transparent;
+  }
+}
+
+// The code with a Copy button in its corner.
+.reference-example {
+  position: relative;
+  margin: var(--s-2) 0;
+}
+
+.reference-code {
   white-space: pre;
   overflow-x: auto;
   color: var(--text);
   background: var(--input-bg);
+}
+
+.reference-copy {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 1px 8px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--hover-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  cursor: pointer;
 }
 
 .reference-api {
