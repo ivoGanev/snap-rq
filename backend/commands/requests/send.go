@@ -27,7 +27,8 @@ import (
 )
 
 // send.go — execute a request against the outside world. Observable: it
-// runs the request's scripts' beforeRequest hooks, interpolates, times the
+// fills in variables, runs the request's scripts' beforeRequest hooks, fills
+// in the placeholders they wrote, times the
 // request, does the HTTP round trip outside the writer lock, runs the
 // afterResponse hooks, and reports elapsed time until it finishes by
 // persisting the response (with the scripts' log) and the request's
@@ -84,14 +85,30 @@ func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 		}
 	}()
 
-	// The request's scripts run first: beforeRequest may change the request,
-	// {{placeholders}} included, before variables are filled in.
+	// Variables are filled in before the scripts, so they see the request as
+	// it will go out, and again after them, for placeholders a script wrote
+	// (e.g. 'Bearer {{TOKEN}}').
+	secretValues, err := c.secretsFor(in.EnvironmentID, req)
+	if err != nil {
+		obs.Finish(nil, err)
+		return
+	}
+	values := make(map[string]string, len(plain)+len(secretValues))
+	maps.Copy(values, plain)
+	maps.Copy(values, secretValues)
+	req = fillIn(req, values)
+
 	scripts, err := c.scriptsFor(req.ID)
 	if err != nil {
 		obs.Finish(nil, err)
 		return
 	}
 	env := &scriptEnv{send: c, environmentID: in.EnvironmentID, plain: plain, revealed: map[string]string{}}
+	// Every secret value a script could print: the ones sent and the ones
+	// scripts read.
+	mask := func(text string) string {
+		return hideSecrets(hideSecrets(text, secretValues), env.revealed)
+	}
 	session := scripting.NewSession(scripts, env)
 	if len(scripts) > 0 {
 		scripted := scripting.Request{
@@ -111,25 +128,22 @@ func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 			}
 			c.finish(obs, models.HttpResponse{
 				RequestID:  req.ID,
-				Body:       hideSecrets(reason, env.revealed),
+				Body:       mask(reason),
 				DurationMs: time.Since(start).Milliseconds(),
-				ScriptLog:  session.Log(func(text string) string { return hideSecrets(text, env.revealed) }),
+				ScriptLog:  session.Log(mask),
 			})
 			return
 		}
-	}
 
-	secretValues, err := c.secretsFor(in.EnvironmentID, req)
-	if err != nil {
-		obs.Finish(nil, err)
-		return
+		more, err := c.secretsFor(in.EnvironmentID, req)
+		if err != nil {
+			obs.Finish(nil, err)
+			return
+		}
+		maps.Copy(secretValues, more)
+		maps.Copy(values, more)
+		req = fillIn(req, values)
 	}
-	values := make(map[string]string, len(plain)+len(secretValues))
-	maps.Copy(values, plain)
-	maps.Copy(values, secretValues)
-	req.URL = interpolate(req.URL, values)
-	req.Body = interpolate(req.Body, values)
-	req.RequestHeaders = interpolate(req.RequestHeaders, values)
 
 	sent := time.Now()
 	result := c.doHTTP(req, values)
@@ -137,7 +151,7 @@ func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 	if result.StatusCode == 0 {
 		// A local failure (bad host, timeout…): Go's message quotes the URL,
 		// and the message is saved as the response body.
-		result.Body = hideSecrets(result.Body, secretValues)
+		result.Body = mask(result.Body)
 	} else if len(scripts) > 0 {
 		session.AfterResponse(&scripting.Response{
 			Status: result.StatusCode, Headers: scripting.ParseHeaders(result.Headers),
@@ -146,13 +160,17 @@ func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 	}
 	stopTicking()
 
-	// Mask every secret value a script could have printed: the ones sent and
-	// the ones scripts read.
-	shown := make(map[string]string, len(secretValues)+len(env.revealed))
-	maps.Copy(shown, secretValues)
-	maps.Copy(shown, env.revealed)
-	result.ScriptLog = session.Log(func(text string) string { return hideSecrets(text, shown) })
+	result.ScriptLog = session.Log(mask)
 	c.finish(obs, result)
+}
+
+// fillIn resolves the request's {{placeholders}} (form fields are filled in
+// when the multipart body is built).
+func fillIn(req models.HttpRequest, values map[string]string) models.HttpRequest {
+	req.URL = interpolate(req.URL, values)
+	req.Body = interpolate(req.Body, values)
+	req.RequestHeaders = interpolate(req.RequestHeaders, values)
+	return req
 }
 
 // finish saves the response and ends the run with it.
@@ -276,11 +294,16 @@ func (c Send) secretsFor(environmentID int64, req models.HttpRequest) (map[strin
 	return values, nil
 }
 
-// hideSecrets replaces secret values in a locally made message.
+// secretMask is what a secret value is shown as. Not "{{KEY}}": that would
+// look like a variable that wasn't filled in.
+const secretMask = "•••••"
+
+// hideSecrets replaces secret values in text meant for display (a failed
+// request's message, a script's log).
 func hideSecrets(text string, values map[string]string) string {
-	for key, value := range values {
+	for _, value := range values {
 		if value != "" {
-			text = strings.ReplaceAll(text, value, "{{"+key+"}}")
+			text = strings.ReplaceAll(text, value, secretMask)
 		}
 	}
 	return text

@@ -16,8 +16,9 @@ so the pipeline slots in there.
 
 ```
 request R with scripts [Auth, Sign, Assert] (in R's order)
-  ├─ beforeRequest:  Auth → Sign → Assert     each sees the request as the previous left it
   ├─ fill in {{variables}} and secrets
+  ├─ beforeRequest:  Auth → Sign → Assert     each sees the request as the previous left it
+  ├─ fill in {{placeholders}} the scripts wrote
   ├─ send HTTP
   ├─ afterResponse:  Auth → Sign → Assert     read the response, run tests, extract values
   └─ save the response + the run log (console output, tests, errors, durations)
@@ -254,6 +255,10 @@ Built (phases 1 and 2):
   real and see that send's script log. The reference folds out below.
 - The script editor completes the API (`script-api.ts`) and underlines syntax errors from goja
   (`script.check`).
+
+- Scripts see the request with variables already filled in (changed 2026-11-21: they first saw
+  the raw `{{placeholders}}`). Secret values show as `•••••` in logs, the tester and failed-request
+  messages, never as `{{KEY}}`, which looked like a variable that wasn't filled in.
 
 Not yet: ordering and switching scripts per request in the UI (phase 3), `ctx.env.set` and
 `ctx.crypto` (phase 4), and everything in phase 5. Script logs are not kept when a request is
