@@ -12,9 +12,10 @@ type Landing = 'done' | 'failed';
 /**
  * The Send button. By default it reads "Send"; themes can turn it into a
  * character: Paper Plane shows a paper plane, Space Groove an eye looking
- * for something (each theme's CSS shows its icon and hides the text). The
- * button sets the state classes is-sending / is-done / is-failed; each icon
- * animates them its own way.
+ * for something, Collage an archer shooting at hanging fish (each theme's CSS
+ * shows its icon and hides the text). The button sets the state classes
+ * is-sending / is-done / is-failed, plus is-client-error / is-server-error
+ * for 4xx / 5xx responses; each icon animates them its own way.
  * While its request is in flight (from this button, Ctrl+S or anywhere else)
  * the plane glides with wind lines behind it; when the response arrives it
  * flies off and back, or wobbles when the request failed (no response:
@@ -35,12 +36,22 @@ type Landing = 'done' | 'failed';
       [class.is-sending]="sendingVisible()"
       [class.is-done]="landing() === 'done'"
       [class.is-failed]="landing() === 'failed'"
+      [class.is-client-error]="landing() === 'done' && landingStatus() >= 400 && landingStatus() < 500"
+      [class.is-server-error]="landing() === 'done' && landingStatus() >= 500"
       [attr.aria-busy]="inFlight()"
       [attr.aria-label]="inFlight() ? 'Sending…' : label()"
       [title]="inFlight() ? 'Sending…' : label()"
       (click)="send.emit($event)"
     >
       <span class="send-plane-text">Send</span>
+      <!-- Collage: an archer shoots at hanging fish. Hidden by every other theme. -->
+      <span class="send-scene" aria-hidden="true">
+        <span class="send-archer"></span>
+        <span class="send-bow"></span>
+        <span class="send-arrow"></span>
+        <span class="send-fish send-fish--a"></span>
+        <span class="send-fish send-fish--b"></span>
+      </span>
       <span class="send-plane-wind" aria-hidden="true"><i></i><i></i><i></i></span>
       <svg class="send-eye" viewBox="0 0 32 20" aria-hidden="true">
         <g class="send-eye-lid">
@@ -77,6 +88,8 @@ export class SendButton {
   /** In flight long enough to show it (see SENDING_DELAY_MS). */
   protected readonly sendingVisible = signal(false);
   protected readonly landing = signal<Landing | null>(null);
+  /** HTTP status of the response that just landed (0 when there was none). */
+  protected readonly landingStatus = signal(0);
 
   private sendingTimer: ReturnType<typeof setTimeout> | null = null;
   private landingTimer: ReturnType<typeof setTimeout> | null = null;
@@ -98,6 +111,7 @@ export class SendButton {
 
     const landed = this.requestApi.finished$.subscribe((response) => {
       if (response.request_id !== this.requestId()) return;
+      this.landingStatus.set(response.status_code);
       this.land(response.status_code === 0 ? 'failed' : 'done');
     });
 

@@ -163,6 +163,25 @@
   font-display: swap;
 }
 
+// Collage: Abril Fatface for headings, Special Elite (typewriter) for labels
+// and buttons (both SIL OFL / Apache, bundled so the theme looks the same on
+// every OS and offline).
+@font-face {
+  font-family: 'Abril Fatface';
+  src: url('/fonts/Abril_Fatface/AbrilFatface-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Special Elite';
+  src: url('/fonts/Special_Elite/SpecialElite-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 .titlebar-spacer {
   flex: 0 0 auto;
   height: 0;
