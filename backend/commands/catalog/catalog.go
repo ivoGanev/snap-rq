@@ -32,6 +32,7 @@ var All = []commands.Factory{
 	requests.NewListForCollection,
 	requests.NewListForProject,
 	requests.NewListRecent,
+	requests.NewListUsage,
 	requests.NewListByIDs,
 	requests.NewCreate,
 	requests.NewUpdate,

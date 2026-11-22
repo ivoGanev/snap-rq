@@ -64,6 +64,13 @@ This builds the e2e frontend, builds a server-mode binary (`bin/snaprq-e2e`)
 and runs Playwright. Each run uses a fresh temporary data folder, deleted
 afterwards; your own database and secret key are never touched.
 
+Frontend unit tests (pure logic, no app needed; files named `*.spec.ts`):
+
+```
+cd frontend
+npx ng test --watch=false
+```
+
 ## Seed mock collection
 
 `tools/seed_scale_test.py` creates an idempotent **Mock Server** collection in the app's database, pre-filled with one request per mock-server endpoint (content-type mocks, status mocks, delay/empty, and echo).

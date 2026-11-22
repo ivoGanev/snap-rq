@@ -33,10 +33,14 @@ import { SidebarRail } from '../sidebar-rail/sidebar-rail';
 import {
   AllRequestsView,
   CollectionView,
+  FailingView,
   FavouriteView,
+  MostUsedView,
   RecentView,
   ScriptView,
   TrashView,
+  UnusedView,
+  type SmartView,
 } from '../core/workspace/workspace-view';
 import {
   SIDEBAR_VIEWS,
@@ -218,19 +222,25 @@ export class RequestGroups {
 
   private readonly viewSelectHandlers: Record<SidebarViewId, () => void> = {
     all: () => this.selectAll(),
-    famous: () => this.selectFamous(),
     collections: () => this.selectCollections(),
     favourites: () => this.selectFavourites(),
     scripts: () => this.selectScripts(),
+    recent: () => this.selectSmartView(new RecentView()),
+    usage: () => this.selectSmartView(new MostUsedView()),
+    failing: () => this.selectSmartView(new FailingView()),
+    unused: () => this.selectSmartView(new UnusedView()),
     trash: () => this.selectTrashBin(),
   };
 
   private readonly viewActiveHandlers: Record<SidebarViewId, () => boolean> = {
     all: () => this.state.showingAllRequests(),
-    famous: () => this.state.showingFamousRequests(),
     collections: () => this.folderFilter() === 'collections',
     favourites: () => this.folderFilter() === 'favourites',
     scripts: () => this.folderFilter() === 'scripts',
+    recent: () => this.state.smartView()?.kind === 'recent',
+    usage: () => this.state.smartView()?.kind === 'usage',
+    failing: () => this.state.smartView()?.kind === 'failing',
+    unused: () => this.state.smartView()?.kind === 'unused',
     trash: () => this.state.showingBin(),
   };
 
@@ -239,7 +249,8 @@ export class RequestGroups {
     const folder = this.folderFilter();
     if (folder) return folder;
     if (this.state.showingBin()) return 'trash';
-    if (this.state.showingFamousRequests()) return 'famous';
+    const smart = this.state.smartView();
+    if (smart) return smart.kind;
     return 'all';
   });
 
@@ -458,8 +469,9 @@ export class RequestGroups {
     this.folderFilter.set(null);
   }
 
-  selectFamous(): void {
-    this.state.selectView(new RecentView());
+  /** Opens a smart view (Recent, Failing, Not used lately); it has no list in the drawer. */
+  selectSmartView(view: SmartView): void {
+    this.state.selectView(view);
     this.folderFilter.set(null);
   }
 

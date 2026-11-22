@@ -482,8 +482,8 @@ func (c Send) doHTTP(req models.HttpRequest, values map[string]string) models.Ht
 	}
 }
 
-// persist stores the response and updates the request's status and recency
-// in one short transaction.
+// persist stores the response and updates the request's status, recency and
+// usage score (see usage.go) in one short transaction.
 func (c Send) persist(reqID int64, result models.HttpResponse) (models.HttpResponse, error) {
 	tx, err := c.db.Begin()
 	if err != nil {
@@ -495,10 +495,17 @@ func (c Send) persist(reqID int64, result models.HttpResponse) (models.HttpRespo
 	if err != nil {
 		return models.HttpResponse{}, err
 	}
+	var score float64
+	var lastUsed int64
+	if err := tx.QueryRow(`SELECT use_score, last_used_at FROM http_requests WHERE id = ?`, reqID).
+		Scan(&score, &lastUsed); err != nil {
+		return models.HttpResponse{}, fmt.Errorf("reading the request's usage: %w", err)
+	}
+	now := time.Now()
 	if _, err := tx.Exec(`
-		UPDATE http_requests SET status_code = ?, response_id = ?, last_used_at = ?
+		UPDATE http_requests SET status_code = ?, response_id = ?, last_used_at = ?, use_score = ?
 		WHERE id = ?`,
-		stored.StatusCode, stored.ID, time.Now().UTC().UnixNano(), reqID,
+		stored.StatusCode, stored.ID, now.UTC().UnixNano(), fadedScore(score, lastUsed, now)+1, reqID,
 	); err != nil {
 		return models.HttpResponse{}, err
 	}

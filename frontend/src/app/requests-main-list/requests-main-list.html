@@ -85,6 +85,8 @@
       Bin the items you don't see anymore in your collections or want to hide from search.
       You can permanently delete your requests in here.
     </div>
+  } @else if (state.smartView(); as smart) {
+    <div class="state-message">{{ smart.emptyText }}</div>
   } @else {
     <div class="state-message">No requests in this group.</div>
   }
@@ -101,6 +103,7 @@
     [class.is-resizing]="isResizingColumn()"
     [class.is-reordering]="reorderDrag() !== null"
     [class.is-multi-selecting]="selectedRowIds().size > 1"
+    [class.has-usage]="showUsage()"
     [style.--method-col-width]="methodColumnWidthCss()"
     [style.--name-col-width]="nameColumnWidthCss()"
     [style.--action-col-width]="canDragOut() ? '64px' : '44px'"
@@ -119,6 +122,7 @@
         <button
           class="spreadsheet-header-button"
           type="button"
+          [disabled]="!sortable()"
           (click)="toggleSort('method')"
         >
           <span>Method</span>
@@ -139,6 +143,7 @@
         <button
           class="spreadsheet-header-button"
           type="button"
+          [disabled]="!sortable()"
           (click)="toggleSort('name')"
         >
           <span>Name</span>
@@ -158,6 +163,7 @@
         <button
           class="spreadsheet-header-button"
           type="button"
+          [disabled]="!sortable()"
           (click)="toggleSort('url')"
         >
           <span>URL</span>
@@ -166,6 +172,19 @@
           }
         </button>
       </div>
+      @if (showUsage()) {
+        <!-- Most used only, where the rows are already in usage order. -->
+        <div class="spreadsheet-header-cell spreadsheet-header-cell--usage">
+          <button
+            class="spreadsheet-header-button"
+            type="button"
+            title="How much each request is used lately"
+            disabled
+          >
+            <span>Usage</span>
+          </button>
+        </div>
+      }
     </div>
 
     <cdk-virtual-scroll-viewport
@@ -175,8 +194,15 @@
       class="spreadsheet-viewport"
       (mousemove)="onViewportMouseMove($event)"
     >
+      <ng-container *cdkVirtualFor="let row of displayRows(); trackBy: trackRow">
+      @if (row.kind === 'heading') {
+        <div class="spreadsheet-heading">
+          <span class="spreadsheet-heading-label">{{ row.label }}</span>
+          <span class="spreadsheet-heading-count">{{ row.count }}</span>
+        </div>
+      } @else {
+      @let req = row.req;
       <div
-        *cdkVirtualFor="let req of filteredActiveRequests(); trackBy: trackById"
         class="spreadsheet-row"
         [class.is-selected]="rowState()[req.id]?.isSelected"
         [class.is-active-drag-row]="dragStartRowId() === req.id"
@@ -280,7 +306,15 @@
             (dblclick)="onCellDoubleClick(req, 'url')"
           >{{ rowState()[req.id]?.displayUrl ?? req.url }}</span>
         </div>
+
+        @if (showUsage()) {
+          <div class="spreadsheet-cell spreadsheet-cell--usage">
+            <app-usage-meter [level]="usage()[req.id]?.level ?? null" />
+          </div>
+        }
       </div>
+      }
+      </ng-container>
     </cdk-virtual-scroll-viewport>
 
     @if (reorderDrag(); as drag) {

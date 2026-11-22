@@ -22,6 +22,15 @@ export interface HttpRequestSummary {
   last_used_at: number;
 }
 
+/** How much a request is used lately (request.list_usage): a fading score and its level. */
+export interface RequestUsage {
+  id: number;
+  score: number;
+  level: UsageLevel;
+}
+
+export type UsageLevel = 'high' | 'medium' | 'low';
+
 /** A saved REST request. */
 export interface HttpRequest {
   id: number;

@@ -1,6 +1,7 @@
 import { Component, DestroyRef, computed, inject, input, output, signal } from '@angular/core';
 import type { HttpResponse } from '../core/models/http';
 import { httpStatusClass, httpStatusText, isRequestError } from '../core/http-status';
+import { clockTime, dayLabel, parseSavedTime, relativeTime } from '../core/time';
 
 /** Whether the timeline is open; kept between requests and sessions. */
 const OPEN_KEY = 'response-history:open';
@@ -50,13 +51,13 @@ export class ResponseHistory {
   });
   protected readonly currentAgo = computed(() => {
     const response = this.selected();
-    return response ? relativeTime(parseTime(response.created_at), this.now()) : '';
+    return response ? relativeTime(parseSavedTime(response.created_at), this.now()) : '';
   });
 
   protected readonly days = computed<Day[]>(() => {
     const days: Day[] = [];
     for (const response of this.responses()) {
-      const label = dayLabel(parseTime(response.created_at), this.now());
+      const label = dayLabel(parseSavedTime(response.created_at), this.now());
       const day = days.at(-1);
       if (day?.label === label) day.stops.push(this.stop(response));
       else days.push({ label, stops: [this.stop(response)] });
@@ -91,7 +92,7 @@ export class ResponseHistory {
     const error = isRequestError(response.status_code);
     return {
       response,
-      time: clockTime(parseTime(response.created_at)),
+      time: clockTime(parseSavedTime(response.created_at)),
       status: error
         ? 'Error'
         : `${response.status_code} ${httpStatusText(response.status_code)}`.trim(),
@@ -100,42 +101,6 @@ export class ResponseHistory {
       failed,
     };
   }
-}
-
-/** Saved times are UTC, as "YYYY-MM-DD HH:MM:SS" or ISO. */
-function parseTime(createdAt: string): Date {
-  const iso = createdAt.includes('T') ? createdAt : createdAt.replace(' ', 'T') + 'Z';
-  return new Date(iso);
-}
-
-function clockTime(date: Date): string {
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-}
-
-function startOfDay(time: number): number {
-  const date = new Date(time);
-  date.setHours(0, 0, 0, 0);
-  return date.getTime();
-}
-
-function dayLabel(date: Date, now: number): string {
-  if (Number.isNaN(date.getTime())) return 'Earlier';
-  const days = Math.round((startOfDay(now) - startOfDay(date.getTime())) / 86_400_000);
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-}
-
-function relativeTime(date: Date, now: number): string {
-  if (Number.isNaN(date.getTime())) return '';
-  const seconds = Math.max(0, Math.round((now - date.getTime()) / 1000));
-  if (seconds < 45) return 'just now';
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} h ago`;
-  return `${dayLabel(date, now)}, ${clockTime(date)}`;
 }
 
 // The open state is a per-viewer convenience: browser storage may be

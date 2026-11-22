@@ -190,13 +190,29 @@
   background: var(--glass-border);
 }
 
+// The Most used view has a Usage column on the right (empty by default, so
+// absent).
 .spreadsheet-header,
 .spreadsheet-row {
   grid-template-columns:
     var(--action-col-width, 44px)
     minmax(60px, var(--method-col-width, 100px))
     minmax(120px, var(--name-col-width, 200px))
-    minmax(120px, 1fr);
+    minmax(120px, 1fr)
+    var(--usage-col-width,);
+}
+
+.spreadsheet-wrapper.has-usage {
+  --usage-col-width: 76px;
+}
+
+.spreadsheet-cell--usage {
+  justify-content: center;
+}
+
+.spreadsheet-header-cell--usage .spreadsheet-header-button {
+  justify-content: center;
+  padding: 0 var(--s-1);
 }
 
 .spreadsheet-header {
@@ -240,9 +256,42 @@
   --wails-draggable: no-drag;
 }
 
-.spreadsheet-header-button:hover {
+.spreadsheet-header-button:hover:not(:disabled) {
   color: var(--text);
   background: var(--hover-bg);
+}
+
+// Smart views keep their own order: their headers are labels, not sorters.
+.spreadsheet-header-button:disabled {
+  cursor: default;
+}
+
+// Smart views: a group's heading (Today, Yesterday, a date, High use,
+// Never sent…), drawn as a row of the list.
+.spreadsheet-heading {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-1);
+  height: 44px;
+  padding: 0 var(--s-3) 6px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--glass-border);
+  user-select: none;
+}
+
+.spreadsheet-heading-label {
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.spreadsheet-heading-count {
+  font-size: 0.75rem;
+  color: var(--muted);
+  opacity: 0.7;
 }
 
 .spreadsheet-header-cell--method .spreadsheet-header-button {
