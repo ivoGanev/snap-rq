@@ -18,18 +18,22 @@
   justify-content: space-between;
   gap: var(--s-3);
   height: 44px;
-  padding: 0 var(--s-4);
+  // Left: the logo lines up with the sidebar's buttons (see .app-logo).
+  padding: 0 var(--s-4) 0 var(--s-2);
   border-bottom: 1px solid var(--glass-border);
   background: var(--surface);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
 
-// Shown at its exported size (30px), so it stays crisp.
+// Shown at its exported size (30px), so it stays crisp, and centred over
+// the sidebar's 40px buttons below it (they sit var(--s-2) from the edge,
+// like the top bar's left padding).
 .app-logo {
   flex: 0 0 auto;
   width: 30px;
   height: 30px;
+  margin-left: calc((40px - 30px) / 2);
   margin-right: calc(var(--s-2) - var(--s-3));
   user-select: none;
   -webkit-user-drag: none;
