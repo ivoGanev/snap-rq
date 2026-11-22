@@ -125,10 +125,8 @@ func TestMigrateCollectionAppearancesFromLegacyIconIDColumnOnly(t *testing.T) {
 	}
 }
 
-// Regression test: on a database created before the user_sort_order columns
-// existed, the schema migration must not reference those columns (e.g. via
-// CREATE INDEX) before addUserSortOrderColumns has added them. This exact
-// sequence broke app startup with "no such column: user_sort_order".
+// Regression: the schema pass indexed user_sort_order before
+// addUserSortOrderColumns added it, and startup failed with "no such column".
 func TestMigrateLegacySchemaWithoutUserSortOrder(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
@@ -177,7 +175,7 @@ func TestMigrateLegacySchemaWithoutUserSortOrder(t *testing.T) {
 		t.Fatalf("setting up legacy schema: %v", err)
 	}
 
-	// Same sequence Open() runs: schema pass first, column migration after.
+	// Same order as Open(): schema pass, then the column migration.
 	if err := migrate(db); err != nil {
 		t.Fatalf("migrate failed on legacy schema: %v", err)
 	}
@@ -189,7 +187,6 @@ func TestMigrateLegacySchemaWithoutUserSortOrder(t *testing.T) {
 		t.Errorf("expected http_requests.user_sort_order to exist after migration")
 	}
 
-	// favourite_items.sort_order is renamed (not duplicated), values preserved.
 	if columnExists(db, "favourite_items", "sort_order") {
 		t.Errorf("expected favourite_items.sort_order to be renamed")
 	}
@@ -220,8 +217,6 @@ func TestWidenBodyTypeCheckRebuildsTables(t *testing.T) {
 	}
 	defer db.Close()
 
-	// Legacy schema: body_type restricted to json/text, with body_form and a
-	// body_mode column carrying the previously-stored form mode.
 	if _, err := db.Exec(`
 		CREATE TABLE collections (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, name TEXT NOT NULL);
 		CREATE TABLE http_requests (
@@ -283,7 +278,6 @@ func TestWidenBodyTypeCheckRebuildsTables(t *testing.T) {
 		t.Fatalf("widenBodyTypeCheck failed: %v", err)
 	}
 
-	// The legacy form row is reclassified as form-data.
 	var bodyType string
 	if err := db.QueryRow("SELECT body_type FROM http_requests WHERE name = 'form req'").Scan(&bodyType); err != nil {
 		t.Fatalf("reading form req: %v", err)
@@ -292,7 +286,6 @@ func TestWidenBodyTypeCheckRebuildsTables(t *testing.T) {
 		t.Errorf("expected form req body_type 'form-data', got %q", bodyType)
 	}
 
-	// The json row and its body survive the rebuild.
 	var jsonBody string
 	if err := db.QueryRow("SELECT body FROM http_requests WHERE name = 'json req'").Scan(&jsonBody); err != nil {
 		t.Fatalf("reading json req: %v", err)
@@ -301,7 +294,6 @@ func TestWidenBodyTypeCheckRebuildsTables(t *testing.T) {
 		t.Errorf("expected json body preserved, got %q", jsonBody)
 	}
 
-	// body_mode is gone; form-data is now a valid body_type value.
 	if columnExists(db, "http_requests", "body_mode") {
 		t.Error("expected body_mode column to be dropped")
 	}
@@ -309,7 +301,6 @@ func TestWidenBodyTypeCheckRebuildsTables(t *testing.T) {
 		t.Errorf("expected widened CHECK to accept form-data, got: %v", err)
 	}
 
-	// Foreign keys still cascade after the rebuild.
 	if _, err := db.Exec("INSERT INTO responses (request_id, body) VALUES (1, 'ok')"); err != nil {
 		t.Fatalf("inserting response: %v", err)
 	}
@@ -418,7 +409,7 @@ func TestMigrateUserColorsToSlots(t *testing.T) {
 		t.Fatalf("seeding legacy colours: %v", err)
 	}
 
-	// Running twice proves the migration is idempotent.
+	// Twice: migrations must be idempotent.
 	for i := 0; i < 2; i++ {
 		if err := migrateUserColorsToSlots(db); err != nil {
 			t.Fatalf("migrateUserColorsToSlots run %d: %v", i+1, err)
@@ -511,7 +502,7 @@ func TestMakeGroupNamesUniqueRenamesDuplicates(t *testing.T) {
 	if err := makeGroupNamesUnique(db); err != nil {
 		t.Fatalf("makeGroupNamesUnique failed: %v", err)
 	}
-	// Running it again must be harmless.
+	// Twice: migrations must be idempotent.
 	if err := makeGroupNamesUnique(db); err != nil {
 		t.Fatalf("second run failed: %v", err)
 	}
@@ -533,8 +524,9 @@ func TestMakeGroupNamesUniqueRenamesDuplicates(t *testing.T) {
 		return out
 	}
 
+	// Unique ignoring case: "AUTH (2)" would clash with "auth (2)".
 	got := names(`SELECT name FROM collections ORDER BY id`)
-	want := []string{"Auth", "auth (2)", "AUTH (2)", "Auth"}
+	want := []string{"Auth", "auth (2)", "AUTH (3)", "Auth"}
 	if len(got) != len(want) {
 		t.Fatalf("collections = %v, want %v", got, want)
 	}
@@ -555,7 +547,7 @@ func TestMakeGroupNamesUniqueRenamesDuplicates(t *testing.T) {
 func TestCreateScriptTables(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "scripts.db")
 
-	// The full startup migration must run twice on the same file.
+	// Twice: migrations must be idempotent.
 	for i := 0; i < 2; i++ {
 		db, err := OpenPath(path)
 		if err != nil {
@@ -616,7 +608,6 @@ func checkScriptTables(t *testing.T, db *sql.DB) {
 		t.Fatalf("adding appearance: %v", err)
 	}
 
-	// Deleting the project removes its scripts, their links and appearances.
 	if _, err := db.Exec(`DELETE FROM projects WHERE id = ?`, projectID); err != nil {
 		t.Fatalf("deleting project: %v", err)
 	}
@@ -653,7 +644,7 @@ func TestDropTagTables(t *testing.T) {
 		t.Fatalf("seeding tags: %v", err)
 	}
 
-	// Running twice proves the step is idempotent.
+	// Twice: migrations must be idempotent.
 	for i := 0; i < 2; i++ {
 		if err := dropTagTables(db); err != nil {
 			t.Fatalf("dropTagTables run %d: %v", i+1, err)

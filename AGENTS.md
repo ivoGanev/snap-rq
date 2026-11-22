@@ -2,3 +2,8 @@
 - Always give inline `<svg>` icons explicit `width`/`height` in CSS (not just the wrapping element). WebKit (macOS WKWebView) does not auto-shrink unsized SVGs to fit their flex/inline-flex parent the way Chromium does, so icons can fail to render on Mac if only the wrapper span is sized.
 - CodeMirror creates DOM dynamically. Angular-scoped selectors targeting .cm-editor or .cm-scroller may not match those generated elements. Put CodeMirror-specific rules in EditorView.theme() or global CSS.
 - When working on a feature/fix: (1) check out a non-main branch; (2) present a plan and STOP — do not edit any file until the user approves; (3) after approval, implement and run build/typecheck; (4) commit after every prompt and push to remote.
+- Comments explain only a why the code can't show: a constraint, a gotcha, a workaround. Nothing else gets a comment.
+  - Don't restate the code: no doc comments that repeat the function name, no step headers, no narrating the next line or assertion.
+  - Describe the code as it is. No history ("now", "used to", "instead of the old…") and no references to the task, the conversation, a review or an earlier attempt; that goes in the commit message.
+  - No corrective notes ("*not* like X", "don't treat this as Y"). When a misunderstanding is corrected, fix the code and leave no trace.
+  - One or two short lines.

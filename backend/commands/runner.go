@@ -568,8 +568,10 @@ func (r *Runner) deleteRow(id int64) {
 	r.db.Exec(`DELETE FROM undo_log WHERE id = ?`, id)
 }
 
-// sameRows reports whether two inputs target the same rows: the id or ids
-// field must match, everything else (like the new name) may differ.
+// sameRows reports whether two inputs change the same thing: the id or ids
+// field must match, and so must the field a bulk edit names (a URL edit and
+// a name edit are two undo steps, else undoing one would leave the other);
+// everything else (like the new name) may differ.
 func sameRows(a, b string) bool {
 	var aMap, bMap map[string]any
 	if json.Unmarshal([]byte(a), &aMap) != nil || json.Unmarshal([]byte(b), &bMap) != nil {
@@ -578,7 +580,8 @@ func sameRows(a, b string) bool {
 	return fmt.Sprint(aMap["id"]) == fmt.Sprint(bMap["id"]) &&
 		fmt.Sprint(aMap["ids"]) == fmt.Sprint(bMap["ids"]) &&
 		fmt.Sprint(aMap["request_id"]) == fmt.Sprint(bMap["request_id"]) &&
-		fmt.Sprint(aMap["collection_id"]) == fmt.Sprint(bMap["collection_id"])
+		fmt.Sprint(aMap["collection_id"]) == fmt.Sprint(bMap["collection_id"]) &&
+		fmt.Sprint(aMap["field"]) == fmt.Sprint(bMap["field"])
 }
 
 type undoRow struct {
