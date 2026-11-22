@@ -190,21 +190,16 @@
   background: var(--glass-border);
 }
 
-// Smart views add a timeline column on the left, and every list but the
-// trash bin a Usage column on the right (empty by default, so absent).
+// Every list but the trash bin has a Usage column on the right (empty by
+// default, so absent).
 .spreadsheet-header,
 .spreadsheet-row {
   grid-template-columns:
-    var(--timeline-col-width,)
     var(--action-col-width, 44px)
     minmax(60px, var(--method-col-width, 100px))
     minmax(120px, var(--name-col-width, 200px))
     minmax(120px, 1fr)
     var(--usage-col-width,);
-}
-
-.spreadsheet-wrapper.is-timeline {
-  --timeline-col-width: 28px;
 }
 
 .spreadsheet-wrapper.has-usage {
@@ -271,95 +266,17 @@
   cursor: default;
 }
 
-// ---------- Smart views: a timeline ----------
-// A narrow first column (--timeline-col-width) holds a vertical line and a
-// dot per request, coloured by its last send (like the response history).
-// Each group's line runs from its first request to its last, under a
-// heading row.
-
-.timeline-gutter {
-  position: relative;
-  align-self: stretch;
-}
-
-.spreadsheet-row .timeline-gutter::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: calc(50% - 1px);
-  width: 2px;
-  background: var(--glass-border);
-}
-
-.spreadsheet-row .timeline-gutter.is-group-first::before {
-  top: 50%;
-}
-
-.spreadsheet-row .timeline-gutter.is-group-last::before {
-  bottom: 50%;
-}
-
-.timeline-dot {
-  --dot-color: var(--muted);
-
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 10px;
-  height: 10px;
-  margin: -5px 0 0 -5px;
-  border-radius: 50%;
-  background: var(--dot-color);
-  box-shadow: 0 0 0 3px var(--surface-solid, var(--background));
-}
-
-.timeline-dot[data-result='2xx'] {
-  --dot-color: var(--status-2xx);
-}
-
-.timeline-dot[data-result='3xx'] {
-  --dot-color: var(--status-3xx);
-}
-
-.timeline-dot[data-result='4xx'] {
-  --dot-color: var(--status-4xx);
-}
-
-.timeline-dot[data-result='5xx'] {
-  --dot-color: var(--status-5xx);
-}
-
-.timeline-dot[data-result='error'] {
-  --dot-color: var(--error-text);
-}
-
-// Never sent: a hollow ring.
-.timeline-dot[data-result='never'] {
-  background: var(--surface-solid, var(--background));
-  border: 2px solid var(--muted);
-}
-
-// The selected request's dot gets a ring, as in the history.
-.spreadsheet-row.is-selected .timeline-dot {
-  box-shadow:
-    0 0 0 2px var(--surface-solid, var(--background)),
-    0 0 0 4px var(--dot-color);
-}
-
-// A group's heading (a day, "Never sent"…), drawn as a row of the list.
+// Smart views: a group's heading (Today, Yesterday, a date, High use,
+// Never sent…), drawn as a row of the list.
 .spreadsheet-heading {
   display: flex;
   align-items: flex-end;
   gap: var(--s-1);
   height: 44px;
-  padding-bottom: 6px;
+  padding: 0 var(--s-3) 6px;
   box-sizing: border-box;
+  border-bottom: 1px solid var(--glass-border);
   user-select: none;
-
-  .timeline-gutter {
-    flex: 0 0 28px;
-  }
 }
 
 .spreadsheet-heading-label {

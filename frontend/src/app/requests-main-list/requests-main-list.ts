@@ -30,7 +30,7 @@ import { CodeEditor } from '../code-editor/code-editor';
 import { SelectOnFocusDirective } from '../core/directives/select-on-focus.directive';
 import { requestColorInfo } from '../core/request-colors';
 import type { WorkspaceViewKind } from '../core/workspace/workspace-view';
-import { lastResult, type LastResult, type RequestGroup } from '../core/workspace/presorted';
+import type { RequestGroup } from '../core/workspace/presorted';
 
 type ColumnKey = 'name' | 'url' | 'method' | 'scripts' | 'usage';
 type SortDirection = 'asc' | 'desc';
@@ -42,14 +42,7 @@ type SortDirection = 'asc' | 'desc';
  */
 type DisplayRow =
   | { kind: 'heading'; key: string; label: string; count: number }
-  | {
-      kind: 'request';
-      req: HttpRequestSummary;
-      /** Smart views: the timeline dot's colour, and where the group's line starts and ends. */
-      result?: LastResult;
-      groupFirst?: boolean;
-      groupLast?: boolean;
-    };
+  | { kind: 'request'; req: HttpRequestSummary };
 
 interface SelectedCell {
   requestId: number;
@@ -182,8 +175,11 @@ export class RequestsMainList {
       !this.requestSearchQuery().trim(),
   );
 
-  /** A drag handle is offered in every non-bin view so requests can be moved. */
-  readonly canDragOut = computed(() => !this.state.showingBin());
+  /**
+   * A drag handle is offered so requests can be reordered or moved, except in
+   * the bin and the smart views (their order is fixed).
+   */
+  readonly canDragOut = computed(() => !this.state.showingBin() && !this.state.smartView());
 
   /** Whether the colour picker is available (selection in a colour-able view). */
   readonly canColorSelection = computed(
@@ -422,15 +418,7 @@ export class RequestsMainList {
     const rows: DisplayRow[] = [];
     for (const group of groups) {
       rows.push({ kind: 'heading', key: group.key, label: group.label, count: group.requests.length });
-      group.requests.forEach((req, i) =>
-        rows.push({
-          kind: 'request',
-          req,
-          result: lastResult(req),
-          groupFirst: i === 0,
-          groupLast: i === group.requests.length - 1,
-        }),
-      );
+      for (const req of group.requests) rows.push({ kind: 'request', req });
     }
     return rows;
   });
@@ -618,12 +606,13 @@ export class RequestsMainList {
     });
 
     // Measured after rendering: the header cells' positions change with the
-    // column widths, the window, and the smart views' extra timeline column.
+    // column widths, the window, and the action column (narrower without
+    // the drag handle).
     afterRenderEffect(() => {
       this.methodColumnWidth();
       this.nameColumnWidth();
       this.resizeTick();
-      this.smartGroups() !== null;
+      this.canDragOut();
       const methodCell = this.methodHeaderCell()?.nativeElement;
       const nameCell = this.nameHeaderCell()?.nativeElement;
       if (!methodCell || !nameCell) return;
