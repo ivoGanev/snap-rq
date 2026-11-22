@@ -11,10 +11,11 @@ import { csvColumnWidths } from '../core/prettifiers/csv-prettifier';
 import { highlightLine, type SyntaxLanguage, type SyntaxToken } from '../core/highlighters/highlight';
 import { httpStatusClass, httpStatusText, isRequestError } from '../core/http-status';
 import { ScriptLog } from '../script-log/script-log';
+import { ResponseHistory } from '../response-history/response-history';
 
 @Component({
   selector: 'app-response-viewer',
-  imports: [CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, ScriptLog],
+  imports: [CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, ScriptLog, ResponseHistory],
   templateUrl: './response-viewer.html',
   styleUrl: './response-viewer.scss',
 })
@@ -107,21 +108,6 @@ export class ResponseViewer {
 
   togglePrettify(): void {
     this.prettifyEnabled.update(enabled => !enabled);
-  }
-
-  formatTime(createdAt: string): string {
-    const utc = createdAt.replace(' ', 'T') + 'Z';
-    const date = new Date(utc);
-    if (Number.isNaN(date.getTime())) {
-      return createdAt;
-    }
-    return date.toLocaleString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
   }
 
   onBlockKeyDown(event: KeyboardEvent): void {

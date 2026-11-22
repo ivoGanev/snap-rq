@@ -20,7 +20,7 @@ test('a failed request shows its error, not status 0', async ({ page }) => {
   await expect(error).toContainText("Couldn't send the request");
   await expect(error).toContainText('invalid header field name');
   await expect(error).not.toContainText('request failed:');
-  await expect(inspector.locator('.response-chip')).toContainText('Error');
+  await expect(inspector.locator('.history-current-status')).toHaveText('Error');
 
   // None of the response layout.
   await expect(inspector.locator('.status-badge')).toHaveCount(0);
