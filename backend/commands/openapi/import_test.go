@@ -148,9 +148,8 @@ func TestImportTwiceCreatesNothingTheSecondTime(t *testing.T) {
 	}
 }
 
-// previewKey is the key the preview gives a request, as the import dialog
-// sends it back. Keys include the server's base path (here /v1), so tests
-// take them from the preview rather than spelling them out.
+// Keys include the server's base path (/v1 here), so take them from the
+// preview, as the import dialog does.
 func previewKey(t *testing.T, db *sql.DB, specPath, collection, method, path string) string {
 	t.Helper()
 	pv := runIn(t, db, NewPreview, map[string]any{"project_id": 1, "file_path": specPath})

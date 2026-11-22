@@ -533,8 +533,7 @@ func TestMakeGroupNamesUniqueRenamesDuplicates(t *testing.T) {
 		return out
 	}
 
-	// Names are unique ignoring case, so "auth (2)" takes the second slot and
-	// "AUTH" becomes "AUTH (3)" ("AUTH (2)" would equal "auth (2)").
+	// Unique ignoring case: "AUTH (2)" would clash with "auth (2)".
 	got := names(`SELECT name FROM collections ORDER BY id`)
 	want := []string{"Auth", "auth (2)", "AUTH (3)", "Auth"}
 	if len(got) != len(want) {
