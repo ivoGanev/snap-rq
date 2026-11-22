@@ -16,6 +16,7 @@ import { RestoreToCollectionDialog } from '../dialogs/restore-to-collection-dial
 import { CurlImportDialog } from '../dialogs/curl-import-dialog/curl-import-dialog';
 import { SendButton } from '../send-button/send-button';
 import { UsageMeter } from '../usage-meter/usage-meter';
+import { buildSearchIndex, filterRequests, queryWords, rankRequests } from '../core/request-search';
 import { DragSessionService } from '../core/services/drag-session.service';
 import { BinApiService, type HttpBinnedRequestSummary, type RestoreInput } from '../core/services/bin.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
@@ -363,29 +364,45 @@ export class RequestsMainList {
     return null;
   });
 
+  /** The search's words (empty when the search box is). */
+  private readonly searchWords = computed(() => queryWords(this.requestSearchQuery()));
+
+  /** The current list prepared for searching; rebuilt when the list changes, not per keystroke. */
+  private readonly searchIndex = computed(() => {
+    const names = new Map(this.collectionApi.collections().map((c) => [c.id, c.name]));
+    return buildSearchIndex(this.activeRequests(), (id) => names.get(id));
+  });
+
   /** A smart view's groups narrowed by the search (keeping their order), or null. */
   readonly filteredGroups = computed<RequestGroup[] | null>(() => {
     const groups = this.smartGroups();
     if (!groups) return null;
-    const query = this.requestSearchQuery().trim().toLowerCase();
-    if (!query) return groups;
+    const words = this.searchWords();
+    if (!words.length) return groups;
+    const matching = new Set(filterRequests(this.searchIndex(), words).map((r) => r.id));
     return groups
-      .map((g) => ({ ...g, requests: g.requests.filter((req) => matchesQuery(req, query)) }))
+      .map((g) => ({ ...g, requests: g.requests.filter((req) => matching.has(req.id)) }))
       .filter((g) => g.requests.length > 0);
   });
 
+  /**
+   * The rows shown. Searching ranks them (best match, then recent usage), unless
+   * a column sort is chosen: then it only filters and the column decides.
+   */
   readonly filteredActiveRequests = computed<HttpRequestSummary[]>(() => {
     const groups = this.filteredGroups();
     if (groups) {
       return groups.flatMap((g) => g.requests);
     }
 
-    const query = this.requestSearchQuery().trim().toLowerCase();
-    const requests = this.activeRequests();
-    let result = requests;
+    const words = this.searchWords();
+    let result = this.activeRequests();
 
-    if (query) {
-      result = requests.filter((req) => matchesQuery(req, query));
+    if (words.length) {
+      if (!this.sortColumn()) {
+        return rankRequests(this.searchIndex(), words, this.requestApi.usage());
+      }
+      result = filterRequests(this.searchIndex(), words);
     }
 
     const sortCol = this.sortColumn();
@@ -2029,13 +2046,4 @@ export class RequestsMainList {
     this.favouriteApi.requests.update(patch);
     this.scriptRequests.update(patch);
   }
-}
-
-/** Whether a request matches a (lower-cased, trimmed) search query. */
-function matchesQuery(req: HttpRequestSummary, query: string): boolean {
-  return (
-    req.name.toLowerCase().includes(query) ||
-    req.url.toLowerCase().includes(query) ||
-    req.method.toLowerCase().includes(query)
-  );
 }
