@@ -350,12 +350,18 @@ func listWithMore(items []string, max int) string {
 
 // numberField reads an id from a decoded row; 0 when absent.
 func numberField(row map[string]any, key string) int64 {
-	switch v := row[key].(type) {
+	return numberValue(row[key])
+}
+
+// numberValue reads a decoded JSON number, whether it came as json.Number
+// (toGeneric) or float64 (plain decoding); 0 for anything else.
+func numberValue(v any) int64 {
+	switch n := v.(type) {
 	case json.Number:
-		n, _ := v.Int64()
-		return n
+		i, _ := n.Int64()
+		return i
 	case float64:
-		return int64(v)
+		return int64(n)
 	}
 	return 0
 }
@@ -461,8 +467,9 @@ func (s *Server) describeGeneric(req *ApprovalRequest, who string, m ToolMeta, i
 			if list, ok := obj["ids"].([]any); ok {
 				ids := make([]int64, 0, len(list))
 				for _, v := range list {
-					if f, ok := v.(float64); ok {
-						ids = append(ids, int64(f))
+					// toGeneric decodes numbers as json.Number.
+					if id := numberValue(v); id != 0 {
+						ids = append(ids, id)
 					}
 				}
 				if infos := s.lookRequests(ids); len(infos) > 0 {
