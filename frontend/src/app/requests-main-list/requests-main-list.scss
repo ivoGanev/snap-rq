@@ -190,13 +190,34 @@
   background: var(--glass-border);
 }
 
+// Smart views add a timeline column on the left, and every list but the
+// trash bin a Usage column on the right (empty by default, so absent).
 .spreadsheet-header,
 .spreadsheet-row {
   grid-template-columns:
+    var(--timeline-col-width,)
     var(--action-col-width, 44px)
     minmax(60px, var(--method-col-width, 100px))
     minmax(120px, var(--name-col-width, 200px))
-    minmax(120px, 1fr);
+    minmax(120px, 1fr)
+    var(--usage-col-width,);
+}
+
+.spreadsheet-wrapper.is-timeline {
+  --timeline-col-width: 28px;
+}
+
+.spreadsheet-wrapper.has-usage {
+  --usage-col-width: 76px;
+}
+
+.spreadsheet-cell--usage {
+  justify-content: center;
+}
+
+.spreadsheet-header-cell--usage .spreadsheet-header-button {
+  justify-content: center;
+  padding: 0 var(--s-1);
 }
 
 .spreadsheet-header {
@@ -251,20 +272,10 @@
 }
 
 // ---------- Smart views: a timeline ----------
-// A narrow first column holds a vertical line and a dot per request, coloured
-// by its last send (like the response history). Each group's line runs from
-// its first request to its last, under a heading row.
-.spreadsheet-wrapper.is-timeline {
-  .spreadsheet-header,
-  .spreadsheet-row {
-    grid-template-columns:
-      28px
-      var(--action-col-width, 44px)
-      minmax(60px, var(--method-col-width, 100px))
-      minmax(120px, var(--name-col-width, 200px))
-      minmax(120px, 1fr);
-  }
-}
+// A narrow first column (--timeline-col-width) holds a vertical line and a
+// dot per request, coloured by its last send (like the response history).
+// Each group's line runs from its first request to its last, under a
+// heading row.
 
 .timeline-gutter {
   position: relative;

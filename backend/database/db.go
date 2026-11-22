@@ -136,6 +136,10 @@ func OpenWith(dbPath string, beforeMigrate func(*sql.DB)) (*sql.DB, error) {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
+	if err := addUsageScoreColumn(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
 	if err := makeGroupNamesUnique(db); err != nil {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
@@ -897,6 +901,22 @@ func addVariableSecretColumn(db *sql.DB) error {
 	}
 	if _, err := db.Exec("ALTER TABLE environment_variables ADD COLUMN secret INTEGER NOT NULL DEFAULT 0"); err != nil {
 		return fmt.Errorf("adding secret column to environment_variables: %w", err)
+	}
+	return nil
+}
+
+// addUsageScoreColumn adds how much each request is used lately: a score
+// each send adds 1 to and that halves every week (commands/requests/usage.go).
+// Requests already sent start at one use, so they show some usage at once.
+func addUsageScoreColumn(db *sql.DB) error {
+	if columnExists(db, "http_requests", "use_score") {
+		return nil
+	}
+	if _, err := db.Exec(`ALTER TABLE http_requests ADD COLUMN use_score REAL NOT NULL DEFAULT 0`); err != nil {
+		return fmt.Errorf("adding use_score to http_requests: %w", err)
+	}
+	if _, err := db.Exec(`UPDATE http_requests SET use_score = 1 WHERE last_used_at > 0`); err != nil {
+		return fmt.Errorf("seeding use_score: %w", err)
 	}
 	return nil
 }

@@ -15,6 +15,7 @@ import { FavouritePickerDialog } from '../dialogs/favourite-picker-dialog/favour
 import { RestoreToCollectionDialog } from '../dialogs/restore-to-collection-dialog/restore-to-collection-dialog';
 import { CurlImportDialog } from '../dialogs/curl-import-dialog/curl-import-dialog';
 import { SendButton } from '../send-button/send-button';
+import { UsageMeter } from '../usage-meter/usage-meter';
 import { DragSessionService } from '../core/services/drag-session.service';
 import { BinApiService, type HttpBinnedRequestSummary, type RestoreInput } from '../core/services/bin.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
@@ -30,7 +31,7 @@ import { requestColorInfo } from '../core/request-colors';
 import type { WorkspaceViewKind } from '../core/workspace/workspace-view';
 import { lastResult, type LastResult, type RequestGroup } from '../core/workspace/presorted';
 
-type ColumnKey = 'name' | 'url' | 'method' | 'scripts';
+type ColumnKey = 'name' | 'url' | 'method' | 'scripts' | 'usage';
 type SortDirection = 'asc' | 'desc';
 
 /**
@@ -88,7 +89,7 @@ const NAME_COLUMN_MIN_WIDTH = 120;
  */
 @Component({
   selector: 'app-requests-main-list',
-  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog, CurlImportDialog, SendButton],
+  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog, CurlImportDialog, SendButton, UsageMeter],
   templateUrl: './requests-main-list.html',
   styleUrl: './requests-main-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -145,6 +146,11 @@ export class RequestsMainList {
   /** Smart views keep their own order: their column headers don't sort. */
   readonly sortable = computed(() => this.state.view()?.sortable ?? true);
 
+  /** How much each request is used lately (the Usage column's levels). */
+  protected readonly usage = this.requestApi.usage;
+  /** The Usage column shows in every request list but the trash bin. */
+  readonly showUsage = computed(() => !this.state.showingBin());
+
   /** Ticks each minute, so the smart views' day headings and "30+ days" stay true. */
   private readonly now = signal(Date.now());
 
@@ -153,7 +159,10 @@ export class RequestsMainList {
     const view = this.state.smartView();
     const projectId = this.state.selectedProject()?.id;
     if (!view || projectId === undefined) return null;
-    return view.arrange(this.requestApi.forProject(projectId), { now: this.now() });
+    return view.arrange(this.requestApi.forProject(projectId), {
+      now: this.now(),
+      usage: this.requestApi.usage(),
+    });
   });
 
   // ---------- View ordering capability ----------
@@ -451,6 +460,7 @@ export class RequestsMainList {
         url: false,
         method: false,
         scripts: false,
+        usage: false,
       };
       if (isSelected && selectedIds.size <= 1 && cell !== null && cell.requestId === req.id) {
         isCellSelected[cell.column] = true;
@@ -492,7 +502,23 @@ export class RequestsMainList {
 
   constructor() {
     const clock = setInterval(() => this.now.set(Date.now()), 60_000);
-    inject(DestroyRef).onDestroy(() => clearInterval(clock));
+    // Usage fades over days: load it per project, and again when the app
+    // comes back to the front (a send reloads it too).
+    const reloadUsage = () => {
+      const projectId = this.state.selectedProject()?.id;
+      if (projectId !== undefined && document.visibilityState === 'visible') {
+        void this.requestApi.loadUsage(projectId);
+      }
+    };
+    document.addEventListener('visibilitychange', reloadUsage);
+    inject(DestroyRef).onDestroy(() => {
+      clearInterval(clock);
+      document.removeEventListener('visibilitychange', reloadUsage);
+    });
+    effect(() => {
+      const projectId = this.state.selectedProject()?.id;
+      if (projectId !== undefined) untracked(() => void this.requestApi.loadUsage(projectId));
+    });
 
     effect(() => {
       const collection = this.state.selectedCollection();
@@ -1730,15 +1756,17 @@ export class RequestsMainList {
   toggleSort(column: ColumnKey): void {
     if (!this.sortable()) return;
     if (this.sortColumn() === column) {
-      if (this.sortDirection() === 'asc') {
-        this.sortDirection.set('desc');
+      const first: SortDirection = column === 'usage' ? 'desc' : 'asc';
+      if (this.sortDirection() === first) {
+        this.sortDirection.set(first === 'asc' ? 'desc' : 'asc');
       } else {
         this.sortColumn.set(null);
         this.sortDirection.set('asc');
       }
     } else {
       this.sortColumn.set(column);
-      this.sortDirection.set('asc');
+      // Usage starts with the most used on top; the others A to Z.
+      this.sortDirection.set(column === 'usage' ? 'desc' : 'asc');
     }
   }
 
@@ -1766,6 +1794,10 @@ export class RequestsMainList {
         return a.url.localeCompare(b.url) * dir;
       case 'method':
         return a.method.localeCompare(b.method) * dir;
+      case 'usage': {
+        const usage = this.requestApi.usage();
+        return ((usage[a.id]?.score ?? 0) - (usage[b.id]?.score ?? 0)) * dir || a.name.localeCompare(b.name);
+      }
       default:
         return 0;
     }

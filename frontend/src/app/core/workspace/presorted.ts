@@ -1,4 +1,4 @@
-import type { HttpRequestSummary } from '../models/http';
+import type { HttpRequestSummary, RequestUsage, UsageLevel } from '../models/http';
 import { httpStatusClass } from '../http-status';
 import { dayLabel, fromUnixNano } from '../time';
 
@@ -19,6 +19,8 @@ export interface RequestGroup {
 export interface ArrangeContext {
   /** The current time (ms), for day headings and "30+ days". */
   now: number;
+  /** How much each request is used lately (absent = none). */
+  usage: Record<number, RequestUsage>;
 }
 
 /** How many requests Recent shows (as it always has). */
@@ -84,4 +86,22 @@ export function arrangeUnused(requests: HttpRequestSummary[], { now }: ArrangeCo
     groups.push({ key: 'stale', label: `Not sent in ${UNUSED_AFTER_DAYS}+ days`, requests: stale });
   }
   return groups;
+}
+
+const LEVELS: { level: UsageLevel; label: string }[] = [
+  { level: 'high', label: 'High use' },
+  { level: 'medium', label: 'Medium use' },
+  { level: 'low', label: 'Low use' },
+];
+
+/** Most used: requests with recent usage, most used first, by level. */
+export function arrangeMostUsed(requests: HttpRequestSummary[], { usage }: ArrangeContext): RequestGroup[] {
+  const used = requests
+    .filter((r) => usage[r.id])
+    .sort((a, b) => usage[b.id].score - usage[a.id].score || a.name.localeCompare(b.name));
+  return LEVELS.map(({ level, label }) => ({
+    key: level,
+    label,
+    requests: used.filter((r) => usage[r.id].level === level),
+  })).filter((g) => g.requests.length > 0);
 }

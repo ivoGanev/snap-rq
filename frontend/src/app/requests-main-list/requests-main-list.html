@@ -104,6 +104,7 @@
     [class.is-reordering]="reorderDrag() !== null"
     [class.is-multi-selecting]="selectedRowIds().size > 1"
     [class.is-timeline]="smartGroups() !== null"
+    [class.has-usage]="showUsage()"
     [style.--method-col-width]="methodColumnWidthCss()"
     [style.--name-col-width]="nameColumnWidthCss()"
     [style.--action-col-width]="canDragOut() ? '64px' : '44px'"
@@ -175,6 +176,29 @@
           }
         </button>
       </div>
+      @if (showUsage()) {
+        <div
+          class="spreadsheet-header-cell spreadsheet-header-cell--usage"
+          [attr.aria-sort]="
+            sortColumn() === 'usage'
+              ? (sortDirection() === 'asc' ? 'ascending' : 'descending')
+              : null
+          "
+        >
+          <button
+            class="spreadsheet-header-button"
+            type="button"
+            title="How much each request is used lately"
+            [disabled]="!sortable()"
+            (click)="toggleSort('usage')"
+          >
+            <span>Usage</span>
+            @if (sortColumn() === 'usage') {
+              <span class="sort-indicator">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>
+            }
+          </button>
+        </div>
+      }
     </div>
 
     <cdk-virtual-scroll-viewport
@@ -307,6 +331,12 @@
             (dblclick)="onCellDoubleClick(req, 'url')"
           >{{ rowState()[req.id]?.displayUrl ?? req.url }}</span>
         </div>
+
+        @if (showUsage()) {
+          <div class="spreadsheet-cell spreadsheet-cell--usage">
+            <app-usage-meter [level]="usage()[req.id]?.level ?? null" />
+          </div>
+        }
       </div>
       }
       </ng-container>

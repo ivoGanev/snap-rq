@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Subject } from 'rxjs';
-import type { HttpRequest, HttpRequestSummary, HttpResponse } from '../models/http';
+import type { HttpRequest, HttpRequestSummary, HttpResponse, RequestUsage } from '../models/http';
 import type { EnvironmentVariableValue } from '../models/environment-context';
 import { CommandApiService } from './command.service';
 import { ChangeBus } from './change-bus.service';
@@ -44,6 +44,9 @@ export class RequestApiService {
   /** Elapsed ms per in-flight request id (send timers). */
   readonly sending = signal<Record<number, number>>({});
 
+  /** How much the project's requests are used lately, by id (absent = no usage). */
+  readonly usage = signal<Record<number, RequestUsage>>({});
+
   /** Emits the saved response once per finished send. */
   readonly finished$ = new Subject<HttpResponse>();
 
@@ -84,6 +87,14 @@ export class RequestApiService {
       map[req.id] = req;
     }
     this.allRequests.set(map);
+  }
+
+  /** Loads the project's usage (levels fade over days, so reload now and then). */
+  async loadUsage(projectId: number): Promise<void> {
+    const list = await this.commands.execute<RequestUsage[]>('request.list_usage', { project_id: projectId });
+    const byId: Record<number, RequestUsage> = {};
+    for (const usage of list ?? []) byId[usage.id] = usage;
+    this.usage.set(byId);
   }
 
   // -----------------------------------------------------------------------
@@ -253,6 +264,7 @@ export class RequestApiService {
         response_id: result.id,
         last_used_at: Date.now() * 1e6,
       });
+      void this.loadUsage(req.project_id);
       this.finished$.next(result);
     } catch (err) {
       // A send that couldn't run, e.g. a locked secret variable.

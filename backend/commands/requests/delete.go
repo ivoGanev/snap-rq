@@ -31,6 +31,7 @@ type deleteInput struct {
 // savedRequest is one request with everything that dies with it.
 type savedRequest struct {
 	Request     models.HttpRequest    `json:"request"`
+	UseScore    float64               `json:"use_score"`
 	Responses   []models.HttpResponse `json:"responses"`
 	ScriptLinks []savedScriptLink     `json:"script_links"`
 	FavLinks    []savedFavLink        `json:"fav_links"`
@@ -67,6 +68,10 @@ func (c Delete) Snapshot(input json.RawMessage) (any, error) {
 			return nil, err
 		}
 		one := savedRequest{Request: req}
+		if err := c.tx.QueryRow(`SELECT use_score FROM http_requests WHERE id = ?`, id).
+			Scan(&one.UseScore); err != nil {
+			return nil, fmt.Errorf("loading usage: %w", err)
+		}
 
 		rows, err := c.tx.Query(
 			`SELECT id, request_id, COALESCE(headers, ''), status_code, COALESCE(body, ''), created_at, duration_ms, script_log
@@ -244,10 +249,10 @@ func (c Delete) Undo(snapshot, _ json.RawMessage) error {
 		if _, err := c.tx.Exec(`
 			INSERT INTO http_requests (
 				id, collection_id, name, url, method, body, body_type, body_form, request_headers,
-				status_code, response_id, user_sort_order, user_color, last_used_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				status_code, response_id, user_sort_order, user_color, last_used_at, use_score
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			r.ID, r.CollectionID, r.Name, r.URL, r.Method, r.Body, r.BodyType, r.BodyForm, r.RequestHeaders,
-			r.StatusCode, r.ResponseID, r.UserSortOrder, r.UserColor, r.LastUsedAt,
+			r.StatusCode, r.ResponseID, r.UserSortOrder, r.UserColor, r.LastUsedAt, one.UseScore,
 		); err != nil {
 			return err
 		}

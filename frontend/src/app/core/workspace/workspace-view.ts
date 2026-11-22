@@ -7,6 +7,7 @@ import type { InspectorContent } from '../../inspector/inspector';
 import type { HttpRequestSummary } from '../models/http';
 import {
   arrangeFailing,
+  arrangeMostUsed,
   arrangeRecent,
   arrangeUnused,
   type ArrangeContext,
@@ -15,7 +16,7 @@ import {
 
 /**
  * The views the workspace can show: all requests, the smart views (Recent,
- * Failing, Not used lately), the trash bin, or the requests of one
+ * Most used, Failing, Not used lately), the trash bin, or the requests of one
  * collection, favourite list or script. Each view is one
  * small object that knows everything specific to it: its title, what the user
  * may do with its rows, and what the Inspector shows for a selection.
@@ -26,6 +27,7 @@ import {
 export type WorkspaceView =
   | AllRequestsView
   | RecentView
+  | MostUsedView
   | FailingView
   | UnusedView
   | TrashView
@@ -121,6 +123,14 @@ export class RecentView extends SmartViewBase {
   arrange = arrangeRecent;
 }
 
+/** Most used: requests with recent usage, most used first, by level. */
+export class MostUsedView extends SmartViewBase {
+  readonly kind = 'usage';
+  readonly title = 'Most used';
+  readonly emptyText = 'Requests you send often show up here, most used first.';
+  arrange = arrangeMostUsed;
+}
+
 /** Failing: requests whose last send got an error or a 4xx/5xx. */
 export class FailingView extends SmartViewBase {
   readonly kind = 'failing';
@@ -138,7 +148,7 @@ export class UnusedView extends SmartViewBase {
 }
 
 /** The smart views (see SmartViewBase). */
-export type SmartView = RecentView | FailingView | UnusedView;
+export type SmartView = RecentView | MostUsedView | FailingView | UnusedView;
 
 export function isSmartView(view: WorkspaceView | null): view is SmartView {
   return view instanceof SmartViewBase;
