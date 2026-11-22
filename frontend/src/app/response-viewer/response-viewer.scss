@@ -36,7 +36,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 14px 5px 10px;
+  padding: 4px 14px 4px 12px;
   font-family: var(--font-display);
   font-size: 1rem;
   font-weight: 700;
@@ -64,13 +64,18 @@
   --status-color: var(--status-5xx);
 }
 
-.status-badge-icon {
+// A dot in the status colour, like the history timeline's stops.
+.status-badge-dot {
   flex: 0 0 auto;
-  width: 16px;
-  height: 16px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--status-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-color) 25%, transparent);
 }
 
 .status-badge-code {
+  font-size: 1.3rem;
   font-variant-numeric: tabular-nums;
 }
 
