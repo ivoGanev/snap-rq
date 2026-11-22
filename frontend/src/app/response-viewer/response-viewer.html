@@ -33,8 +33,6 @@
     <div class="response-meta">
       @let status = state.selectedResponse()!.status_code;
       <span class="status-badge" [attr.data-status]="statusClass(status)">
-        <!-- The same coloured dot as the history timeline. -->
-        <span class="status-badge-dot" aria-hidden="true"></span>
         <span class="status-badge-code">{{ status }}</span>
         @if (statusText(status)) {
           <span class="status-badge-text">{{ statusText(status) }}</span>

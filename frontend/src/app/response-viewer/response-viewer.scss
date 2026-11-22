@@ -36,7 +36,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 14px 4px 12px;
+  padding: 4px 14px;
   font-family: var(--font-display);
   font-size: 1rem;
   font-weight: 700;
@@ -62,16 +62,6 @@
 
 .status-badge[data-status='5xx'] {
   --status-color: var(--status-5xx);
-}
-
-// A dot in the status colour, like the history timeline's stops.
-.status-badge-dot {
-  flex: 0 0 auto;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: var(--status-color);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-color) 25%, transparent);
 }
 
 .status-badge-code {
