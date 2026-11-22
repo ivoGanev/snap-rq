@@ -1,4 +1,17 @@
-import { AfterViewInit, Component, HostListener, inject, OnInit, signal, computed, effect, untracked } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  DestroyRef,
+  ElementRef,
+  HostListener,
+  inject,
+  OnInit,
+  signal,
+  computed,
+  effect,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WML } from '@wailsio/runtime';
 import { WorkspaceStateService } from './core/services/workspace-state.service';
@@ -91,6 +104,16 @@ export class App implements OnInit, AfterViewInit {
     return this.state.sidebarListOpen() ? `${this.leftColumnWidthExpanded()}%` : 'max-content';
   });
 
+  /**
+   * The sidebar's actual width in px (collapsed, fitted to its buttons, or
+   * resized): the top bar's logo cell matches it, so the drawer's line runs
+   * up through the top bar and the environment lines up with the column
+   * below.
+   */
+  protected readonly sidebarWidthPx = signal(72);
+  private readonly sidebar = viewChild.required(RequestGroups, { read: ElementRef });
+  private readonly destroyRef = inject(DestroyRef);
+
   readonly variablesOverlayOpen = signal(false);
   readonly cookiesOverlayOpen = signal(false);
   protected readonly cookieCount = this.cookieApi.cookies;
@@ -140,6 +163,11 @@ export class App implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
+    const sidebar = this.sidebar().nativeElement as HTMLElement;
+    const observer = new ResizeObserver(() => this.sidebarWidthPx.set(sidebar.getBoundingClientRect().width));
+    observer.observe(sidebar);
+    this.destroyRef.onDestroy(() => observer.disconnect());
+
     WML.Enable();
   }
 

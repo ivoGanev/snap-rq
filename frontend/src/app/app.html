@@ -1,6 +1,11 @@
 <div class="titlebar-spacer"></div>
 
 <div class="top-bar">
+  <!-- As wide as the sidebar below: its line continues up through here. -->
+  <div class="top-bar-brand" [style.width.px]="sidebarWidthPx()">
+    <img class="app-logo" src="logo.png" alt="SnapRQ" width="30" height="30" />
+  </div>
+
   <div class="environment-selector">
     <span class="environment-label">Environment</span>
     <select
