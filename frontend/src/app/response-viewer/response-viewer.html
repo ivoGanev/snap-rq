@@ -7,23 +7,11 @@
 }
 
 @if (responses().length > 0) {
-  <div class="response-picker">
-    @for (resp of responses(); track resp.id) {
-      <button
-        class="response-chip"
-        [class.is-active]="state.selectedResponse()?.id === resp.id"
-        (click)="selectResponse(resp)"
-        [title]="formatTime(resp.created_at)"
-      >
-        {{ formatTime(resp.created_at) }}
-        @if (isRequestError(resp.status_code)) {
-          <span class="chip-status is-error" data-status="error">Error</span>
-        } @else {
-          <span class="chip-status" [class.is-error]="resp.status_code >= 400" [attr.data-status]="statusClass(resp.status_code)">{{ resp.status_code }}</span>
-        }
-      </button>
-    }
-  </div>
+  <app-response-history
+    [responses]="responses()"
+    [selected]="state.selectedResponse()"
+    (select)="selectResponse($event)"
+  />
 }
 
 <!-- No response arrived: nothing to show but what went wrong. -->

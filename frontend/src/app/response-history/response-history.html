@@ -1,0 +1,44 @@
+<!-- The whole line folds and unfolds the timeline. -->
+<button class="history-bar" type="button" [attr.aria-expanded]="open()" (click)="toggle()">
+  <span class="history-toggle">
+    <svg class="history-chevron" [class.is-open]="open()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+    <span class="history-title">History</span>
+  </span>
+
+  @if (current(); as c) {
+    <span class="history-current-label" [attr.data-kind]="c.kind">
+      <span class="history-current-status">{{ c.status }}</span>
+      <span class="history-current-ago">· {{ currentAgo() }}</span>
+    </span>
+  }
+</button>
+
+@if (open()) {
+  <ol class="history-timeline" aria-label="Response history">
+    @for (day of days(); track day.label) {
+      <li class="history-day">{{ day.label }}</li>
+      @for (stop of day.stops; track stop.response.id) {
+        <li class="history-stop" [attr.data-kind]="stop.kind" [class.is-selected]="isSelected(stop.response)">
+          <button class="history-stop-button" type="button" (click)="select.emit(stop.response)" [attr.aria-current]="isSelected(stop.response)">
+            <span class="history-dot" aria-hidden="true"></span>
+            <span class="history-time">{{ stop.time }}</span>
+            <span class="history-status">{{ stop.status }}</span>
+            <span class="history-duration">{{ stop.response.duration_ms }} ms</span>
+            @if (stop.passed || stop.failed) {
+              <span class="history-tests">
+                @if (stop.passed) {
+                  <span class="is-passed">✓ {{ stop.passed }}</span>
+                }
+                @if (stop.failed) {
+                  <span class="is-failed">✗ {{ stop.failed }}</span>
+                }
+              </span>
+            }
+          </button>
+        </li>
+      }
+    }
+  </ol>
+}

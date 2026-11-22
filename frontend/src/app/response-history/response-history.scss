@@ -1,0 +1,226 @@
+// Folded: one line above the response. Unfolded: a capped timeline below it.
+:host {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--glass-border);
+
+  // The status colours, one per kind (dots and labels use them).
+  --kind-color: var(--status-2xx);
+}
+
+[data-kind='3xx'] {
+  --kind-color: var(--status-3xx);
+}
+
+[data-kind='4xx'] {
+  --kind-color: var(--status-4xx);
+}
+
+[data-kind='5xx'] {
+  --kind-color: var(--status-5xx);
+}
+
+[data-kind='error'] {
+  --kind-color: var(--error-text);
+}
+
+// One button across the line: anywhere on it folds or unfolds the timeline.
+.history-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  width: 100%;
+  min-height: 36px;
+  padding: 0 var(--s-3);
+  font: inherit;
+  text-align: left;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text);
+    background: var(--hover-bg);
+  }
+}
+
+.history-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.history-chevron {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  transition: transform 0.15s ease;
+
+  &.is-open {
+    transform: rotate(90deg);
+  }
+}
+
+.history-title {
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+// The response shown below.
+.history-current-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 4px;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.history-current-status {
+  font-weight: 700;
+  color: var(--kind-color);
+}
+
+.history-current-ago {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// The timeline: a vertical line through one dot per send, newest at the top.
+.history-timeline {
+  --dot: 10px;
+
+  position: relative;
+  max-height: min(33vh, 280px);
+  margin: 0;
+  padding: 0 var(--s-3) var(--s-2);
+  overflow-y: auto;
+  list-style: none;
+}
+
+.history-day {
+  position: relative;
+  padding: var(--s-1) 0 4px calc(var(--dot) + 14px);
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.history-stop {
+  position: relative;
+
+  // The line between this stop and the next one.
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(var(--dot) / 2 - 1px);
+    width: 2px;
+    background: var(--glass-border);
+  }
+}
+
+// The line ends at the oldest stop's dot.
+.history-stop:last-child::before {
+  bottom: 50%;
+}
+
+// …and starts at the first stop of a day.
+.history-day + .history-stop::before {
+  top: 50%;
+}
+
+.history-stop-button {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--dot) max-content minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0 10px;
+  width: 100%;
+  padding: 5px 6px 5px 0;
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  color: var(--text);
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--hover-bg);
+  }
+}
+
+.history-dot {
+  position: relative;
+  width: var(--dot);
+  height: var(--dot);
+  border-radius: 50%;
+  background: var(--kind-color);
+  box-shadow: 0 0 0 3px var(--surface-solid, var(--background));
+}
+
+.history-time {
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.history-status {
+  font-weight: 700;
+  color: var(--kind-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-duration {
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.history-tests {
+  display: inline-flex;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.is-passed {
+  color: var(--success-text);
+}
+
+.is-failed {
+  color: var(--error-text);
+}
+
+// The response shown below: a larger ringed dot and a highlighted row.
+.history-stop.is-selected {
+  .history-stop-button {
+    background: var(--selected-bg);
+  }
+
+  .history-dot {
+    transform: scale(1.3);
+    box-shadow:
+      0 0 0 2px var(--surface-solid, var(--background)),
+      0 0 0 4px var(--kind-color);
+  }
+}
