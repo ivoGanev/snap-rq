@@ -148,13 +148,34 @@ func TestImportTwiceCreatesNothingTheSecondTime(t *testing.T) {
 	}
 }
 
+// previewKey is the key the preview gives a request, as the import dialog
+// sends it back. Keys include the server's base path (here /v1), so tests
+// take them from the preview rather than spelling them out.
+func previewKey(t *testing.T, db *sql.DB, specPath, collection, method, path string) string {
+	t.Helper()
+	pv := runIn(t, db, NewPreview, map[string]any{"project_id": 1, "file_path": specPath})
+	for _, c := range pv["collections"].([]previewCollection) {
+		if !strings.EqualFold(c.Name, collection) {
+			continue
+		}
+		for _, r := range c.Requests {
+			if r.Method == method && strings.HasSuffix(r.Key, path) {
+				return r.Key
+			}
+		}
+	}
+	t.Fatalf("no %s %s in the preview's %q collection", method, path, collection)
+	return ""
+}
+
 func TestImportOnlyWhatWasPicked(t *testing.T) {
 	db := openTestDB(t)
 	specPath := writeSpec(t, "spec.json", sampleSpec)
+	orders := previewKey(t, db, specPath, "store", "GET", "/store/orders")
 
 	res := runIn(t, db, NewImport, map[string]any{
 		"project_id": 1, "file_path": specPath,
-		"collections": []map[string]any{{"name": "STORE", "add": []string{"GET /store/orders"}}},
+		"collections": []map[string]any{{"name": "STORE", "add": []string{orders}}},
 	})
 	if res["collections_created"] != 1 || res["requests_created"] != 1 {
 		t.Fatalf("picked import = %v, want 1 collection with 1 request", res)
@@ -202,9 +223,11 @@ func TestImportAddsNewRequestsToAnExistingCollectionAndUpdatesPickedOnes(t *test
 	}
 
 	// Adding only: the changed request stays as it was.
+	returns := previewKey(t, db, v2Path, "store", "POST", "/store/returns")
+	orders := previewKey(t, db, v2Path, "store", "GET", "/store/orders")
 	res := runIn(t, db, NewImport, map[string]any{
 		"project_id": 1, "file_path": v2Path,
-		"collections": []map[string]any{{"name": "store", "add": []string{"POST /store/returns"}}},
+		"collections": []map[string]any{{"name": "store", "add": []string{returns}}},
 	})
 	if res["collections_created"] != 0 || res["requests_created"] != 1 || res["requests_updated"] != 0 {
 		t.Fatalf("add-only import = %v", res)
@@ -218,7 +241,7 @@ func TestImportAddsNewRequestsToAnExistingCollectionAndUpdatesPickedOnes(t *test
 	// Now pick the update.
 	res = runIn(t, db, NewImport, map[string]any{
 		"project_id": 1, "file_path": v2Path,
-		"collections": []map[string]any{{"name": "store", "update": []string{"GET /store/orders"}}},
+		"collections": []map[string]any{{"name": "store", "update": []string{orders}}},
 	})
 	if res["requests_updated"] != 1 {
 		t.Fatalf("update import = %v, want 1 updated", res)

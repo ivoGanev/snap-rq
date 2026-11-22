@@ -124,7 +124,8 @@ func TestOrganizeFlowEndToEnd(t *testing.T) {
 		return createRequest(h.s, createRequestInput{CollectionID: a, Name: "r1"})
 	}))
 
-	// a move keeps every other field
+	// a move keeps every other field (give it a URL first: create sets none)
+	h.run("request.bulk_set", bulkEditInput{IDs: []int64{req}, Field: "url", Value: "http://x"})
 	h.call(func() (any, error) { return moveRequests(h.s, moveRequestsInput{IDs: []int64{req}, CollectionID: b}) })
 	if got, want := h.field(req, "collection_id"), h.text(b); got != want {
 		t.Fatalf("collection_id = %s, want %s", got, want)
@@ -164,8 +165,9 @@ func TestOrganizeFlowEndToEnd(t *testing.T) {
 	// trash round trip
 	h.run("request.delete", deleteRequestsInput{IDs: []int64{req}})
 	bin := h.firstID(h.run("bin.list", projectInput{ProjectID: project}))
-	h.run("bin.restore", restoreInput{Items: []restoreItem{{BinID: bin, CollectionID: a}}})
-	if got, want := h.field(req, "collection_id"), h.text(a); got != want {
+	// a restored request is recreated with a new id (see bin/restore.go)
+	restored := h.firstID(h.run("bin.restore", restoreInput{Items: []restoreItem{{BinID: bin, CollectionID: a}}}))
+	if got, want := h.field(restored, "collection_id"), h.text(a); got != want {
 		t.Fatalf("restored into %s, want %s", got, want)
 	}
 }
