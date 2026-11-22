@@ -104,7 +104,6 @@ func TestImportRejectsSpecWithoutPaths(t *testing.T) {
 	}
 }
 
-// runIn runs a command inside a transaction and commits it.
 func runIn(t *testing.T, db *sql.DB, newCmd func(*sql.Tx) commands.Command, input map[string]any) map[string]any {
 	t.Helper()
 	payload, _ := json.Marshal(input)
@@ -194,8 +193,6 @@ func TestImportAddsNewRequestsToAnExistingCollectionAndUpdatesPickedOnes(t *test
 		"project_id": 1, "file_path": writeSpec(t, "v1.json", sampleSpec),
 	})
 
-	// A new version of the spec: one more operation in "store", and the
-	// existing order listing now takes a "status" query parameter.
 	v2 := strings.Replace(sampleSpec, `"/store/orders": {
       "get": {"operationId": "listOrders", "tags": ["store"]}
     },`, `"/store/orders": {
@@ -221,7 +218,6 @@ func TestImportAddsNewRequestsToAnExistingCollectionAndUpdatesPickedOnes(t *test
 		t.Fatalf("store preview = %+v, want exists, 1 new, 1 changed", store)
 	}
 
-	// Adding only: the changed request stays as it was.
 	returns := previewKey(t, db, v2Path, "store", "POST", "/store/returns")
 	orders := previewKey(t, db, v2Path, "store", "GET", "/store/orders")
 	res := runIn(t, db, NewImport, map[string]any{
@@ -237,7 +233,6 @@ func TestImportAddsNewRequestsToAnExistingCollectionAndUpdatesPickedOnes(t *test
 		t.Fatalf("listOrders changed without being picked: %q", url)
 	}
 
-	// Now pick the update.
 	res = runIn(t, db, NewImport, map[string]any{
 		"project_id": 1, "file_path": v2Path,
 		"collections": []map[string]any{{"name": "store", "update": []string{orders}}},
