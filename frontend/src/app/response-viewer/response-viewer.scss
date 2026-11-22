@@ -36,7 +36,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 14px 5px 10px;
+  padding: 4px 14px;
   font-family: var(--font-display);
   font-size: 1rem;
   font-weight: 700;
@@ -64,13 +64,8 @@
   --status-color: var(--status-5xx);
 }
 
-.status-badge-icon {
-  flex: 0 0 auto;
-  width: 16px;
-  height: 16px;
-}
-
 .status-badge-code {
+  font-size: 1.3rem;
   font-variant-numeric: tabular-nums;
 }
 
