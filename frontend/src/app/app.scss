@@ -18,23 +18,40 @@
   justify-content: space-between;
   gap: var(--s-3);
   height: 44px;
-  // Left: the logo lines up with the sidebar's buttons (see .app-logo).
-  padding: 0 var(--s-4) 0 var(--s-2);
+  // Left: the logo cell (.top-bar-brand) reaches the edge.
+  padding: 0 var(--s-4) 0 0;
   border-bottom: 1px solid var(--glass-border);
   background: var(--surface);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
 
+// The sidebar's column, continued up: as wide as the sidebar (set from its
+// measured width) with the same right border, so the drawer's line runs to
+// the top. The environment then starts where the column titles below do.
+.top-bar-brand {
+  flex: 0 0 auto;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  padding-left: var(--s-2);
+  border-right: 1px solid var(--glass-border);
+}
+
+.top-bar-brand + .environment-selector {
+  // The top bar's gap plus this = the column titles' left padding.
+  margin-left: calc(var(--s-4) - var(--s-3));
+}
+
 // Shown at its exported size (30px), so it stays crisp, and centred over
 // the sidebar's 40px buttons below it (they sit var(--s-2) from the edge,
-// like the top bar's left padding).
+// like the cell's left padding).
 .app-logo {
   flex: 0 0 auto;
   width: 30px;
   height: 30px;
   margin-left: calc((40px - 30px) / 2);
-  margin-right: calc(var(--s-2) - var(--s-3));
   user-select: none;
   -webkit-user-drag: none;
 }
