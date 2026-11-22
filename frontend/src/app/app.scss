@@ -25,6 +25,16 @@
   backdrop-filter: blur(8px);
 }
 
+// Shown at its exported size (30px), so it stays crisp.
+.app-logo {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  margin-right: calc(var(--s-2) - var(--s-3));
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
 .environment-selector {
   display: flex;
   align-items: center;
