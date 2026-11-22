@@ -25,22 +25,17 @@
   --kind-color: var(--error-text);
 }
 
+// One button across the line: anywhere on it folds or unfolds the timeline.
 .history-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--s-2);
+  width: 100%;
   min-height: 36px;
   padding: 0 var(--s-3);
-}
-
-.history-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  padding: 4px 0;
   font: inherit;
+  text-align: left;
   color: var(--muted);
   background: none;
   border: none;
@@ -48,7 +43,15 @@
 
   &:hover {
     color: var(--text);
+    background: var(--hover-bg);
   }
+}
+
+.history-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
 }
 
 .history-chevron {
@@ -70,14 +73,7 @@
   text-transform: uppercase;
 }
 
-// The response shown below, with ‹ older and newer › around it.
-.history-current {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  min-width: 0;
-}
-
+// The response shown below.
 .history-current-label {
   display: inline-flex;
   align-items: baseline;
@@ -98,30 +94,6 @@
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.history-step {
-  flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  font-size: 1rem;
-  line-height: 1;
-  color: var(--text);
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--radius);
-  cursor: pointer;
-
-  &:hover:not(:disabled) {
-    background: var(--hover-bg);
-    border-color: var(--glass-border);
-  }
-
-  &:disabled {
-    opacity: 0.3;
-    cursor: default;
-  }
 }
 
 // The timeline: a vertical line through one dot per send, newest at the top.

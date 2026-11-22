@@ -24,7 +24,7 @@ interface Day {
 
 /**
  * A request's response history. Folded, it is one line: the response shown
- * below, and ‹ › to step to an older or newer one. Unfolded, a vertical
+ * below (clicking anywhere on it unfolds the timeline). Unfolded, a vertical
  * timeline grouped by day, newest first, each stop with its time, status,
  * duration and test results. Only the user folds and unfolds it.
  */
@@ -42,16 +42,6 @@ export class ResponseHistory {
   protected readonly open = signal(readOpen());
   /** Ticks, so "2 min ago" stays true. */
   private readonly now = signal(Date.now());
-
-  private readonly selectedIndex = computed(() => {
-    const id = this.selected()?.id;
-    return this.responses().findIndex((r) => r.id === id);
-  });
-  protected readonly hasOlder = computed(() => {
-    const i = this.selectedIndex();
-    return i >= 0 && i < this.responses().length - 1;
-  });
-  protected readonly hasNewer = computed(() => this.selectedIndex() > 0);
 
   /** The folded line's summary of the response shown below. */
   protected readonly current = computed(() => {
@@ -82,12 +72,6 @@ export class ResponseHistory {
   protected toggle(): void {
     this.open.update((open) => !open);
     writeOpen(this.open());
-  }
-
-  /** ‹ is older, › is newer (the list is newest first). */
-  protected step(direction: 'older' | 'newer'): void {
-    const target = this.responses()[this.selectedIndex() + (direction === 'older' ? 1 : -1)];
-    if (target) this.select.emit(target);
   }
 
   protected isSelected(response: HttpResponse): boolean {

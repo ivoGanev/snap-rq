@@ -1,22 +1,19 @@
-<div class="history-bar">
-  <button class="history-toggle" type="button" [attr.aria-expanded]="open()" (click)="toggle()">
+<!-- The whole line folds and unfolds the timeline. -->
+<button class="history-bar" type="button" [attr.aria-expanded]="open()" (click)="toggle()">
+  <span class="history-toggle">
     <svg class="history-chevron" [class.is-open]="open()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M9 6l6 6-6 6" />
     </svg>
     <span class="history-title">History</span>
-  </button>
+  </span>
 
   @if (current(); as c) {
-    <div class="history-current">
-      <button class="history-step" type="button" [disabled]="!hasOlder()" (click)="step('older')" aria-label="Older response" title="Older response">‹</button>
-      <span class="history-current-label" [attr.data-kind]="c.kind">
-        <span class="history-current-status">{{ c.status }}</span>
-        <span class="history-current-ago">· {{ currentAgo() }}</span>
-      </span>
-      <button class="history-step" type="button" [disabled]="!hasNewer()" (click)="step('newer')" aria-label="Newer response" title="Newer response">›</button>
-    </div>
+    <span class="history-current-label" [attr.data-kind]="c.kind">
+      <span class="history-current-status">{{ c.status }}</span>
+      <span class="history-current-ago">· {{ currentAgo() }}</span>
+    </span>
   }
-</div>
+</button>
 
 @if (open()) {
   <ol class="history-timeline" aria-label="Response history">
