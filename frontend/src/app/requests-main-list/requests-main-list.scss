@@ -240,9 +240,130 @@
   --wails-draggable: no-drag;
 }
 
-.spreadsheet-header-button:hover {
+.spreadsheet-header-button:hover:not(:disabled) {
   color: var(--text);
   background: var(--hover-bg);
+}
+
+// Smart views keep their own order: their headers are labels, not sorters.
+.spreadsheet-header-button:disabled {
+  cursor: default;
+}
+
+// ---------- Smart views: a timeline ----------
+// A narrow first column holds a vertical line and a dot per request, coloured
+// by its last send (like the response history). Each group's line runs from
+// its first request to its last, under a heading row.
+.spreadsheet-wrapper.is-timeline {
+  .spreadsheet-header,
+  .spreadsheet-row {
+    grid-template-columns:
+      28px
+      var(--action-col-width, 44px)
+      minmax(60px, var(--method-col-width, 100px))
+      minmax(120px, var(--name-col-width, 200px))
+      minmax(120px, 1fr);
+  }
+}
+
+.timeline-gutter {
+  position: relative;
+  align-self: stretch;
+}
+
+.spreadsheet-row .timeline-gutter::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(50% - 1px);
+  width: 2px;
+  background: var(--glass-border);
+}
+
+.spreadsheet-row .timeline-gutter.is-group-first::before {
+  top: 50%;
+}
+
+.spreadsheet-row .timeline-gutter.is-group-last::before {
+  bottom: 50%;
+}
+
+.timeline-dot {
+  --dot-color: var(--muted);
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: var(--dot-color);
+  box-shadow: 0 0 0 3px var(--surface-solid, var(--background));
+}
+
+.timeline-dot[data-result='2xx'] {
+  --dot-color: var(--status-2xx);
+}
+
+.timeline-dot[data-result='3xx'] {
+  --dot-color: var(--status-3xx);
+}
+
+.timeline-dot[data-result='4xx'] {
+  --dot-color: var(--status-4xx);
+}
+
+.timeline-dot[data-result='5xx'] {
+  --dot-color: var(--status-5xx);
+}
+
+.timeline-dot[data-result='error'] {
+  --dot-color: var(--error-text);
+}
+
+// Never sent: a hollow ring.
+.timeline-dot[data-result='never'] {
+  background: var(--surface-solid, var(--background));
+  border: 2px solid var(--muted);
+}
+
+// The selected request's dot gets a ring, as in the history.
+.spreadsheet-row.is-selected .timeline-dot {
+  box-shadow:
+    0 0 0 2px var(--surface-solid, var(--background)),
+    0 0 0 4px var(--dot-color);
+}
+
+// A group's heading (a day, "Never sent"…), drawn as a row of the list.
+.spreadsheet-heading {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-1);
+  height: 44px;
+  padding-bottom: 6px;
+  box-sizing: border-box;
+  user-select: none;
+
+  .timeline-gutter {
+    flex: 0 0 28px;
+  }
+}
+
+.spreadsheet-heading-label {
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.spreadsheet-heading-count {
+  font-size: 0.75rem;
+  color: var(--muted);
+  opacity: 0.7;
 }
 
 .spreadsheet-header-cell--method .spreadsheet-header-button {

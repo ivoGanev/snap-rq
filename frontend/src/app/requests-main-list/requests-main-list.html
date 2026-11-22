@@ -85,6 +85,8 @@
       Bin the items you don't see anymore in your collections or want to hide from search.
       You can permanently delete your requests in here.
     </div>
+  } @else if (state.smartView(); as smart) {
+    <div class="state-message">{{ smart.emptyText }}</div>
   } @else {
     <div class="state-message">No requests in this group.</div>
   }
@@ -101,11 +103,15 @@
     [class.is-resizing]="isResizingColumn()"
     [class.is-reordering]="reorderDrag() !== null"
     [class.is-multi-selecting]="selectedRowIds().size > 1"
+    [class.is-timeline]="smartGroups() !== null"
     [style.--method-col-width]="methodColumnWidthCss()"
     [style.--name-col-width]="nameColumnWidthCss()"
     [style.--action-col-width]="canDragOut() ? '64px' : '44px'"
   >
     <div class="spreadsheet-header">
+      @if (smartGroups()) {
+        <div class="spreadsheet-header-cell timeline-gutter" aria-hidden="true"></div>
+      }
       <div class="spreadsheet-header-cell spreadsheet-header-cell--action"></div>
       <div
         #methodHeaderCell
@@ -119,6 +125,7 @@
         <button
           class="spreadsheet-header-button"
           type="button"
+          [disabled]="!sortable()"
           (click)="toggleSort('method')"
         >
           <span>Method</span>
@@ -139,6 +146,7 @@
         <button
           class="spreadsheet-header-button"
           type="button"
+          [disabled]="!sortable()"
           (click)="toggleSort('name')"
         >
           <span>Name</span>
@@ -158,6 +166,7 @@
         <button
           class="spreadsheet-header-button"
           type="button"
+          [disabled]="!sortable()"
           (click)="toggleSort('url')"
         >
           <span>URL</span>
@@ -175,8 +184,16 @@
       class="spreadsheet-viewport"
       (mousemove)="onViewportMouseMove($event)"
     >
+      <ng-container *cdkVirtualFor="let row of displayRows(); trackBy: trackRow">
+      @if (row.kind === 'heading') {
+        <div class="spreadsheet-heading">
+          <span class="timeline-gutter" aria-hidden="true"></span>
+          <span class="spreadsheet-heading-label">{{ row.label }}</span>
+          <span class="spreadsheet-heading-count">{{ row.count }}</span>
+        </div>
+      } @else {
+      @let req = row.req;
       <div
-        *cdkVirtualFor="let req of filteredActiveRequests(); trackBy: trackById"
         class="spreadsheet-row"
         [class.is-selected]="rowState()[req.id]?.isSelected"
         [class.is-active-drag-row]="dragStartRowId() === req.id"
@@ -189,6 +206,16 @@
         (click)="onRowClick(req, $event, 'name')"
         (contextmenu)="onRowContextMenu(req, $event, rowContextMenu)"
       >
+        @if (row.result) {
+          <span
+            class="timeline-gutter"
+            [class.is-group-first]="row.groupFirst"
+            [class.is-group-last]="row.groupLast"
+            aria-hidden="true"
+          >
+            <span class="timeline-dot" [attr.data-result]="row.result"></span>
+          </span>
+        }
         <div class="spreadsheet-cell spreadsheet-cell--action">
           @if (canDragOut()) {
             <button
@@ -281,6 +308,8 @@
           >{{ rowState()[req.id]?.displayUrl ?? req.url }}</span>
         </div>
       </div>
+      }
+      </ng-container>
     </cdk-virtual-scroll-viewport>
 
     @if (reorderDrag(); as drag) {

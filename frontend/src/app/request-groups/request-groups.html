@@ -19,6 +19,9 @@
         @if (view.dividerBefore) {
           <div class="sidebar-divider"></div>
         }
+        @if (view.sectionBefore) {
+          <div class="nav-section-label">{{ view.sectionBefore }}</div>
+        }
         <button
           class="nav-button"
           [class.is-active]="isViewActive(view)"

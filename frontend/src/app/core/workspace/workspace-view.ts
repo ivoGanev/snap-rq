@@ -4,10 +4,19 @@ import type { Script } from '../services/script.service';
 import type { HttpRequest } from '../services/request.service';
 import type { HttpBinnedRequestSummary } from '../services/bin.service';
 import type { InspectorContent } from '../../inspector/inspector';
+import type { HttpRequestSummary } from '../models/http';
+import {
+  arrangeFailing,
+  arrangeRecent,
+  arrangeUnused,
+  type ArrangeContext,
+  type RequestGroup,
+} from './presorted';
 
 /**
- * The views the workspace can show: all requests, recent, the trash bin, or
- * the requests of one collection, favourite list or script. Each view is one
+ * The views the workspace can show: all requests, the smart views (Recent,
+ * Failing, Not used lately), the trash bin, or the requests of one
+ * collection, favourite list or script. Each view is one
  * small object that knows everything specific to it: its title, what the user
  * may do with its rows, and what the Inspector shows for a selection.
  *
@@ -17,6 +26,8 @@ import type { InspectorContent } from '../../inspector/inspector';
 export type WorkspaceView =
   | AllRequestsView
   | RecentView
+  | FailingView
+  | UnusedView
   | TrashView
   | CollectionView
   | FavouriteView
@@ -44,6 +55,8 @@ interface ViewBehaviour {
   readonly title: string;
   /** Rows can be drag-reordered and the order is saved for this view. */
   readonly canReorder: boolean;
+  /** The column headers sort the rows (smart views keep their own order). */
+  readonly sortable: boolean;
   /** Rows can be given a colour, saved for this view. */
   readonly canColour: boolean;
   /** Stays open when the user switches project (it exists in every project). */
@@ -74,19 +87,61 @@ export class AllRequestsView implements ViewBehaviour {
   readonly main = 'requests';
   readonly title = 'All requests';
   readonly canReorder = false;
+  readonly sortable = true;
   readonly canColour = false;
   readonly survivesProjectSwitch = true;
   inspect = inspectRequest;
 }
 
-export class RecentView implements ViewBehaviour {
-  readonly kind = 'recent';
+/**
+ * A smart view: the project's requests in an order the view picks, grouped
+ * under headings (a day, "Never sent"…) and shown as a timeline. The order
+ * is the point, so it can't be sorted, reordered or coloured.
+ */
+abstract class SmartViewBase implements ViewBehaviour {
   readonly main = 'requests';
-  readonly title = 'Recent';
   readonly canReorder = false;
   readonly canColour = false;
+  readonly sortable = false;
   readonly survivesProjectSwitch = true;
   inspect = inspectRequest;
+
+  abstract readonly title: string;
+  /** Shown when the view has no requests. */
+  abstract readonly emptyText: string;
+  /** Picks, orders and groups the project's requests. */
+  abstract arrange(requests: HttpRequestSummary[], context: ArrangeContext): RequestGroup[];
+}
+
+/** Recent: the last sent requests, newest first, by day. */
+export class RecentView extends SmartViewBase {
+  readonly kind = 'recent';
+  readonly title = 'Recent';
+  readonly emptyText = 'Requests you send show up here, newest first.';
+  arrange = arrangeRecent;
+}
+
+/** Failing: requests whose last send got an error or a 4xx/5xx. */
+export class FailingView extends SmartViewBase {
+  readonly kind = 'failing';
+  readonly title = 'Failing';
+  readonly emptyText = 'Nothing is failing. Requests whose last send got an error or a 4xx/5xx show up here.';
+  arrange = arrangeFailing;
+}
+
+/** Not used lately: never sent, or not sent for a month. */
+export class UnusedView extends SmartViewBase {
+  readonly kind = 'unused';
+  readonly title = 'Not used lately';
+  readonly emptyText = 'Every request has been sent recently.';
+  arrange = arrangeUnused;
+}
+
+/** The smart views (see SmartViewBase). */
+export type SmartView = RecentView | FailingView | UnusedView;
+
+export function isSmartView(view: WorkspaceView | null): view is SmartView {
+  return view instanceof SmartViewBase;
 }
 
 export class TrashView implements ViewBehaviour {
@@ -94,6 +149,7 @@ export class TrashView implements ViewBehaviour {
   readonly main = 'requests';
   readonly title = 'Trash bin';
   readonly canReorder = false;
+  readonly sortable = true;
   readonly canColour = false;
   readonly survivesProjectSwitch = true;
 
@@ -107,6 +163,7 @@ export class CollectionView implements ViewBehaviour {
   readonly kind = 'collection';
   readonly main = 'requests';
   readonly canReorder = true;
+  readonly sortable = true;
   readonly canColour = true;
   readonly survivesProjectSwitch = false;
   inspect = inspectRequest;
@@ -122,6 +179,7 @@ export class FavouriteView implements ViewBehaviour {
   readonly kind = 'favourite';
   readonly main = 'requests';
   readonly canReorder = true;
+  readonly sortable = true;
   readonly canColour = true;
   readonly survivesProjectSwitch = false;
   inspect = inspectRequest;
@@ -139,6 +197,7 @@ export type ScriptTab = 'script' | 'attachments';
 export class ScriptView implements ViewBehaviour {
   readonly kind = 'script';
   readonly canReorder = true;
+  readonly sortable = true;
   readonly canColour = true;
   readonly survivesProjectSwitch = false;
 

@@ -6,7 +6,7 @@ import { EnvironmentVariableApiService } from './environment-variable.service';
 import { EnvironmentApiService } from './environment.service';
 import { ChangeBus } from './change-bus.service';
 import { EnvironmentContext } from '../models/environment-context';
-import { AllRequestsView, type WorkspaceView } from '../workspace/workspace-view';
+import { AllRequestsView, isSmartView, type SmartView, type WorkspaceView } from '../workspace/workspace-view';
 import type { Collection } from './collection.service';
 import type { Project } from './project.service';
 import type { Environment } from './environment.service';
@@ -51,7 +51,11 @@ export class WorkspaceStateService {
     return view?.kind === 'script' ? view.name : null;
   });
   readonly showingAllRequests = computed(() => this.openView()?.kind === 'all');
-  readonly showingFamousRequests = computed(() => this.openView()?.kind === 'recent');
+  /** The open smart view (Recent, Failing, Not used lately), if one is open. */
+  readonly smartView = computed<SmartView | null>(() => {
+    const view = this.openView();
+    return isSmartView(view) ? view : null;
+  });
   readonly showingBin = computed(() => this.openView()?.kind === 'bin');
 
   readonly selectedIds = signal<Set<number>>(new Set());

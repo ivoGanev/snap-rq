@@ -86,14 +86,6 @@ export class RequestApiService {
     this.allRequests.set(map);
   }
 
-  async loadRecentRequests(projectId: number, limit = 50): Promise<HttpRequestSummary[]> {
-    const result = await this.commands.execute<HttpRequestSummary[]>(
-      'request.list_recent',
-      { project_id: projectId, limit },
-    );
-    return result ?? [];
-  }
-
   // -----------------------------------------------------------------------
   // API wrappers — every operation runs as a command
   // -----------------------------------------------------------------------
@@ -254,7 +246,13 @@ export class RequestApiService {
         { request: req, variables, environment_id: environmentId ?? 0 },
         data => this.setElapsed(req.id, (data as { elapsed_ms: number }).elapsed_ms),
       );
-      this.patch(req.id, { status_code: result.status_code, response_id: result.id });
+      // last_used_at as the backend stores it (Unix ns), so the smart views
+      // (Recent, Failing, Not used lately) move the request straight away.
+      this.patch(req.id, {
+        status_code: result.status_code,
+        response_id: result.id,
+        last_used_at: Date.now() * 1e6,
+      });
       this.finished$.next(result);
     } catch (err) {
       // A send that couldn't run, e.g. a locked secret variable.

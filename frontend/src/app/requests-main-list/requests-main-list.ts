@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, Injector, OnDestroy, TemplateRef, ViewChild, afterNextRender, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, OnDestroy, TemplateRef, ViewChild, afterNextRender, afterRenderEffect, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { Clipboard } from '@wailsio/runtime';
@@ -28,9 +28,26 @@ import { CodeEditor } from '../code-editor/code-editor';
 import { SelectOnFocusDirective } from '../core/directives/select-on-focus.directive';
 import { requestColorInfo } from '../core/request-colors';
 import type { WorkspaceViewKind } from '../core/workspace/workspace-view';
+import { lastResult, type LastResult, type RequestGroup } from '../core/workspace/presorted';
 
 type ColumnKey = 'name' | 'url' | 'method' | 'scripts';
 type SortDirection = 'asc' | 'desc';
+
+/**
+ * One drawn row of the list. Smart views draw their groups' headings as rows
+ * too (same height, so virtual scrolling still works); the other views draw
+ * request rows only.
+ */
+type DisplayRow =
+  | { kind: 'heading'; key: string; label: string; count: number }
+  | {
+      kind: 'request';
+      req: HttpRequestSummary;
+      /** Smart views: the timeline dot's colour, and where the group's line starts and ends. */
+      result?: LastResult;
+      groupFirst?: boolean;
+      groupLast?: boolean;
+    };
 
 interface SelectedCell {
   requestId: number;
@@ -109,7 +126,6 @@ export class RequestsMainList {
 
   readonly requestSearchQuery = signal('');
   readonly scriptRequests = signal<HttpRequestSummary[]>([]);
-  readonly recentRequests = signal<HttpRequestSummary[]>([]);
   /** The collection the cURL import dialog is open for, or null when it is closed. */
   readonly curlImportFor = signal<Collection | null>(null);
 
@@ -126,6 +142,19 @@ export class RequestsMainList {
 
   readonly sortColumn = signal<ColumnKey | null>(null);
   readonly sortDirection = signal<SortDirection>('asc');
+  /** Smart views keep their own order: their column headers don't sort. */
+  readonly sortable = computed(() => this.state.view()?.sortable ?? true);
+
+  /** Ticks each minute, so the smart views' day headings and "30+ days" stay true. */
+  private readonly now = signal(Date.now());
+
+  /** The open smart view's groups (null in the other views). */
+  readonly smartGroups = computed<RequestGroup[] | null>(() => {
+    const view = this.state.smartView();
+    const projectId = this.state.selectedProject()?.id;
+    if (!view || projectId === undefined) return null;
+    return view.arrange(this.requestApi.forProject(projectId), { now: this.now() });
+  });
 
   // ---------- View ordering capability ----------
 
@@ -283,8 +312,9 @@ export class RequestsMainList {
       return this.requestApi.forCollection(collection.id);
     }
 
-    if (this.state.showingFamousRequests()) {
-      return this.recentRequests();
+    const groups = this.smartGroups();
+    if (groups) {
+      return groups.flatMap((g) => g.requests);
     }
 
     if (this.state.showingAllRequests()) {
@@ -314,8 +344,9 @@ export class RequestsMainList {
     if (collection) {
       return groupKey.collection(collection.id);
     }
-    if (this.state.showingFamousRequests()) {
-      return projectId !== null ? groupKey.famous(projectId) : null;
+    const smart = this.state.smartView();
+    if (smart) {
+      return projectId !== null ? groupKey.smart(projectId, smart.kind) : null;
     }
     if (this.state.showingAllRequests()) {
       return projectId !== null ? groupKey.allRequests(projectId) : null;
@@ -323,18 +354,29 @@ export class RequestsMainList {
     return null;
   });
 
+  /** A smart view's groups narrowed by the search (keeping their order), or null. */
+  readonly filteredGroups = computed<RequestGroup[] | null>(() => {
+    const groups = this.smartGroups();
+    if (!groups) return null;
+    const query = this.requestSearchQuery().trim().toLowerCase();
+    if (!query) return groups;
+    return groups
+      .map((g) => ({ ...g, requests: g.requests.filter((req) => matchesQuery(req, query)) }))
+      .filter((g) => g.requests.length > 0);
+  });
+
   readonly filteredActiveRequests = computed<HttpRequestSummary[]>(() => {
+    const groups = this.filteredGroups();
+    if (groups) {
+      return groups.flatMap((g) => g.requests);
+    }
+
     const query = this.requestSearchQuery().trim().toLowerCase();
     const requests = this.activeRequests();
     let result = requests;
 
     if (query) {
-      result = requests.filter(
-        (req) =>
-          req.name.toLowerCase().includes(query) ||
-          req.url.toLowerCase().includes(query) ||
-          req.method.toLowerCase().includes(query),
-      );
+      result = requests.filter((req) => matchesQuery(req, query));
     }
 
     const sortCol = this.sortColumn();
@@ -344,6 +386,41 @@ export class RequestsMainList {
 
     return result;
   });
+
+  /** What the list draws: request rows, plus a smart view's group headings. */
+  readonly displayRows = computed<DisplayRow[]>(() => {
+    const groups = this.filteredGroups();
+    if (!groups) {
+      return this.filteredActiveRequests().map((req): DisplayRow => ({ kind: 'request', req }));
+    }
+    const rows: DisplayRow[] = [];
+    for (const group of groups) {
+      rows.push({ kind: 'heading', key: group.key, label: group.label, count: group.requests.length });
+      group.requests.forEach((req, i) =>
+        rows.push({
+          kind: 'request',
+          req,
+          result: lastResult(req),
+          groupFirst: i === 0,
+          groupLast: i === group.requests.length - 1,
+        }),
+      );
+    }
+    return rows;
+  });
+
+  /** A request's position among the drawn rows (headings included), for scrolling. */
+  private readonly displayIndexById = computed(() => {
+    const index = new Map<number, number>();
+    this.displayRows().forEach((row, i) => {
+      if (row.kind === 'request') index.set(row.req.id, i);
+    });
+    return index;
+  });
+
+  protected trackRow(_: number, row: DisplayRow): string | number {
+    return row.kind === 'heading' ? `heading:${row.key}` : row.req.id;
+  }
 
   /**
    * Precomputed per-row view state, keyed by request id, for template bindings.
@@ -414,12 +491,15 @@ export class RequestsMainList {
   });
 
   constructor() {
+    const clock = setInterval(() => this.now.set(Date.now()), 60_000);
+    inject(DestroyRef).onDestroy(() => clearInterval(clock));
+
     effect(() => {
       const collection = this.state.selectedCollection();
       const favourite = this.state.selectedFavouriteCollection();
       const script = this.state.selectedScript();
       const showAll = this.state.showingAllRequests();
-      const showFamous = this.state.showingFamousRequests();
+      const smart = this.state.smartView()?.kind ?? null;
       const showBin = this.state.showingBin();
       const project = this.state.selectedProject();
 
@@ -433,7 +513,7 @@ export class RequestsMainList {
 
       const version = ++this.loadVersion;
       this.requestSearchQuery.set('');
-      if (showFamous) {
+      if (smart) {
         this.sortColumn.set(null);
         this.sortDirection.set('asc');
       }
@@ -455,7 +535,7 @@ export class RequestsMainList {
           favourite?.id ?? null,
           script,
           showAll,
-          showFamous,
+          smart,
           showBin,
           project?.id ?? null,
           nextKey,
@@ -484,7 +564,7 @@ export class RequestsMainList {
           this.state.selectedFavouriteCollection()?.id ?? null,
           this.state.selectedScript(),
           this.state.showingAllRequests(),
-          this.state.showingFamousRequests(),
+          this.state.smartView()?.kind ?? null,
           this.state.showingBin(),
           this.state.selectedProject()?.id ?? null,
           this.activeGroupKey(),
@@ -494,10 +574,13 @@ export class RequestsMainList {
       });
     });
 
-    effect(() => {
+    // Measured after rendering: the header cells' positions change with the
+    // column widths, the window, and the smart views' extra timeline column.
+    afterRenderEffect(() => {
       this.methodColumnWidth();
       this.nameColumnWidth();
       this.resizeTick();
+      this.smartGroups() !== null;
       const methodCell = this.methodHeaderCell()?.nativeElement;
       const nameCell = this.nameHeaderCell()?.nativeElement;
       if (!methodCell || !nameCell) return;
@@ -512,7 +595,7 @@ export class RequestsMainList {
     favouriteId: number | null,
     script: string | null,
     showAll: boolean,
-    showFamous: boolean,
+    smart: string | null,
     showBin: boolean,
     projectId: number | null,
     groupKeyOfView: string | null,
@@ -532,10 +615,11 @@ export class RequestsMainList {
         return;
       }
 
-      if (showFamous && projectId !== null) {
-        const requests = await this.requestApi.loadRecentRequests(projectId, 50);
+      // Smart views arrange the project's requests (see smartGroups).
+      if (smart && projectId !== null) {
+        const requests = this.activeRequests();
+        await this.scriptApi.loadScriptsForRequests(requests);
         if (version !== this.loadVersion) return;
-        this.recentRequests.set(requests);
         this.restoreRememberedSelection(requests, groupKeyOfView, scroll, restoreOffset);
         return;
       }
@@ -628,7 +712,7 @@ export class RequestsMainList {
     }
 
     // First visit: centre the remembered row instead of pinning it to the top.
-    const index = this.filteredActiveRequests().findIndex((r) => r.id === rememberedId);
+    const index = this.displayIndexById().get(rememberedId) ?? -1;
     if (index >= 0) {
       const viewportSize = this.viewport.getViewportSize();
       const offset = Math.max(0, index * this.rowHeight - (viewportSize - this.rowHeight) / 2);
@@ -948,17 +1032,19 @@ export class RequestsMainList {
     const rowHeight = this.rowHeight;
     // Clamp so dragging above the first row or below the last row (or past the
     // bottom edge of the content) keeps the selection within the list.
-    const index = Math.max(
+    const rows = this.displayRows();
+    const rowIndex = Math.max(
       0,
-      Math.min(
-        Math.floor((scrollOffset + relativeY) / rowHeight),
-        this.filteredActiveRequests().length - 1,
-      ),
+      Math.min(Math.floor((scrollOffset + relativeY) / rowHeight), rows.length - 1),
     );
+    // A smart view's heading row stands for the first request below it.
+    const row = rows[rowIndex]?.kind === 'heading' ? rows[rowIndex + 1] : rows[rowIndex];
+    if (row?.kind !== 'request') return;
 
     const requests = this.filteredActiveRequests();
-    const currentReq = requests[index];
-    if (!currentReq) return;
+    const currentReq = row.req;
+    const index = requests.findIndex((r) => r.id === currentReq.id);
+    if (index === -1) return;
 
     const startIndex = requests.findIndex(r => r.id === this.dragStartRowId());
     if (startIndex === -1) return;
@@ -1642,6 +1728,7 @@ export class RequestsMainList {
    * order on non-orderable views).
    */
   toggleSort(column: ColumnKey): void {
+    if (!this.sortable()) return;
     if (this.sortColumn() === column) {
       if (this.sortDirection() === 'asc') {
         this.sortDirection.set('desc');
@@ -1724,7 +1811,7 @@ export class RequestsMainList {
     // to the old list height; the rename field focuses itself when it appears.
     afterNextRender(
       () => {
-        const index = this.filteredActiveRequests().findIndex(r => r.id === req.id);
+        const index = this.displayIndexById().get(req.id) ?? -1;
         if (index < 0 || !this.viewport) return;
         this.viewport.checkViewportSize();
         const viewportSize = this.viewport.getViewportSize();
@@ -1910,4 +1997,13 @@ export class RequestsMainList {
     this.favouriteApi.requests.update(patch);
     this.scriptRequests.update(patch);
   }
+}
+
+/** Whether a request matches a (lower-cased, trimmed) search query. */
+function matchesQuery(req: HttpRequestSummary, query: string): boolean {
+  return (
+    req.name.toLowerCase().includes(query) ||
+    req.url.toLowerCase().includes(query) ||
+    req.method.toLowerCase().includes(query)
+  );
 }
