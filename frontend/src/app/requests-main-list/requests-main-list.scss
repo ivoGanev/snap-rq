@@ -190,8 +190,8 @@
   background: var(--glass-border);
 }
 
-// Every list but the trash bin has a Usage column on the right (empty by
-// default, so absent).
+// The Most used view has a Usage column on the right (empty by default, so
+// absent).
 .spreadsheet-header,
 .spreadsheet-row {
   grid-template-columns:

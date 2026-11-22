@@ -32,7 +32,7 @@ import { requestColorInfo } from '../core/request-colors';
 import type { WorkspaceViewKind } from '../core/workspace/workspace-view';
 import type { RequestGroup } from '../core/workspace/presorted';
 
-type ColumnKey = 'name' | 'url' | 'method' | 'scripts' | 'usage';
+type ColumnKey = 'name' | 'url' | 'method' | 'scripts';
 type SortDirection = 'asc' | 'desc';
 
 /**
@@ -142,8 +142,8 @@ export class RequestsMainList {
 
   /** How much each request is used lately (the Usage column's levels). */
   protected readonly usage = this.requestApi.usage;
-  /** The Usage column shows in every request list but the trash bin. */
-  readonly showUsage = computed(() => !this.state.showingBin());
+  /** The Usage column shows in the Most used view only. */
+  readonly showUsage = computed(() => this.state.smartView()?.kind === 'usage');
 
   /** Ticks each minute, so the smart views' day headings and "30+ days" stay true. */
   private readonly now = signal(Date.now());
@@ -465,7 +465,6 @@ export class RequestsMainList {
         url: false,
         method: false,
         scripts: false,
-        usage: false,
       };
       if (isSelected && selectedIds.size <= 1 && cell !== null && cell.requestId === req.id) {
         isCellSelected[cell.column] = true;
@@ -1762,17 +1761,15 @@ export class RequestsMainList {
   toggleSort(column: ColumnKey): void {
     if (!this.sortable()) return;
     if (this.sortColumn() === column) {
-      const first: SortDirection = column === 'usage' ? 'desc' : 'asc';
-      if (this.sortDirection() === first) {
-        this.sortDirection.set(first === 'asc' ? 'desc' : 'asc');
+      if (this.sortDirection() === 'asc') {
+        this.sortDirection.set('desc');
       } else {
         this.sortColumn.set(null);
         this.sortDirection.set('asc');
       }
     } else {
       this.sortColumn.set(column);
-      // Usage starts with the most used on top; the others A to Z.
-      this.sortDirection.set(column === 'usage' ? 'desc' : 'asc');
+      this.sortDirection.set('asc');
     }
   }
 
@@ -1800,10 +1797,6 @@ export class RequestsMainList {
         return a.url.localeCompare(b.url) * dir;
       case 'method':
         return a.method.localeCompare(b.method) * dir;
-      case 'usage': {
-        const usage = this.requestApi.usage();
-        return ((usage[a.id]?.score ?? 0) - (usage[b.id]?.score ?? 0)) * dir || a.name.localeCompare(b.name);
-      }
       default:
         return 0;
     }

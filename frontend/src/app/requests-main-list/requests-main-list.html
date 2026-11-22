@@ -173,25 +173,15 @@
         </button>
       </div>
       @if (showUsage()) {
-        <div
-          class="spreadsheet-header-cell spreadsheet-header-cell--usage"
-          [attr.aria-sort]="
-            sortColumn() === 'usage'
-              ? (sortDirection() === 'asc' ? 'ascending' : 'descending')
-              : null
-          "
-        >
+        <!-- Most used only, where the rows are already in usage order. -->
+        <div class="spreadsheet-header-cell spreadsheet-header-cell--usage">
           <button
             class="spreadsheet-header-button"
             type="button"
             title="How much each request is used lately"
-            [disabled]="!sortable()"
-            (click)="toggleSort('usage')"
+            disabled
           >
             <span>Usage</span>
-            @if (sortColumn() === 'usage') {
-              <span class="sort-indicator">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>
-            }
           </button>
         </div>
       }
