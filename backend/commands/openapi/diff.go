@@ -138,16 +138,19 @@ func compareFields(seed requestSeed, stored storedRequest) []fieldChange {
 		changes = append(changes, fieldChange{"body type", storedType, seedType})
 	}
 
-	// A body only counts when both sides agree on its type.
+	// A body only counts when both sides agree on its type, and the spec has
+	// one: a spec without a body (a GET, say) has nothing to say about the
+	// user's own, which applying the change would otherwise erase.
 	switch seedType {
 	case "form-data":
-		if storedType == seedType {
+		if storedType == seedType && strings.TrimSpace(seed.BodyForm) != "" {
 			if a, b := formKeys(stored.BodyForm), formKeys(seed.BodyForm); !sameList(a, b) {
 				changes = append(changes, fieldChange{"body", strings.Join(a, ", "), strings.Join(b, ", ")})
 			}
 		}
 	default:
-		if storedType == seedType && compactBody(stored.Body) != compactBody(seed.Body) {
+		if storedType == seedType && strings.TrimSpace(seed.Body) != "" &&
+			compactBody(stored.Body) != compactBody(seed.Body) {
 			changes = append(changes, fieldChange{"body", strings.TrimSpace(stored.Body), strings.TrimSpace(seed.Body)})
 		}
 	}
