@@ -1,6 +1,7 @@
 package requests
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -86,7 +87,7 @@ func (c TryScript) Run(input json.RawMessage) (any, error) {
 	if name == "" {
 		name = "script"
 	}
-	session := scripting.NewSession([]scripting.Script{{Name: name, Source: in.Content}}, env)
+	session := scripting.NewSession(context.Background(), []scripting.Script{{Name: name, Source: in.Content}}, env)
 
 	switch in.Phase {
 	case scripting.PhaseBefore:

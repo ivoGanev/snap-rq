@@ -11,6 +11,7 @@
 package commands
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -84,6 +85,8 @@ type ObservableFactory func(db *sql.DB) ObservableCommand
 type Observer struct {
 	Update func(data any)
 	Finish func(result any, err error)
+	// Context is cancelled by CommandService.Cancel.
+	Context context.Context
 }
 
 // Update is a progress event from an observable command.
@@ -136,6 +139,9 @@ func (s *CommandService) Execute(name string, payload string) (CommandExecuteRes
 func (s *CommandService) Begin(name string, payload string) (string, error) {
 	return s.runner.Begin(name, json.RawMessage(payload))
 }
+
+// Cancel stops a run started with Begin. It still finishes, with an error.
+func (s *CommandService) Cancel(runID string) { s.runner.Cancel(runID) }
 
 // Undo reverses the newest undoable run and reports what happened.
 func (s *CommandService) Undo() (UndoResult, error) { return s.runner.Undo() }

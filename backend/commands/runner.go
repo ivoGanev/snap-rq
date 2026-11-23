@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -57,6 +58,9 @@ type Runner struct {
 	lastAction string // "run", "undo" or "redo" — drives the undo toast
 	lastLabel  string
 	runSeq     int64
+
+	runsMu  sync.Mutex
+	running map[string]context.CancelFunc
 }
 
 // NewRunner returns a runner for the given database.
@@ -68,6 +72,7 @@ func NewRunner(db *sql.DB) *Runner {
 		undoable:    map[string]bool{},
 		guarded:     map[string]bool{},
 		observables: map[string]ObservableFactory{},
+		running:     map[string]context.CancelFunc{},
 	}
 }
 
@@ -206,6 +211,10 @@ func (r *Runner) Begin(name string, input json.RawMessage) (string, error) {
 	}
 	cmd := f(r.db)
 	runID := fmt.Sprintf("run-%d", atomic.AddInt64(&r.runSeq, 1))
+	ctx, cancel := context.WithCancel(context.Background())
+	r.runsMu.Lock()
+	r.running[runID] = cancel
+	r.runsMu.Unlock()
 	// The runner guarantees the lifecycle: exactly one finish per run, even
 	// when the command calls Finish twice or panics.
 	var finishOnce sync.Once
@@ -222,8 +231,10 @@ func (r *Runner) Begin(name string, input json.RawMessage) (string, error) {
 				emit([]event{{EventFinish, finish}})
 			})
 		},
+		Context: ctx,
 	}
 	go func() {
+		defer r.forgetRun(runID)
 		// A panicking command still finishes, and doesn't take the app down.
 		defer func() {
 			if p := recover(); p != nil {
@@ -233,6 +244,27 @@ func (r *Runner) Begin(name string, input json.RawMessage) (string, error) {
 		cmd.Run(input, obs)
 	}()
 	return runID, nil
+}
+
+// Cancel stops a running observable command; unknown or finished runs are
+// ignored.
+func (r *Runner) Cancel(runID string) {
+	r.runsMu.Lock()
+	cancel := r.running[runID]
+	r.runsMu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+}
+
+func (r *Runner) forgetRun(runID string) {
+	r.runsMu.Lock()
+	cancel := r.running[runID]
+	delete(r.running, runID)
+	r.runsMu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
 }
 
 func (r *Runner) runWrite(name string, info Info, factory Factory, input json.RawMessage) (any, []event, error) {

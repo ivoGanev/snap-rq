@@ -2,6 +2,7 @@ package requests
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
@@ -46,6 +47,8 @@ type sendVariable struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
+
+var errCancelled = errors.New("request cancelled")
 
 var variablePattern = regexp.MustCompile(`\{\{\s*[a-zA-Z0-9_-]+\s*\}\}`)
 
@@ -109,13 +112,21 @@ func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 	mask := func(text string) string {
 		return hideSecrets(hideSecrets(text, secretValues), env.revealed)
 	}
-	session := scripting.NewSession(scripts, env)
+	ctx := obs.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	session := scripting.NewSession(ctx, scripts, env)
 	if len(scripts) > 0 {
 		scripted := scripting.Request{
 			Method: req.Method, URL: req.URL, Body: req.Body,
 			Headers: scripting.ParseHeaders(req.RequestHeaders),
 		}
 		skipped, err := session.BeforeRequest(&scripted)
+		if ctx.Err() != nil {
+			obs.Finish(nil, errCancelled)
+			return
+		}
 		req.Method, req.URL, req.Body = scripted.Method, scripted.URL, scripted.Body
 		if scripted.Headers.Changed() {
 			req.RequestHeaders = scripted.Headers.String()
@@ -146,7 +157,7 @@ func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 	}
 
 	sent := time.Now()
-	result := c.doHTTP(req, values)
+	result := c.doHTTP(ctx, req, values)
 	result.DurationMs = time.Since(sent).Milliseconds()
 	if result.StatusCode == 0 {
 		// A local failure (bad host, timeout…): Go's message quotes the URL,
@@ -159,6 +170,11 @@ func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 		})
 	}
 	stopTicking()
+	// A cancelled send leaves no response behind.
+	if ctx.Err() != nil {
+		obs.Finish(nil, errCancelled)
+		return
+	}
 
 	result.ScriptLog = session.Log(mask)
 	c.finish(obs, result)
@@ -411,7 +427,7 @@ func headerHas(headers, name string) bool {
 
 // doHTTP runs the request and returns a response; network and build errors
 // become a status-0 response body instead of a Go error.
-func (c Send) doHTTP(req models.HttpRequest, values map[string]string) models.HttpResponse {
+func (c Send) doHTTP(ctx context.Context, req models.HttpRequest, values map[string]string) models.HttpResponse {
 	fail := func(body string) models.HttpResponse {
 		return models.HttpResponse{RequestID: req.ID, StatusCode: 0, Body: body}
 	}
@@ -434,7 +450,7 @@ func (c Send) doHTTP(req models.HttpRequest, values map[string]string) models.Ht
 		bodyReader = strings.NewReader(req.Body)
 	}
 
-	httpReq, err := http.NewRequest(method, req.URL, bodyReader)
+	httpReq, err := http.NewRequestWithContext(ctx, method, req.URL, bodyReader)
 	if err != nil {
 		return fail(fmt.Sprintf("building request: %v", err))
 	}

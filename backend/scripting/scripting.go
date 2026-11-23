@@ -6,6 +6,8 @@
 package scripting
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -135,10 +137,14 @@ type Session struct {
 	log      []models.ScriptRun
 }
 
-// NewSession prepares the scripts of one send, in run order.
-func NewSession(scripts []Script, env Env) *Session {
+// ErrCancelled is a script stopped because its send was cancelled.
+var ErrCancelled = errors.New("cancelled")
+
+// NewSession prepares the scripts of one send, in run order. Cancelling ctx
+// stops a script that is running.
+func NewSession(ctx context.Context, scripts []Script, env Env) *Session {
 	return &Session{
-		engine:   javaScript{limit: TimeLimit},
+		engine:   javaScript{limit: TimeLimit, done: ctx.Done()},
 		scripts:  scripts,
 		programs: make([]Program, len(scripts)),
 		env:      env,

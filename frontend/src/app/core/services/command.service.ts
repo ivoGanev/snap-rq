@@ -65,7 +65,12 @@ export class CommandApiService {
    * Events can arrive before Begin returns the run id (they travel on
    * another channel), so early events are kept until it does.
    */
-  run<T>(name: string, payload: object, onUpdate?: (data: unknown) => void): Promise<T> {
+  run<T>(
+    name: string,
+    payload: object,
+    onUpdate?: (data: unknown) => void,
+    signal?: AbortSignal,
+  ): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       type RunEvent =
         | { kind: 'update'; runId: string; data: unknown }
@@ -88,16 +93,24 @@ export class CommandApiService {
         else deliver(e);
       };
 
+      // A cancelled run still ends with its finish event (carrying an error).
+      const cancel = (): void => {
+        if (runId !== null) void Commands.CommandService.Cancel(runId);
+      };
+      signal?.addEventListener('abort', cancel, { once: true });
+
       const offUpdate = Events.On('command:update', (ev) => receive({ kind: 'update', ...ev.data }));
       const offFinish = Events.On('command:finish', (ev) => receive({ kind: 'finish', ...ev.data }));
       const stop = (): void => {
         offUpdate();
         offFinish();
+        signal?.removeEventListener('abort', cancel);
       };
 
       Commands.CommandService.Begin(name, JSON.stringify(payload)).then(
         (id) => {
           runId = id;
+          if (signal?.aborted) cancel();
           early.splice(0).forEach(deliver);
         },
         (err) => {

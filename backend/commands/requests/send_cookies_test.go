@@ -1,6 +1,7 @@
 package requests
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 	"net/http/httptest"
@@ -56,7 +57,7 @@ func TestSendStoresAndSendsCookies(t *testing.T) {
 	send := Send{db: db}
 
 	get := func(path string) models.HttpResponse {
-		return send.doHTTP(models.HttpRequest{ProjectID: 1, Method: "GET", URL: srv.URL + path}, nil)
+		return send.doHTTP(context.Background(), models.HttpRequest{ProjectID: 1, Method: "GET", URL: srv.URL + path}, nil)
 	}
 
 	if got := get("/whoami").Body; got != "" {
@@ -74,7 +75,7 @@ func TestSendKeepsCookiesSetDuringRedirects(t *testing.T) {
 	defer srv.Close()
 	send := Send{db: db}
 
-	resp := send.doHTTP(models.HttpRequest{ProjectID: 1, Method: "GET", URL: srv.URL + "/bounce"}, nil)
+	resp := send.doHTTP(context.Background(), models.HttpRequest{ProjectID: 1, Method: "GET", URL: srv.URL + "/bounce"}, nil)
 	if resp.Body != "hop=1" {
 		t.Errorf("redirect target saw %q, want the cookie set on the first hop", resp.Body)
 	}
@@ -86,8 +87,8 @@ func TestSendMergesWithExplicitCookieHeader(t *testing.T) {
 	defer srv.Close()
 	send := Send{db: db}
 
-	send.doHTTP(models.HttpRequest{ProjectID: 1, Method: "GET", URL: srv.URL + "/login"}, nil)
-	resp := send.doHTTP(models.HttpRequest{
+	send.doHTTP(context.Background(), models.HttpRequest{ProjectID: 1, Method: "GET", URL: srv.URL + "/login"}, nil)
+	resp := send.doHTTP(context.Background(), models.HttpRequest{
 		ProjectID: 1, Method: "GET", URL: srv.URL + "/whoami", RequestHeaders: "Cookie: manual=1",
 	}, nil)
 	if !strings.Contains(resp.Body, "manual=1") || !strings.Contains(resp.Body, "session=abc123") {
@@ -104,8 +105,8 @@ func TestSendHonoursTheCookieJarSetting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	send.doHTTP(models.HttpRequest{ProjectID: 1, Method: "GET", URL: srv.URL + "/login"}, nil)
-	if got := send.doHTTP(models.HttpRequest{ProjectID: 1, Method: "GET", URL: srv.URL + "/whoami"}, nil).Body; got != "" {
+	send.doHTTP(context.Background(), models.HttpRequest{ProjectID: 1, Method: "GET", URL: srv.URL + "/login"}, nil)
+	if got := send.doHTTP(context.Background(), models.HttpRequest{ProjectID: 1, Method: "GET", URL: srv.URL + "/whoami"}, nil).Body; got != "" {
 		t.Errorf("with the jar off the server saw %q", got)
 	}
 	var n int
