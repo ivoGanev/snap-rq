@@ -35,6 +35,9 @@ Each comes with a way to check the same thing by hand. The steps use `https://ht
    ```
    The Scripts section shows 1 passed and 1 failed, with "is a teapot" marked failed, and the console reads `token is •••••`.
 
+8. **Dropdowns open the app's own list**
+   `select.e2e.ts`. With two or three environments, open the Environment dropdown: the list is themed like the app on every platform, not the system's menu. Pick with the mouse; then with the arrow keys and Enter; Esc and a click outside close it unchanged; with the list closed, typing a letter jumps to the next environment starting with it.
+
 ## Tests worth writing
 
 Add a line when you find something a test should cover: what should happen, and why it matters. Remove it once the test exists, and add the test above if it's end-to-end.
