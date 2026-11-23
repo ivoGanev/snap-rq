@@ -31,8 +31,8 @@ type RestoreBinnedRequestInput struct {
 // BinnedRequestSnapshot captures the related data that must be recreated when a
 // binned request is restored.
 type BinnedRequestSnapshot struct {
-	Responses []BinnedResponseSnapshot `json:"responses"`
-	Scripts   []BinnedScriptSnapshot   `json:"scripts"`
+	Responses  []BinnedResponseSnapshot  `json:"responses"`
+	Scripts    []BinnedScriptSnapshot    `json:"scripts"`
 	Favourites []BinnedFavouriteSnapshot `json:"favourites"`
 }
 
@@ -44,20 +44,25 @@ type BinnedResponseSnapshot struct {
 	Body       string `json:"body"`
 	CreatedAt  string `json:"created_at"`
 	DurationMs int64  `json:"duration_ms"`
+	ScriptLog  string `json:"script_log,omitempty"`
 }
 
 // BinnedScriptSnapshot stores both the script id and name so we can try to match by
 // name if the original script was deleted and later recreated.
 type BinnedScriptSnapshot struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
+	ID        int64   `json:"id"`
+	Name      string  `json:"name"`
+	RunOrder  int     `json:"run_order,omitempty"`
+	Disabled  bool    `json:"disabled,omitempty"`
+	UserColor *string `json:"user_color,omitempty"`
 }
 
 // BinnedFavouriteSnapshot stores both the favourite collection id and name for
 // best-effort restoration.
 type BinnedFavouriteSnapshot struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
+	ID        int64   `json:"id"`
+	Name      string  `json:"name"`
+	UserColor *string `json:"user_color,omitempty"`
 }
 
 // MarshalJSON serialises the snapshot to a JSON string.

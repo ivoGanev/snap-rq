@@ -163,14 +163,15 @@ func (c Delete) writeBinRow(id int64) error {
 	// the trash snapshot stores script and favourite names, for the restore UI
 	snapshot := models.BinnedRequestSnapshot{}
 	rows, err := c.tx.Query(`
-		SELECT t.id, t.name FROM request_scripts rt JOIN scripts t ON t.id = rt.script_id
-		WHERE rt.request_id = ? ORDER BY t.name`, id)
+		SELECT t.id, t.name, rt.run_order, NOT rt.enabled, rt.user_color
+		FROM request_scripts rt JOIN scripts t ON t.id = rt.script_id
+		WHERE rt.request_id = ? ORDER BY rt.run_order, rt.id`, id)
 	if err != nil {
 		return fmt.Errorf("loading scripts: %w", err)
 	}
 	for rows.Next() {
 		var script models.BinnedScriptSnapshot
-		if err := rows.Scan(&script.ID, &script.Name); err != nil {
+		if err := rows.Scan(&script.ID, &script.Name, &script.RunOrder, &script.Disabled, &script.UserColor); err != nil {
 			rows.Close()
 			return err
 		}
@@ -179,7 +180,7 @@ func (c Delete) writeBinRow(id int64) error {
 	rows.Close()
 
 	rows, err = c.tx.Query(`
-		SELECT fc.id, fc.name FROM favourite_items fi
+		SELECT fc.id, fc.name, fi.user_color FROM favourite_items fi
 		JOIN favourite_collections fc ON fc.id = fi.favourite_collection_id
 		WHERE fi.http_request_id = ? ORDER BY fc.name`, id)
 	if err != nil {
@@ -187,7 +188,7 @@ func (c Delete) writeBinRow(id int64) error {
 	}
 	for rows.Next() {
 		var fav models.BinnedFavouriteSnapshot
-		if err := rows.Scan(&fav.ID, &fav.Name); err != nil {
+		if err := rows.Scan(&fav.ID, &fav.Name, &fav.UserColor); err != nil {
 			rows.Close()
 			return err
 		}
@@ -197,7 +198,7 @@ func (c Delete) writeBinRow(id int64) error {
 
 	// responses are part of the trash snapshot too
 	rows, err = c.tx.Query(`
-		SELECT id, COALESCE(headers, ''), status_code, COALESCE(body, ''), created_at, duration_ms
+		SELECT id, COALESCE(headers, ''), status_code, COALESCE(body, ''), created_at, duration_ms, script_log
 		FROM responses WHERE request_id = ? ORDER BY id`, id)
 	if err != nil {
 		return fmt.Errorf("loading responses: %w", err)
@@ -205,7 +206,7 @@ func (c Delete) writeBinRow(id int64) error {
 	for rows.Next() {
 		var resp models.BinnedResponseSnapshot
 		if err := rows.Scan(&resp.ID, &resp.Headers, &resp.StatusCode, &resp.Body,
-			&resp.CreatedAt, &resp.DurationMs); err != nil {
+			&resp.CreatedAt, &resp.DurationMs, &resp.ScriptLog); err != nil {
 			rows.Close()
 			return err
 		}

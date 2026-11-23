@@ -150,9 +150,9 @@ func (c Restore) restoreOne(binID, targetCollectionID int64) (models.HttpRequest
 	newestResponseID := int64(0)
 	for _, resp := range snapshot.Responses {
 		res, err := c.tx.Exec(`
-			INSERT INTO responses (request_id, headers, status_code, body, created_at, duration_ms)
-			VALUES (?, ?, ?, ?, ?, ?)`,
-			newID, resp.Headers, resp.StatusCode, resp.Body, resp.CreatedAt, resp.DurationMs)
+			INSERT INTO responses (request_id, headers, status_code, body, created_at, duration_ms, script_log)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			newID, resp.Headers, resp.StatusCode, resp.Body, resp.CreatedAt, resp.DurationMs, resp.ScriptLog)
 		if err != nil {
 			return models.HttpRequest{}, fmt.Errorf("restoring response: %w", err)
 		}
@@ -187,7 +187,8 @@ func (c Restore) restoreOne(binID, targetCollectionID int64) (models.HttpRequest
 			return models.HttpRequest{}, fmt.Errorf("looking up script: %w", err)
 		}
 		if _, err := c.tx.Exec(
-			`INSERT OR IGNORE INTO request_scripts (request_id, script_id) VALUES (?, ?)`, newID, scriptID,
+			`INSERT OR IGNORE INTO request_scripts (request_id, script_id, run_order, enabled, user_color)
+			 VALUES (?, ?, ?, ?, ?)`, newID, scriptID, script.RunOrder, !script.Disabled, script.UserColor,
 		); err != nil {
 			return models.HttpRequest{}, err
 		}
@@ -209,8 +210,9 @@ func (c Restore) restoreOne(binID, targetCollectionID int64) (models.HttpRequest
 			return models.HttpRequest{}, fmt.Errorf("looking up favourite: %w", err)
 		}
 		if _, err := c.tx.Exec(
-			`INSERT OR IGNORE INTO favourite_items (favourite_collection_id, http_request_id) VALUES (?, ?)`,
-			favID, newID,
+			`INSERT OR IGNORE INTO favourite_items (favourite_collection_id, http_request_id, user_color)
+			 VALUES (?, ?, ?)`,
+			favID, newID, fav.UserColor,
 		); err != nil {
 			return models.HttpRequest{}, err
 		}
