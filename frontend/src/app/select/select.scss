@@ -1,0 +1,103 @@
+// The host carries the call site's class (padding, background, border), so the
+// trigger inside only lays out the value and the chevron.
+:host {
+  display: inline-flex;
+  min-width: 0;
+  cursor: pointer;
+  --wails-draggable: no-drag;
+}
+
+.select-trigger {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  background: none;
+  border: none;
+  outline: none;
+  cursor: inherit;
+}
+
+.select-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.select-value.is-placeholder {
+  color: var(--muted);
+}
+
+.select-chevron {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: var(--accent-3, var(--accent));
+  transition: rotate 0.2s ease;
+}
+
+.select-chevron.is-open {
+  rotate: 180deg;
+}
+
+.select-list {
+  max-height: min(320px, 60vh);
+  margin: 0;
+  padding: var(--s-1);
+  overflow-y: auto;
+  list-style: none;
+  font-size: 0.8125rem;
+  color: var(--text);
+  background: var(--menu-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 40px var(--shadow);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.select-group {
+  padding: 8px 14px 4px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.select-option {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 8px 14px;
+  border-radius: 6px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.select-option.is-active {
+  background: var(--hover-highlight);
+}
+
+.select-option.is-selected {
+  font-weight: 600;
+  background: var(--selected-bg);
+}
+
+.select-option-label {
+  flex: 1 1 auto;
+}
+
+.select-check {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: var(--accent-3, var(--accent));
+}

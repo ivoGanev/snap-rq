@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Select, type SelectOption } from '../select/select';
 import { Dialogs } from '@wailsio/runtime';
 import { CodeEditor, type EditorVariable, type EditorLanguage } from '../code-editor/code-editor';
 
@@ -43,12 +44,22 @@ function normalize(entries: FormBodyEntry[]): FormBodyEntry[] {
  */
 @Component({
   selector: 'app-request-body-editor',
-  imports: [FormsModule, CodeEditor],
+  imports: [FormsModule, Select, CodeEditor],
   templateUrl: './request-body-editor.html',
   styleUrl: './request-body-editor.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RequestBodyEditor {
+  protected readonly bodyTypes: SelectOption<BodyKind>[] = [
+    { value: 'json', label: 'JSON' },
+    { value: 'text', label: 'Text' },
+    { value: 'form-data', label: 'Form Data' },
+  ];
+  protected readonly fieldTypes: SelectOption<FormBodyEntry['type']>[] = [
+    { value: 'text', label: 'Text' },
+    { value: 'multiline', label: 'Multi-line text' },
+    { value: 'file', label: 'File' },
+  ];
   readonly body = input<string>('');
   readonly type = input<BodyKind>('json');
   readonly bodyForm = input<string>('');

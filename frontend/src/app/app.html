@@ -8,15 +8,13 @@
 
   <div class="environment-selector">
     <span class="environment-label">Environment</span>
-    <select
+    <app-select
       class="environment-select"
-      [ngModel]="state.selectedEnvironment()?.id"
-      (ngModelChange)="onEnvironmentChange(+$event)"
-    >
-      @for (env of environments(); track env.id) {
-        <option [value]="env.id">{{ env.name }}</option>
-      }
-    </select>
+      aria-label="Environment"
+      [options]="environmentOptions()"
+      [value]="state.selectedEnvironment()?.id"
+      (valueChange)="onEnvironmentChange($event)"
+    />
     <button
       class="environment-edit"
       type="button"

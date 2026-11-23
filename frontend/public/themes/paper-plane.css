@@ -191,7 +191,7 @@
 }
 
 :root[data-theme='daylight'] .edit-input:focus,
-:root[data-theme='daylight'] .edit-select:focus,
+:root[data-theme='daylight'] .edit-select:focus-within,
 :root[data-theme='daylight'] .request-search-input:focus,
 :root[data-theme='daylight'] .script-input:focus,
 :root[data-theme='daylight'] .variable-input:focus,

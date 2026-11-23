@@ -1,6 +1,7 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { RequestApiService, type HttpRequest, type HttpRequestSummary } from '../core/services/request.service';
 import { FormsModule } from '@angular/forms';
+import { Select, type SelectOption } from '../select/select';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 
 import { FavouriteApiService } from '../core/services/favourite.service';
@@ -11,11 +12,13 @@ import { CodeEditor } from '../code-editor/code-editor';
 
 @Component({
   selector: 'app-request-editor',
-  imports: [FormsModule, RequestBodyEditor, RequestHeadersEditor, CodeEditor],
+  imports: [FormsModule, Select, RequestBodyEditor, RequestHeadersEditor, CodeEditor],
   templateUrl: './request-editor.html',
   styleUrl: './request-editor.scss',
 })
 export class RequestEditor {
+  protected readonly methods: SelectOption[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']
+    .map((method) => ({ value: method, label: method }));
   protected readonly state = inject(WorkspaceStateService);
   private readonly requestApi = inject(RequestApiService);
   private readonly favouriteApi = inject(FavouriteApiService);

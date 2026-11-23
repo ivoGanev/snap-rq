@@ -26,20 +26,13 @@
 
       <label class="edit-field">
         <span class="edit-label">Method</span>
-        <select
+        <app-select
           class="edit-select"
-          [ngModel]="draftRequest()!.method"
-          (ngModelChange)="updateRequestField('method', $event)"
-          name="reqMethod"
-        >
-          <option>GET</option>
-          <option>POST</option>
-          <option>PUT</option>
-          <option>DELETE</option>
-          <option>PATCH</option>
-          <option>HEAD</option>
-          <option>OPTIONS</option>
-        </select>
+          aria-label="Method"
+          [options]="methods"
+          [value]="draftRequest()!.method"
+          (valueChange)="updateRequestField('method', $event)"
+        />
       </label>
 
       <div class="edit-field edit-field--headers">

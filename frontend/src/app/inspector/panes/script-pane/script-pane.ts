@@ -2,6 +2,7 @@ import { Component, computed, effect, inject, input, signal, untracked } from '@
 import { Browser } from '@wailsio/runtime';
 import { InspectorHeader } from '../../inspector-header/inspector-header';
 import { ScriptLog } from '../../../script-log/script-log';
+import { Select, type SelectOption } from '../../../select/select';
 import type { InspectorContentOf } from '../../inspector';
 import { ScriptApiService } from '../../../core/services/script.service';
 import { RequestApiService, type HttpRequestSummary } from '../../../core/services/request.service';
@@ -22,7 +23,7 @@ const DONATE_URL = 'https://example.com/donate';
  */
 @Component({
   selector: 'app-script-pane',
-  imports: [InspectorHeader, ScriptLog],
+  imports: [InspectorHeader, ScriptLog, Select],
   templateUrl: './script-pane.html',
   styleUrl: './script-pane.scss',
 })
@@ -43,6 +44,10 @@ export class ScriptPane {
     return this.requestApi.forProject(this.script().project_id).filter((r) => !attachedIds.has(r.id));
   });
   protected readonly requestId = signal<number | null>(null);
+  protected readonly requestOptions = computed<SelectOption<number>[]>(() => [
+    ...this.attached().map((r) => ({ value: r.id, label: `${r.method} ${r.name}`, group: 'Attached to this script' })),
+    ...this.others().map((r) => ({ value: r.id, label: `${r.method} ${r.name}`, group: 'Other requests' })),
+  ]);
   protected readonly busy = signal(false);
   protected readonly outcome = signal<TryOutcome | null>(null);
   protected readonly failure = signal('');
@@ -68,8 +73,8 @@ export class ScriptPane {
     });
   }
 
-  protected selectRequest(value: string): void {
-    this.requestId.set(Number(value) || null);
+  protected selectRequest(id: number): void {
+    this.requestId.set(id);
     this.outcome.set(null);
   }
 

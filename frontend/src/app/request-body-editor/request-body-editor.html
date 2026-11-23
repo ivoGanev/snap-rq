@@ -4,16 +4,13 @@
       <span class="body-editor-label">Body</span>
     }
     <div class="body-mode-actions">
-      <select
+      <app-select
         class="body-type-select"
         aria-label="Body type"
-        [ngModel]="type()"
-        (ngModelChange)="setType($any($event))"
-      >
-        <option value="json">JSON</option>
-        <option value="text">Text</option>
-        <option value="form-data">Form Data</option>
-      </select>
+        [options]="bodyTypes"
+        [value]="type()"
+        (valueChange)="setType($event)"
+      />
       @if (type() === 'json') {
         <button
           class="body-format-button"
@@ -56,16 +53,13 @@
             [ngModel]="row.key"
             (ngModelChange)="setRow(i, { key: $event })"
           />
-          <select
+          <app-select
             class="form-row-type"
-            [ngModel]="row.type"
-            (ngModelChange)="setRow(i, { type: $event })"
             aria-label="Field type"
-          >
-            <option value="text">Text</option>
-            <option value="multiline">Multi-line text</option>
-            <option value="file">File</option>
-          </select>
+            [options]="fieldTypes"
+            [value]="row.type"
+            (valueChange)="setRow(i, { type: $event })"
+          />
           @if (row.type === 'file') {
             <button
               class="form-row-file"
