@@ -16,7 +16,20 @@
       </button>
     </div>
   }
-  <span class="header-spacer"></span>
+  @if (headerRequest()) {
+    <app-code-editor
+      class="header-url-editor"
+      language="text"
+      placeholder="Enter a URL"
+      [singleLine]="true"
+      [text]="urlDraft()"
+      [variables]="state.environmentVariables()"
+      (textChange)="onUrlChange($event)"
+      (submit)="sendFromUrl()"
+    ></app-code-editor>
+  } @else {
+    <span class="header-spacer"></span>
+  }
   @if (selectedRowIds().size > 1) {
     <span class="selection-count">{{ selectedRowIds().size }} selected</span>
   }

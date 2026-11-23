@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, OnDestroy, TemplateRef, ViewChild, afterNextRender, afterRenderEffect, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, OnDestroy, TemplateRef, ViewChild, afterNextRender, afterRenderEffect, computed, effect, inject, linkedSignal, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { Clipboard } from '@wailsio/runtime';
@@ -486,6 +486,36 @@ export class RequestsMainList {
     if (!cell) return null;
     return this.activeRequests().find((r) => r.id === cell.requestId) ?? null;
   });
+
+  /** The request whose URL the header edits: exactly one selected, outside the bin. */
+  protected readonly headerRequest = computed(() =>
+    !this.state.showingBin() && this.selectedRowIds().size === 1 ? this.selectedRequest() : null,
+  );
+  // Reset only when another request is selected: the saved URL coming back
+  // mid-typing would otherwise overwrite what was typed since.
+  protected readonly urlDraft = linkedSignal<number | null, string>({
+    source: () => this.headerRequest()?.id ?? null,
+    computation: () => untracked(() => this.headerRequest()?.url ?? ''),
+  });
+  private urlSaveTimer: ReturnType<typeof setTimeout> | undefined;
+
+  protected onUrlChange(url: string): void {
+    this.urlDraft.set(url);
+    clearTimeout(this.urlSaveTimer);
+    const req = this.headerRequest();
+    if (req) this.urlSaveTimer = setTimeout(() => void this.saveUrl(req, url), 400);
+  }
+
+  protected async sendFromUrl(): Promise<void> {
+    clearTimeout(this.urlSaveTimer);
+    const req = this.headerRequest();
+    if (req) await this.saveUrl(req, this.urlDraft());
+    await this.sendSelectedRequest(new Event('submit'));
+  }
+
+  private async saveUrl(req: HttpRequestSummary, url: string): Promise<void> {
+    if (url !== req.url) await this.updateRequestField(req, 'url', url);
+  }
 
   readonly selectedRequests = computed<HttpRequestSummary[]>(() => {
     const ids = this.selectedRowIds();
