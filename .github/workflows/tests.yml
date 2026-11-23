@@ -15,6 +15,10 @@ env:
   GO_VERSION: '1.25.3'
   NODE_VERSION: '22'
   WAILS_VERSION: v3.0.0-beta.12
+  # Without cgo and with the server tag, nothing here links against GTK or
+  # WebKit, so their minutes-long install is skipped. The release workflow
+  # still builds the desktop app with them.
+  CGO_ENABLED: '0'
 
 jobs:
   go:
@@ -28,13 +32,7 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: go.sum
 
-      # The backend and the wails3 CLI link against GTK and WebKit on Linux.
-      - name: Install Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
-
-      - run: go test ./backend/...
+      - run: go test -tags server ./backend/...
 
   frontend:
     name: Frontend
@@ -47,12 +45,6 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: go.sum
 
-      # The backend and the wails3 CLI link against GTK and WebKit on Linux.
-      - name: Install Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -64,7 +56,7 @@ jobs:
       - run: npm ci
         working-directory: frontend
 
-      - run: wails3 task common:generate:bindings
+      - run: wails3 task common:generate:bindings BUILD_FLAGS='-tags server'
 
       - run: npx ng test --watch=false
         working-directory: frontend
@@ -75,6 +67,9 @@ jobs:
   e2e:
     name: End to end
     runs-on: ubuntu-24.04
+    # Chromium and its system libraries come preinstalled. The tag must match
+    # @playwright/test in frontend/package-lock.json.
+    container: mcr.microsoft.com/playwright:v1.65.1-noble
     steps:
       - uses: actions/checkout@v4
 
@@ -82,12 +77,6 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: go.sum
-
-      # The backend and the wails3 CLI link against GTK and WebKit on Linux.
-      - name: Install Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
 
       - uses: actions/setup-node@v4
         with:
@@ -98,9 +87,6 @@ jobs:
       - run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
 
       - run: npm ci
-        working-directory: frontend
-
-      - run: npx playwright install --with-deps chromium
         working-directory: frontend
 
       - run: wails3 task test:e2e
