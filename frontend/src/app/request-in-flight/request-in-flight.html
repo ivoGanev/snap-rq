@@ -1,0 +1,14 @@
+<div class="in-flight" role="status" aria-live="polite">
+  <div class="flight-character" aria-hidden="true">
+    <span class="flight-pulse"><i></i><i></i><i></i></span>
+  </div>
+
+  <div class="flight-request">
+    <span class="flight-method" [attr.data-method]="method()">{{ method() }}</span>
+    <span class="flight-url" [title]="url()">{{ url() }}</span>
+  </div>
+
+  <span class="flight-elapsed">{{ elapsed() }}</span>
+
+  <button class="flight-cancel" type="button" (click)="cancel()">Cancel</button>
+</div>

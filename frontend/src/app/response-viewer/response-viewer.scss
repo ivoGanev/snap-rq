@@ -7,13 +7,6 @@
   min-height: 0;
 }
 
-.sending-indicator {
-  padding: var(--s-2) var(--s-3);
-  font-size: 0.8125rem;
-  color: var(--muted);
-  border-bottom: 1px solid var(--glass-border);
-}
-
 .response-detail {
   flex: 1 1 auto;
   display: flex;
