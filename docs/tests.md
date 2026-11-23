@@ -38,6 +38,9 @@ Each comes with a way to check the same thing by hand. The steps use `https://ht
 8. **Dropdowns open the app's own list**
    `select.e2e.ts`. With two or three environments, open the Environment dropdown: the list is themed like the app on every platform, not the system's menu. Pick with the mouse; then with the arrow keys and Enter; Esc and a click outside close it unchanged; with the list closed, typing a letter jumps to the next environment starting with it.
 
+9. **A JSON body is drawn in the theme's syntax colours**
+   `body-json-colours.e2e.ts`. Give a request the JSON body `{"name": "Ada", "age": 36, "admin": true, "team": null}` and open its Body tab, in the drawer and in Zen mode. Keys, strings, numbers, `true` and `null` each have their own colour, the same as in a JSON response, in every theme.
+
 ## Tests worth writing
 
 Add a line when you find something a test should cover: what should happen, and why it matters. Remove it once the test exists, and add the test above if it's end-to-end.
