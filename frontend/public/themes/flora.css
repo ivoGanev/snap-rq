@@ -210,11 +210,6 @@
   font-family: var(--font-display);
 }
 
-/* Column headers: a dotted pixel rule. */
-:root[data-theme='flora'] .column-header {
-  border-bottom: 3px dotted var(--mint-deep);
-}
-
 /*
  * Selection: a rose wash with a chunky left bar. !important: the request list
  * merges neighbouring selected rows with several outline rules that would

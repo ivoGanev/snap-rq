@@ -119,7 +119,7 @@ export class RequestsMainList {
   protected readonly requestFavouriteIds = this.favouriteApi.requestsMembership;
   protected readonly collections = this.collectionApi.collections;
 
-  readonly requestSearchQuery = signal('');
+  readonly requestSearchQuery = this.state.requestSearchQuery;
   readonly scriptRequests = signal<HttpRequestSummary[]>([]);
   /** The collection the cURL import dialog is open for, or null when it is closed. */
   readonly curlImportFor = signal<Collection | null>(null);
@@ -502,6 +502,13 @@ export class RequestsMainList {
   readonly availableCollectionsForMove = computed<Collection[]>(() => {
     const current = this.state.selectedCollection();
     return this.collectionApi.collections().filter((c) => c.id !== current?.id);
+  });
+
+  private readonly publishCount = effect(() => {
+    const group = this.activeGroupName();
+    this.state.requestCount.set(
+      group ? { shown: this.filteredActiveRequests().length, total: this.activeRequests().length, group } : null,
+    );
   });
 
   constructor() {

@@ -12,6 +12,7 @@
 }
 
 .top-bar {
+  position: relative;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -131,6 +132,43 @@
 .top-bar-spacer {
   flex: 1 1 auto;
   align-self: stretch;
+}
+
+// Centred on the window, not between the bar's neighbours; it lies on the
+// drag area, so it passes clicks through.
+.top-bar-count {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.top-bar-search {
+  width: 220px;
+  padding: 4px var(--s-2);
+  font-size: 0.8125rem;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  outline: none;
+  --wails-draggable: no-drag;
+}
+
+.top-bar-search:focus {
+  border-color: var(--selected-border);
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.top-bar-icon.is-active {
+  color: var(--accent);
 }
 
 .top-bar-badge {

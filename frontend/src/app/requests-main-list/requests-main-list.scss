@@ -7,14 +7,6 @@
   gap: var(--s-3);
 }
 
-.column-title {
-  font-family: var(--font-display);
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text);
-}
-
 .add-request-button {
   padding: var(--btn-pad-md);
   font-size: 0.8125rem;
@@ -50,36 +42,6 @@
 .add-request-split .add-request-button:last-child {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
-}
-
-.request-search-input {
-  width: 180px;
-  padding: 5px var(--s-2);
-  background: var(--input-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  color: var(--text);
-  font-size: 0.875rem;
-  outline: none;
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease,
-    width 0.15s ease;
-}
-
-.request-search-input:focus {
-  width: 240px;
-  border-color: var(--selected-border);
-  box-shadow: 0 0 0 2px var(--focus-ring);
-}
-
-.request-count {
-  font-family: var(--font-display);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .header-spacer {

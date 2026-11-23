@@ -16,25 +16,6 @@
       </button>
     </div>
   }
-  <h1 class="column-title">Requests</h1>
-  @if (activeGroupName()) {
-    <input
-      class="request-search-input"
-      type="text"
-      placeholder="Search requests…"
-      [ngModel]="requestSearchQuery()"
-      (ngModelChange)="requestSearchQuery.set($event)"
-    />
-    <span class="request-count">
-      {{ filteredActiveRequests().length }}
-      @if (
-        requestSearchQuery().trim() && filteredActiveRequests().length !== activeRequests().length
-      ) {
-        of {{ activeRequests().length }}
-      }
-      in {{ activeGroupName() }}
-    </span>
-  }
   <span class="header-spacer"></span>
   @if (selectedRowIds().size > 1) {
     <span class="selection-count">{{ selectedRowIds().size }} selected</span>

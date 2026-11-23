@@ -208,11 +208,6 @@
   border: 1px solid var(--pencil);
 }
 
-/* Column headers: a pencil line instead of a hairline. */
-:root[data-theme='daylight'] .column-header {
-  border-bottom: 1.5px dashed var(--pencil);
-}
-
 /*
  * Selection: a highlighter stroke across the row instead of a tinted block
  * with an outline. !important: the request list merges neighbouring selected

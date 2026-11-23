@@ -8,6 +8,10 @@ import {
   computed,
   effect,
   untracked,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Select } from './select/select';
@@ -112,6 +116,10 @@ export class App implements OnInit, AfterViewInit {
   readonly cookiesOverlayOpen = signal(false);
   protected readonly cookieCount = this.cookieApi.cookies;
   protected readonly isWindows = document.documentElement.classList.contains('platform-windows');
+  protected readonly requestCount = this.state.requestCount;
+  protected readonly searchOpen = signal(false);
+  private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
+  private readonly injector = inject(Injector);
 
   /** Keeps the jar in step with the project; a new response may have set cookies. */
   private readonly cookieSync = effect(() => {
@@ -218,6 +226,33 @@ export class App implements OnInit, AfterViewInit {
   }
 
   // ---------- Undo / redo hotkeys ----------
+
+  @HostListener('window:keydown.control.f', ['$event'])
+  @HostListener('window:keydown.meta.f', ['$event'])
+  onSearchHotkey(event: Event): void {
+    event.preventDefault();
+    this.openSearch();
+  }
+
+  protected toggleSearch(): void {
+    if (this.searchOpen()) this.closeSearch();
+    else this.openSearch();
+  }
+
+  private openSearch(): void {
+    this.searchOpen.set(true);
+    afterNextRender(() => this.searchInput()?.nativeElement.focus(), { injector: this.injector });
+  }
+
+  protected closeSearch(): void {
+    this.state.requestSearchQuery.set('');
+    this.searchOpen.set(false);
+  }
+
+  // An empty field folds away; a search in use stays open.
+  protected onSearchBlur(): void {
+    if (!this.state.requestSearchQuery().trim()) this.searchOpen.set(false);
+  }
 
   @HostListener('window:keydown.control.z', ['$event'])
   async onUndoHotkey(event: Event): Promise<void> {

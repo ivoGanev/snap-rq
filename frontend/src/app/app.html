@@ -70,6 +70,45 @@
 
   <span class="top-bar-spacer" aria-hidden="true"></span>
 
+  @if (requestCount(); as count) {
+    <span class="top-bar-count">
+      @if (state.requestSearchQuery().trim() && count.shown !== count.total) {
+        {{ count.shown }} of {{ count.total }}
+      } @else {
+        {{ count.total }}
+      }
+      in {{ count.group }}
+    </span>
+  }
+
+  @if (searchOpen()) {
+    <input
+      #searchInput
+      class="top-bar-search"
+      type="text"
+      placeholder="Search requests…"
+      aria-label="Search requests"
+      [ngModel]="state.requestSearchQuery()"
+      (ngModelChange)="state.requestSearchQuery.set($event)"
+      (keydown.escape)="closeSearch()"
+      (blur)="onSearchBlur()"
+    />
+  }
+  <button
+    class="top-bar-icon"
+    type="button"
+    [class.is-active]="state.requestSearchQuery().trim()"
+    aria-label="Search requests (Ctrl+F)"
+    title="Search requests (Ctrl+F)"
+    (click)="toggleSearch()"
+  >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+      stroke-linejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  </button>
+
   <button
     class="top-bar-icon"
     type="button"
