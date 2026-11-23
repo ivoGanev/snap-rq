@@ -298,10 +298,15 @@ func configureUpdater(app *application.App) error {
 	if err != nil {
 		return err
 	}
+	key, err := selfupdate.ReleasePublicKey()
+	if err != nil {
+		return err
+	}
 	// Headless: the settings window shows the update flow itself.
 	return app.Updater.Init(updater.Config{
 		CurrentVersion: currentVersion,
-		Providers:      []updater.Provider{gh},
+		Providers:      []updater.Provider{selfupdate.Signed(gh)},
+		PublicKey:      key,
 		Window:         updater.WindowNone,
 	})
 }
