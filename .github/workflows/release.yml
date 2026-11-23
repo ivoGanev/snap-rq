@@ -8,8 +8,10 @@ on:
         required: true
         type: string
 
+# Build jobs run third-party code (npm, Go modules, NSIS), so only the
+# publish job gets a token that can write releases.
 permissions:
-  contents: write
+  contents: read
 
 # One release at a time; never cancel a release that is already running.
 concurrency:
@@ -28,6 +30,13 @@ jobs:
     name: Validate version
     runs-on: ubuntu-latest
     steps:
+      - name: Release only from main
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "::error::Releases are built from main only, not ${GITHUB_REF}"
+            exit 1
+          fi
+
       - name: Check version format, tag and ordering
         env:
           GH_TOKEN: ${{ github.token }}
@@ -171,7 +180,18 @@ jobs:
     name: Publish GitHub Release
     needs: build
     runs-on: ubuntu-latest
+    # The environment holds the signing key and needs the owner's approval.
+    environment: release
+    permissions:
+      contents: write
     steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -183,6 +203,14 @@ jobs:
           cd release
           sha256sum * > SHA256SUMS
           cat SHA256SUMS
+
+      # Installed apps accept only files signed with this key; the tool refuses
+      # a key that doesn't match the public key built into them.
+      - name: Sign release files
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+          CGO_ENABLED: '0'
+        run: go run ./tools/releasesign sign release/*
 
       # --target pins the tag to the commit that was built, not the default branch.
       - name: Create GitHub Release

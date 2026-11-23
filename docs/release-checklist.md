@@ -14,7 +14,15 @@ The pull request checks (`.github/workflows/tests.yml`) cover the code. These ar
 
    Commit `backend/database/testdata/upgrade/<version>.db`. The versions are plain `X.Y.Z` (no `-beta` suffix): `release.yml` accepts nothing else, and the updater only follows GitHub's latest release.
 
-3. Run **Release** (Actions → Release → Run workflow) with that version.
+3. Run **Release** (Actions → Release → Run workflow) on `main` with that version. Other branches are refused.
+4. Approve the **release** environment when the publish job asks: it signs the files with the release key, then publishes them.
+
+## The signing key
+
+Installed apps install an update only if each file is signed with the key whose public half is in `backend/selfupdate/release_key.pub`. The private half is the `release` environment's `RELEASE_SIGNING_KEY` secret, with an offline copy.
+
+- **Never replace it.** Every installed copy would refuse all further updates. `tools/releasesign keygen` refuses to overwrite the key for that reason.
+- **If it leaks,** anyone who can also publish a release on the repository can ship an update. Rotating it means a release signed with the old key that carries the new public key, before the old key is retired.
 
 ## After releasing, on each platform
 
