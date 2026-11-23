@@ -448,6 +448,10 @@ func (c Send) doHTTP(ctx context.Context, req models.HttpRequest, values map[str
 		bodyReader, contentType = reader, ct
 	} else if req.Body != "" {
 		bodyReader = strings.NewReader(req.Body)
+		contentType = "application/json"
+		if normalizeBodyType(req.BodyType) == "text" {
+			contentType = "text/plain"
+		}
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, method, req.URL, bodyReader)
