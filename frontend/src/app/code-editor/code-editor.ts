@@ -81,6 +81,16 @@ const CODE_HIGHLIGHT = HighlightStyle.define([
   { tag: [t.punctuation, t.operator, t.bracket], color: 'var(--syntax-punctuation)' },
 ]);
 
+/** JSON in the theme's colours, the same as the response viewer's. */
+const JSON_HIGHLIGHT = HighlightStyle.define([
+  { tag: t.propertyName, color: 'var(--syntax-key)' },
+  { tag: t.string, color: 'var(--syntax-string)' },
+  { tag: t.number, color: 'var(--syntax-number)' },
+  { tag: t.bool, color: 'var(--syntax-boolean)' },
+  { tag: t.null, color: 'var(--syntax-null)' },
+  { tag: [t.separator, t.brace, t.squareBracket], color: 'var(--syntax-punctuation)' },
+]);
+
 const VARIABLE_QUOTED_REGEX = /"\{\{\s*(\w+)\s*\}\}"/g;
 const VARIABLE_UNQUOTED_REGEX = /\{\{\s*(\w+)\s*\}\}/g;
 const INDENT = '  ';
@@ -419,6 +429,7 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
     const parse = jsonParseLinter();
     return [
       json(),
+      syntaxHighlighting(JSON_HIGHLIGHT),
       linter(
         (view) => {
           if (view.state.doc.length === 0 || view.state.doc.toString().trim() === '') {
