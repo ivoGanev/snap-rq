@@ -15,11 +15,15 @@ import (
 // req/res and ctx from here. goja has no modules, so a script defines its
 // hooks as plain functions named beforeRequest and afterResponse.
 
-type javaScript struct{ limit time.Duration }
+type javaScript struct {
+	limit time.Duration
+	done  <-chan struct{}
+}
 
 type jsProgram struct {
 	vm     *goja.Runtime
 	limit  time.Duration
+	done   <-chan struct{}
 	ctx    *Context // the call in progress; console writes here
 	before goja.Callable
 	after  goja.Callable
@@ -45,7 +49,7 @@ function __snaprqExpect(actual) {
 `
 
 func (e javaScript) Load(script Script, ctx *Context) (Program, error) {
-	p := &jsProgram{vm: goja.New(), limit: e.limit, ctx: ctx}
+	p := &jsProgram{vm: goja.New(), limit: e.limit, done: e.done, ctx: ctx}
 	p.installConsole()
 	if _, err := p.vm.RunString(prelude); err != nil {
 		return nil, fmt.Errorf("preparing the script runtime: %w", err)
@@ -221,7 +225,16 @@ func (p *jsProgram) guard(fn func() error) error {
 	timer := time.AfterFunc(p.limit, func() {
 		p.vm.Interrupt(fmt.Sprintf("timed out after %s", p.limit))
 	})
+	finished := make(chan struct{})
+	go func() {
+		select {
+		case <-p.done:
+			p.vm.Interrupt(ErrCancelled)
+		case <-finished:
+		}
+	}()
 	err := fn()
+	close(finished)
 	timer.Stop()
 	p.vm.ClearInterrupt()
 	if err == nil {
@@ -229,6 +242,9 @@ func (p *jsProgram) guard(fn func() error) error {
 	}
 	var interrupted *goja.InterruptedError
 	if errors.As(err, &interrupted) {
+		if interrupted.Value() == ErrCancelled {
+			return ErrCancelled
+		}
 		return fmt.Errorf("timed out after %s", p.limit)
 	}
 	return errors.New(errorMessage(err))

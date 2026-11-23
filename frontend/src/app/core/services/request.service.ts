@@ -51,7 +51,7 @@ export class RequestApiService {
   readonly finished$ = new Subject<HttpResponse>();
 
   /** Sends in flight per request id (sending again while in flight is fine). */
-  private readonly inFlight = new Map<number, number>();
+  private readonly inFlight = new Map<number, Set<AbortController>>();
 
   get(id: number): HttpRequestSummary | undefined {
     return this.allRequests()[id];
@@ -250,12 +250,13 @@ export class RequestApiService {
    * is in flight until its run finishes, whatever the outcome.
    */
   async send(req: HttpRequest, variables: EnvironmentVariableValue[], environmentId: number | null): Promise<void> {
-    this.startSending(req.id);
+    const sending = this.startSending(req.id);
     try {
       const result = await this.commands.run<HttpResponse>(
         'request.send',
         { request: req, variables, environment_id: environmentId ?? 0 },
         data => this.setElapsed(req.id, (data as { elapsed_ms: number }).elapsed_ms),
+        sending.signal,
       );
       // last_used_at as the backend stores it (Unix ns), so the smart views
       // (Recent, Failing, Not used lately) move the request straight away.
@@ -267,28 +268,39 @@ export class RequestApiService {
       void this.loadUsage(req.project_id);
       this.finished$.next(result);
     } catch (err) {
-      // A send that couldn't run, e.g. a locked secret variable.
-      this.toasts.show(err instanceof Error ? err.message : String(err));
+      if (sending.signal.aborted) {
+        this.toasts.show('Request cancelled');
+      } else {
+        // A send that couldn't run, e.g. a locked secret variable.
+        this.toasts.show(err instanceof Error ? err.message : String(err));
+      }
     } finally {
-      this.stopSending(req.id);
+      this.stopSending(req.id, sending);
     }
   }
 
-  private startSending(id: number): void {
-    this.inFlight.set(id, (this.inFlight.get(id) ?? 0) + 1);
+  /** Stops every send of the request still in flight; none of them saves a response. */
+  cancel(requestId: number): void {
+    for (const sending of this.inFlight.get(requestId) ?? []) sending.abort();
+  }
+
+  private startSending(id: number): AbortController {
+    const sending = new AbortController();
+    const all = this.inFlight.get(id) ?? new Set<AbortController>();
+    all.add(sending);
+    this.inFlight.set(id, all);
     this.sending.update(s => ({ ...s, [id]: s[id] ?? 0 }));
+    return sending;
   }
 
   private setElapsed(id: number, ms: number): void {
     if (this.inFlight.has(id)) this.sending.update(s => ({ ...s, [id]: ms }));
   }
 
-  private stopSending(id: number): void {
-    const left = (this.inFlight.get(id) ?? 1) - 1;
-    if (left > 0) {
-      this.inFlight.set(id, left);
-      return;
-    }
+  private stopSending(id: number, sending: AbortController): void {
+    const all = this.inFlight.get(id);
+    all?.delete(sending);
+    if (all?.size) return;
     this.inFlight.delete(id);
     this.sending.update(({ [id]: _, ...rest }) => rest);
   }
