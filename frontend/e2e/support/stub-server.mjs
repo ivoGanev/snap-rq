@@ -4,6 +4,7 @@
 //   /ok             200 {"ok":true}
 //   /slow?ms=1500   200 after the given delay
 //   /status/404     that status code
+//   /echo           200 {"headers": the request's headers}
 import { createServer } from 'node:http';
 
 const port = Number(process.argv[2] ?? 9872);
@@ -16,6 +17,11 @@ createServer((req, res) => {
   };
 
   if (url.pathname === '/ok') return reply(200);
+  if (url.pathname === '/echo') {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ headers: req.headers }));
+    return;
+  }
   if (url.pathname === '/slow') {
     setTimeout(() => reply(200), Number(url.searchParams.get('ms') ?? 1000));
     return;
