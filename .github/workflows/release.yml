@@ -20,7 +20,10 @@ concurrency:
 
 env:
   APP_VERSION: ${{ github.event.inputs.version }}
-  APP_NAME: snap-rq-wails-v3
+  # The app's build output (SnapRQ.app, SnapRQ.exe; snaprq on Linux) and the
+  # lowercase prefix of the files a release publishes.
+  APP_NAME: SnapRQ
+  RELEASE_NAME: snaprq
   GO_VERSION: '1.25.3'
   NODE_VERSION: '22'
   WAILS_VERSION: v3.0.0-beta.12
@@ -139,8 +142,8 @@ jobs:
         run: |
           wails3 task windows:package VERSION="${APP_VERSION}" INSTALL_SCOPE=user
           mkdir -p release
-          cp "bin/${APP_NAME}.exe" "release/${APP_NAME}-windows-amd64.exe"
-          cp "bin/${APP_NAME}-amd64-installer.exe" "release/${APP_NAME}-windows-amd64-setup.exe"
+          cp "bin/${APP_NAME}.exe" "release/${RELEASE_NAME}-windows-amd64.exe"
+          cp "bin/${APP_NAME}-amd64-installer.exe" "release/${RELEASE_NAME}-windows-amd64-setup.exe"
 
       - name: Build and package (macOS)
         if: runner.os == 'macOS'
@@ -148,10 +151,10 @@ jobs:
         run: |
           wails3 task darwin:package:universal VERSION="${APP_VERSION}"
           wails3 task darwin:create:dmg
-          (cd bin && zip -r -y "${APP_NAME}-darwin-universal.zip" "${APP_NAME}.app")
+          (cd bin && zip -r -y "${RELEASE_NAME}-darwin-universal.zip" "${APP_NAME}.app")
           mkdir -p release
-          cp "bin/${APP_NAME}-darwin-universal.zip" release/
-          cp bin/*.dmg "release/${APP_NAME}-darwin-universal.dmg"
+          cp "bin/${RELEASE_NAME}-darwin-universal.zip" release/
+          cp bin/*.dmg "release/${RELEASE_NAME}-darwin-universal.dmg"
 
       # Packaging tasks are called one by one: `linux:package` also builds an
       # Arch package that we do not publish.
@@ -164,10 +167,10 @@ jobs:
         run: |
           wails3 task linux:create:appimage linux:create:deb linux:create:rpm VERSION="${APP_VERSION}"
           mkdir -p release
-          cp "bin/${APP_NAME}" "release/${APP_NAME}-linux-amd64"
-          cp bin/*.AppImage "release/${APP_NAME}-linux-amd64.AppImage"
-          cp bin/*.deb "release/${APP_NAME}-linux-amd64.deb"
-          cp bin/*.rpm "release/${APP_NAME}-linux-amd64.rpm"
+          cp bin/snaprq "release/${RELEASE_NAME}-linux-amd64"
+          cp bin/*.AppImage "release/${RELEASE_NAME}-linux-amd64.AppImage"
+          cp bin/*.deb "release/${RELEASE_NAME}-linux-amd64.deb"
+          cp bin/*.rpm "release/${RELEASE_NAME}-linux-amd64.rpm"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

@@ -51,6 +51,12 @@ func init() {
 }
 
 func main() {
+	if moved, err := database.MoveLegacyDataDir(); err != nil {
+		log.Printf("data folder: %v", err)
+	} else if moved {
+		log.Printf("moved the data folder to %s", database.DataDir())
+	}
+
 	// Secret variable values are encrypted with a key kept in the OS
 	// credential store (a 0600 file when there is none). A moved data folder
 	// (the e2e tests' throwaway one) keeps its own key file and never touches
@@ -130,7 +136,7 @@ func main() {
 	appService := &AppService{}
 
 	app := application.New(application.Options{
-		Name:        "snap-rq-wails-v3",
+		Name:        "SnapRQ",
 		Description: "A REST API client",
 		Services: []application.Service{
 			application.NewService(commands.NewCommandService(runner)),

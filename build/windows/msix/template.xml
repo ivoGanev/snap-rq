@@ -8,7 +8,7 @@
         AllowPromptForPassword="false">
     </Settings>
     <Installer
-        Path="snap-rq-wails-v3.exe"
+        Path="SnapRQ.exe"
         Arguments=""
         InstallLocation="C:\Program Files\My Company\My Product">
     </Installer>
@@ -18,17 +18,17 @@
         PublisherName="CN=My Company"
         PublisherDisplayName="My Company"
         Version="0.1.0.0"
-        PackageDescription="A snap-rq-wails-v3 application">
+        PackageDescription="A REST API client">
         <Capabilities>
             <Capability Name="runFullTrust" />
             
         </Capabilities>
         <Applications>
             <Application
-                Id="com.iganev.snaprqwailsv3"
-                Description="A snap-rq-wails-v3 application"
+                Id="com.iganev.snaprq"
+                Description="A REST API client"
                 DisplayName="My Product"
-                ExecutableName="snap-rq-wails-v3.exe"
+                ExecutableName="SnapRQ.exe"
                 EntryPoint="Windows.FullTrustApplication">
                 
             </Application>
@@ -43,11 +43,11 @@
             <Framework>false</Framework>
             <DisplayName>My Product</DisplayName>
             <PublisherDisplayName>My Company</PublisherDisplayName>
-            <Description>A snap-rq-wails-v3 application</Description>
+            <Description>A REST API client</Description>
             <Logo>Assets\AppIcon.png</Logo>
         </Properties>
     </PackageInformation>
-    <SaveLocation PackagePath="snap-rq-wails-v3.msix" />
+    <SaveLocation PackagePath="SnapRQ.msix" />
     <PackageIntegrity>
         <CertificatePath></CertificatePath>
     </PackageIntegrity>

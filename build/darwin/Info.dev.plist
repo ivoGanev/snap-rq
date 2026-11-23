@@ -6,7 +6,7 @@
         <key>CFBundleName</key>
             <string>SnapRQ</string>
         <key>CFBundleExecutable</key>
-            <string>snap-rq-wails-v3</string>
+            <string>SnapRQ</string>
         <key>CFBundleIdentifier</key>
             <string>com.iganev.snaprq</string>
         <key>CFBundleVersion</key>

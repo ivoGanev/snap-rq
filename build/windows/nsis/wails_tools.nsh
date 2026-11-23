@@ -5,7 +5,7 @@
 !include "FileFunc.nsh"
 
 !ifndef INFO_PROJECTNAME
-    !define INFO_PROJECTNAME "snap-rq-wails-v3"
+    !define INFO_PROJECTNAME "SnapRQ"
 !endif
 !ifndef INFO_COMPANYNAME
     !define INFO_COMPANYNAME "Ivo Ganev"

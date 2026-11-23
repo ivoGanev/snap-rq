@@ -10,9 +10,9 @@ import "strings"
 //
 // Asset names are produced by .github/workflows/release.yml:
 //
-//	snap-rq-wails-v3-windows-amd64.exe
-//	snap-rq-wails-v3-darwin-universal.zip
-//	snap-rq-wails-v3-linux-amd64
+//	snaprq-windows-amd64.exe
+//	snaprq-darwin-universal.zip
+//	snaprq-linux-amd64
 func IsUpdateAsset(name, goos, goarch string) bool {
 	n := strings.ToLower(name)
 	switch goos {
