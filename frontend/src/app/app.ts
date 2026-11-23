@@ -14,6 +14,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Select } from './select/select';
+import { WindowControls } from './window-controls/window-controls';
 import { WML } from '@wailsio/runtime';
 import { WorkspaceStateService } from './core/services/workspace-state.service';
 import { ProjectApiService, type Project } from './core/services/project.service';
@@ -54,6 +55,7 @@ import { UndoPanel } from './undo-panel/undo-panel';
   imports: [
     FormsModule,
     Select,
+    WindowControls,
     RequestGroups,
     RequestsMainList,
     ScriptEditor,
@@ -122,6 +124,7 @@ export class App implements OnInit, AfterViewInit {
   readonly variablesOverlayOpen = signal(false);
   readonly cookiesOverlayOpen = signal(false);
   protected readonly cookieCount = this.cookieApi.cookies;
+  protected readonly isWindows = document.documentElement.classList.contains('platform-windows');
 
   /** Keeps the jar in step with the project; a new response may have set cookies. */
   private readonly cookieSync = effect(() => {

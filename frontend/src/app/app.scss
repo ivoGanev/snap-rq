@@ -15,38 +15,43 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--s-3);
-  height: 44px;
+  gap: var(--s-1);
+  height: 40px;
   // Left: the logo cell (.top-bar-brand) reaches the edge.
-  padding: 0 var(--s-4) 0 0;
+  padding: 0 var(--s-3) 0 0;
   border-bottom: 1px solid var(--glass-border);
   background: var(--surface);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
 
+// Windows: the bar is the title bar. Its empty space drags the window (and
+// double-click maximises); the window controls reach the right edge.
+.top-bar.is-frameless {
+  padding-right: 0;
+  --wails-draggable: drag;
+}
+
+.top-bar.is-frameless button {
+  --wails-draggable: no-drag;
+}
+
 // The sidebar's column, continued up: as wide as the sidebar (set from its
 // measured width) with the same right border, so the drawer's line runs to
-// the top. The environment then starts where the column titles below do.
+// the top.
 .top-bar-brand {
   flex: 0 0 auto;
   align-self: stretch;
   display: flex;
   align-items: center;
   box-sizing: border-box;
+  margin-right: calc(var(--s-3) - var(--s-1));
   padding-left: var(--s-2);
   border-right: 1px solid var(--glass-border);
 }
 
-.top-bar-brand + .environment-selector {
-  // The top bar's gap plus this = the column titles' left padding.
-  margin-left: calc(var(--s-4) - var(--s-3));
-}
-
 // Shown at its exported size (30px), so it stays crisp, and centred over
-// the sidebar's 40px buttons below it (they sit var(--s-2) from the edge,
-// like the cell's left padding).
+// the sidebar's 40px buttons below it.
 .app-logo {
   flex: 0 0 auto;
   width: 30px;
@@ -56,88 +61,104 @@
   -webkit-user-drag: none;
 }
 
-.environment-selector {
+.top-bar-project {
   display: flex;
   align-items: center;
-  gap: var(--s-2);
-}
-
-.top-bar-separator {
-  flex: 1 1 auto;
-}
-
-.project-selector {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-}
-
-.project-label {
-  font-family: var(--font-display);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.project-name {
+  gap: 6px;
+  max-width: 220px;
+  padding: 5px 8px;
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--text);
-}
-
-.project-change-button {
-  padding: var(--btn-pad-md);
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--on-accent);
-  background: var(--grad);
+  background: transparent;
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: filter 0.15s ease;
-  --wails-draggable: no-drag;
-  @include btn.btn-primary;
+  transition: background 0.12s ease;
 }
 
-.environment-label {
-  font-family: var(--font-display);
-  font-size: 0.75rem;
-  font-weight: 600;
+.top-bar-project:hover {
+  background: var(--hover-highlight);
+}
+
+.top-bar-project-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.top-bar-chevron {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .environment-select {
-  min-width: 140px;
-  padding: var(--select-pad);
+  min-width: 130px;
+  margin-left: var(--s-1);
+  padding: 4px 10px;
   background: var(--input-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   color: var(--text);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   outline: none;
 }
 
-.environment-edit {
-  padding: 5px 12px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--on-accent);
-  background: var(--grad);
+.top-bar-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: filter 0.15s ease;
-  --wails-draggable: no-drag;
-  @include btn.btn-primary;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
 }
 
-.environment-edit:disabled {
-  opacity: 0.5;
+.top-bar-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.top-bar-icon:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--hover-highlight);
+}
+
+.top-bar-icon:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
+}
+
+.top-bar-spacer {
+  flex: 1 1 auto;
+  align-self: stretch;
+}
+
+.top-bar-badge {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  color: var(--on-accent);
+  background: var(--accent);
+  border-radius: 7px;
 }
 
 .app-shell {

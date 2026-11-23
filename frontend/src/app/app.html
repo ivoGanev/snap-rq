@@ -1,50 +1,65 @@
 <div class="titlebar-spacer"></div>
 
-<div class="top-bar">
+<!-- On Windows the window is frameless: this bar is its title bar. -->
+<div class="top-bar" [class.is-frameless]="isWindows">
   <!-- As wide as the sidebar below: its line continues up through here. -->
   <div class="top-bar-brand" [style.width.px]="sidebarWidthPx()">
     <img class="app-logo" src="logo.png" alt="SnapRQ" width="30" height="30" />
   </div>
 
-  <div class="environment-selector">
-    <span class="environment-label">Environment</span>
-    <app-select
-      class="environment-select"
-      aria-label="Environment"
-      [options]="environmentOptions()"
-      [value]="state.selectedEnvironment()?.id"
-      (valueChange)="onEnvironmentChange($event)"
-    />
-    <button
-      class="environment-edit"
-      type="button"
-      (click)="openVariablesOverlay()"
-      [disabled]="!state.selectedEnvironment()"
-    >
-      Edit
-    </button>
-  </div>
+  <button class="top-bar-project" type="button" title="Change project" (click)="openProjectEditor()">
+    <span class="top-bar-project-name">{{ state.selectedProject()?.name ?? 'No project' }}</span>
+    <svg class="top-bar-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  </button>
 
-  <span class="top-bar-separator" aria-hidden="true"></span>
+  <app-select
+    class="environment-select"
+    aria-label="Environment"
+    [options]="environmentOptions()"
+    [value]="state.selectedEnvironment()?.id"
+    (valueChange)="onEnvironmentChange($event)"
+  />
+  <button
+    class="top-bar-icon"
+    type="button"
+    aria-label="Edit environment variables"
+    title="Edit environment variables"
+    (click)="openVariablesOverlay()"
+    [disabled]="!state.selectedEnvironment()"
+  >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+      stroke-linejoin="round" aria-hidden="true">
+      <path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z" />
+      <path d="m15 5 4 4" />
+    </svg>
+  </button>
+
+  <span class="top-bar-spacer" aria-hidden="true"></span>
 
   <button
-    class="environment-edit"
+    class="top-bar-icon top-bar-cookies"
     type="button"
+    [attr.aria-label]="'Cookies (' + cookieCount().length + ')'"
+    [title]="'Cookies (' + cookieCount().length + ')'"
     (click)="openCookiesOverlay()"
     [disabled]="!state.selectedProject()"
   >
-    Cookies ({{ cookieCount().length }})
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+      stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5" />
+      <path d="M8.5 8.5v.01M16 15.5v.01M12 12v.01M11 17v.01M7 14v.01" />
+    </svg>
+    @if (cookieCount().length) {
+      <span class="top-bar-badge">{{ cookieCount().length }}</span>
+    }
   </button>
 
-  <span class="top-bar-separator" aria-hidden="true"></span>
-
-  <div class="project-selector">
-    <span class="project-label">Project</span>
-    <span class="project-name">{{ state.selectedProject()?.name ?? 'None' }}</span>
-    <button class="project-change-button" type="button" (click)="openProjectEditor()">
-      Change project
-    </button>
-  </div>
+  @if (isWindows) {
+    <app-window-controls />
+  }
 </div>
 
 <div class="app-shell" (window:keydown.escape)="onEscapePressed()">
