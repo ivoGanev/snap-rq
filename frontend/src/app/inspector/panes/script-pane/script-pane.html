@@ -8,22 +8,14 @@
   } @else {
     <label class="try-field">
       <span class="try-label">Request</span>
-      <select class="try-select" (change)="selectRequest($any($event.target).value)">
-        @if (attached().length) {
-          <optgroup label="Attached to this script">
-            @for (r of attached(); track r.id) {
-              <option [value]="r.id" [selected]="r.id === requestId()">{{ r.method }} {{ r.name }}</option>
-            }
-          </optgroup>
-        }
-        @if (others().length) {
-          <optgroup label="Other requests">
-            @for (r of others(); track r.id) {
-              <option [value]="r.id" [selected]="r.id === requestId()">{{ r.method }} {{ r.name }}</option>
-            }
-          </optgroup>
-        }
-      </select>
+      <app-select
+        class="try-select"
+        aria-label="Request"
+        placeholder="Choose a request"
+        [options]="requestOptions()"
+        [value]="requestId()"
+        (valueChange)="selectRequest($event)"
+      />
     </label>
 
     <div class="try-actions">

@@ -192,7 +192,7 @@
 }
 
 :root[data-theme='flora'] .edit-input:focus,
-:root[data-theme='flora'] .edit-select:focus,
+:root[data-theme='flora'] .edit-select:focus-within,
 :root[data-theme='flora'] .request-search-input:focus,
 :root[data-theme='flora'] .script-input:focus,
 :root[data-theme='flora'] .variable-input:focus,

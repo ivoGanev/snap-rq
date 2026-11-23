@@ -1,0 +1,60 @@
+<button
+  #trigger
+  cdkOverlayOrigin
+  #origin="cdkOverlayOrigin"
+  class="select-trigger"
+  type="button"
+  role="combobox"
+  aria-haspopup="listbox"
+  [attr.aria-expanded]="open()"
+  [attr.aria-controls]="open() ? listId : null"
+  [attr.aria-activedescendant]="open() ? optionId(active()) : null"
+  [attr.aria-label]="ariaLabel()"
+  (click)="toggle()"
+  (keydown)="onKeydown($event)"
+>
+  <span class="select-value" [class.is-placeholder]="selectedIndex() < 0">{{ label() }}</span>
+  <svg class="select-chevron" [class.is-open]="open()" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+</button>
+
+<ng-template
+  cdkConnectedOverlay
+  [cdkConnectedOverlayOrigin]="origin"
+  [cdkConnectedOverlayOpen]="open()"
+  [cdkConnectedOverlayPositions]="positions"
+  [cdkConnectedOverlayMinWidth]="width()"
+  cdkConnectedOverlayHasBackdrop
+  cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop"
+  (backdropClick)="close()"
+  (detach)="close()"
+>
+  <ul #list class="select-list" role="listbox" [id]="listId" [attr.aria-label]="ariaLabel()">
+    @for (option of options(); track $index; let i = $index) {
+      @if (startsGroup(i); as group) {
+        <li class="select-group" role="presentation">{{ group }}</li>
+      }
+      <li
+        class="select-option"
+        role="option"
+        [id]="optionId(i)"
+        [class.is-active]="i === active()"
+        [class.is-selected]="i === selectedIndex()"
+        [attr.aria-selected]="i === selectedIndex()"
+        (pointermove)="hover(i, $event)"
+        (mousedown)="$event.preventDefault()"
+        (click)="choose(i)"
+      >
+        <span class="select-option-label">{{ option.label }}</span>
+        @if (i === selectedIndex()) {
+          <svg class="select-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12l5 5 9-10" />
+          </svg>
+        }
+      </li>
+    }
+  </ul>
+</ng-template>

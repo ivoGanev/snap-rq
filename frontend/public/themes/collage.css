@@ -244,7 +244,7 @@
 }
 
 :root[data-theme='collage'] .edit-input:focus,
-:root[data-theme='collage'] .edit-select:focus,
+:root[data-theme='collage'] .edit-select:focus-within,
 :root[data-theme='collage'] .request-search-input:focus,
 :root[data-theme='collage'] .script-input:focus,
 :root[data-theme='collage'] .variable-input:focus,

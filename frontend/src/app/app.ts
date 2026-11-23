@@ -13,6 +13,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Select } from './select/select';
 import { WML } from '@wailsio/runtime';
 import { WorkspaceStateService } from './core/services/workspace-state.service';
 import { ProjectApiService, type Project } from './core/services/project.service';
@@ -52,6 +53,7 @@ import { UndoPanel } from './undo-panel/undo-panel';
   selector: 'app-root',
   imports: [
     FormsModule,
+    Select,
     RequestGroups,
     RequestsMainList,
     ScriptEditor,
@@ -90,6 +92,9 @@ export class App implements OnInit, AfterViewInit {
 
   protected readonly projects = this.projectApi.projects;
   protected readonly environments = this.environmentApi.environments;
+  protected readonly environmentOptions = computed(() =>
+    this.environments().map((env) => ({ value: env.id, label: env.name })),
+  );
 
   readonly leftColumnWidthExpanded = signal(22);
   readonly rightColumnWidth = signal(30);
