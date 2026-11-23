@@ -132,10 +132,11 @@ type event struct {
 	data any
 }
 
-func emit(events []event) {
+// emit is a variable so tests can watch the events.
+var emit = func(events []event) {
 	app := application.Get()
 	if app == nil {
-		return // the app is not running (tests)
+		return
 	}
 	for _, e := range events {
 		app.Event.Emit(e.name, e.data)
