@@ -72,6 +72,8 @@ export class Select<T = string> {
     if (!this.options().length) return;
     this.active.set(Math.max(this.selectedIndex(), 0));
     this.open.set(true);
+    // WebKit doesn't focus a clicked button, and the keys go to the trigger.
+    this.trigger().nativeElement.focus();
   }
 
   protected close(): void {
