@@ -164,7 +164,7 @@ func main() {
 
 // appDBPath returns the same SQLite path that database.Open uses.
 func appDBPath() string {
-	return filepath.Join(xdg.DataHome, "snap-rq-wails-v3", "app.db")
+	return filepath.Join(xdg.DataHome, "SnapRQ", "app.db")
 }
 
 // getSchema returns the CREATE TABLE and CREATE INDEX statements for

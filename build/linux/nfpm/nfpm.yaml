@@ -3,7 +3,7 @@
 #
 # The lines below are called `modelines`. See `:help modeline`
 
-name: "snap-rq-wails-v3"
+name: "snaprq"
 arch: ${GOARCH}
 platform: "linux"
 version: "0.1.0"
@@ -17,12 +17,12 @@ license: "MIT"
 release: "1"
 
 contents:
-  - src: "./bin/snap-rq-wails-v3"
-    dst: "/usr/local/bin/snap-rq-wails-v3"
+  - src: "./bin/snaprq"
+    dst: "/usr/local/bin/snaprq"
   - src: "./build/appicon.png"
-    dst: "/usr/share/icons/hicolor/128x128/apps/snap-rq-wails-v3.png"
-  - src: "./build/linux/snap-rq-wails-v3.desktop"
-    dst: "/usr/share/applications/snap-rq-wails-v3.desktop"
+    dst: "/usr/share/icons/hicolor/128x128/apps/snaprq.png"
+  - src: "./build/linux/snaprq.desktop"
+    dst: "/usr/share/applications/snaprq.desktop"
 
 # Default dependencies for the GTK4 + WebKitGTK 6.0 stack (Ubuntu 24.04+ / Debian 13+)
 depends:

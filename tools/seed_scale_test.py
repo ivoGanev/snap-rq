@@ -571,7 +571,7 @@ def default_db_path() -> Path:
         base = Path.home() / "Library" / "Application Support"
     else:
         base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
-    return base / "snap-rq-wails-v3" / "app.db"
+    return base / "SnapRQ" / "app.db"
 
 
 def ensure_schema(conn: sqlite3.Connection) -> None:

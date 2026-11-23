@@ -3,11 +3,11 @@ Version=1.0
 Name=SnapRQ
 Comment=A REST API client
 # The Exec line includes %u to pass the URL to the application
-Exec=/usr/local/bin/snap-rq-wails-v3 %u
+Exec=/usr/local/bin/snaprq %u
 Terminal=false
 Type=Application
-Icon=snap-rq-wails-v3
+Icon=snaprq
 Categories=Utility;
-StartupWMClass=snap-rq-wails-v3
+StartupWMClass=snaprq
 
  
