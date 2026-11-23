@@ -36,18 +36,17 @@
   --wails-draggable: no-drag;
 }
 
-// The sidebar's column, continued up: as wide as the sidebar (set from its
-// measured width) with the same right border, so the drawer's line runs to
-// the top.
+// As wide as the sidebar (set from its measured width), so the project
+// starts where the sidebar's content does.
 .top-bar-brand {
   flex: 0 0 auto;
   align-self: stretch;
   display: flex;
   align-items: center;
+  gap: 2px;
   box-sizing: border-box;
   margin-right: calc(var(--s-3) - var(--s-1));
   padding-left: var(--s-2);
-  border-right: 1px solid var(--glass-border);
 }
 
 // Centred over the sidebar's 40px buttons below it.

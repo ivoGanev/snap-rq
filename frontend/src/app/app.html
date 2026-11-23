@@ -2,7 +2,7 @@
 
 <!-- On Windows the window is frameless: this bar is its title bar. -->
 <div class="top-bar" [class.is-frameless]="isWindows">
-  <!-- As wide as the sidebar below: its line continues up through here. -->
+  <!-- As wide as the sidebar below, so the project starts where its content does. -->
   <div class="top-bar-brand" [style.width.px]="sidebarWidthPx()">
     <button
       class="top-bar-icon top-bar-sidebar-toggle"
@@ -19,6 +19,23 @@
           <path d="M6.41 6L5 7.41 9.58 12 5 16.59 6.41 18l6-6zM14.41 6L13 7.41 17.58 12 13 16.59 14.41 18l6-6z" />
         }
       </svg>
+    </button>
+    <button
+      class="top-bar-icon top-bar-cookies"
+      type="button"
+      [attr.aria-label]="'Cookies (' + cookieCount().length + ')'"
+      [title]="'Cookies (' + cookieCount().length + ')'"
+      (click)="openCookiesOverlay()"
+      [disabled]="!state.selectedProject()"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5" />
+        <path d="M8.5 8.5v.01M16 15.5v.01M12 12v.01M11 17v.01M7 14v.01" />
+      </svg>
+      @if (cookieCount().length) {
+        <span class="top-bar-badge">{{ cookieCount().length }}</span>
+      }
     </button>
   </div>
 
@@ -53,24 +70,6 @@
   </button>
 
   <span class="top-bar-spacer" aria-hidden="true"></span>
-
-  <button
-    class="top-bar-icon top-bar-cookies"
-    type="button"
-    [attr.aria-label]="'Cookies (' + cookieCount().length + ')'"
-    [title]="'Cookies (' + cookieCount().length + ')'"
-    (click)="openCookiesOverlay()"
-    [disabled]="!state.selectedProject()"
-  >
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-      stroke-linejoin="round" aria-hidden="true">
-      <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5" />
-      <path d="M8.5 8.5v.01M16 15.5v.01M12 12v.01M11 17v.01M7 14v.01" />
-    </svg>
-    @if (cookieCount().length) {
-      <span class="top-bar-badge">{{ cookieCount().length }}</span>
-    }
-  </button>
 
   @if (isWindows) {
     <app-window-controls />
