@@ -390,20 +390,9 @@
   border-top: 2px dashed rgba(255, 250, 240, 0.5);
 }
 
-/*
- * Send: "shoot the fish". A pale-blue paper label with a white disc behind a
- * cut-out archer, two fish on threads, and the arrow in between. The photo
- * sprites are in /collage/. Everything inside is sized in em, so the Zen mode
- * button (smaller font) scales down as a whole.
- */
+/* Send: a pale-blue paper label, tilted. */
 :root[data-theme='collage'] .send-plane {
-  --u: 16px;
-  position: relative;
-  width: 11.75em;
-  height: 4em;
-  min-height: 0;
-  padding: 0 4em 0 3.9em;
-  font-size: var(--u);
+  font-family: var(--font-hand);
   color: #3a2b25;
   background: var(--sky);
   border: 3px solid var(--paper);
@@ -418,10 +407,6 @@
     filter 0.15s ease;
 }
 
-:root[data-theme='collage'] .send-plane--success {
-  --u: 12px;
-}
-
 :root[data-theme='collage'] .send-plane:hover {
   filter: brightness(1.04);
   transform: rotate(-1deg) translateY(-1px);
@@ -434,32 +419,32 @@
     0 0 0 rgba(58, 43, 37, 0.4);
 }
 
-/* The label reads "Fire!". */
-:root[data-theme='collage'] .send-plane-text {
-  position: relative;
-  z-index: 3;
-  font-size: 0;
+:root[data-theme='collage'] .flight-pulse {
+  display: none;
 }
 
-:root[data-theme='collage'] .send-plane-text::after {
-  content: 'Fire!';
-  font-family: var(--font-hand);
-  font-size: calc(var(--u) * 1.2);
-  letter-spacing: 0.02em;
-  color: #3a2b25;
-  text-shadow: 1px 1px 0 rgba(255, 250, 240, 0.9);
-}
-
-:root[data-theme='collage'] .send-scene {
+/*
+ * While a request is sent: a cut-out archer in front of a white disc looses
+ * arrow after arrow at two fish on threads. Sized in em so --u scales it all;
+ * the photo sprites are in /collage/.
+ */
+:root[data-theme='collage'] .flight-scene {
+  --u: 18px;
   display: block;
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
+  position: relative;
+  width: 11.75em;
+  height: 4em;
+  font-size: var(--u);
+  background: var(--sky);
+  border: 3px solid var(--paper);
+  border-radius: 3px;
+  box-shadow:
+    0 0 0 1px rgba(58, 43, 37, 0.25),
+    3px 4px 0 rgba(58, 43, 37, 0.4);
+  transform: rotate(-1deg);
 }
 
-/* The white disc behind the archer, like the moon in the reference. */
-:root[data-theme='collage'] .send-scene::before {
+:root[data-theme='collage'] .flight-scene::before {
   content: '';
   position: absolute;
   left: -0.4em;
@@ -470,21 +455,7 @@
   background: var(--paper);
 }
 
-/* The burst when the arrow hits. */
-:root[data-theme='collage'] .send-scene::after {
-  content: '';
-  position: absolute;
-  left: 8.1em;
-  top: 1.5em;
-  width: 1.8em;
-  height: 1.8em;
-  margin: -0.9em 0 0 -0.9em;
-  background: #f0b43c;
-  clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
-  opacity: 0;
-}
-
-:root[data-theme='collage'] .send-archer {
+:root[data-theme='collage'] .flight-archer {
   position: absolute;
   left: 0.375em;
   bottom: -0.55em;
@@ -495,7 +466,7 @@
 }
 
 /* The bow: an arc in front of the hand, with its string. */
-:root[data-theme='collage'] .send-bow {
+:root[data-theme='collage'] .flight-bow {
   position: absolute;
   left: 2.8em;
   top: 0.2em;
@@ -505,7 +476,7 @@
   border-radius: 0 100% 100% 0 / 0 50% 50% 0;
 }
 
-:root[data-theme='collage'] .send-bow::after {
+:root[data-theme='collage'] .flight-bow::after {
   content: '';
   position: absolute;
   left: 0;
@@ -515,8 +486,7 @@
   background: rgba(58, 43, 37, 0.55);
 }
 
-/* The arrow rests nocked at the hand. */
-:root[data-theme='collage'] .send-arrow {
+:root[data-theme='collage'] .flight-arrow {
   position: absolute;
   left: 1.7em;
   top: 1.45em;
@@ -524,9 +494,10 @@
   height: 0.09em;
   background: #6b4a36;
   transform-origin: 50% 50%;
+  animation: collage-shoot 0.85s linear infinite;
 }
 
-:root[data-theme='collage'] .send-arrow::after {
+:root[data-theme='collage'] .flight-arrow::after {
   content: '';
   position: absolute;
   right: -0.28em;
@@ -537,7 +508,7 @@
   border-bottom: 0.17em solid transparent;
 }
 
-:root[data-theme='collage'] .send-arrow::before {
+:root[data-theme='collage'] .flight-arrow::before {
   content: '';
   position: absolute;
   left: 0;
@@ -549,18 +520,18 @@
   clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
-/* Fish hang by their threads; the thread is the fish's ::before. */
-:root[data-theme='collage'] .send-fish {
+/* Fish hang by their threads (the ::before) and swing nervously. */
+:root[data-theme='collage'] .flight-fish {
   position: absolute;
   background-position: center;
   background-size: 100% 100%;
   background-repeat: no-repeat;
   filter: drop-shadow(1px 1px 0 rgba(58, 43, 37, 0.3));
   transform-origin: 50% calc(var(--thread) * -1);
-  animation: collage-sway 3.4s ease-in-out infinite;
+  animation: collage-sway 0.55s ease-in-out infinite;
 }
 
-:root[data-theme='collage'] .send-fish::before {
+:root[data-theme='collage'] .flight-fish::before {
   content: '';
   position: absolute;
   left: 50%;
@@ -570,7 +541,7 @@
   background: rgba(58, 43, 37, 0.6);
 }
 
-:root[data-theme='collage'] .send-fish--a {
+:root[data-theme='collage'] .flight-fish--a {
   --thread: 0.45em;
   left: 7.55em;
   top: 0.45em;
@@ -579,15 +550,14 @@
   background-image: url('/collage/fish-a.webp');
 }
 
-:root[data-theme='collage'] .send-fish--b {
+:root[data-theme='collage'] .flight-fish--b {
   --thread: 0.9em;
   left: 9.95em;
   top: 0.9em;
   width: 1em;
   height: 2.2em;
   background-image: url('/collage/fish-b.webp');
-  animation-duration: 4.1s;
-  animation-delay: -1.2s;
+  animation-delay: -0.25s;
 }
 
 @keyframes collage-sway {
@@ -598,15 +568,6 @@
   50% {
     transform: rotate(5deg);
   }
-}
-
-/* Sending: the bow looses arrow after arrow, the fish swing nervously. */
-:root[data-theme='collage'] .send-plane.is-sending .send-arrow {
-  animation: collage-shoot 0.85s linear infinite;
-}
-
-:root[data-theme='collage'] .send-plane.is-sending .send-fish {
-  animation: collage-sway 0.55s ease-in-out infinite;
 }
 
 @keyframes collage-shoot {
@@ -624,170 +585,6 @@
   }
   100% {
     transform: translateX(3.8em);
-    opacity: 0;
-  }
-}
-
-/* Response arrived (2xx/3xx): a hit. The arrow sticks, the fish jolts. Listed
- * after the sending rules so it wins while both apply. */
-:root[data-theme='collage'] .send-plane.is-done .send-arrow {
-  animation: collage-hit 450ms ease-out forwards;
-}
-
-:root[data-theme='collage'] .send-plane.is-done .send-fish--a {
-  animation: collage-jolt 450ms ease-out;
-}
-
-:root[data-theme='collage'] .send-plane.is-done .send-scene::after {
-  animation: collage-burst 450ms steps(6) 1;
-}
-
-@keyframes collage-hit {
-  0% {
-    transform: translateX(0);
-    opacity: 1;
-  }
-  35% {
-    transform: translateX(3.8em);
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(3.8em);
-    opacity: 1;
-  }
-}
-
-@keyframes collage-jolt {
-  0%,
-  30% {
-    transform: rotate(0);
-  }
-  45% {
-    transform: rotate(-22deg);
-  }
-  65% {
-    transform: rotate(16deg);
-  }
-  85% {
-    transform: rotate(-8deg);
-  }
-  100% {
-    transform: rotate(0);
-  }
-}
-
-@keyframes collage-burst {
-  0%,
-  30% {
-    transform: scale(0.2);
-    opacity: 0;
-  }
-  45% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1.5);
-    opacity: 0;
-  }
-}
-
-/* 4xx: the fish dodges, the arrow sails past and out. */
-:root[data-theme='collage'] .send-plane.is-done.is-client-error .send-arrow {
-  animation: collage-miss 450ms ease-in forwards;
-}
-
-:root[data-theme='collage'] .send-plane.is-done.is-client-error .send-fish--a {
-  animation: collage-dodge 450ms ease-out;
-}
-
-:root[data-theme='collage'] .send-plane.is-done.is-client-error .send-scene::after {
-  animation: none;
-}
-
-@keyframes collage-miss {
-  0% {
-    transform: translateX(0);
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(8.5em);
-    opacity: 0;
-  }
-}
-
-@keyframes collage-dodge {
-  0%,
-  25% {
-    transform: translateY(0) rotate(0);
-  }
-  45% {
-    transform: translateY(-0.9em) rotate(12deg);
-  }
-  100% {
-    transform: translateY(0) rotate(0);
-  }
-}
-
-/* 5xx: the arrow boomerangs back at the archer, who flinches. */
-:root[data-theme='collage'] .send-plane.is-done.is-server-error .send-arrow {
-  animation: collage-boomerang 450ms ease-in-out forwards;
-}
-
-:root[data-theme='collage'] .send-plane.is-done.is-server-error .send-archer {
-  animation: collage-flinch 450ms ease-out;
-}
-
-:root[data-theme='collage'] .send-plane.is-done.is-server-error .send-scene::after {
-  animation: none;
-}
-
-@keyframes collage-boomerang {
-  0% {
-    transform: translateX(0) scaleX(1);
-    opacity: 1;
-  }
-  45% {
-    transform: translateX(3.8em) scaleX(1);
-  }
-  46% {
-    transform: translateX(3.8em) scaleX(-1);
-  }
-  100% {
-    transform: translateX(0.3em) scaleX(-1);
-    opacity: 1;
-  }
-}
-
-@keyframes collage-flinch {
-  0%,
-  80% {
-    transform: translateX(0);
-  }
-  90% {
-    transform: translateX(-0.2em) rotate(-4deg);
-  }
-  100% {
-    transform: translateX(0);
-  }
-}
-
-/* No response at all: the arrow drops, the fish wiggles cheekily. */
-:root[data-theme='collage'] .send-plane.is-failed .send-arrow {
-  animation: collage-drop 450ms ease-in forwards;
-}
-
-:root[data-theme='collage'] .send-plane.is-failed .send-fish--b {
-  animation: collage-sway 0.2s ease-in-out 2;
-}
-
-@keyframes collage-drop {
-  0% {
-    transform: translate(0, 0) rotate(0);
-    opacity: 1;
-  }
-  100% {
-    transform: translate(1em, 2.2em) rotate(70deg);
     opacity: 0;
   }
 }

@@ -109,11 +109,6 @@
   --syntax-csv-even: #1f2a44;
   --syntax-csv-odd: #16818f;
 
-  /* The photographed plane on Send (see send-button.scss). */
-  --send-icon-primary-width: 60px;
-  --send-icon-primary-height: 49px;
-  --send-icon-success-width: 44px;
-  --send-icon-success-height: 36px;
 
   color-scheme: light;
 }
@@ -242,125 +237,18 @@
   );
 }
 
-/* Send is a paper plane in this theme (the other themes read "Send"). */
-:root[data-theme='daylight'] .send-plane-text {
+:root[data-theme='daylight'] .flight-pulse {
   display: none;
 }
 
-:root[data-theme='daylight'] .send-plane-icon,
-:root[data-theme='daylight'] .send-plane-wind {
+/* Two hard frames, no easing: level, then nose down, and again. */
+:root[data-theme='daylight'] .flight-plane {
   display: block;
-}
-
-/* In flight, the wind behind the plane is drawn in dashed pencil. */
-:root[data-theme='daylight'] .send-plane-wind i {
-  border-top-style: dashed;
-}
-
-/* The paper plane leaves a dashed trail as it flies. */
-:root[data-theme='daylight'] .send-plane {
-  position: relative;
-}
-
-:root[data-theme='daylight'] .send-plane.is-done::after {
-  content: '';
-  position: absolute;
-  left: 30%;
-  top: 60%;
-  width: 40%;
-  border-top: 2px dashed currentColor;
-  transform: rotate(-45deg);
-  transform-origin: left;
-  opacity: 0;
-  animation: paper-plane-trail 450ms ease-out;
-  pointer-events: none;
-}
-
-@keyframes paper-plane-trail {
-  0% {
-    opacity: 0;
-    width: 0;
-  }
-  40% {
-    opacity: 0.8;
-    width: 40%;
-  }
-  100% {
-    opacity: 0;
-    width: 40%;
-  }
-}
-
-/*
- * The send button IS a real paper plane (a photographed cut-out): no box,
- * border or fill around it. Its motion is two hard frames, no easing: nose
- * down, then back up. In flight that repeats; on landing it happens once.
- */
-:root[data-theme='daylight'] .send-plane {
-  overflow: visible;
-  width: auto;
-  min-height: 0;
-  padding: 0;
-  background: none;
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  transition: transform 0.08s steps(2);
-  /* The shared button effects (edge, highlight, glow; see _buttons.scss)
-     come back on hover and press with the component's own rules, which this
-     theme can't outrank. Blank their colours instead, so no box ever shows. */
-  --btn-highlight: transparent;
-  --btn-edge: transparent;
-  --btn-glow: transparent;
-  --btn-glow-strong: transparent;
-  --btn-glow-success: transparent;
-  --btn-glow-success-strong: transparent;
-  --btn-focus: var(--pen);
-}
-
-:root[data-theme='daylight'] .send-plane:hover {
-  transform: translateY(-2px);
-}
-
-:root[data-theme='daylight'] .send-plane:active {
-  transform: translateY(2px);
-  box-shadow: none;
-}
-
-:root[data-theme='daylight'] .send-plane:focus-visible {
-  outline: 2px dashed var(--pen);
-  outline-offset: 4px;
-}
-
-:root[data-theme='daylight'] .send-plane-icon {
+  width: 180px;
+  height: 146px;
   background: url('/paper-plane/plane.webp') center / contain no-repeat;
-  filter: drop-shadow(2px 3px 2px rgba(31, 42, 68, 0.3));
-  transform-origin: 50% 50%;
-}
-
-:root[data-theme='daylight'] .send-plane-icon path {
-  display: none;
-}
-
-/* No wind lines or dashed trail: the plane just tips. */
-:root[data-theme='daylight'] .send-plane-wind {
-  display: none;
-}
-
-:root[data-theme='daylight'] .send-plane.is-done::after {
-  content: none;
-}
-
-/* In flight: level for a while, nose down for a while, level again... */
-:root[data-theme='daylight'] .send-plane.is-sending .send-plane-icon {
+  filter: drop-shadow(4px 8px 5px rgba(31, 42, 68, 0.35));
   animation: paper-plane-level-down 1.2s linear infinite;
-}
-
-/* Landing: one beat, nose down, then back up. Listed after the sending rule
- * so it wins while both apply. */
-:root[data-theme='daylight'] .send-plane.is-done .send-plane-icon,
-:root[data-theme='daylight'] .send-plane.is-failed .send-plane-icon {
-  animation: paper-plane-down-up 450ms linear 1;
 }
 
 @keyframes paper-plane-level-down {
@@ -371,16 +259,5 @@
   50%,
   100% {
     transform: rotate(10deg);
-  }
-}
-
-@keyframes paper-plane-down-up {
-  0%,
-  49.9% {
-    transform: rotate(10deg);
-  }
-  50%,
-  100% {
-    transform: rotate(0deg);
   }
 }

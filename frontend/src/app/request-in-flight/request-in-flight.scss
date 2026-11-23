@@ -25,7 +25,68 @@
   margin-bottom: var(--s-1);
 }
 
-// Default character: three pulsing dots (themes with their own hide it).
+// Themes show their character with `:root[data-theme=…] .flight-…`, which
+// outranks these scoped rules.
+.flight-plane,
+.flight-eye,
+.flight-scene,
+.flight-petals {
+  display: none;
+}
+
+// Explicit size: WebKit doesn't shrink unsized SVGs (see AGENTS.md).
+.flight-eye {
+  width: 160px;
+  height: 100px;
+  overflow: visible;
+}
+
+.flight-eye-white {
+  fill: rgba(255, 255, 255, 0.95);
+}
+
+.flight-eye-outline {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+
+.flight-eye-iris-ring {
+  fill: var(--accent-2);
+}
+
+.flight-eye-pupil {
+  fill: #0b0519;
+}
+
+.flight-eye-glint {
+  fill: #ffffff;
+}
+
+.flight-eye-lid,
+.flight-eye-iris {
+  transform-box: view-box;
+  transform-origin: 16px 10px;
+}
+
+.flight-eye-lid {
+  transform: scaleY(0.82);
+}
+
+.flight-eye-iris {
+  animation: flight-eye-scan 0.35s ease-in-out infinite alternate;
+}
+
+@keyframes flight-eye-scan {
+  from {
+    transform: translate(-6px, 0);
+  }
+  to {
+    transform: translate(6px, 0);
+  }
+}
+
 .flight-pulse {
   display: inline-flex;
   gap: 10px;
