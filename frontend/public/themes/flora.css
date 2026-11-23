@@ -230,12 +230,8 @@
   box-shadow: inset 4px 0 0 #d6336c;
 }
 
-/*
- * Send: a "SHOP NOW" style pill. Dusty brown-rose, cream pixel lettering.
- * The label stays "Send"; the plane and eye icons stay hidden.
- */
+/* Send: a "SHOP NOW" style pill. Dusty brown-rose, cream pixel lettering. */
 :root[data-theme='flora'] .send-plane {
-  position: relative;
   background: var(--button);
   color: #ffffe1;
   text-transform: uppercase;
@@ -246,34 +242,41 @@
   filter: brightness(1.08);
 }
 
-/* Pixel petals drift down the button while the request is in flight. */
-:root[data-theme='flora'] .send-plane::before,
-:root[data-theme='flora'] .send-plane::after {
-  content: '';
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  opacity: 0;
-  pointer-events: none;
+:root[data-theme='flora'] .flight-pulse {
+  display: none;
 }
 
-:root[data-theme='flora'] .send-plane.is-sending::before {
-  left: 18%;
-  top: -4px;
+:root[data-theme='flora'] .flight-petals {
+  display: block;
+  position: relative;
+  width: 160px;
+  height: 120px;
+}
+
+:root[data-theme='flora'] .flight-petals::before,
+:root[data-theme='flora'] .flight-petals::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 8px;
+  height: 8px;
+}
+
+:root[data-theme='flora'] .flight-petals::before {
+  left: 24px;
   background: var(--petal);
   box-shadow:
-    40px 6px 0 #87d6c6,
-    90px -2px 0 #ecce37;
+    48px 12px 0 #87d6c6,
+    104px -4px 0 #ecce37;
   animation: flora-petals 1s steps(6) infinite;
 }
 
-:root[data-theme='flora'] .send-plane.is-sending::after {
-  left: 48%;
-  top: -4px;
+:root[data-theme='flora'] .flight-petals::after {
+  left: 72px;
   background: #87d6c6;
   box-shadow:
-    -30px 4px 0 #ecce37,
-    46px 2px 0 var(--petal);
+    -56px 8px 0 #ecce37,
+    64px 4px 0 var(--petal);
   animation: flora-petals 1.2s steps(6) infinite 0.45s;
 }
 
@@ -283,59 +286,7 @@
     opacity: 1;
   }
   100% {
-    transform: translate(-14px, 54px);
-    opacity: 0;
-  }
-}
-
-/* No response (network error): the button shakes in pixel steps. */
-:root[data-theme='flora'] .send-plane.is-failed {
-  animation: flora-shake 450ms steps(6) 1;
-}
-
-@keyframes flora-shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  25% {
-    transform: translateX(-4px);
-  }
-  50% {
-    transform: translateX(4px);
-  }
-  75% {
-    transform: translateX(-2px);
-  }
-}
-
-/* Response arrived: a small bloom of pixel petals. Listed after the sending
- * rule so it wins while both apply. */
-:root[data-theme='flora'] .send-plane.is-done::after {
-  left: 50%;
-  top: 50%;
-  background: #f48fb1;
-  box-shadow:
-    -14px -8px 0 #d6336c,
-    14px -8px 0 #ecce37,
-    -18px 6px 0 #87d6c6,
-    16px 8px 0 #f48fb1,
-    0 -14px 0 #d6336c,
-    0 14px 0 #ecce37;
-  animation: flora-bloom 450ms steps(5) 1;
-}
-
-@keyframes flora-bloom {
-  0% {
-    transform: scale(0.2);
-    opacity: 1;
-  }
-  70% {
-    transform: scale(1.4);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1.7);
+    transform: translate(-20px, 112px);
     opacity: 0;
   }
 }

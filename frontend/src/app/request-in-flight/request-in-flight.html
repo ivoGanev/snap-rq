@@ -1,6 +1,31 @@
 <div class="in-flight" role="status" aria-live="polite">
+  <!-- Every theme's character is here; its CSS shows its own and hides the pulse. -->
   <div class="flight-character" aria-hidden="true">
     <span class="flight-pulse"><i></i><i></i><i></i></span>
+
+    <span class="flight-plane"></span>
+
+    <svg class="flight-eye" viewBox="0 0 32 20">
+      <g class="flight-eye-lid">
+        <path class="flight-eye-white" d="M2 10 Q16 -1 30 10 Q16 21 2 10 Z" />
+        <g class="flight-eye-iris">
+          <circle class="flight-eye-iris-ring" cx="16" cy="10" r="5.2" />
+          <circle class="flight-eye-pupil" cx="16" cy="10" r="2.4" />
+          <circle class="flight-eye-glint" cx="17.6" cy="8.4" r="1" />
+        </g>
+        <path class="flight-eye-outline" d="M2 10 Q16 -1 30 10 Q16 21 2 10 Z" />
+      </g>
+    </svg>
+
+    <span class="flight-scene">
+      <span class="flight-archer"></span>
+      <span class="flight-bow"></span>
+      <span class="flight-arrow"></span>
+      <span class="flight-fish flight-fish--a"></span>
+      <span class="flight-fish flight-fish--b"></span>
+    </span>
+
+    <span class="flight-petals"></span>
   </div>
 
   <div class="flight-request">

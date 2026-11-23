@@ -1,11 +1,7 @@
 import { Component, DestroyRef, computed, inject, input, signal } from '@angular/core';
 import { RequestApiService } from '../core/services/request.service';
 
-/**
- * What the inspector shows while a request is being sent: the theme's
- * character, the request, the time so far and a way to cancel. The time is
- * counted here on every frame, from when Send was clicked.
- */
+/** The clock runs here, per frame: the backend's progress ticks come about once a second. */
 @Component({
   selector: 'app-request-in-flight',
   templateUrl: './request-in-flight.html',
