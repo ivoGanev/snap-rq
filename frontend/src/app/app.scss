@@ -36,16 +36,12 @@
   --wails-draggable: no-drag;
 }
 
-// As wide as the sidebar (set from its measured width), so the project
-// starts where the sidebar's content does.
 .top-bar-brand {
   flex: 0 0 auto;
-  align-self: stretch;
   display: flex;
   align-items: center;
   gap: 2px;
-  box-sizing: border-box;
-  margin-right: calc(var(--s-3) - var(--s-1));
+  margin-right: var(--s-1);
   padding-left: var(--s-2);
 }
 

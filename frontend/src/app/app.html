@@ -2,8 +2,7 @@
 
 <!-- On Windows the window is frameless: this bar is its title bar. -->
 <div class="top-bar" [class.is-frameless]="isWindows">
-  <!-- As wide as the sidebar below, so the project starts where its content does. -->
-  <div class="top-bar-brand" [style.width.px]="sidebarWidthPx()">
+  <div class="top-bar-brand">
     <button
       class="top-bar-icon top-bar-sidebar-toggle"
       type="button"
