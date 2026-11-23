@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, inject, input, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { RequestApiService } from '../core/services/request.service';
 
 /** The clock runs here, per frame: the backend's progress ticks come about once a second. */
@@ -15,16 +15,21 @@ export class RequestInFlight {
   readonly url = input('');
 
   private readonly now = signal(Date.now());
+  // Kept after the send ends, while the view is still held on screen.
+  private readonly startedAt = linkedSignal<number | undefined, number | undefined>({
+    source: () => this.requestApi.sending()[this.requestId()],
+    computation: (startedAt, previous) => startedAt ?? previous?.value,
+  });
 
   protected readonly elapsed = computed(() => {
-    const startedAt = this.requestApi.sending()[this.requestId()];
+    const startedAt = this.startedAt();
     return startedAt === undefined ? '' : formatElapsed(this.now() - startedAt);
   });
 
   constructor() {
     let frame = 0;
     const tick = () => {
-      this.now.set(Date.now());
+      if (this.requestApi.sending()[this.requestId()] !== undefined) this.now.set(Date.now());
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);

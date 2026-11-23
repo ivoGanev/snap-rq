@@ -2,6 +2,13 @@
   flex: 1 1 auto;
   display: flex;
   min-height: 0;
+  animation: flight-appear 120ms ease-out;
+}
+
+@keyframes flight-appear {
+  from {
+    opacity: 0;
+  }
 }
 
 .in-flight {

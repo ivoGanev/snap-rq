@@ -1,8 +1,8 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { Dialogs } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
-import { RequestApiService, type HttpResponse } from '../core/services/request.service';
+import { RequestApiService, type HttpRequest, type HttpResponse } from '../core/services/request.service';
 import {
   detectResponseLanguage,
   prettifyResponseBody,
@@ -13,6 +13,13 @@ import { httpStatusClass, httpStatusText, isRequestError } from '../core/http-st
 import { ScriptLog } from '../script-log/script-log';
 import { ResponseHistory } from '../response-history/response-history';
 import { RequestInFlight } from '../request-in-flight/request-in-flight';
+
+/**
+ * Against flicker: a send that ends within SHOW_AFTER_MS never shows the
+ * in-flight view, and once shown it stays SHOW_AT_LEAST_MS.
+ */
+const SHOW_AFTER_MS = 200;
+const SHOW_AT_LEAST_MS = 500;
 
 @Component({
   selector: 'app-response-viewer',
@@ -59,11 +66,54 @@ export class ResponseViewer {
     return out;
   });
 
-  /** The selected request while it is being sent: shown instead of its responses. */
-  protected readonly inFlight = computed(() => {
+  private readonly inFlight = computed(() => {
     const request = this.state.selectedRequest();
     return request && this.requestApi.sending()[request.id] !== undefined ? request : null;
   });
+
+  /** The request whose in-flight view is shown instead of its responses. */
+  protected readonly shownInFlight = signal<HttpRequest | null>(null);
+  private shownAt = 0;
+  private inFlightTimer: ReturnType<typeof setTimeout> | undefined;
+
+  constructor() {
+    effect(() => {
+      const request = this.inFlight();
+      untracked(() => this.updateInFlightView(request));
+    });
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.inFlightTimer));
+  }
+
+  private updateInFlightView(request: HttpRequest | null): void {
+    clearTimeout(this.inFlightTimer);
+    const shown = this.shownInFlight();
+
+    if (request) {
+      // Measured from the send, so a request already running shows at once.
+      const startedAt = this.requestApi.sending()[request.id] ?? Date.now();
+      const wait = SHOW_AFTER_MS - (Date.now() - startedAt);
+      if (shown?.id === request.id || wait <= 0) {
+        this.showInFlight(request);
+        return;
+      }
+      this.shownInFlight.set(null);
+      this.inFlightTimer = setTimeout(() => this.showInFlight(request), wait);
+      return;
+    }
+
+    if (!shown) return;
+    const left = SHOW_AT_LEAST_MS - (Date.now() - this.shownAt);
+    if (shown.id !== this.state.selectedRequest()?.id || left <= 0) {
+      this.shownInFlight.set(null);
+      return;
+    }
+    this.inFlightTimer = setTimeout(() => this.shownInFlight.set(null), left);
+  }
+
+  private showInFlight(request: HttpRequest): void {
+    if (this.shownInFlight()?.id !== request.id) this.shownAt = Date.now();
+    this.shownInFlight.set(request);
+  }
 
   readonly bodyLines = computed<string[]>(() => {
     const resp = this.state.selectedResponse();

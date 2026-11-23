@@ -1,4 +1,4 @@
-@if (inFlight(); as request) {
+@if (shownInFlight(); as request) {
   <app-request-in-flight [requestId]="request.id" [method]="request.method" [url]="request.url" />
 } @else {
 @if (responses().length === 0 && !state.responsesLoading()) {
