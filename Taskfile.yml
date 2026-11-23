@@ -56,7 +56,7 @@ tasks:
         vars:
           BUILD_FLAGS: '-tags server'
       - task: test:e2e:build-frontend
-      - go build -tags server -o {{.BIN_DIR}}/snaprq-e2e{{exeExt}} .
+      - go build -tags server -buildvcs=false -o {{.BIN_DIR}}/snaprq-e2e{{exeExt}} .
       - task: test:e2e:playwright
 
   test:e2e:build-frontend:
