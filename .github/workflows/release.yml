@@ -63,6 +63,12 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
 
+      # The backend links against GTK and WebKit on Linux.
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
+
       # The frontend is type-checked by the build jobs below (bindings are
       # generated at build time), which must pass before anything is published.
       - name: Go tests
