@@ -35,37 +35,7 @@ func DataDir() string {
 	if dir := os.Getenv(DataDirEnv); dir != "" {
 		return dir
 	}
-	return filepath.Join(xdg.DataHome, dataDirName)
-}
-
-const (
-	dataDirName = "SnapRQ"
-	// The data folder's name before the app was named SnapRQ.
-	legacyDataDirName = "snap-rq-wails-v3"
-)
-
-// MoveLegacyDataDir renames the data folder from its earlier name, once, so
-// an existing profile keeps its data. It reports whether it moved anything.
-func MoveLegacyDataDir() (bool, error) {
-	if CustomDataDir() {
-		return false, nil
-	}
-	return moveLegacyDataDir(xdg.DataHome)
-}
-
-func moveLegacyDataDir(parent string) (bool, error) {
-	from := filepath.Join(parent, legacyDataDirName)
-	to := filepath.Join(parent, dataDirName)
-	if _, err := os.Stat(to); err == nil {
-		return false, nil
-	}
-	if _, err := os.Stat(from); err != nil {
-		return false, nil
-	}
-	if err := os.Rename(from, to); err != nil {
-		return false, fmt.Errorf("moving the data folder %s to %s: %w", from, to, err)
-	}
-	return true, nil
+	return filepath.Join(xdg.DataHome, "SnapRQ")
 }
 
 // CustomDataDir reports whether the data folder was moved with
