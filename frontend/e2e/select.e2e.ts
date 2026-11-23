@@ -49,4 +49,13 @@ test('a dropdown opens its own list and picks with the mouse or the keyboard', a
   await select.press('s');
   await expect(select).toHaveText('Staging');
   await expect(list).toBeHidden();
+
+  // The whole box opens it, padding included, not only the text.
+  const box = (await page.locator('app-select.environment-select').boundingBox())!;
+  for (const [x, y] of [[box.x + 2, box.y + 2], [box.x + box.width - 2, box.y + box.height - 2]]) {
+    await page.mouse.click(x, y);
+    await expect(list).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(list).toBeHidden();
+  }
 });
