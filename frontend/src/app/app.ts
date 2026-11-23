@@ -254,7 +254,12 @@ export class App implements OnInit, AfterViewInit {
     return !!target.closest('input, textarea, select, [contenteditable], .cm-editor');
   }
 
-  openThemeSelector(): void {
+  /** Where the theme popup opens: under its button, right-aligned with it. */
+  protected readonly themePopupAt = signal({ top: 0, right: 0 });
+
+  openThemeSelector(event: MouseEvent): void {
+    const button = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.themePopupAt.set({ top: button.bottom + 6, right: window.innerWidth - button.right });
     this.themeSelectorOpen.set(true);
   }
 

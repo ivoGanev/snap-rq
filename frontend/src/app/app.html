@@ -70,6 +70,29 @@
 
   <span class="top-bar-spacer" aria-hidden="true"></span>
 
+  <button
+    class="top-bar-icon"
+    type="button"
+    aria-label="Choose theme"
+    title="Choose theme"
+    (click)="openThemeSelector($event)"
+  >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+      stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+      <path d="M2 12h20" />
+    </svg>
+  </button>
+  <button class="top-bar-icon" type="button" aria-label="Open settings" title="Settings" (click)="openSettings()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+      stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" />
+      <path
+        d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.1.38.38.7.75.87H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.13Z"
+      />
+    </svg>
+  </button>
   @if (isWindows) {
     <app-window-controls />
   }
@@ -203,68 +226,17 @@
   </div>
 }
 
-<footer class="footer">
-  <div class="footer-settings">
-    <button
-      class="footer-settings-button"
-      type="button"
-      (click)="openSettings()"
-      aria-label="Open settings"
-      title="Settings"
-    >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <circle cx="12" cy="12" r="3" />
-        <path
-          d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.1.38.38.7.75.87H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.13Z"
-        />
-      </svg>
-      <span>Settings</span>
-    </button>
-
-  </div>
-
-  <span class="footer-copyright">SnapRQ © Ivo Ganev</span>
-
-  <div class="footer-theme">
-    <button
-      class="footer-theme-button"
-      type="button"
-      (click)="openThemeSelector()"
-      aria-label="Choose theme"
-      title="Choose theme"
-    >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <circle cx="12" cy="12" r="10" />
-        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
-        <path d="M2 12h20" />
-      </svg>
-      <span>Theme</span>
-    </button>
-  </div>
-</footer>
-
-<!-- Outside the footer: its backdrop-filter would make it the containing
+<!-- Outside the top bar: its backdrop-filter would make it the containing
      block for position: fixed, shrinking the click-outside backdrop to the
-     footer's 32px. -->
+     bar. -->
 @if (themeSelectorOpen()) {
   <div class="theme-selector-backdrop" (click)="closeThemeSelector()">
-    <div class="theme-selector-popup" (click)="$event.stopPropagation()">
+    <div
+      class="theme-selector-popup"
+      [style.top.px]="themePopupAt().top"
+      [style.right.px]="themePopupAt().right"
+      (click)="$event.stopPropagation()"
+    >
       @for (theme of theme.registry(); track theme.id) {
         <button
           class="theme-option"
