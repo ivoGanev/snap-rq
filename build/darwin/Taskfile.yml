@@ -158,6 +158,8 @@ tasks:
   create:app:bundle:
     summary: Creates an `.app` bundle
     cmds:
+      # A stale Assets.car from an earlier build would outrank icons.icns.
+      - rm -rf "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
       - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
       - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
       - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
@@ -183,6 +185,8 @@ tasks:
 
   run:
     cmds:
+      # A stale Assets.car from an earlier build would outrank icons.icns.
+      - rm -rf "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
       - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"
       - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
       - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
