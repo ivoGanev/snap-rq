@@ -1,0 +1,109 @@
+:host {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+.in-flight {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  padding: var(--s-4) var(--s-3);
+  text-align: center;
+}
+
+.flight-character {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 220px;
+  height: 140px;
+  margin-bottom: var(--s-1);
+}
+
+// Default character: three pulsing dots (themes with their own hide it).
+.flight-pulse {
+  display: inline-flex;
+  gap: 10px;
+
+  i {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: flight-pulse 1.2s ease-in-out infinite;
+  }
+
+  i:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+
+  i:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+}
+
+@keyframes flight-pulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.flight-request {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-1);
+  max-width: 100%;
+  font-size: 0.8125rem;
+}
+
+.flight-method {
+  flex: 0 0 auto;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.flight-url {
+  min-width: 0;
+  font-family: var(--font-mono);
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flight-elapsed {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.flight-cancel {
+  margin-top: var(--s-1);
+  padding: 6px 20px;
+  font: inherit;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--hover-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--danger-solid);
+    color: var(--danger-text);
+  }
+}

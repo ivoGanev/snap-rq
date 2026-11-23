@@ -41,7 +41,7 @@ export class RequestApiService {
   /** Response history for the selected request. */
   readonly responses = signal<HttpResponse[]>([]);
 
-  /** Elapsed ms per in-flight request id (send timers). */
+  /** When the latest send of each request in flight started (ms since epoch). */
   readonly sending = signal<Record<number, number>>({});
 
   /** How much the project's requests are used lately, by id (absent = no usage). */
@@ -255,7 +255,7 @@ export class RequestApiService {
       const result = await this.commands.run<HttpResponse>(
         'request.send',
         { request: req, variables, environment_id: environmentId ?? 0 },
-        data => this.setElapsed(req.id, (data as { elapsed_ms: number }).elapsed_ms),
+        undefined,
         sending.signal,
       );
       // last_used_at as the backend stores it (Unix ns), so the smart views
@@ -289,12 +289,8 @@ export class RequestApiService {
     const all = this.inFlight.get(id) ?? new Set<AbortController>();
     all.add(sending);
     this.inFlight.set(id, all);
-    this.sending.update(s => ({ ...s, [id]: s[id] ?? 0 }));
+    this.sending.update(s => ({ ...s, [id]: Date.now() }));
     return sending;
-  }
-
-  private setElapsed(id: number, ms: number): void {
-    if (this.inFlight.has(id)) this.sending.update(s => ({ ...s, [id]: ms }));
   }
 
   private stopSending(id: number, sending: AbortController): void {

@@ -12,10 +12,11 @@ import { highlightLine, type SyntaxLanguage, type SyntaxToken } from '../core/hi
 import { httpStatusClass, httpStatusText, isRequestError } from '../core/http-status';
 import { ScriptLog } from '../script-log/script-log';
 import { ResponseHistory } from '../response-history/response-history';
+import { RequestInFlight } from '../request-in-flight/request-in-flight';
 
 @Component({
   selector: 'app-response-viewer',
-  imports: [CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, ScriptLog, ResponseHistory],
+  imports: [CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, ScriptLog, ResponseHistory, RequestInFlight],
   templateUrl: './response-viewer.html',
   styleUrl: './response-viewer.scss',
 })
@@ -58,11 +59,10 @@ export class ResponseViewer {
     return out;
   });
 
-  protected readonly sendingElapsed = computed<number | null>(() => {
-    const id = this.state.selectedRequest()?.id;
-    if (id === undefined) return null;
-    const ms = this.requestApi.sending()[id];
-    return ms === undefined ? null : ms;
+  /** The selected request while it is being sent: shown instead of its responses. */
+  protected readonly inFlight = computed(() => {
+    const request = this.state.selectedRequest();
+    return request && this.requestApi.sending()[request.id] !== undefined ? request : null;
   });
 
   readonly bodyLines = computed<string[]>(() => {
