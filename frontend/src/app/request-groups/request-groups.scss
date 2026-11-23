@@ -63,38 +63,6 @@ app-sidebar-rail {
   @include btn.btn-secondary;
 }
 
-.nav-toggle {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  margin: 0 var(--s-2);
-  padding: 0;
-  color: color-mix(in srgb, var(--accent-3, var(--accent)) 80%, transparent);
-  background: transparent;
-  border: none;
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition:
-    color 0.15s ease,
-    background 0.15s ease;
-  --wails-draggable: no-drag;
-  @include btn.btn-ghost;
-}
-
-.nav-toggle svg {
-  width: 18px;
-  height: 18px;
-}
-
-.nav-toggle:hover:not(:disabled) {
-  color: var(--accent-3, var(--accent));
-  background: transparent;
-  box-shadow: none;
-}
-
 .nav-button:hover:not(:disabled) {
   background: transparent;
   box-shadow: none;
@@ -114,23 +82,17 @@ app-sidebar-rail {
 .nav-button,
 .nav-button:focus,
 .nav-button:focus-visible,
-.nav-button:active,
-.nav-toggle,
-.nav-toggle:focus,
-.nav-toggle:focus-visible,
-.nav-toggle:active {
+.nav-button:active {
   outline: none !important;
   -webkit-tap-highlight-color: transparent;
 }
 
-.nav-button:active:not(:disabled),
-.nav-toggle:active:not(:disabled) {
+.nav-button:active:not(:disabled) {
   transform: none;
   border: none;
 }
 
-.nav-button:focus-visible,
-.nav-toggle:focus-visible {
+.nav-button:focus-visible {
   box-shadow: none;
 }
 
@@ -502,33 +464,5 @@ app-sidebar-rail {
 
 .nav-button.is-active::before,
 .nav-button.is-active:hover:not(:disabled)::before {
-  opacity: 1;
-}
-
-// Straight gold bar (a real element, so it is not curved by the rounded corners).
-.nav-toggle {
-  position: relative;
-}
-
-.nav-toggle::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 22%;
-  bottom: 22%;
-  width: 3px;
-  border-radius: 2px;
-  background: var(--accent-3, var(--accent));
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease;
-}
-
-.nav-toggle:hover:not(:disabled)::before,
-.nav-toggle:focus-visible::before {
-  opacity: 0.45;
-}
-
-.nav-toggle.is-active::before {
   opacity: 1;
 }

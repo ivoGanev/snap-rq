@@ -289,8 +289,7 @@
  * more specific.
  */
 :root[data-theme='collage'] .rail-button,
-:root[data-theme='collage'] .nav-button,
-:root[data-theme='collage'] .nav-toggle {
+:root[data-theme='collage'] .nav-button {
   color: #3a2b25 !important;
   background: var(--paper) !important;
   border: 2px solid var(--paper) !important;
@@ -318,14 +317,12 @@
 
 /* The gold side bar is replaced by the fill below. */
 :root[data-theme='collage'] .rail-button::before,
-:root[data-theme='collage'] .nav-button::before,
-:root[data-theme='collage'] .nav-toggle::before {
+:root[data-theme='collage'] .nav-button::before {
   display: none;
 }
 
 :root[data-theme='collage'] .rail-button:hover:not(:disabled),
-:root[data-theme='collage'] .nav-button:hover:not(:disabled),
-:root[data-theme='collage'] .nav-toggle:hover:not(:disabled) {
+:root[data-theme='collage'] .nav-button:hover:not(:disabled) {
   color: #3a2b25 !important;
   background: #ffe9a8 !important;
   box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.5) !important;
@@ -352,8 +349,7 @@
 }
 
 :root[data-theme='collage'] .rail-button svg,
-:root[data-theme='collage'] .nav-button__icon svg,
-:root[data-theme='collage'] .nav-toggle svg {
+:root[data-theme='collage'] .nav-button__icon svg {
   color: #3a2b25 !important;
   fill: #3a2b25 !important;
 }
@@ -367,16 +363,14 @@
 }
 
 :root[data-theme='collage'] .rail-button:active:not(:disabled),
-:root[data-theme='collage'] .nav-button:active:not(:disabled),
-:root[data-theme='collage'] .nav-toggle:active:not(:disabled) {
+:root[data-theme='collage'] .nav-button:active:not(:disabled) {
   transform: translate(2px, 3px) !important;
   box-shadow: 0 0 0 rgba(0, 0, 0, 0.5) !important;
   border: 2px solid var(--paper) !important;
 }
 
 :root[data-theme='collage'] .rail-button:focus-visible,
-:root[data-theme='collage'] .nav-button:focus-visible,
-:root[data-theme='collage'] .nav-toggle:focus-visible {
+:root[data-theme='collage'] .nav-button:focus-visible {
   box-shadow:
     2px 3px 0 rgba(0, 0, 0, 0.5),
     0 0 0 3px #7fd8ff !important;

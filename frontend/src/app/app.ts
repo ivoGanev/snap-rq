@@ -413,6 +413,10 @@ export class App implements OnInit, AfterViewInit {
     this.variablesOverlayOpen.set(false);
   }
 
+  toggleSidebar(): void {
+    this.state.sidebarExpanded.update((expanded) => !expanded);
+  }
+
   openProjectEditor(): void {
     this.newProjectName.set('');
     this.projectEditorOpen.set(true);

@@ -4,7 +4,22 @@
 <div class="top-bar" [class.is-frameless]="isWindows">
   <!-- As wide as the sidebar below: its line continues up through here. -->
   <div class="top-bar-brand" [style.width.px]="sidebarWidthPx()">
-    <img class="app-logo" src="logo.png" alt="SnapRQ" width="30" height="30" />
+    <button
+      class="top-bar-icon top-bar-sidebar-toggle"
+      type="button"
+      [attr.aria-label]="state.sidebarExpanded() ? 'Collapse sidebar' : 'Expand sidebar'"
+      [title]="state.sidebarExpanded() ? 'Collapse sidebar' : 'Expand sidebar'"
+      [attr.aria-expanded]="state.sidebarExpanded()"
+      (click)="toggleSidebar()"
+    >
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        @if (state.sidebarExpanded()) {
+          <path d="M17.59 18L19 16.59 14.42 12 19 7.41 17.59 6l-6 6zM9.59 18L11 16.59 6.42 12 11 7.41 9.59 6l-6 6z" />
+        } @else {
+          <path d="M6.41 6L5 7.41 9.58 12 5 16.59 6.41 18l6-6zM14.41 6L13 7.41 17.58 12 13 16.59 14.41 18l6-6z" />
+        }
+      </svg>
+    </button>
   </div>
 
   <button class="top-bar-project" type="button" title="Change project" (click)="openProjectEditor()">

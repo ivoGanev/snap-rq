@@ -50,15 +50,9 @@
   border-right: 1px solid var(--glass-border);
 }
 
-// Shown at its exported size (30px), so it stays crisp, and centred over
-// the sidebar's 40px buttons below it.
-.app-logo {
-  flex: 0 0 auto;
-  width: 30px;
-  height: 30px;
+// Centred over the sidebar's 40px buttons below it.
+.top-bar-sidebar-toggle {
   margin-left: calc((40px - 30px) / 2);
-  user-select: none;
-  -webkit-user-drag: none;
 }
 
 .top-bar-project {

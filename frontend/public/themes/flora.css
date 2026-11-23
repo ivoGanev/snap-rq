@@ -299,8 +299,7 @@
  * the components' own hover/active rules are more specific.
  */
 :root[data-theme='flora'] .rail-button,
-:root[data-theme='flora'] .nav-button,
-:root[data-theme='flora'] .nav-toggle {
+:root[data-theme='flora'] .nav-button {
   color: #8b1e3b !important;
   background: #ffffe1 !important;
   border: 2px solid var(--pen) !important;
@@ -323,14 +322,12 @@
 
 /* The gold side bar is replaced by the fill below. */
 :root[data-theme='flora'] .rail-button::before,
-:root[data-theme='flora'] .nav-button::before,
-:root[data-theme='flora'] .nav-toggle::before {
+:root[data-theme='flora'] .nav-button::before {
   display: none;
 }
 
 :root[data-theme='flora'] .rail-button:hover:not(:disabled),
-:root[data-theme='flora'] .nav-button:hover:not(:disabled),
-:root[data-theme='flora'] .nav-toggle:hover:not(:disabled) {
+:root[data-theme='flora'] .nav-button:hover:not(:disabled) {
   color: #8b1e3b !important;
   background: #fff6a8 !important;
   box-shadow: 3px 3px 0 var(--pen) !important;
@@ -357,8 +354,7 @@
 
 /* Pressed into the shadow on click, like the other buttons. */
 :root[data-theme='flora'] .rail-button:active:not(:disabled),
-:root[data-theme='flora'] .nav-button:active:not(:disabled),
-:root[data-theme='flora'] .nav-toggle:active:not(:disabled) {
+:root[data-theme='flora'] .nav-button:active:not(:disabled) {
   transform: translate(3px, 3px) !important;
   box-shadow: 0 0 0 var(--pen) !important;
   border: 2px solid var(--pen) !important;
@@ -366,8 +362,7 @@
 
 /* Keyboard focus: a green pixel ring. */
 :root[data-theme='flora'] .rail-button:focus-visible,
-:root[data-theme='flora'] .nav-button:focus-visible,
-:root[data-theme='flora'] .nav-toggle:focus-visible {
+:root[data-theme='flora'] .nav-button:focus-visible {
   box-shadow:
     3px 3px 0 var(--pen),
     0 0 0 3px #2fae8e !important;
