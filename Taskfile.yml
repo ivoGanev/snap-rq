@@ -51,7 +51,10 @@ tasks:
       (server mode) and a throwaway database. See frontend/playwright.config.ts.
       Playwright options go in ARGS, e.g. wails3 task test:e2e ARGS='-g "theme picker"'.
     cmds:
+      # Same tags as the binary below; without them, Linux needs the GTK headers.
       - task: common:generate:bindings
+        vars:
+          BUILD_FLAGS: '-tags server'
       - task: test:e2e:build-frontend
       - go build -tags server -o {{.BIN_DIR}}/snaprq-e2e{{exeExt}} .
       - task: test:e2e:playwright
