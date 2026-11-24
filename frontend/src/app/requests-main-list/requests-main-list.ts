@@ -16,6 +16,7 @@ import { RestoreToCollectionDialog } from '../dialogs/restore-to-collection-dial
 import { CurlImportDialog } from '../dialogs/curl-import-dialog/curl-import-dialog';
 import { SendButton } from '../send-button/send-button';
 import { UsageMeter } from '../usage-meter/usage-meter';
+import { LastUsedPaw } from '../last-used-paw/last-used-paw';
 import { buildSearchIndex, filterRequests, queryWords, rankRequests } from '../core/request-search';
 import { DragSessionService } from '../core/services/drag-session.service';
 import { BinApiService, type HttpBinnedRequestSummary, type RestoreInput } from '../core/services/bin.service';
@@ -84,7 +85,7 @@ const NAME_COLUMN_MIN_WIDTH = 120;
  */
 @Component({
   selector: 'app-requests-main-list',
-  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, Select, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog, CurlImportDialog, SendButton, UsageMeter],
+  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, Select, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog, CurlImportDialog, SendButton, UsageMeter, LastUsedPaw],
   templateUrl: './requests-main-list.html',
   styleUrl: './requests-main-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -422,6 +423,19 @@ export class RequestsMainList {
       for (const req of group.requests) rows.push({ kind: 'request', req });
     }
     return rows;
+  });
+
+  /** The most recently sent of the drawn requests, if any was sent. */
+  protected readonly lastUsedRequestId = computed(() => {
+    let id: number | null = null;
+    let latest = 0;
+    for (const row of this.displayRows()) {
+      if (row.kind === 'request' && row.req.last_used_at > latest) {
+        latest = row.req.last_used_at;
+        id = row.req.id;
+      }
+    }
+    return id;
   });
 
   /** A request's position among the drawn rows (headings included), for scrolling. */

@@ -8,6 +8,7 @@ import { ToastService } from './toast.service';
 import type { EntityChange } from '../models/change-set';
 import { ScriptApiService } from './script.service';
 import { FavouriteApiService } from './favourite.service';
+import { CollectionApiService } from './collection.service';
 
 export type { HttpRequest, HttpResponse, HttpRequestSummary };
 
@@ -26,6 +27,7 @@ export class RequestApiService {
   private readonly toasts = inject(ToastService);
   private readonly scriptApi = inject(ScriptApiService);
   private readonly favouriteApi = inject(FavouriteApiService);
+  private readonly collectionApi = inject(CollectionApiService);
 
   // -----------------------------------------------------------------------
   // The store: every request summary, keyed by id
@@ -260,11 +262,15 @@ export class RequestApiService {
       );
       // last_used_at as the backend stores it (Unix ns), so the smart views
       // (Recent, Failing, Not used lately) move the request straight away.
+      const sentAt = Date.now() * 1e6;
       this.patch(req.id, {
         status_code: result.status_code,
         response_id: result.id,
-        last_used_at: Date.now() * 1e6,
+        last_used_at: sentAt,
       });
+      this.collectionApi.collections.update((list) =>
+        list.map((c) => (c.id === req.collection_id ? { ...c, last_used_at: sentAt } : c)),
+      );
       void this.loadUsage(req.project_id);
       this.finished$.next(result);
     } catch (err) {
