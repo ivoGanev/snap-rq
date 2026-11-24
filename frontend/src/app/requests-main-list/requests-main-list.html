@@ -50,6 +50,14 @@
     </div>
     <app-send-button class="header-send" variant="primary" [requestId]="req.id" (send)="sendSelectedRequest($event)" />
     </div>
+  } @else if (!state.showingBin()) {
+    <div class="header-url-field is-idle" aria-hidden="true">
+      <span class="header-method-select"></span>
+      <div class="header-url-box">
+        <span class="header-url-idle">Select a request to edit its URL</span>
+      </div>
+      <span class="header-send-idle">Send</span>
+    </div>
   } @else {
     <span class="header-spacer"></span>
   }
