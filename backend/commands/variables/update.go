@@ -3,8 +3,10 @@ package variables
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 
 	"snap-rq/backend/commands"
+	"snap-rq/backend/models"
 )
 
 // update.go — change a variable's key or value. Deliberately not
@@ -40,6 +42,11 @@ func (c Update) Run(input json.RawMessage) (any, error) {
 		return nil, err
 	}
 
+	// Only a changed name is checked, so a variable saved before the rule
+	// existed can still have its value edited.
+	if in.Key != v.Key && in.Key != "" && !models.ValidVariableName(in.Key) {
+		return nil, errors.New(models.VariableNameError)
+	}
 	v.Key = in.Key
 	if in.Value != nil {
 		if v.Value, err = storedValue(c.tx, v.Secret, *in.Value); err != nil {

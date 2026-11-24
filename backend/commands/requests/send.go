@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -49,8 +48,6 @@ type sendVariable struct {
 }
 
 var errCancelled = errors.New("request cancelled")
-
-var variablePattern = regexp.MustCompile(`\{\{\s*[a-zA-Z0-9_-]+\s*\}\}`)
 
 func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 	var in struct {
@@ -267,8 +264,8 @@ func (c Send) secretsFor(environmentID int64, req models.HttpRequest) (map[strin
 	}
 	used := map[string]bool{}
 	for _, text := range []string{req.URL, req.Body, req.RequestHeaders, req.BodyForm} {
-		for _, match := range variablePattern.FindAllString(text, -1) {
-			used[strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(match, "{{"), "}}"))] = true
+		for _, match := range models.VariablePlaceholder.FindAllStringSubmatch(text, -1) {
+			used[match[1]] = true
 		}
 	}
 	if len(used) == 0 {
@@ -330,8 +327,8 @@ func interpolate(text string, values map[string]string) string {
 	if len(values) == 0 || !strings.Contains(text, "{{") {
 		return text
 	}
-	return variablePattern.ReplaceAllStringFunc(text, func(match string) string {
-		key := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(match, "{{"), "}}"))
+	return models.VariablePlaceholder.ReplaceAllStringFunc(text, func(match string) string {
+		key := models.VariablePlaceholder.FindStringSubmatch(match)[1]
 		if v, ok := values[key]; ok {
 			return v
 		}
