@@ -208,32 +208,27 @@
   --wails-draggable: no-drag;
 }
 
-// Column edges show only while the header or an edge is hovered, or a
-// column is being resized.
+// A small marker on the heading row's bottom edge, like Word's ruler, shows
+// where a column can be resized; the dragged edge keeps its colour.
 .column-separator::before {
   content: '';
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: calc(50% - 0.5px);
-  width: 1px;
-  background: var(--glass-border);
-  opacity: 0;
-  transition: opacity 0.15s ease;
+  top: 26px;
+  left: calc(50% - 4px);
+  width: 8px;
+  height: 9px;
+  background: var(--muted);
+  clip-path: polygon(0 0, 100% 0, 100% 45%, 50% 100%, 0 45%);
+  opacity: 0.55;
+  transition:
+    opacity 0.12s ease,
+    background 0.12s ease;
 }
 
-.spreadsheet-wrapper:has(.spreadsheet-header:hover) .column-separator::before,
-.spreadsheet-wrapper.is-resizing .column-separator::before {
-  opacity: 1;
-}
-
-// While resizing, the pointer runs ahead of the edge; only the dragged edge
-// is marked, so hover doesn't flicker.
 .spreadsheet-wrapper:not(.is-resizing) .column-separator:hover::before,
 .column-separator.is-active::before {
   opacity: 1;
   background: var(--accent-3, var(--accent));
-  transition: none;
 }
 
 // The Most used view has a Usage column on the right (empty by default, so
