@@ -140,18 +140,27 @@
 // The timeline: a vertical line through one dot per send, newest at the top.
 .history-timeline {
   --dot: 10px;
+  --stop-height: 30px;
+  --day-height: 24px;
+  --bottom-gap: var(--s-2);
 
   position: relative;
-  max-height: min(33vh, 280px);
+  // Five responses and a day heading, however much history there is, so the
+  // body below keeps its size as history grows.
+  flex: 0 0 auto;
+  height: calc(5 * var(--stop-height) + var(--day-height) + var(--bottom-gap));
   margin: 0;
-  padding: 0 var(--s-3) var(--s-2);
+  padding: 0 var(--s-3) var(--bottom-gap);
   overflow-y: auto;
   list-style: none;
 }
 
 .history-day {
   position: relative;
-  padding: var(--s-1) 0 4px calc(var(--dot) + 14px);
+  display: flex;
+  align-items: flex-end;
+  height: var(--day-height);
+  padding: 0 0 4px calc(var(--dot) + 14px);
   font-family: var(--font-display);
   font-size: 0.6875rem;
   font-weight: 700;
@@ -192,7 +201,8 @@
   align-items: center;
   gap: 0 10px;
   width: 100%;
-  padding: 5px 6px 5px 0;
+  height: var(--stop-height);
+  padding: 0 6px 0 0;
   font: inherit;
   font-size: 0.8125rem;
   text-align: left;
