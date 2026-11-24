@@ -42,6 +42,26 @@ func TestTheRequestGoesOutAsTyped(t *testing.T) {
 	}
 }
 
+// URLs are stored as typed; what a query can't carry is encoded on the way out.
+func TestAQueryTypedWithUnsafeCharactersIsEncodedWhenSent(t *testing.T) {
+	h := newHarness(t)
+	id := h.create(models.HttpRequest{Method: "GET", URL: h.url(`/q?q=hello world&f=a:b,c&j={"a":1}&u=ü&p=50%&e=%20ok`)})
+	if res := h.mustSend(id, sendOptions{}); res.StatusCode != 200 {
+		t.Fatalf("status %d", res.StatusCode)
+	}
+	want := "q=hello%20world&f=a:b,c&j=%7B%22a%22:1%7D&u=%C3%BC&p=50%25&e=%20ok"
+	if got := h.last().Query; got != want {
+		t.Errorf("query on the wire:\n got %s\nwant %s", got, want)
+	}
+	var stored string
+	if err := h.db.QueryRow(`SELECT url FROM http_requests WHERE id = ?`, id).Scan(&stored); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stored, "q=hello world") {
+		t.Errorf("the stored URL changed: %s", stored)
+	}
+}
+
 func TestAURLWithoutASchemeIsSentOverHTTP(t *testing.T) {
 	h := newHarness(t)
 	id := h.create(models.HttpRequest{Method: "GET", URL: strings.TrimPrefix(h.url("/bare"), "http://")})
