@@ -5,7 +5,9 @@ const HIDDEN = '•••••';
 const SECRETS = ['hunter2', 'tok-access-1', 'tok-header-4', 'sess-5'];
 
 /** A request to `path` with one saved response, opened in the inspector. */
-async function openResponse(page: Page, path: string): Promise<void> {
+async function openResponse(page: Page, endpoint: string): Promise<void> {
+  // Other tests' rows share the endpoint, so the row is found by a unique query.
+  const path = `${endpoint}?run=${Date.now()}`;
   const id = await createRequest(page, `${STUB}${path}`);
   await page.evaluate(async (id) => {
     const { requests } = window.snaprq;
