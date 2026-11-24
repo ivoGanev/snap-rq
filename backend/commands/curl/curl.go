@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"snap-rq/backend/models"
@@ -12,9 +11,8 @@ import (
 
 // RequestToCurl converts an HttpRequest into an equivalent curl command string.
 // The output uses --data-raw for the body and -H for headers. The method is
-// explicit when it is not GET or when a body is present. When there is no body
-// and the URL has a query string, the query parameters are emitted as -G plus
-// --data-urlencode so the command stays readable.
+// explicit when it is not GET or when a body is present. The URL goes in as
+// stored, so importing the command gives back the same URL.
 func RequestToCurl(req models.HttpRequest) string {
 	method := strings.ToUpper(strings.TrimSpace(req.Method))
 	if method == "" {
@@ -25,21 +23,11 @@ func RequestToCurl(req models.HttpRequest) string {
 
 	isForm := req.BodyType == "form-data"
 
-	baseURL := req.URL
-	var queryArgs []string
-	if req.Body == "" && !isForm {
-		if base, args, ok := splitQueryForCurl(req.URL); ok {
-			baseURL = base
-			queryArgs = args
-			parts = append(parts, "-G")
-		}
-	}
-
 	if method != http.MethodGet || req.Body != "" || isForm {
 		parts = append(parts, "-X", method)
 	}
 
-	parts = append(parts, shellQuote(baseURL))
+	parts = append(parts, shellQuote(req.URL))
 
 	for _, line := range strings.Split(req.RequestHeaders, "\n") {
 		line = strings.TrimSpace(line)
@@ -64,10 +52,6 @@ func RequestToCurl(req models.HttpRequest) string {
 		}
 	} else if req.Body != "" {
 		parts = append(parts, "--data-raw", shellQuote(req.Body))
-	}
-
-	for _, arg := range queryArgs {
-		parts = append(parts, "--data-urlencode", shellQuote(arg))
 	}
 
 	return strings.Join(parts, " ")
@@ -122,41 +106,6 @@ func curlFormRow(arg string) formRow {
 		row.Type = "text"
 	}
 	return row
-}
-
-// splitQueryForCurl splits a URL into its base and a list of "name=value"
-// arguments (with decoded values) suitable for --data-urlencode. It reports
-// false when the URL has no query string or the query cannot be represented
-// faithfully (fragment, parameter without "=", or a name that needs encoding).
-func splitQueryForCurl(rawURL string) (string, []string, bool) {
-	base, rawQuery, found := strings.Cut(rawURL, "?")
-	if !found || rawQuery == "" || strings.Contains(rawURL, "#") {
-		return "", nil, false
-	}
-
-	var args []string
-	for _, pair := range strings.Split(rawQuery, "&") {
-		if pair == "" {
-			continue
-		}
-		name, value, hasEq := strings.Cut(pair, "=")
-		if !hasEq || name == "" {
-			return "", nil, false
-		}
-		decodedName, err := url.QueryUnescape(name)
-		if err != nil || decodedName != name {
-			return "", nil, false
-		}
-		decodedValue, err := url.QueryUnescape(value)
-		if err != nil {
-			return "", nil, false
-		}
-		args = append(args, name+"="+decodedValue)
-	}
-	if len(args) == 0 {
-		return "", nil, false
-	}
-	return base, args, true
 }
 
 // CurlToRequest parses a curl command string and returns an HttpRequest.
@@ -312,18 +261,30 @@ func ensureScheme(u string) string {
 }
 
 // urlencodeData implements curl's --data-urlencode value forms: "content",
-// "=content" and "name=content". The content part is percent-encoded.
+// "=content" and "name=content". Only what would change the query's meaning
+// is encoded (%, &, #, +, control characters), so the URL stays readable and
+// {{placeholders}} keep working; the rest is encoded when the request is sent.
 func urlencodeData(s string) string {
-	enc := func(v string) string {
-		return strings.ReplaceAll(url.QueryEscape(v), "+", "%20")
-	}
 	if name, content, found := strings.Cut(s, "="); found {
 		if name == "" {
-			return enc(content)
+			return encodeQueryValue(content)
 		}
-		return name + "=" + enc(content)
+		return name + "=" + encodeQueryValue(content)
 	}
-	return enc(s)
+	return encodeQueryValue(s)
+}
+
+func encodeQueryValue(v string) string {
+	var b strings.Builder
+	for i := 0; i < len(v); i++ {
+		c := v[i]
+		if c == '%' || c == '&' || c == '#' || c == '+' || c < 0x20 || c == 0x7f {
+			fmt.Fprintf(&b, "%%%02X", c)
+			continue
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
 }
 
 // shellQuote returns a single-quoted shell word, falling back to double quotes
