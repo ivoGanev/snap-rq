@@ -36,6 +36,7 @@
       (textChange)="onUrlChange($event)"
       (submit)="sendFromUrl()"
     ></app-code-editor>
+    <app-send-button class="header-send" variant="primary" [requestId]="req.id" (send)="sendSelectedRequest($event)" />
     </div>
   } @else {
     <span class="header-spacer"></span>
@@ -45,9 +46,6 @@
   }
   @if (selectedRowIds().size > 0) {
     <div class="header-actions">
-      @if (!state.showingBin() && selectedRowIds().size === 1 && selectedRequest()) {
-        <app-send-button variant="primary" [requestId]="selectedRequest()!.id" (send)="sendSelectedRequest($event)" />
-      }
       @if (state.showingBin()) {
         <button
           class="restore-button"

@@ -5,16 +5,18 @@
   z-index: 50;
   justify-content: flex-start;
   gap: var(--s-3);
+  --header-control-height: 36px;
 }
 
 .add-request-button {
-  padding: var(--btn-pad-md);
+  height: var(--header-control-height);
+  padding: 0 18px;
   font-size: 0.8125rem;
   font-weight: 700;
   color: var(--on-accent);
   background: var(--grad);
   border: none;
-  border-radius: var(--radius);
+  border-radius: 0;
   cursor: pointer;
   transition:
     filter 0.15s ease,
@@ -34,25 +36,16 @@
   gap: 1px;
 }
 
-.add-request-split .add-request-button:first-child {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-.add-request-split .add-request-button:last-child {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
 .header-spacer {
   flex: 1 1 auto;
 }
 
+// Method, URL and Send drawn as one bar.
 .header-url-field {
   flex: 1 1 auto;
   display: flex;
   align-items: stretch;
-  gap: var(--s-2);
+  height: var(--header-control-height);
   min-width: 0;
 }
 
@@ -66,7 +59,6 @@
   letter-spacing: 0.04em;
   color: var(--text);
   background: var(--hover-highlight);
-  border-radius: var(--radius);
 }
 
 .header-method-select[data-method='GET'] {
@@ -94,11 +86,14 @@
   background: var(--method-patch-bg);
 }
 
+// Grid centres the editor vertically while stretching it across.
 .header-url-editor {
   flex: 1 1 auto;
+  display: grid;
+  align-items: center;
   min-width: 0;
+  box-sizing: border-box;
   border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
   background: var(--input-bg);
   overflow: hidden;
   --wails-draggable: no-drag;
@@ -106,7 +101,6 @@
 
 .header-url-editor:focus-within {
   border-color: var(--focus-border);
-  box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 .selection-count {
@@ -125,13 +119,14 @@
 }
 
 .restore-button {
-  padding: var(--btn-pad-md);
+  height: var(--header-control-height);
+  padding: 0 18px;
   font-size: 0.8125rem;
   font-weight: 700;
   color: var(--on-accent);
   background: var(--grad-success);
   border: none;
-  border-radius: var(--radius);
+  border-radius: 0;
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
@@ -139,13 +134,14 @@
 }
 
 .delete-button--top-bar {
-  padding: var(--btn-pad-md);
+  height: var(--header-control-height);
+  padding: 0 18px;
   font-size: 0.8125rem;
   font-weight: 700;
   color: var(--on-accent);
   background: var(--danger-solid);
   border: none;
-  border-radius: var(--radius);
+  border-radius: 0;
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
