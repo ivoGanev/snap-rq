@@ -18,10 +18,7 @@ import {
 import { ConfirmService } from '../core/services/confirm.service';
 import { SecretsApiService } from '../core/services/secrets.service';
 import { RecoveryKeyDialog } from '../dialogs/recovery-key-dialog/recovery-key-dialog';
-import {
-  isValidVariableName,
-  VARIABLE_NAME_ERROR,
-} from '../core/models/environment-context';
+import { isValidVariableName, variableNameError } from '../core/models/environment-context';
 
 type SortColumn = 'key' | 'value';
 type SortDirection = 'asc' | 'desc';
@@ -68,7 +65,7 @@ export class VariablesEditor {
   protected readonly unlockError = signal('');
   /** Names typed that break the rule, by variable id. They stay in the input but aren't saved. */
   private readonly invalidKeys = signal<ReadonlyMap<number, string>>(new Map());
-  protected readonly variableNameError = VARIABLE_NAME_ERROR;
+  protected readonly variableNameError = variableNameError();
 
   readonly deleteConfirmOpen = signal(false);
   readonly environmentPendingDelete = signal<Environment | null>(null);

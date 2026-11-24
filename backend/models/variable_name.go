@@ -3,8 +3,7 @@ package models
 import "regexp"
 
 // VariableNameChars is the allowlist for an environment variable's name. The
-// frontend keeps a copy (environment-context.ts); testdata/variable-names.json
-// holds the cases both sides are tested against.
+// frontend gets it through VariableNameRule; testdata/variable-names.json pins it.
 const VariableNameChars = `A-Za-z0-9_.-`
 
 var variableName = regexp.MustCompile(`^[` + VariableNameChars + `]+$`)
@@ -18,4 +17,10 @@ func ValidVariableName(name string) bool {
 }
 
 // VariableNameError explains the allowlist to someone who typed a name outside it.
-const VariableNameError = "a variable name can only use letters, digits, _, - and ."
+const VariableNameError = "Use only letters, digits, _, - and ."
+
+// VariableNameRule is what the frontend builds its {{name}} matching from.
+type VariableNameRule struct {
+	Chars   string `json:"chars"`
+	Message string `json:"message"`
+}

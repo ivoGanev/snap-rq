@@ -21,6 +21,7 @@ import (
 	"snap-rq/backend/database"
 	"snap-rq/backend/identity"
 	"snap-rq/backend/mcp"
+	"snap-rq/backend/models"
 	"snap-rq/backend/secrets"
 	"snap-rq/backend/selfupdate"
 
@@ -139,6 +140,7 @@ func main() {
 			application.NewService(commands.NewCommandService(runner)),
 			application.NewService(updaterService),
 			application.NewService(appService),
+			application.NewService(&VariablesService{}),
 			application.NewService(mcp.NewSettingsService(mcpServer, mcpStore)),
 		},
 		Assets: application.AssetOptions{
@@ -252,6 +254,13 @@ func (s *AppService) ShowInFolder(path string) error {
 		return err
 	}
 	return s.app.Env.OpenFileManager(path, !info.IsDir())
+}
+
+// VariablesService tells the frontend which variable names {{…}} can fill in.
+type VariablesService struct{}
+
+func (VariablesService) NameRule() models.VariableNameRule {
+	return models.VariableNameRule{Chars: models.VariableNameChars, Message: models.VariableNameError}
 }
 
 // UpdaterService exposes the self-updater to the frontend. The native
