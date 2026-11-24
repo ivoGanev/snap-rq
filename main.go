@@ -173,7 +173,10 @@ func main() {
 	}
 
 	win = app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title: "Window 1",
+		Title: "SnapRQ",
+		// Windows: the app's top bar is the title bar, with its own window
+		// buttons (app-window-controls). macOS keeps its native traffic lights.
+		Frameless: runtime.GOOS == "windows",
 		// Window sized to the golden ratio (1000 / 618 ≈ 1.618).
 		Width:      1000,
 		Height:     618,

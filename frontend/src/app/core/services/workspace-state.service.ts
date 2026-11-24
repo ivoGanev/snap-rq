@@ -64,6 +64,10 @@ export class WorkspaceStateService {
   readonly responsesLoading = signal(false);
   readonly selectedBinnedRequest = signal<HttpBinnedRequestSummary | null>(null);
   readonly sidebarExpanded = signal(false);
+  /** The request list's search, typed in the top bar. */
+  readonly requestSearchQuery = signal('');
+  /** Set by the top bar's add buttons; the request list carries it out. */
+  readonly addRequestIntent = signal<'blank' | 'curl' | null>(null);
   readonly sidebarListOpen = signal(false);
   readonly multiSelectionActive = signal(false);
   readonly zenModeOpen = signal(false);

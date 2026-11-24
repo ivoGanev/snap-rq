@@ -1,8 +1,6 @@
 import {
   AfterViewInit,
   Component,
-  DestroyRef,
-  ElementRef,
   HostListener,
   inject,
   OnInit,
@@ -10,10 +8,14 @@ import {
   computed,
   effect,
   untracked,
+  ElementRef,
+  Injector,
+  afterNextRender,
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Select } from './select/select';
+import { WindowControls } from './window-controls/window-controls';
 import { WML } from '@wailsio/runtime';
 import { WorkspaceStateService } from './core/services/workspace-state.service';
 import { ProjectApiService, type Project } from './core/services/project.service';
@@ -54,6 +56,7 @@ import { UndoPanel } from './undo-panel/undo-panel';
   imports: [
     FormsModule,
     Select,
+    WindowControls,
     RequestGroups,
     RequestsMainList,
     ScriptEditor,
@@ -109,19 +112,13 @@ export class App implements OnInit, AfterViewInit {
     return this.state.sidebarListOpen() ? `${this.leftColumnWidthExpanded()}%` : 'max-content';
   });
 
-  /**
-   * The sidebar's actual width in px (collapsed, fitted to its buttons, or
-   * resized): the top bar's logo cell matches it, so the drawer's line runs
-   * up through the top bar and the environment lines up with the column
-   * below.
-   */
-  protected readonly sidebarWidthPx = signal(72);
-  private readonly sidebar = viewChild.required(RequestGroups, { read: ElementRef });
-  private readonly destroyRef = inject(DestroyRef);
-
   readonly variablesOverlayOpen = signal(false);
   readonly cookiesOverlayOpen = signal(false);
   protected readonly cookieCount = this.cookieApi.cookies;
+  protected readonly isWindows = document.documentElement.classList.contains('platform-windows');
+  protected readonly searchOpen = signal(false);
+  private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
+  private readonly injector = inject(Injector);
 
   /** Keeps the jar in step with the project; a new response may have set cookies. */
   private readonly cookieSync = effect(() => {
@@ -168,11 +165,6 @@ export class App implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-    const sidebar = this.sidebar().nativeElement as HTMLElement;
-    const observer = new ResizeObserver(() => this.sidebarWidthPx.set(sidebar.getBoundingClientRect().width));
-    observer.observe(sidebar);
-    this.destroyRef.onDestroy(() => observer.disconnect());
-
     WML.Enable();
   }
 
@@ -234,6 +226,33 @@ export class App implements OnInit, AfterViewInit {
 
   // ---------- Undo / redo hotkeys ----------
 
+  @HostListener('window:keydown.control.f', ['$event'])
+  @HostListener('window:keydown.meta.f', ['$event'])
+  onSearchHotkey(event: Event): void {
+    event.preventDefault();
+    this.openSearch();
+  }
+
+  protected toggleSearch(): void {
+    if (this.searchOpen()) this.closeSearch();
+    else this.openSearch();
+  }
+
+  private openSearch(): void {
+    this.searchOpen.set(true);
+    afterNextRender(() => this.searchInput()?.nativeElement.focus(), { injector: this.injector });
+  }
+
+  protected closeSearch(): void {
+    this.state.requestSearchQuery.set('');
+    this.searchOpen.set(false);
+  }
+
+  // An empty field folds away; a search in use stays open.
+  protected onSearchBlur(): void {
+    if (!this.state.requestSearchQuery().trim()) this.searchOpen.set(false);
+  }
+
   @HostListener('window:keydown.control.z', ['$event'])
   async onUndoHotkey(event: Event): Promise<void> {
     if (this.isEditableTarget(event)) {
@@ -269,7 +288,12 @@ export class App implements OnInit, AfterViewInit {
     return !!target.closest('input, textarea, select, [contenteditable], .cm-editor');
   }
 
-  openThemeSelector(): void {
+  /** Where the theme popup opens: under its button, right-aligned with it. */
+  protected readonly themePopupAt = signal({ top: 0, right: 0 });
+
+  openThemeSelector(event: MouseEvent): void {
+    const button = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.themePopupAt.set({ top: button.bottom + 6, right: window.innerWidth - button.right });
     this.themeSelectorOpen.set(true);
   }
 
@@ -408,6 +432,10 @@ export class App implements OnInit, AfterViewInit {
 
   closeVariablesOverlay(): void {
     this.variablesOverlayOpen.set(false);
+  }
+
+  toggleSidebar(): void {
+    this.state.sidebarExpanded.update((expanded) => !expanded);
   }
 
   openProjectEditor(): void {

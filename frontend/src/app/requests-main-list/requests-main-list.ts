@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, OnDestroy, TemplateRef, ViewChild, afterNextRender, afterRenderEffect, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, OnDestroy, TemplateRef, ViewChild, afterNextRender, afterRenderEffect, computed, effect, inject, linkedSignal, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { Clipboard } from '@wailsio/runtime';
@@ -27,6 +27,7 @@ import { RequestBodyTab } from '../request-body-tab/request-body-tab';
 import { ScriptTabs } from '../script-tabs/script-tabs';
 import { RequestHeadersTab } from '../request-headers-tab/request-headers-tab';
 import { CodeEditor } from '../code-editor/code-editor';
+import { Select, type SelectOption } from '../select/select';
 import { SelectOnFocusDirective } from '../core/directives/select-on-focus.directive';
 import { requestColorInfo } from '../core/request-colors';
 import type { WorkspaceViewKind } from '../core/workspace/workspace-view';
@@ -83,7 +84,7 @@ const NAME_COLUMN_MIN_WIDTH = 120;
  */
 @Component({
   selector: 'app-requests-main-list',
-  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog, CurlImportDialog, SendButton, UsageMeter],
+  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, Select, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog, CurlImportDialog, SendButton, UsageMeter],
   templateUrl: './requests-main-list.html',
   styleUrl: './requests-main-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -114,12 +115,12 @@ export class RequestsMainList {
   private readonly viewport!: CdkVirtualScrollViewport;
 
   protected readonly bottomTabs = BOTTOM_TABS;
-  protected readonly httpMethods = HTTP_METHODS;
+  protected readonly methodOptions: SelectOption[] = HTTP_METHODS.map((method) => ({ value: method, label: method }));
   protected readonly requestScripts = this.scriptApi.requestScripts;
   protected readonly requestFavouriteIds = this.favouriteApi.requestsMembership;
   protected readonly collections = this.collectionApi.collections;
 
-  readonly requestSearchQuery = signal('');
+  readonly requestSearchQuery = this.state.requestSearchQuery;
   readonly scriptRequests = signal<HttpRequestSummary[]>([]);
   /** The collection the cURL import dialog is open for, or null when it is closed. */
   readonly curlImportFor = signal<Collection | null>(null);
@@ -175,11 +176,10 @@ export class RequestsMainList {
       !this.requestSearchQuery().trim(),
   );
 
-  /**
-   * A drag handle is offered so requests can be reordered or moved, except in
-   * the bin and the smart views (their order is fixed).
-   */
-  readonly canDragOut = computed(() => !this.state.showingBin() && !this.state.smartView());
+  /** The bin, All requests and the smart views have a fixed order and no drag handle. */
+  readonly canDragOut = computed(
+    () => !this.state.showingBin() && !this.state.smartView() && this.activeViewKind() !== 'all',
+  );
 
   /** Whether the colour picker is available (selection in a colour-able view). */
   readonly canColorSelection = computed(
@@ -228,7 +228,7 @@ export class RequestsMainList {
   readonly dropHighlightedId = signal<number | null>(null);
   private dropHighlightTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  protected readonly rowHeight = 44;
+  protected readonly rowHeight = 38;
   /**  CDK buffer settings for smoother fast scrolling. */
   protected readonly virtualMinBufferPx = 200*10;
   protected readonly virtualMaxBufferPx = 400*10;
@@ -241,6 +241,7 @@ export class RequestsMainList {
     startWidth: number;
   } | null>(null);
   readonly isResizingColumn = computed(() => this.columnResizeState() !== null);
+  protected readonly resizingColumn = computed(() => this.columnResizeState()?.column ?? null);
   readonly methodColumnWidthCss = computed(() => `${this.methodColumnWidth()}px`);
   readonly nameColumnWidthCss = computed(() => `${this.nameColumnWidth()}px`);
 
@@ -487,6 +488,53 @@ export class RequestsMainList {
     return this.activeRequests().find((r) => r.id === cell.requestId) ?? null;
   });
 
+  /** The request whose URL the header edits: exactly one selected, outside the bin. */
+  protected readonly headerRequest = computed(() =>
+    !this.state.showingBin() && this.selectedRowIds().size === 1 ? this.selectedRequest() : null,
+  );
+  protected readonly showHeader = computed(
+    () => this.selectedRowIds().size > 0,
+  );
+  // Reset only when another request is selected: the saved URL coming back
+  // mid-typing would otherwise overwrite what was typed since.
+  protected readonly urlDraft = linkedSignal<number | null, string>({
+    source: () => this.headerRequest()?.id ?? null,
+    computation: () => untracked(() => this.headerRequest()?.url ?? ''),
+  });
+  private urlSaveTimer: ReturnType<typeof setTimeout> | undefined;
+
+  protected onUrlChange(url: string): void {
+    this.urlDraft.set(url);
+    clearTimeout(this.urlSaveTimer);
+    const req = this.headerRequest();
+    if (req) this.urlSaveTimer = setTimeout(() => void this.saveUrl(req, url), 400);
+  }
+
+  protected async sendFromUrl(): Promise<void> {
+    clearTimeout(this.urlSaveTimer);
+    const req = this.headerRequest();
+    if (req) await this.saveUrl(req, this.urlDraft());
+    await this.sendSelectedRequest(new Event('submit'));
+  }
+
+  protected readonly curlCopied = signal(false);
+  private curlCopiedTimer: ReturnType<typeof setTimeout> | undefined;
+
+  protected async copyCurlFromUrl(): Promise<void> {
+    clearTimeout(this.urlSaveTimer);
+    const req = this.headerRequest();
+    if (!req) return;
+    await this.saveUrl(req, this.urlDraft());
+    await this.copyRequestCurl(req);
+    this.curlCopied.set(true);
+    clearTimeout(this.curlCopiedTimer);
+    this.curlCopiedTimer = setTimeout(() => this.curlCopied.set(false), 1500);
+  }
+
+  private async saveUrl(req: HttpRequestSummary, url: string): Promise<void> {
+    if (url !== req.url) await this.updateRequestField(req, 'url', url);
+  }
+
   readonly selectedRequests = computed<HttpRequestSummary[]>(() => {
     const ids = this.selectedRowIds();
     return this.activeRequests().filter((r) => ids.has(r.id));
@@ -502,6 +550,27 @@ export class RequestsMainList {
   readonly availableCollectionsForMove = computed<Collection[]>(() => {
     const current = this.state.selectedCollection();
     return this.collectionApi.collections().filter((c) => c.id !== current?.id);
+  });
+
+  protected readonly countLabel = computed(() => {
+    const group = this.activeGroupName();
+    if (!group) return null;
+    const shown = this.filteredActiveRequests().length;
+    const total = this.activeRequests().length;
+    const searching = !!this.requestSearchQuery().trim() && shown !== total;
+    return `${searching ? `${shown} of ${total}` : total} in ${group}`;
+  });
+
+  private readonly handleAddIntent = effect(() => {
+    const intent = this.state.addRequestIntent();
+    if (!intent) return;
+    untracked(() => {
+      this.state.addRequestIntent.set(null);
+      const collection = this.state.selectedCollection();
+      if (!collection) return;
+      if (intent === 'blank') void this.addBlankRequest(collection);
+      else this.curlImportFor.set(collection);
+    });
   });
 
   constructor() {
@@ -548,6 +617,7 @@ export class RequestsMainList {
         this.sortDirection.set('asc');
       }
       this.clearSelection();
+      this.firstSelectPending.set(null);
       this.state.selectedRequest.set(null);
       this.state.selectedResponse.set(null);
       this.state.selectedBinnedRequest.set(null);
@@ -649,9 +719,10 @@ export class RequestsMainList {
       // Smart views arrange the project's requests (see smartGroups).
       if (smart && projectId !== null) {
         const requests = this.activeRequests();
+        const selectedId = this.restoreSelection(requests, groupKeyOfView);
         await this.scriptApi.loadScriptsForRequests(requests);
         if (version !== this.loadVersion) return;
-        this.restoreRememberedSelection(requests, groupKeyOfView, scroll, restoreOffset);
+        if (scroll) this.restoreScroll(selectedId, restoreOffset);
         return;
       }
 
@@ -681,18 +752,20 @@ export class RequestsMainList {
       if (collectionId !== null) {
         if (version !== this.loadVersion) return;
         const requests = this.requestApi.forCollection(collectionId);
+        const selectedId = this.restoreSelection(requests, groupKeyOfView);
         await this.scriptApi.loadScriptsForRequests(requests);
         if (version !== this.loadVersion) return;
-        this.restoreRememberedSelection(requests, groupKeyOfView, scroll, restoreOffset);
+        if (scroll) this.restoreScroll(selectedId, restoreOffset);
         return;
       }
 
       if (showAll && projectId !== null) {
         if (version !== this.loadVersion) return;
         const requests = this.requestApi.forProject(projectId);
+        const selectedId = this.restoreSelection(requests, groupKeyOfView);
         await this.scriptApi.loadScriptsForRequests(requests);
         if (version !== this.loadVersion) return;
-        this.restoreRememberedSelection(requests, groupKeyOfView, scroll, restoreOffset);
+        if (scroll) this.restoreScroll(selectedId, restoreOffset);
         return;
       }
 
@@ -709,18 +782,26 @@ export class RequestsMainList {
     scroll: boolean,
     restoreOffset: number | null,
   ): void {
+    const id = this.restoreSelection(requests, groupKeyOfView);
+    if (scroll) this.restoreScroll(id, restoreOffset);
+  }
+
+  /** Selects the view's remembered rows, or its first request; returns the main row's id. */
+  private restoreSelection(requests: HttpRequestSummary[], groupKeyOfView: string | null): number | null {
     const remembered =
       groupKeyOfView !== null ? this.selectionState.getSelection(groupKeyOfView) : null;
-    if (!remembered) return;
 
     // Keep only rows that are still in this list; the main row falls back to
     // the first remaining one.
     const present = new Set(requests.map((r) => r.id));
-    const ids = remembered.ids.filter((id) => present.has(id));
-    if (ids.length === 0) return;
+    const ids = remembered?.ids.filter((id) => present.has(id)) ?? [];
+    if (!remembered || ids.length === 0) {
+      this.selectFirstRequest(groupKeyOfView);
+      return null;
+    }
     const rememberedId = present.has(remembered.primary) ? remembered.primary : ids[0];
     const primary = requests.find((r) => r.id === rememberedId);
-    if (!primary) return;
+    if (!primary) return null;
 
     // Restore selection without letting the outer reactive effect track the
     // workspace request signal. Otherwise any later change to selectedRequest
@@ -733,8 +814,11 @@ export class RequestsMainList {
         this.rememberSelection(primary.id);
       }
     });
+    return primary.id;
+  }
 
-    if (!scroll || !this.viewport) return;
+  private restoreScroll(rememberedId: number | null, restoreOffset: number | null): void {
+    if (rememberedId === null || !this.viewport) return;
 
     // Restore the exact scroll position this view had when we left it.
     if (restoreOffset !== null) {
@@ -750,6 +834,28 @@ export class RequestsMainList {
       this.viewport.scrollToOffset(offset);
     }
   }
+
+  // A selected request shows the URL bar above the list; selecting one up front
+  // keeps the list from shifting down on the first click. A view whose requests
+  // haven't arrived yet gets its first request when they do.
+  private readonly firstSelectPending = signal<string | null>(null);
+
+  private selectFirstRequest(groupKeyOfView: string | null): void {
+    this.firstSelectPending.set(groupKeyOfView);
+  }
+
+  private readonly selectFirstWhenShown = effect(() => {
+    const key = this.firstSelectPending();
+    if (key === null) return;
+    const first = this.displayRows().find((row) => row.kind === 'request')?.req;
+    if (!first) return;
+    untracked(() => {
+      this.firstSelectPending.set(null);
+      if (key === this.activeGroupKey() && this.selectedRowIds().size === 0) {
+        this.selectCell(first as HttpRequestSummary, 'name', false);
+      }
+    });
+  });
 
   onWindowKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
@@ -1954,25 +2060,7 @@ export class RequestsMainList {
     this.closeEditModal();
   }
 
-  // ---------- Method dropdown ----------
-
-  openMethodMenu(
-    req: HttpRequestSummary | HttpBinnedRequestSummary,
-    event: MouseEvent,
-    template: TemplateRef<{ $implicit: HttpRequestSummary | HttpBinnedRequestSummary }>,
-  ): void {
-    // Modifier clicks keep their multi-select meaning.
-    if (this.state.showingBin() || event.ctrlKey || event.metaKey || event.shiftKey) return;
-    event.stopPropagation();
-    this.selectCell(req as HttpRequestSummary, 'method');
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    const menuHeight = this.httpMethods.length * 38 + 8;
-    const y = rect.bottom + 6 + menuHeight > window.innerHeight ? rect.top - menuHeight - 6 : rect.bottom + 6;
-    this.contextMenu.open(template, req, rect.left, Math.max(8, y));
-  }
-
-  async chooseMethod(req: HttpRequestSummary, method: string): Promise<void> {
-    this.contextMenu.close();
+  protected async chooseMethod(req: HttpRequestSummary, method: string): Promise<void> {
     if (method === req.method) return;
     await this.updateRequestField(req, 'method', method);
   }

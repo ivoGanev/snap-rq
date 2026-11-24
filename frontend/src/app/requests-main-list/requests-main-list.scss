@@ -4,89 +4,117 @@
   position: relative;
   z-index: 50;
   justify-content: flex-start;
-  gap: var(--s-3);
-}
-
-.column-title {
-  font-family: var(--font-display);
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text);
-}
-
-.add-request-button {
-  padding: var(--btn-pad-md);
-  font-size: 0.8125rem;
-  font-weight: 700;
-  color: var(--on-accent);
-  background: var(--grad);
-  border: none;
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition:
-    filter 0.15s ease,
-    opacity 0.15s ease;
-  --wails-draggable: no-drag;
-  @include btn.btn-primary;
-}
-
-.add-request-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-// "+ Request | cURL": two buttons drawn as one control, each half one click.
-.add-request-split {
-  display: inline-flex;
-  gap: 1px;
-}
-
-.add-request-split .add-request-button:first-child {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-.add-request-split .add-request-button:last-child {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
-.request-search-input {
-  width: 180px;
-  padding: 5px var(--s-2);
-  background: var(--input-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  color: var(--text);
-  font-size: 0.875rem;
-  outline: none;
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease,
-    width 0.15s ease;
-}
-
-.request-search-input:focus {
-  width: 240px;
-  border-color: var(--selected-border);
-  box-shadow: 0 0 0 2px var(--focus-ring);
-}
-
-.request-count {
-  font-family: var(--font-display);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  align-items: stretch;
+  gap: 0;
+  height: 52px;
+  padding: 0;
+  --header-control-height: 100%;
 }
 
 .header-spacer {
   flex: 1 1 auto;
 }
 
+// Method, URL and Send drawn as one bar.
+.header-url-field {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: stretch;
+  height: var(--header-control-height);
+  min-width: 0;
+}
+
+// Wide enough for OPTIONS, so switching methods doesn't move the URL.
+.header-method-select {
+  flex: 0 0 auto;
+  align-items: center;
+  width: 140px;
+  box-sizing: border-box;
+  padding: 0 var(--s-3);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  background: var(--hover-highlight);
+}
+
+.header-method-select[data-method='GET'] {
+  color: var(--method-get-fg);
+  background: var(--method-get-bg);
+}
+
+.header-method-select[data-method='POST'] {
+  color: var(--method-post-fg);
+  background: var(--method-post-bg);
+}
+
+.header-method-select[data-method='PUT'] {
+  color: var(--method-put-fg);
+  background: var(--method-put-bg);
+}
+
+.header-method-select[data-method='DELETE'] {
+  color: var(--danger-text);
+  background: var(--danger-bg);
+}
+
+.header-method-select[data-method='PATCH'] {
+  color: var(--method-patch-fg);
+  background: var(--method-patch-bg);
+}
+
+.header-url-box {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-width: 0;
+  padding-right: var(--s-1);
+  box-sizing: border-box;
+  border: 1px solid var(--glass-border);
+  background: var(--input-bg);
+  --wails-draggable: no-drag;
+}
+
+.header-url-box:focus-within {
+  border-color: var(--focus-border);
+}
+
+.header-url-editor {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+// Fixed width, so the ✓ after copying doesn't move the URL.
+.header-url-icon {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 24px;
+  padding: 0;
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    color 0.12s ease;
+}
+
+.header-url-icon:hover {
+  color: var(--text);
+  transform: scale(1.12);
+}
+
+.header-url-icon:active {
+  transform: scale(0.94);
+}
+
 .selection-count {
+  align-self: center;
+  padding: 0 var(--s-3);
   font-family: var(--font-display);
   font-size: 0.75rem;
   font-weight: 700;
@@ -97,18 +125,19 @@
 
 .header-actions {
   display: flex;
-  align-items: center;
-  gap: var(--s-2);
+  align-items: stretch;
+  gap: 0;
 }
 
 .restore-button {
-  padding: var(--btn-pad-md);
+  height: var(--header-control-height);
+  padding: 0 18px;
   font-size: 0.8125rem;
   font-weight: 700;
   color: var(--on-accent);
   background: var(--grad-success);
   border: none;
-  border-radius: var(--radius);
+  border-radius: 0;
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
@@ -116,13 +145,14 @@
 }
 
 .delete-button--top-bar {
-  padding: var(--btn-pad-md);
+  height: var(--header-control-height);
+  padding: 0 18px;
   font-size: 0.8125rem;
   font-weight: 700;
   color: var(--on-accent);
   background: var(--danger-solid);
   border: none;
-  border-radius: var(--radius);
+  border-radius: 0;
   cursor: pointer;
   transition: filter 0.15s ease;
   --wails-draggable: no-drag;
@@ -141,8 +171,6 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  // Flush with the panel's left edge; keep breathing room on the right.
-  padding: 0 var(--s-3) 0 0;
 }
 
 .spreadsheet-wrapper.is-dragging {
@@ -164,30 +192,51 @@
   top: 0;
   bottom: 0;
   left: 0;
-  right: var(--s-3);
+  right: 0;
   z-index: 3;
   pointer-events: none;
 }
 
+// Only the marker grabs; the rest of the column edge is ordinary list.
 .column-separator {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 9px;
+  top: 22px;
+  width: 14px;
+  height: 16px;
   transform: translateX(-50%);
   cursor: col-resize;
   pointer-events: auto;
   --wails-draggable: no-drag;
 }
 
+// A small marker on the heading row's bottom edge shows where a column can be
+// resized, while the heading row is hovered; the dragged edge keeps its colour.
 .column-separator::before {
   content: '';
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: calc(50% - 0.5px);
-  width: 1px;
-  background: var(--glass-border);
+  top: 4px;
+  left: calc(50% - 4px);
+  width: 8px;
+  height: 9px;
+  background: var(--muted);
+  clip-path: polygon(0 0, 100% 0, 100% 45%, 50% 100%, 0 45%);
+  opacity: 0;
+  transition:
+    opacity 0.12s ease,
+    background 0.12s ease;
+}
+
+// The marker lies over the heading row, so hovering it leaves the row unhovered.
+.spreadsheet-wrapper:has(.spreadsheet-header:hover) .column-separator::before,
+.spreadsheet-wrapper.is-resizing .column-separator::before,
+.column-separator:hover::before {
+  opacity: 0.55;
+}
+
+.spreadsheet-wrapper:not(.is-resizing) .column-separator:hover::before,
+.column-separator.is-active::before {
+  opacity: 1;
+  background: var(--accent-3, var(--accent));
 }
 
 // The Most used view has a Usage column on the right (empty by default, so
@@ -272,7 +321,7 @@
   display: flex;
   align-items: flex-end;
   gap: var(--s-1);
-  height: 44px;
+  height: 38px;
   padding: 0 var(--s-3) 6px;
   box-sizing: border-box;
   border-bottom: 1px solid var(--glass-border);
@@ -320,7 +369,7 @@
 }
 
 .spreadsheet-row {
-  height: 44px;
+  height: 38px;
   border-bottom: 1px solid var(--glass-border);
   transition:
     background 0.15s ease,
@@ -415,62 +464,6 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-// Method badge: a springy pop on hover / when selected (no borders).
-.request-method {
-  transform-origin: left center;
-  transition:
-    transform 0.35s cubic-bezier(0.34, 1.9, 0.5, 1),
-    box-shadow 0.25s ease;
-}
-
-.spreadsheet-cell--method:hover .request-method {
-  transform: scale(1.4) rotate(-3deg);
-  animation: method-wiggle 0.5s ease-out;
-}
-
-.request-method.is-cell-selected {
-  transform: scale(1.3);
-}
-
-@keyframes method-wiggle {
-  0% {
-    transform: scale(1) rotate(0);
-  }
-  40% {
-    transform: scale(1.55) rotate(-7deg);
-  }
-  65% {
-    transform: scale(1.3) rotate(4deg);
-  }
-  100% {
-    transform: scale(1.4) rotate(-3deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .spreadsheet-cell--method:hover .request-method {
-    animation: none;
-    transform: scale(1.3);
-  }
-}
-
-// Method dropdown (opened from the badge).
-.method-menu-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-3);
-}
-
-.method-menu-item.is-current {
-  background: var(--selected-bg);
-}
-
-.method-menu-check {
-  color: var(--accent-3, var(--accent));
-  font-weight: 700;
 }
 
 .spreadsheet-cell--action {

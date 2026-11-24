@@ -22,9 +22,9 @@
 
 <ng-template
   cdkConnectedOverlay
-  [cdkConnectedOverlayOrigin]="origin"
+  [cdkConnectedOverlayOrigin]="flush() ? host : origin"
   [cdkConnectedOverlayOpen]="open()"
-  [cdkConnectedOverlayPositions]="positions"
+  [cdkConnectedOverlayPositions]="positions()"
   [cdkConnectedOverlayMinWidth]="width()"
   cdkConnectedOverlayHasBackdrop
   [cdkConnectedOverlayDisableClose]="true"
@@ -32,7 +32,7 @@
   (backdropClick)="close()"
   (detach)="close()"
 >
-  <ul #list class="select-list" role="listbox" [id]="listId" [attr.aria-label]="ariaLabel()">
+  <ul #list class="select-list" [class.is-flush]="flush()" role="listbox" [id]="listId" [attr.aria-label]="ariaLabel()">
     @for (option of options(); track $index; let i = $index) {
       @if (startsGroup(i); as group) {
         <li class="select-group" role="presentation">{{ group }}</li>

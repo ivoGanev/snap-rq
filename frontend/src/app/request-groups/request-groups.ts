@@ -262,14 +262,6 @@ export class RequestGroups {
     return this.viewActiveHandlers[view.id]();
   }
 
-  expandSidebar(): void {
-    this.state.sidebarExpanded.set(true);
-  }
-
-  collapseSidebar(): void {
-    this.state.sidebarExpanded.set(false);
-  }
-
   // Creation popups
   protected readonly newCollectionPopupOpen = signal(false);
   protected readonly newCollectionName = signal('');

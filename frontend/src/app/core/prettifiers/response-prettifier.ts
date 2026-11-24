@@ -89,8 +89,8 @@ export function prettifyResponseBody(
  * right highlighter.
  *
  * Structure is checked before Content-Type: servers frequently return a body
- * whose declared type disagrees with its actual shape, and clients like
- * Insomnia highlight based on the content itself. Content-Type is only used as
+ * whose declared type disagrees with its actual shape, so highlighting
+ * follows the content itself. Content-Type is only used as
  * a fallback for bodies without a strong structural signal.
  */
 export function detectResponseLanguage(raw: string, headers: string): SyntaxLanguage {

@@ -2,77 +2,80 @@
   <app-script-tabs />
 }
 
-<div class="column-header column-header--requests">
-  @if (state.selectedCollection(); as collection) {
-    <div class="add-request-split" role="group" aria-label="Add request">
-      <button class="add-request-button" type="button" (click)="addBlankRequest(collection)">+ Request</button>
-      <button
-        class="add-request-button"
-        type="button"
-        (click)="curlImportFor.set(collection)"
-        aria-label="Import request from cURL"
-      >
-        cURL
-      </button>
-    </div>
-  }
-  <h1 class="column-title">Requests</h1>
-  @if (activeGroupName()) {
-    <input
-      class="request-search-input"
-      type="text"
-      placeholder="Search requests…"
-      [ngModel]="requestSearchQuery()"
-      (ngModelChange)="requestSearchQuery.set($event)"
-    />
-    <span class="request-count">
-      {{ filteredActiveRequests().length }}
-      @if (
-        requestSearchQuery().trim() && filteredActiveRequests().length !== activeRequests().length
-      ) {
-        of {{ activeRequests().length }}
-      }
-      in {{ activeGroupName() }}
-    </span>
-  }
-  <span class="header-spacer"></span>
-  @if (selectedRowIds().size > 1) {
-    <span class="selection-count">{{ selectedRowIds().size }} selected</span>
-  }
-  @if (selectedRowIds().size > 0) {
-    <div class="header-actions">
-      @if (!state.showingBin() && selectedRowIds().size === 1 && selectedRequest()) {
-        <app-send-button variant="primary" [requestId]="selectedRequest()!.id" (send)="sendSelectedRequest($event)" />
-      }
-      @if (state.showingBin()) {
+@if (showHeader()) {
+  <div class="column-header column-header--requests">
+    @if (headerRequest(); as req) {
+      <div class="header-url-field">
+      <app-select
+        class="header-method-select"
+        aria-label="Method"
+        [flush]="true"
+        [attr.data-method]="req.method"
+        [options]="methodOptions"
+        [value]="req.method"
+        (valueChange)="chooseMethod(req, $event)"
+      />
+      <div class="header-url-box">
+        <app-code-editor
+          class="header-url-editor"
+          language="text"
+          placeholder="Enter a URL"
+          [singleLine]="true"
+          [text]="urlDraft()"
+          [variables]="state.environmentVariables()"
+          (textChange)="onUrlChange($event)"
+          (submit)="sendFromUrl()"
+        ></app-code-editor>
         <button
-          class="restore-button"
+          class="header-url-icon"
           type="button"
-          (click)="openRestoreCollectionPicker()"
-          [attr.aria-label]="
-            selectedRowIds().size === 1
-              ? 'Restore selected request'
-              : 'Restore ' + selectedRowIds().size + ' requests'
-          "
+          [attr.aria-label]="curlCopied() ? 'cURL copied' : 'Copy as cURL'"
+          [title]="curlCopied() ? 'Copied' : 'Copy as cURL'"
+          (click)="copyCurlFromUrl()"
         >
-          Restore
+          {{ curlCopied() ? '✓' : 'cURL' }}
         </button>
-        <button
-          class="delete-button delete-button--top-bar"
-          type="button"
-          (click)="requestPermanentDelete()"
-          [attr.aria-label]="
-            selectedRowIds().size === 1
-              ? 'Delete selected request permanently'
-              : 'Delete ' + selectedRowIds().size + ' requests permanently'
-          "
-        >
-          Delete
-        </button>
-      }
-    </div>
-  }
-</div>
+      </div>
+      <app-send-button class="header-send" variant="primary" [requestId]="req.id" (send)="sendSelectedRequest($event)" />
+      </div>
+    } @else {
+      <span class="header-spacer"></span>
+    }
+    @if (selectedRowIds().size > 1) {
+      <span class="selection-count">{{ selectedRowIds().size }} selected</span>
+    }
+    @if (selectedRowIds().size > 0) {
+      <div class="header-actions">
+        @if (state.showingBin()) {
+          <button
+            class="restore-button"
+            type="button"
+            (click)="openRestoreCollectionPicker()"
+            [attr.aria-label]="
+              selectedRowIds().size === 1
+                ? 'Restore selected request'
+                : 'Restore ' + selectedRowIds().size + ' requests'
+            "
+          >
+            Restore
+          </button>
+          <button
+            class="delete-button delete-button--top-bar"
+            type="button"
+            (click)="requestPermanentDelete()"
+            [attr.aria-label]="
+              selectedRowIds().size === 1
+                ? 'Delete selected request permanently'
+                : 'Delete ' + selectedRowIds().size + ' requests permanently'
+            "
+          >
+            Delete
+          </button>
+        }
+      </div>
+    }
+  </div>
+}
 
 @if (!activeGroupName()) {
   <div class="state-message">Select a collection, favourite group, or script to view requests.</div>
@@ -263,7 +266,6 @@
             class="request-method"
             [attr.data-method]="req.method"
             [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['method']"
-            (click)="openMethodMenu(req, $event, methodMenu)"
           >{{ req.method }}</span>
         </div>
 
@@ -330,11 +332,13 @@
     <div class="spreadsheet-overlay" aria-hidden="true">
       <div
         class="column-separator"
+        [class.is-active]="resizingColumn() === 'method'"
         [style.left.px]="methodSeparatorLeft()"
         (mousedown)="startColumnResize($event, 'method')"
       ></div>
       <div
         class="column-separator"
+        [class.is-active]="resizingColumn() === 'name'"
         [style.left.px]="nameSeparatorLeft()"
         (mousedown)="startColumnResize($event, 'name')"
       ></div>
@@ -346,6 +350,7 @@
   [tabs]="bottomTabs"
   [showingBin]="state.showingBin()"
   [showColors]="canColorSelection()"
+  [count]="countLabel()"
   [activeColor]="activeColor()"
   (colorSelect)="applyRequestColor($event)"
   (clearAllColors)="clearAllRequestColors()"
@@ -443,22 +448,6 @@
     </div>
   </div>
 }
-
-<ng-template #methodMenu let-req>
-  @for (method of httpMethods; track method) {
-    <button
-      class="context-menu-item method-menu-item"
-      [class.is-current]="method === req.method"
-      type="button"
-      (click)="chooseMethod(req, method)"
-    >
-      <span class="request-method" [attr.data-method]="method">{{ method }}</span>
-      @if (method === req.method) {
-        <span class="method-menu-check" aria-hidden="true">✓</span>
-      }
-    </button>
-  }
-</ng-template>
 
 @if (scriptPickerFor(); as requests) {
   <app-script-picker-dialog [requests]="requests" (closed)="scriptPickerFor.set(null)" />

@@ -23,11 +23,12 @@
   transform: scale(0.97);
 }
 
-// The request list's main action: large, accent gradient.
+// The request list's main action: the end of the URL bar, accent gradient.
 .send-plane--primary {
-  min-height: 44px;
-  padding: 0 36px;
+  height: 100%;
+  padding: 0 64px;
   font-size: 1.0625rem;
+  border-radius: 0;
   font-weight: 700;
   background: var(--grad);
   @include btn.btn-primary;

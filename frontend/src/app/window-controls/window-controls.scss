@@ -1,0 +1,43 @@
+:host {
+  display: flex;
+  align-self: stretch;
+  --wails-draggable: no-drag;
+}
+
+.window-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  padding: 0;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  cursor: default;
+  transition: background 0.1s ease;
+}
+
+// Explicit size: WebKit doesn't shrink unsized SVGs (see AGENTS.md).
+.window-control svg {
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.window-control:hover {
+  background: var(--hover-highlight);
+}
+
+.window-control:active {
+  background: var(--selected-bg);
+}
+
+// Windows' own close red, in every theme.
+.window-control--close:hover,
+.window-control--close:active {
+  color: #ffffff;
+  background: #c42b1c;
+}

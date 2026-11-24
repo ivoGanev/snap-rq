@@ -44,6 +44,9 @@
   </div>
 
   <div class="bottom-tabs">
+    @if (count(); as count) {
+      <span class="bottom-count">{{ count }}</span>
+    }
     @for (tab of tabs(); track tab.id) {
       <button
         class="bottom-tab"
