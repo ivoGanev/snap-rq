@@ -56,7 +56,7 @@
 .header-method-select {
   flex: 0 0 auto;
   align-items: center;
-  width: 120px;
+  width: 140px;
   box-sizing: border-box;
   padding: 0 var(--s-3);
   font-size: 0.8125rem;
@@ -126,7 +126,7 @@
   border: none;
   cursor: pointer;
   transition:
-    background 0.12s ease,
+    transform 0.15s ease,
     color 0.12s ease;
 }
 
@@ -137,7 +137,11 @@
 
 .header-url-icon:hover {
   color: var(--text);
-  background: var(--hover-highlight);
+  transform: scale(1.25);
+}
+
+.header-url-icon:active {
+  transform: scale(0.9);
 }
 
 .selection-count {
