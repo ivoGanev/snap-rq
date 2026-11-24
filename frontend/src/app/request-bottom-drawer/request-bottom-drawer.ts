@@ -34,6 +34,7 @@ export class RequestBottomDrawer {
 
   readonly tabs = input<BottomTab[]>([]);
   readonly showingBin = input<boolean>(false);
+  readonly count = input<string | null>(null);
 
   /** Whether the colour picker is available (a request is selected in a colour-able view). */
   readonly showColors = input<boolean>(false);

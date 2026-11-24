@@ -134,20 +134,23 @@
   align-self: stretch;
 }
 
-// Centred on the window, not between the bar's neighbours; it lies on the
-// drag area, so it passes clicks through.
-.top-bar-count {
+// Centred on the window, not between the bar's neighbours.
+.top-bar-add {
   position: absolute;
   left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 2px;
   transform: translateX(-50%);
+  --wails-draggable: no-drag;
+}
+
+.top-bar-icon--text {
+  width: auto;
+  padding: 0 6px;
   font-family: var(--font-display);
   font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  color: var(--muted);
-  pointer-events: none;
+  font-weight: 700;
 }
 
 .top-bar-search {

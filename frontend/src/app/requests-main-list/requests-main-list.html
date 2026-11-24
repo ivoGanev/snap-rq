@@ -91,10 +91,7 @@
   } @else if (state.smartView(); as smart) {
     <div class="state-message">{{ smart.emptyText }}</div>
   } @else {
-    <div class="state-message">
-      No requests in this group.
-      <span class="add-request-icons"><ng-container *ngTemplateOutlet="addRequestButtons" /></span>
-    </div>
+    <div class="state-message">No requests in this group.</div>
   }
 }
 
@@ -192,12 +189,6 @@
         </div>
       }
     </div>
-
-    @if (state.selectedCollection()) {
-      <div class="add-request-row">
-        <ng-container *ngTemplateOutlet="addRequestButtons" />
-      </div>
-    }
 
     <cdk-virtual-scroll-viewport
       [itemSize]="rowHeight"
@@ -359,6 +350,7 @@
   [tabs]="bottomTabs"
   [showingBin]="state.showingBin()"
   [showColors]="canColorSelection()"
+  [count]="countLabel()"
   [activeColor]="activeColor()"
   (colorSelect)="applyRequestColor($event)"
   (clearAllColors)="clearAllRequestColors()"
@@ -499,29 +491,3 @@
     (closed)="restorePickerFor.set(null)"
   />
 }
-
-<ng-template #addRequestButtons>
-  @if (state.selectedCollection(); as collection) {
-    <button
-      class="add-request-icon"
-      type="button"
-      title="New request"
-      aria-label="New request"
-      (click)="addBlankRequest(collection)"
-    >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 8v8M8 12h8" />
-      </svg>
-    </button>
-    <button
-      class="add-request-icon add-request-icon--text"
-      type="button"
-      title="Import request from cURL"
-      aria-label="Import request from cURL"
-      (click)="curlImportFor.set(collection)"
-    >
-      cURL
-    </button>
-  }
-</ng-template>

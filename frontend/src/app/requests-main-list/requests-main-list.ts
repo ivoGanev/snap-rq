@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, OnDestroy, TemplateRef, ViewChild, afterNextRender, afterRenderEffect, computed, effect, inject, linkedSignal, signal, untracked, viewChild } from '@angular/core';
-import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { Clipboard } from '@wailsio/runtime';
@@ -85,7 +84,7 @@ const NAME_COLUMN_MIN_WIDTH = 120;
  */
 @Component({
   selector: 'app-requests-main-list',
-  imports: [NgTemplateOutlet, FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, Select, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog, CurlImportDialog, SendButton, UsageMeter],
+  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, Select, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog, CurlImportDialog, SendButton, UsageMeter],
   templateUrl: './requests-main-list.html',
   styleUrl: './requests-main-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -553,11 +552,25 @@ export class RequestsMainList {
     return this.collectionApi.collections().filter((c) => c.id !== current?.id);
   });
 
-  private readonly publishCount = effect(() => {
+  protected readonly countLabel = computed(() => {
     const group = this.activeGroupName();
-    this.state.requestCount.set(
-      group ? { shown: this.filteredActiveRequests().length, total: this.activeRequests().length, group } : null,
-    );
+    if (!group) return null;
+    const shown = this.filteredActiveRequests().length;
+    const total = this.activeRequests().length;
+    const searching = !!this.requestSearchQuery().trim() && shown !== total;
+    return `${searching ? `${shown} of ${total}` : total} in ${group}`;
+  });
+
+  private readonly handleAddIntent = effect(() => {
+    const intent = this.state.addRequestIntent();
+    if (!intent) return;
+    untracked(() => {
+      this.state.addRequestIntent.set(null);
+      const collection = this.state.selectedCollection();
+      if (!collection) return;
+      if (intent === 'blank') void this.addBlankRequest(collection);
+      else this.curlImportFor.set(collection);
+    });
   });
 
   constructor() {

@@ -116,7 +116,6 @@ export class App implements OnInit, AfterViewInit {
   readonly cookiesOverlayOpen = signal(false);
   protected readonly cookieCount = this.cookieApi.cookies;
   protected readonly isWindows = document.documentElement.classList.contains('platform-windows');
-  protected readonly requestCount = this.state.requestCount;
   protected readonly searchOpen = signal(false);
   private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
   private readonly injector = inject(Injector);
