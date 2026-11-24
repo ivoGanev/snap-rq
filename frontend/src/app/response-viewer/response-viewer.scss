@@ -375,8 +375,8 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   user-select: text;
-  color: var(--error-text);
-  background: var(--danger-bg);
+  color: var(--text);
+  background: var(--input-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
 }
