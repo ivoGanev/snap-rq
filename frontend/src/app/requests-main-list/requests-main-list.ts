@@ -531,18 +531,27 @@ export class RequestsMainList {
     await this.sendSelectedRequest(new Event('submit'));
   }
 
-  protected readonly curlCopied = signal(false);
+  protected readonly curlCopiedId = signal<number | null>(null);
   private curlCopiedTimer: ReturnType<typeof setTimeout> | undefined;
 
-  protected async copyCurlFromUrl(): Promise<void> {
-    clearTimeout(this.urlSaveTimer);
-    const req = this.headerRequest();
-    if (!req) return;
-    await this.saveUrl(req, this.urlDraft());
+  protected readonly pawHint = computed(() =>
+    this.state.view()?.kind === 'collection'
+      ? 'You recently left your footprint here: you used the request the last time you entered this collection'
+      : 'You recently left your footprint here: you used the request the last time you were here',
+  );
+
+  protected async copyRowCurl(req: HttpRequestSummary | HttpBinnedRequestSummary, event: MouseEvent): Promise<void> {
+    event.stopPropagation();
+    // The URL being typed for this row is saved first, so the copy has it.
+    const editing = this.headerRequest();
+    if (editing && editing.id === req.id) {
+      clearTimeout(this.urlSaveTimer);
+      await this.saveUrl(editing, this.urlDraft());
+    }
     await this.copyRequestCurl(req);
-    this.curlCopied.set(true);
+    this.curlCopiedId.set(req.id);
     clearTimeout(this.curlCopiedTimer);
-    this.curlCopiedTimer = setTimeout(() => this.curlCopied.set(false), 1500);
+    this.curlCopiedTimer = setTimeout(() => this.curlCopiedId.set(null), 1500);
   }
 
   private async saveUrl(req: HttpRequestSummary, url: string): Promise<void> {
@@ -1661,7 +1670,7 @@ export class RequestsMainList {
     if (!req) return;
 
     try {
-      const full = await this.requestApi.getFull(req.id);
+      const full = this.state.showingBin() ? await this.binApi.get(req.id) : await this.requestApi.getFull(req.id);
       const curl = await this.requestApi.requestToCurl(full);
       await Clipboard.SetText(curl);
     } catch (err) {

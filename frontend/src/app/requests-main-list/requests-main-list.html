@@ -26,15 +26,6 @@
           (textChange)="onUrlChange($event)"
           (submit)="sendFromUrl()"
         ></app-code-editor>
-        <button
-          class="header-url-icon"
-          type="button"
-          [attr.aria-label]="curlCopied() ? 'cURL copied' : 'Copy as cURL'"
-          [title]="curlCopied() ? 'Copied' : 'Copy as cURL'"
-          (click)="copyCurlFromUrl()"
-        >
-          {{ curlCopied() ? '✓' : 'cURL' }}
-        </button>
       </div>
       <app-send-button class="header-send" variant="primary" [requestId]="req.id" (send)="sendSelectedRequest($event)" />
       </div>
@@ -277,9 +268,21 @@
             class="cell-text"
             (dblclick)="onCellDoubleClick(req, 'url')"
           >{{ rowState()[req.id]?.displayUrl ?? req.url }}</span>
-          @if (req.id === lastUsedRequestId()) {
-            <app-last-used-paw />
-          }
+          <span class="row-trailing">
+            @if (req.id === lastUsedRequestId()) {
+              <app-last-used-paw [hint]="pawHint()" />
+            }
+            <button
+              class="row-curl"
+              type="button"
+              [title]="curlCopiedId() === req.id ? 'Copied' : 'Copy as cURL'"
+              [attr.aria-label]="curlCopiedId() === req.id ? 'cURL copied' : 'Copy ' + req.name + ' as cURL'"
+              (click)="copyRowCurl(req, $event)"
+              (dblclick)="$event.stopPropagation()"
+            >
+              {{ curlCopiedId() === req.id ? '✓' : 'cURL' }}
+            </button>
+          </span>
         </div>
 
         @if (showUsage()) {
