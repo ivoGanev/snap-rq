@@ -10,3 +10,7 @@
   - Describe the code as it is. No history ("now", "used to", "instead of the old…") and no references to the task, the conversation, a review or an earlier attempt; that goes in the commit message.
   - No corrective notes ("*not* like X", "don't treat this as Y"). When a misunderstanding is corrected, fix the code and leave no trace.
   - One or two short lines.
+- This repository is public. Nothing personal or private goes into code, test data, mock data, comments, docs, commit messages or PR descriptions.
+  - No personal names, usernames, email addresses, local paths, machine names, account details, password-manager or vault item names, or real tokens and keys.
+  - Use neutral placeholders: `demo-user`, `user@example.test`, `example.com`, `{{token}}`.
+  - Deliberate exceptions: the app's publisher name and bundle ID in the build files. The bundle ID never changes (see backend/identity).
