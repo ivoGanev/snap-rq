@@ -3,7 +3,7 @@ import { Window } from '@wailsio/runtime';
 
 /**
  * Minimise, maximise/restore and close for the frameless Windows window,
- * drawn in Windows 11's style. The top bar around them drags the window.
+ * drawn to match the system's own. The top bar around them drags the window.
  */
 @Component({
   selector: 'app-window-controls',
