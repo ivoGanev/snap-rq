@@ -125,8 +125,6 @@ export class RequestGroups {
   private readonly importPrompt = inject(OpenApiImportPrompt);
   private readonly toast = inject(ToastService);
 
-  @ViewChild('collectionsMoreMenu', { static: true })
-  private readonly collectionsMoreMenu!: TemplateRef<{ $implicit: unknown }>;
 
   /** Development builds only: the rail shows an undo-history debug button. */
   protected readonly devUndoVisible = isDevMode();
@@ -539,19 +537,22 @@ export class RequestGroups {
   protected readonly canAddRequest = computed(() => !!this.state.selectedCollection() && !this.state.showingBin());
 
   /**
-   * Opens the "⋯" menu through the shared context menu, which is drawn at the
+   * Opens a Collections header menu through the shared context menu, which is drawn at the
    * root of the app. A menu drawn inside the sidebar would be clipped and
    * positioned by it (the sidebar has a backdrop-filter and overflow: hidden).
    * It opens on the next tick so the click that asked for it, and the outlet's
    * document click listener, are finished first.
    */
-  openCollectionsMoreMenu(position: { x: number; y: number }): void {
-    setTimeout(() => this.contextMenu.open(this.collectionsMoreMenu, null, position.x, position.y), 0);
+  openCollectionsMenu(menu: TemplateRef<{ $implicit: null }>, position: { x: number; y: number }): void {
+    setTimeout(() => this.contextMenu.open(menu, null, position.x, position.y), 0);
   }
 
-  onCollectionsMore(action: 'request' | 'curl' | 'import' | 'export'): void {
+  onCollectionsMenu(action: 'collection' | 'request' | 'curl' | 'import' | 'export'): void {
     this.contextMenu.close();
     switch (action) {
+      case 'collection':
+        void this.createAndRename();
+        break;
       case 'request':
         this.state.addRequestIntent.set('blank');
         break;
@@ -757,21 +758,36 @@ export class RequestGroups {
   async deleteItem(item: SidebarItem): Promise<void> {
     this.contextMenu.close();
 
-    const noun =
-      item.kind === 'collection' ? 'collection' : item.kind === 'favourite' ? 'favourites' : 'script';
-    const confirmed = await this.confirm.ask({
-      title: `Delete ${noun}?`,
-      message: this.deleteItemMessage(item),
-      confirmLabel: 'Delete',
-      danger: true,
-    });
-    if (!confirmed) return;
+    if (!(item.kind === 'collection' && (await this.isEmptyCollection(item.id)))) {
+      const confirmed = await this.askToDelete(item);
+      if (!confirmed) return;
+    }
 
     try {
       await this.removeItem(item);
     } catch (err) {
       console.error(err);
     }
+  }
+
+  private async isEmptyCollection(id: number): Promise<boolean> {
+    try {
+      const requests = await this.commandApi.execute<unknown[] | null>('request.list_for_collection', { collection_id: id });
+      return (requests ?? []).length === 0;
+    } catch {
+      return false;
+    }
+  }
+
+  private askToDelete(item: SidebarItem): Promise<boolean> {
+    const noun =
+      item.kind === 'collection' ? 'collection' : item.kind === 'favourite' ? 'favourites' : 'script';
+    return this.confirm.ask({
+      title: `Delete ${noun}?`,
+      message: this.deleteItemMessage(item),
+      confirmLabel: 'Delete',
+      danger: true,
+    });
   }
 
   private deleteItemMessage(item: SidebarItem): string {

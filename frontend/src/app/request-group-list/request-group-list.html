@@ -4,9 +4,9 @@
     <button
       class="add-button"
       type="button"
-      (click)="onAddClick()"
-      [attr.aria-label]="'Add new ' + folderFilter()"
-      [title]="'Add new ' + folderFilter()"
+      (click)="onAddClick($event)"
+      [attr.aria-label]="showMoreMenu() ? 'New collection, request or import' : 'Add new ' + folderFilter()"
+      [title]="showMoreMenu() ? 'New collection, request or import' : 'Add new ' + folderFilter()"
     >
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
         <circle cx="12" cy="12" r="9" />
@@ -19,7 +19,7 @@
         type="button"
         (click)="onMoreMenuClick($event)"
         aria-label="More collection actions"
-        title="New request, cURL, import and export"
+        title="Export"
       >
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <circle cx="5" cy="12" r="1.8" />
