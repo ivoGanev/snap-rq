@@ -12,7 +12,7 @@ import (
 func TestExposedToolNames(t *testing.T) {
 	want := []string{
 		"add_to_favourite", "attach_script", "bulk_edit_requests", "create_collection", "create_favourite",
-		"create_request", "delete_requests", "detach_script", "duplicate_request", "edit_request_content", "get_request", "import_openapi",
+		"create_request", "create_requests", "delete_requests", "detach_script", "duplicate_request", "edit_request_content", "get_request", "import_openapi",
 		"list_collections", "list_environments", "list_favourites", "list_profiles", "list_projects", "list_recent_requests", "list_requests",
 		"list_responses", "list_script_requests", "list_scripts", "list_trash", "list_variables", "move_requests",
 		"remove_from_favourite", "rename_collection", "rename_favourite", "rename_script",
@@ -78,7 +78,7 @@ func TestContentToolsAskFirst(t *testing.T) {
 		if m.Risk == RiskContent && !approvalTools[m.Name] {
 			t.Errorf("%s changes what a request sends but does not ask first", m.Name)
 		}
-		if m.Risk == RiskContent && m.Name != "edit_request_content" {
+		if m.Risk == RiskContent && m.Name != "edit_request_content" && m.Name != "create_requests" {
 			t.Errorf("unexpected content tool %s", m.Name)
 		}
 	}

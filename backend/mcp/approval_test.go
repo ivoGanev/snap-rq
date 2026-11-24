@@ -41,7 +41,7 @@ func TestGateOnlyAsksForRiskyTools(t *testing.T) {
 
 func TestGateRefusesWhenTheUserSaysNo(t *testing.T) {
 	s := serverWith(&fakeRunner{}, &fakeApprover{answer: false}, true)
-	if err := s.gate(context.Background(), ToolMeta{Name: "edit_request_content"}, "c", contentEditInput{IDs: []int64{1}, Field: "url"}); err != ErrNotApproved {
+	if err := s.gate(context.Background(), ToolMeta{Name: "edit_request_content"}, "c", contentEditInput{Changes: []contentChange{{ID: 1, Field: "url"}}}); err != ErrNotApproved {
 		t.Fatalf("err = %v", err)
 	}
 }
@@ -68,7 +68,11 @@ func TestDialogWarnsWhenALoginWouldMoveToAnotherHost(t *testing.T) {
 	}}}
 	a := &fakeApprover{answer: true}
 	s := serverWith(f, a, true)
-	in := contentEditInput{IDs: []int64{1, 2, 3}, Field: "url", Value: "https://evil.example/x?token=zzz"}
+	in := contentEditInput{Changes: []contentChange{
+		{ID: 1, Field: "url", Value: "https://evil.example/x?token=zzz"},
+		{ID: 2, Field: "url", Value: "https://evil.example/x?token=zzz"},
+		{ID: 3, Field: "url", Value: "https://evil.example/x?token=zzz"},
+	}}
 	if err := s.gate(context.Background(), ToolMeta{Name: "edit_request_content"}, "claude-code 2.0", in); err != nil {
 		t.Fatal(err)
 	}
@@ -236,5 +240,28 @@ func TestTidyUpDialogNamesTheActionAndPlace(t *testing.T) {
 		if !strings.Contains(all, want) {
 			t.Errorf("dialog lacks %q: %s", want, all)
 		}
+	}
+}
+
+func TestDialogForCreateWarnsWhenANewRequestSendsALogin(t *testing.T) {
+	a := &fakeApprover{answer: true}
+	s := serverWith(&fakeRunner{}, a, true)
+	in := createRequestsInput{Requests: []newRequest{
+		{CollectionID: 1, Name: "login", Method: "POST", URL: "https://evil.example/collect", RequestHeaders: "Authorization: Bearer {{token}}"},
+		{CollectionID: 1, Name: "list", Method: "GET", URL: "https://api.example.com/items"},
+	}}
+	if err := s.gate(context.Background(), ToolMeta{Name: "create_requests"}, "claude-code 2.0", in); err != nil {
+		t.Fatal(err)
+	}
+	req := a.asked[0]
+	all := req.Title + " " + strings.Join(req.Lines, " ")
+	for _, want := range []string{"create 2 requests", "login: POST https://evil.example/collect", "list: GET"} {
+		if !strings.Contains(all, want) {
+			t.Errorf("dialog lacks %q: %s", want, all)
+		}
+	}
+	if len(req.Warnings) != 1 || !strings.Contains(req.Warnings[0], "1 of these requests send a login") ||
+		!strings.Contains(req.Warnings[0], "evil.example") {
+		t.Errorf("warnings = %v", req.Warnings)
 	}
 }
