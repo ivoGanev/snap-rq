@@ -13,6 +13,10 @@
   --wails-draggable: no-drag;
 }
 
+.context-menu-panel.is-square {
+  border-radius: 0;
+}
+
 .context-menu-panel .context-menu {
   position: static;
   z-index: auto;

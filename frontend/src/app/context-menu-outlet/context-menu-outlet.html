@@ -2,6 +2,7 @@
   <div
     #panel
     class="context-menu context-menu-panel"
+    [class.is-square]="menu.square()"
     (click)="onMenuClick($event)"
     (contextmenu)="onMenuContextMenu($event)"
     (pointerenter)="menu.pointerEntered()"

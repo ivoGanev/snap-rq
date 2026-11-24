@@ -15,7 +15,7 @@ import { CommandApiService } from '../core/services/command.service';
 import { SelectionStateService, groupKey } from '../core/services/selection-state.service';
 import { ScriptApiService, type Script } from '../core/services/script.service';
 import { DragSessionService, type DropKind } from '../core/services/drag-session.service';
-import { ContextMenuService } from '../core/services/context-menu.service';
+import { ContextMenuService, type ContextMenuOptions } from '../core/services/context-menu.service';
 import { IconManifestService } from '../core/services/icon-manifest.service';
 import { ConfirmService } from '../core/services/confirm.service';
 import { isEditableTarget } from '../core/dom/editable-target';
@@ -545,14 +545,15 @@ export class RequestGroups {
     menu: TemplateRef<{ $implicit: C }>,
     context: C,
     position: { x: number; y: number },
-    byHover = false,
+    options: ContextMenuOptions = {},
   ): void {
-    if (byHover) {
-      this.contextMenu.open(menu, context, position.x, position.y, true);
+    if (options.byHover) {
+      this.contextMenu.open(menu, context, position.x, position.y, options);
       return;
     }
-    setTimeout(() => this.contextMenu.open(menu, context, position.x, position.y), 0);
+    setTimeout(() => this.contextMenu.open(menu, context, position.x, position.y, options), 0);
   }
+
 
   /**
    * Opens the collection, then asks the request list for the new request on

@@ -38,7 +38,7 @@
         [dropZoneActive]="dropZoneActive()"
         [showMoreMenu]="folderFilter() === 'collections'"
         (moreMenuOpen)="openCollectionsMenu(collectionsMoreMenu, null, $event)"
-        (rowAddMenuOpen)="openCollectionsMenu(collectionRowAddMenu, $event.item, $event.position, $event.byHover)"
+        (rowAddMenuOpen)="openCollectionsMenu(collectionRowAddMenu, $event.item, $event.position, { byHover: $event.byHover, square: true })"
         (rowAddLeave)="contextMenu.pointerLeft()"
         (addClick)="createAndRename()"
         (itemSelect)="selectSidebarItem($event)"

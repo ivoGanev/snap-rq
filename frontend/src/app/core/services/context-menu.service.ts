@@ -5,6 +5,13 @@ export interface ContextMenuPosition {
   y: number;
 }
 
+export interface ContextMenuOptions {
+  /** Opened by hovering: closes once the pointer has left its button and the menu. */
+  byHover?: boolean;
+  /** Square corners, for a menu that sits on an edge. */
+  square?: boolean;
+}
+
 export interface ContextMenuState<T = unknown> {
   template: TemplateRef<{ $implicit: T }> | null;
   context: T | null;
@@ -31,13 +38,14 @@ export class ContextMenuService {
   readonly context = signal<unknown>(null);
   readonly position = signal<ContextMenuPosition | null>(null);
   readonly isOpen = signal(false);
-  /** Opened by hovering: closes once the pointer has left its button and the menu. */
+  readonly square = signal(false);
   private openedByHover = false;
   private leaveTimer: ReturnType<typeof setTimeout> | undefined;
 
-  open<T>(template: TemplateRef<{ $implicit: T }>, context: T, x: number, y: number, byHover = false): void {
+  open<T>(template: TemplateRef<{ $implicit: T }>, context: T, x: number, y: number, options: ContextMenuOptions = {}): void {
     clearTimeout(this.leaveTimer);
-    this.openedByHover = byHover;
+    this.openedByHover = options.byHover ?? false;
+    this.square.set(options.square ?? false);
     this.template.set(template as TemplateRef<{ $implicit: unknown }>);
     this.context.set(context);
     this.position.set({ x, y });
