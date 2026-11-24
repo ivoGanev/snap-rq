@@ -67,12 +67,46 @@
     }
 
     <div class="response-section response-headers-section">
-      <h3 class="section-title">Headers</h3>
+      <div class="section-head">
+        <h3 class="section-title">Headers</h3>
+        <span class="section-actions">
+          @if (headersMasked()) {
+            <button
+              class="section-action"
+              type="button"
+              [class.is-active]="revealHeaders()"
+              [attr.aria-label]="revealHeaders() ? 'Hide secrets in the headers' : 'Reveal secrets in the headers'"
+              [title]="revealHeaders() ? 'Hide secrets' : 'Reveal secrets'"
+              (click)="revealHeaders.set(!revealHeaders())"
+            >
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 5C6.5 5 2.7 9.1 1.5 12c1.2 2.9 5 7 10.5 7s9.3-4.1 10.5-7C21.3 9.1 17.5 5 12 5zm0 11.5A4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 0 1 0 9zm0-7a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z" />
+          </svg>
+            </button>
+          }
+          <button
+            class="section-action"
+            type="button"
+            [attr.aria-label]="'Copy the headers'"
+            [title]="copied() === 'headers' ? 'Copied' : 'Copy'"
+            (click)="copy('headers')"
+          >
+            @if (copied() === 'headers') {
+              <span class="section-action-done">✓</span>
+            } @else {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="8" y="8" width="12" height="12" rx="2" />
+              <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+            </svg>
+            }
+          </button>
+        </span>
+      </div>
       <pre
         class="response-block response-headers"
         tabindex="0"
         (keydown)="onBlockKeyDown($event)"
-      >{{ state.selectedResponse()!.headers || 'No headers' }}</pre>
+      >{{ state.selectedResponse()!.headers ? shownHeaders() : 'No headers' }}</pre>
     </div>
 
     @if (responseCookies().length > 0) {
@@ -91,14 +125,48 @@
     }
 
     <div class="response-section response-body-section">
-      <h3 class="section-title">Body</h3>
-      @if (bodyLines().length === 0) {
+      <div class="section-head">
+        <h3 class="section-title">Body</h3>
+        <span class="section-actions">
+          @if (bodyMasked()) {
+            <button
+              class="section-action"
+              type="button"
+              [class.is-active]="revealBody()"
+              [attr.aria-label]="revealBody() ? 'Hide secrets in the body' : 'Reveal secrets in the body'"
+              [title]="revealBody() ? 'Hide secrets' : 'Reveal secrets'"
+              (click)="revealBody.set(!revealBody())"
+            >
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 5C6.5 5 2.7 9.1 1.5 12c1.2 2.9 5 7 10.5 7s9.3-4.1 10.5-7C21.3 9.1 17.5 5 12 5zm0 11.5A4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 0 1 0 9zm0-7a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z" />
+          </svg>
+            </button>
+          }
+          <button
+            class="section-action"
+            type="button"
+            [attr.aria-label]="'Copy the body'"
+            [title]="copied() === 'body' ? 'Copied' : 'Copy'"
+            (click)="copy('body')"
+          >
+            @if (copied() === 'body') {
+              <span class="section-action-done">✓</span>
+            } @else {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="8" y="8" width="12" height="12" rx="2" />
+              <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+            </svg>
+            }
+          </button>
+        </span>
+      </div>
+      @if (!state.selectedResponse()!.body) {
         <pre
           class="response-block response-body"
           tabindex="0"
           (keydown)="onBlockKeyDown($event)"
         >No body</pre>
-      } @else {
+      } @else if (bodyLines().length > 0) {
         <div class="response-block response-body response-body-frame">
           <cdk-virtual-scroll-viewport
             itemSize="20"
