@@ -142,6 +142,7 @@ func main() {
 			application.NewService(appService),
 			application.NewService(&VariablesService{}),
 			application.NewService(mcp.NewSettingsService(mcpServer, mcpStore)),
+			application.NewService(mcp.NewDisplayService(mcpStore)),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
