@@ -125,8 +125,8 @@ export class RequestGroups {
   private readonly importPrompt = inject(OpenApiImportPrompt);
   private readonly toast = inject(ToastService);
 
-  @ViewChild('collectionsAddMenu', { static: true })
-  private readonly collectionsAddMenu!: TemplateRef<{ $implicit: unknown }>;
+  @ViewChild('collectionsMoreMenu', { static: true })
+  private readonly collectionsMoreMenu!: TemplateRef<{ $implicit: unknown }>;
 
   /** Development builds only: the rail shows an undo-history debug button. */
   protected readonly devUndoVisible = isDevMode();
@@ -265,11 +265,6 @@ export class RequestGroups {
   // Creation popups
   protected readonly newCollectionPopupOpen = signal(false);
   protected readonly newCollectionName = signal('');
-  protected readonly newFavouritePopupOpen = signal(false);
-  protected readonly newFavouriteName = signal('');
-  protected readonly newScriptPopupOpen = signal(false);
-
-  protected readonly newScriptName = signal('');
 
   // Rename inline
   protected readonly renamingItem = signal<SidebarItem | null>(null);
@@ -416,14 +411,6 @@ export class RequestGroups {
       this.closeNewCollectionPopup();
       return;
     }
-    if (this.newFavouritePopupOpen()) {
-      this.closeNewFavouritePopup();
-      return;
-    }
-    if (this.newScriptPopupOpen()) {
-      this.closeNewScriptPopup();
-      return;
-    }
     if (this.renamingItem()) {
       this.cancelRename();
       return;
@@ -440,9 +427,7 @@ export class RequestGroups {
       this.contextMenu.isOpen() ||
       this.renamingItem() ||
       this.appearancePopupOpen() ||
-      this.newCollectionPopupOpen() ||
-      this.newFavouritePopupOpen() ||
-      this.newScriptPopupOpen()
+      this.newCollectionPopupOpen()
     ) {
       return;
     }
@@ -513,37 +498,65 @@ export class RequestGroups {
 
   // ---------- Add ----------
 
-  onAddButtonClick(): void {
+  /** "+": creates the item under a free default name and starts renaming it. */
+  async createAndRename(): Promise<void> {
+    const project = this.state.selectedProject();
+    if (!project) return;
     this.contextMenu.close();
-    switch (this.folderFilter()) {
-      case 'collections':
-        this.openNewCollectionPopup();
-        break;
-      case 'favourites':
-        this.openNewFavouritePopup();
-        break;
-      case 'scripts':
-        this.openNewScriptPopup();
-        break;
+    try {
+      let created: { kind: SidebarItem['kind']; id: number };
+      switch (this.folderFilter()) {
+        case 'collections': {
+          const name = freeName('New collection', this.collections().map((c) => c.name));
+          const collection = await this.collectionApi.create({ project_id: project.id, name });
+          created = { kind: 'collection', id: collection.id };
+          break;
+        }
+        case 'favourites': {
+          const name = freeName('New favourites', this.favouriteCollections().map((f) => f.name));
+          const favourite = await this.favouriteApi.createCollection({ project_id: project.id, name });
+          created = { kind: 'favourite', id: favourite.id };
+          break;
+        }
+        case 'scripts': {
+          // Attaching an existing script's name returns that script, so the name must be free.
+          const name = freeName('new script', this.allScripts().map((t) => t.name));
+          const script = await this.scriptApi.attachScript(0, project.id, name);
+          created = { kind: 'script', id: script.id };
+          break;
+        }
+        default:
+          return;
+      }
+      const item = this.filteredItems().find((i) => i.kind === created.kind && i.id === created.id);
+      if (item) this.startRename(item);
+    } catch (err) {
+      console.error(err);
+      this.toast.show(`Couldn't create it: ${errorText(err)}`);
     }
   }
 
+  protected readonly canAddRequest = computed(() => !!this.state.selectedCollection() && !this.state.showingBin());
+
   /**
-   * Opens the "+" menu through the shared context menu, which is drawn at the
+   * Opens the "⋯" menu through the shared context menu, which is drawn at the
    * root of the app. A menu drawn inside the sidebar would be clipped and
    * positioned by it (the sidebar has a backdrop-filter and overflow: hidden).
    * It opens on the next tick so the click that asked for it, and the outlet's
    * document click listener, are finished first.
    */
-  openCollectionsAddMenu(position: { x: number; y: number }): void {
-    setTimeout(() => this.contextMenu.open(this.collectionsAddMenu, null, position.x, position.y), 0);
+  openCollectionsMoreMenu(position: { x: number; y: number }): void {
+    setTimeout(() => this.contextMenu.open(this.collectionsMoreMenu, null, position.x, position.y), 0);
   }
 
-  onCollectionAddMenu(action: 'new' | 'import' | 'export'): void {
+  onCollectionsMore(action: 'request' | 'curl' | 'import' | 'export'): void {
     this.contextMenu.close();
     switch (action) {
-      case 'new':
-        this.openNewCollectionPopup();
+      case 'request':
+        this.state.addRequestIntent.set('blank');
+        break;
+      case 'curl':
+        this.state.addRequestIntent.set('curl');
         break;
       case 'import':
         void this.importOpenApi();
@@ -612,37 +625,11 @@ export class RequestGroups {
     }
   }
 
-  openNewCollectionPopup(): void {
-    this.contextMenu.close();
-    this.newCollectionName.set('');
-    this.newCollectionPopupOpen.set(true);
-  }
-
   closeNewCollectionPopup(): void {
     this.newCollectionPopupOpen.set(false);
     if (this.drag.createCollectionRequested()) {
       this.drag.cancelCreateCollection();
     }
-  }
-
-  openNewFavouritePopup(): void {
-    this.contextMenu.close();
-    this.newFavouriteName.set('');
-    this.newFavouritePopupOpen.set(true);
-  }
-
-  closeNewFavouritePopup(): void {
-    this.newFavouritePopupOpen.set(false);
-  }
-
-  openNewScriptPopup(): void {
-    this.contextMenu.close();
-    this.newScriptName.set('');
-    this.newScriptPopupOpen.set(true);
-  }
-
-  closeNewScriptPopup(): void {
-    this.newScriptPopupOpen.set(false);
   }
 
   // ---------- Creation ----------
@@ -672,34 +659,6 @@ export class RequestGroups {
       console.error(err);
     } finally {
       this.state.loading.set(false);
-    }
-  }
-
-  async addFavouriteCollection(): Promise<void> {
-    const project = this.state.selectedProject();
-    if (!project) return;
-
-    const name = this.newFavouriteName().trim();
-    if (!name) return;
-
-    try {
-      await this.favouriteApi.createCollection({ project_id: project.id, name });
-      this.closeNewFavouritePopup();
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async addScript(): Promise<void> {
-    const project = this.state.selectedProject();
-    const name = this.newScriptName().trim().toLowerCase();
-    if (!project || !name) return;
-
-    try {
-      await this.scriptApi.attachScript(0, project.id, name);
-      this.closeNewScriptPopup();
-    } catch (err) {
-      console.error(err);
     }
   }
 
@@ -889,4 +848,12 @@ export class RequestGroups {
 
 function errorText(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+/** base, or "base 2", "base 3"… when names (compared case-insensitively) already use it. */
+function freeName(base: string, names: string[]): string {
+  const taken = new Set(names.map((n) => n.toLowerCase()));
+  let name = base;
+  for (let n = 2; taken.has(name.toLowerCase()); n++) name = `${base} ${n}`;
+  return name;
 }

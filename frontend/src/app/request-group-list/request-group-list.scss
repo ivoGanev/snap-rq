@@ -12,6 +12,12 @@
   letter-spacing: 0.05em;
 }
 
+.group-list-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
 .add-button {
   flex: 0 0 auto;
   display: flex;
