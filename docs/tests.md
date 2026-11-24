@@ -53,6 +53,15 @@ Each comes with a way to check the same thing by hand. The steps use `https://ht
 13. **Secrets in a response stay hidden until revealed**
    `response-secrets.e2e.ts` and `response-secrets-webkit.e2e.ts`, in Chromium and WebKit, against the stub's `/secrets` (the mock server's `/mock/secrets` for manual runs). Send a request whose response has a password and tokens in the body, and an auth token and session cookie in the headers. The body, headers and Cookies table show `•••••` for them, and ordinary fields as sent. Each section's eye reveals only that section; opening another response hides everything again. A response with nothing secret shows a copy button but no eye. Copy takes what is shown: `•••••` while hidden, the real value once revealed. What counts as secret is the MCP masking list plus the names added in Settings → MCP (`backend/mcp/display_test.go`).
 
+14. **The trash bin asks before deleting and restores to the right place**
+   `trash-bin.e2e.ts`, in Chromium. Move a few requests to the bin and open Trash bin.
+   - Select one: Delete permanently in the inspector asks first, and Cancel keeps it. Select two: the pane lists them, Delete permanently names "2 requests", and confirming removes both.
+   - Empty bin in the top bar asks first; Cancel keeps everything, and confirming empties the bin and hides the button.
+   - Restore reads "Restore to *collection*" and puts the request back there. When its collection was deleted it reads "Restore…" and opens the picker. Restore all on a selection where one collection is gone restores nothing until a collection is picked.
+
+15. **Clearing a request's history asks first and keeps its usage**
+   `clear-history.e2e.ts`, in Chromium, with `backend/commands/responses/clear_test.go`. Send a request to a failing address twice and open it from Failing. The bin at the right of the History bar asks first ("All 2 saved responses"), and Cancel keeps them. Confirming shows "No responses for this request." and drops the request from Failing; its status resets, while its usage (Recent, the usage meter, the paw) stays. Clicking the bin doesn't fold or unfold the timeline, and Zen mode's History bar has no bin.
+
 ## Tests worth writing
 
 Add a line when you find something a test should cover: what should happen, and why it matters. Remove it once the test exists, and add the test above if it's end-to-end.
