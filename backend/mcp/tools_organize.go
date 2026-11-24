@@ -47,7 +47,7 @@ type bulkEditInput struct {
 
 type reorderRequestsInput struct {
 	CollectionID int64   `json:"collection_id" jsonschema:"id of the collection"`
-	OrderedIDs   []int64 `json:"ordered_ids" jsonschema:"all request ids of the collection in the wanted order"`
+	OrderedIDs   []int64 `json:"ordered_ids" jsonschema:"every request id of the collection (from list_requests), in the wanted order"`
 }
 
 type moveRequestsInput struct {
@@ -152,7 +152,10 @@ func bulkEdit(s *Server, in bulkEditInput) (any, error) {
 	if in.Field != "name" && in.Field != "color" {
 		return nil, fmt.Errorf("bulk_edit_requests only changes name and color, not %q; changing what a request sends is edit_request_content, which the user must switch on in the MCP settings", in.Field)
 	}
-	return s.run("request.bulk_set", in)
+	if _, err := s.run("request.bulk_set", in); err != nil {
+		return nil, fmt.Errorf("nothing was changed: %w", err)
+	}
+	return map[string]any{"updated": in.IDs}, nil
 }
 
 // createRequest fills in the method before creating, so a request is never

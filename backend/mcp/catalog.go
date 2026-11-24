@@ -70,16 +70,17 @@ var Catalog = []ToolMeta{
 	{"rename_collection", "Rename a collection.", RiskOrganize, "collection.update"},
 
 	// requests
-	{"create_request", "Create an empty request (name and method only) at the end of a collection. method defaults to GET. Setting its URL, headers or body needs edit_request_content.", RiskOrganize, "request.create"},
+	{"create_request", "Create an empty request (name and method only) at the end of a collection. method defaults to GET. To create requests with a URL, headers or body, use create_requests.", RiskOrganize, "request.create"},
 	{"duplicate_request", "Duplicate a request.", RiskOrganize, "request.duplicate"},
 	{"delete_requests", "Move requests to the trash. They can be restored with restore_from_trash or undone.", RiskOrganize, "request.delete"},
 	{"restore_from_trash", "Restore requests from the trash into collections.", RiskOrganize, "bin.restore"},
-	{"bulk_edit_requests", "Set name or color on many requests. Undoable.", RiskOrganize, "request.bulk_set"},
-	{"reorder_requests", "Set the custom order of the requests in a collection.", RiskOrganize, "request.update_order"},
+	{"bulk_edit_requests", "Set name or color on many requests. Undoable. Returns the ids changed.", RiskOrganize, "request.bulk_set"},
+	{"reorder_requests", "Set the order of the requests in a collection: ordered_ids lists every request id of the collection, in the wanted order. Undoable.", RiskOrganize, "request.update_order"},
 	{"move_requests", "Move requests to another collection (appended at its end). Not undoable: move them back to revert.", RiskOrganize, "request.update"},
 
 	// content: what a request sends. Off by default.
-	{"edit_request_content", "Change the address (URL), method, headers, body, body_type or body_form of many requests. Undoable. The user is asked to approve each call.", RiskContent, "request.bulk_set"},
+	{"create_requests", "Create one or more requests with what they send (url, method, request_headers, body, body_type, body_form), each appended to its collection in the order given. Every value is a string: send a JSON body as its text. All or nothing, one undo step; returns the created requests. The user is asked to approve each call.", RiskContent, "request.create_many"},
+	{"edit_request_content", "Change what requests send, as a list of {id, field, value} changes; field is one of url, method, request_headers, body, body_type, body_form, and value is always a string (send a JSON body as its text). All or nothing, one undo step; returns the updated requests. The user is asked to approve each call.", RiskContent, "request.edit_many"},
 
 	// scripts
 	{"attach_script", "Attach a script to a request; the script is created (empty) if the project has none with that name.", RiskOrganize, "script.attach"},

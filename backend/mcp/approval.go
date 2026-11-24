@@ -23,6 +23,7 @@ import (
 // is on. It is data, like the catalog, not a user setting.
 var approvalTools = map[string]bool{
 	"edit_request_content": true,
+	"create_requests":      true,
 	"delete_requests":      true,
 }
 
@@ -179,7 +180,7 @@ func (s *Server) approvalRequired() bool {
 }
 
 var fieldLabels = map[string]string{
-	"url": "address (URL)", "method": "method", "headers": "headers",
+	"url": "address (URL)", "method": "method", "request_headers": "headers",
 	"body": "body", "body_type": "body type", "body_form": "form body",
 }
 
@@ -194,6 +195,8 @@ func (s *Server) describe(m ToolMeta, client string, in any) ApprovalRequest {
 	switch v := in.(type) {
 	case contentEditInput:
 		s.describeContentEdit(&req, who, v, masker)
+	case createRequestsInput:
+		s.describeCreate(&req, who, v, masker)
 	case deleteRequestsInput:
 		s.describeDelete(&req, who, v)
 	default:
@@ -203,47 +206,128 @@ func (s *Server) describe(m ToolMeta, client string, in any) ApprovalRequest {
 }
 
 func (s *Server) describeContentEdit(req *ApprovalRequest, who string, in contentEditInput, masker *Masker) {
-	n := len(in.IDs)
-	label := fieldLabels[in.Field]
-	if label == "" {
-		label = in.Field
+	ids := []int64{}
+	labels := []string{}
+	seenID, seenLabel := map[int64]bool{}, map[string]bool{}
+	for _, c := range in.Changes {
+		if !seenID[c.ID] {
+			seenID[c.ID] = true
+			ids = append(ids, c.ID)
+		}
+		if label := labelOf(c.Field); !seenLabel[label] {
+			seenLabel[label] = true
+			labels = append(labels, label)
+		}
 	}
-	req.Title = fmt.Sprintf("%s wants to change the %s of %s", who, label, plural(n, "request"))
-	infos := s.lookRequests(in.IDs)
+	req.Title = fmt.Sprintf("%s wants to change the %s of %s", who, joinAnd(labels), plural(len(ids), "request"))
+	infos := s.lookRequests(ids)
 	req.Lines = append(req.Lines, s.describeWhere(infos)...)
-	newValue := valueText(in.Value)
-
-	switch in.Field {
-	case "url":
-		masked := masker.URL(newValue)
-		req.Lines = append(req.Lines, "New address: "+truncate(masked, 120))
-		oldHosts := distinct(infos, func(r requestInfo) string { return hostOf(r.URL) })
-		if len(oldHosts) > 0 {
-			req.Lines = append(req.Lines, "Now pointing at: "+listWithMore(oldHosts, 4))
-		}
-		newHost := hostOf(newValue)
-		changed := true
-		if len(oldHosts) == 1 && oldHosts[0] == newHost {
-			changed = false
-		}
-		if changed {
-			req.Lines = append(req.Lines, "The host becomes: "+newHost)
-		}
-		carrying := 0
-		for _, r := range infos {
-			if hasLoginHeader(masker, r.Headers) {
-				carrying++
-			}
-		}
-		if carrying > 0 && changed {
-			req.Warnings = append(req.Warnings, fmt.Sprintf(
-				"%d of these requests send a login or token. After this change it would be sent to %s.", carrying, newHost))
-		}
-	default:
-		req.Lines = append(req.Lines, "New value: "+truncate(masker.Text(newValue), 160))
+	byID := map[int64]requestInfo{}
+	for _, r := range infos {
+		byID[r.ID] = r
 	}
-	if len(infos) < n {
-		req.Lines = append(req.Lines, fmt.Sprintf("Details shown for the first %d of %d requests.", len(infos), n))
+
+	oldHosts, newHosts := []string{}, []string{}
+	seenOld, seenNew := map[string]bool{}, map[string]bool{}
+	carrying, addresses := 0, 0
+	for _, c := range in.Changes {
+		if c.Field != "url" {
+			continue
+		}
+		if addresses < 3 {
+			req.Lines = append(req.Lines, "New address: "+truncate(masker.URL(c.Value), 120))
+		}
+		addresses++
+		newHost := hostOf(c.Value)
+		if !seenNew[newHost] {
+			seenNew[newHost] = true
+			newHosts = append(newHosts, newHost)
+		}
+		old, known := byID[c.ID]
+		if !known {
+			continue
+		}
+		oldHost := hostOf(old.URL)
+		if !seenOld[oldHost] {
+			seenOld[oldHost] = true
+			oldHosts = append(oldHosts, oldHost)
+		}
+		if oldHost != newHost && hasLoginHeader(masker, old.Headers) {
+			carrying++
+		}
+	}
+	if addresses > 3 {
+		req.Lines = append(req.Lines, fmt.Sprintf("…and %d more new addresses", addresses-3))
+	}
+	if len(oldHosts) > 0 {
+		req.Lines = append(req.Lines, "Now pointing at: "+listWithMore(oldHosts, 4))
+	}
+	sameHost := len(oldHosts) == 1 && len(newHosts) == 1 && oldHosts[0] == newHosts[0]
+	if len(newHosts) > 0 && !sameHost {
+		req.Lines = append(req.Lines, "The host becomes: "+listWithMore(newHosts, 4))
+	}
+	if carrying > 0 {
+		req.Warnings = append(req.Warnings, fmt.Sprintf(
+			"%d of these requests send a login or token. After this change it would be sent to %s.",
+			carrying, listWithMore(newHosts, 4)))
+	}
+
+	others := 0
+	for _, c := range in.Changes {
+		if c.Field == "url" {
+			continue
+		}
+		if others < 4 {
+			req.Lines = append(req.Lines, fmt.Sprintf("New %s: %s", labelOf(c.Field), truncate(masker.Text(c.Value), 160)))
+		}
+		others++
+	}
+	if others > 4 {
+		req.Lines = append(req.Lines, fmt.Sprintf("…and %d more changes", others-4))
+	}
+	if len(infos) < len(ids) {
+		req.Lines = append(req.Lines, fmt.Sprintf("Details shown for the first %d of %d requests.", len(infos), len(ids)))
+	}
+	req.Lines = append(req.Lines, "You can undo this with Ctrl+Z.")
+}
+
+func labelOf(field string) string {
+	if label := fieldLabels[field]; label != "" {
+		return label
+	}
+	return field
+}
+
+// describeCreate lists the new requests and where they send to, and warns
+// when one would send a login.
+func (s *Server) describeCreate(req *ApprovalRequest, who string, in createRequestsInput, masker *Masker) {
+	req.Title = fmt.Sprintf("%s wants to create %s", who, plural(len(in.Requests), "request"))
+	hosts := []string{}
+	seen := map[string]bool{}
+	carrying := 0
+	for i, r := range in.Requests {
+		if i < 5 {
+			name := r.Name
+			if name == "" {
+				name = "(unnamed request)"
+			}
+			req.Lines = append(req.Lines, fmt.Sprintf("%s: %s %s", name, r.Method, truncate(masker.URL(r.URL), 100)))
+		}
+		host := hostOf(r.URL)
+		if !seen[host] {
+			seen[host] = true
+			hosts = append(hosts, host)
+		}
+		if hasLoginHeader(masker, r.RequestHeaders) {
+			carrying++
+		}
+	}
+	if len(in.Requests) > 5 {
+		req.Lines = append(req.Lines, fmt.Sprintf("…and %d more", len(in.Requests)-5))
+	}
+	if carrying > 0 {
+		req.Warnings = append(req.Warnings, fmt.Sprintf(
+			"%d of these requests send a login or token, to %s.", carrying, listWithMore(hosts, 4)))
 	}
 	req.Lines = append(req.Lines, "You can undo this with Ctrl+Z.")
 }
@@ -256,6 +340,7 @@ func (s *Server) describeDelete(req *ApprovalRequest, who string, in deleteReque
 }
 
 type requestInfo struct {
+	ID                 int64
 	Name, URL, Headers string
 	CollectionID       int64
 	ProjectID          int64
@@ -273,7 +358,7 @@ func (s *Server) lookRequests(ids []int64) []requestInfo {
 		if err != nil {
 			continue
 		}
-		info := requestInfo{}
+		info := requestInfo{ID: id}
 		info.Name, _ = row["name"].(string)
 		info.URL, _ = row["url"].(string)
 		info.Headers, _ = row["request_headers"].(string)
@@ -311,15 +396,12 @@ func hostOf(raw string) string {
 	return s
 }
 
-func valueText(v any) string {
-	if s, ok := v.(string); ok {
-		return s
+// joinAnd joins items as "a, b and c".
+func joinAnd(items []string) string {
+	if len(items) <= 1 {
+		return strings.Join(items, "")
 	}
-	out, err := toGeneric(v)
-	if err != nil {
-		return ""
-	}
-	return fmt.Sprint(out)
+	return strings.Join(items[:len(items)-1], ", ") + " and " + items[len(items)-1]
 }
 
 func plural(n int, noun string) string {
