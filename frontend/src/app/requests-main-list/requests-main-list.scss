@@ -238,6 +238,30 @@
   --wails-draggable: no-drag;
 }
 
+// Column edges show only while the header or an edge is hovered, or a
+// column is being resized.
+.column-separator::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(50% - 0.5px);
+  width: 1px;
+  background: var(--glass-border);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.spreadsheet-wrapper:has(.spreadsheet-header:hover) .column-separator::before,
+.spreadsheet-wrapper.is-resizing .column-separator::before {
+  opacity: 1;
+}
+
+.column-separator:hover::before {
+  opacity: 1;
+  background: var(--accent-3, var(--accent));
+}
+
 // The Most used view has a Usage column on the right (empty by default, so
 // absent).
 .spreadsheet-header,
