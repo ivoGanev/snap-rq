@@ -51,6 +51,14 @@ MOCK_ENDPOINTS = [
     # Special mocks
     ("Delayed response", "GET", "/mock/delay?ms=2000", None, None),
     ("Empty response", "GET", "/mock/empty", None, None),
+    # Secrets: the response view hides them until revealed
+    (
+        "Secrets - login response",
+        "POST",
+        "/mock/secrets",
+        '{"username":"ivo","password":"hunter2"}',
+        "Content-Type: application/json\nAuthorization: Bearer mock-request-token-123",
+    ),
     # Echo endpoint
     ("Echo endpoint", "POST", "/echo", '{"hello":"world"}', "Content-Type: application/json"),
     # Cookie jar mocks
@@ -762,6 +770,30 @@ def create_mock_collection(conn: sqlite3.Connection, project_id: int) -> int:
     return collection_id
 
 
+def add_missing_mock_requests(conn: sqlite3.Connection, collection_id: int) -> int:
+    """Add the mock endpoints an existing collection doesn't have yet, by name. Returns how many."""
+    cursor = conn.cursor()
+    have = {row[0] for row in cursor.execute("SELECT name FROM http_requests WHERE collection_id = ?", (collection_id,))}
+    next_order = cursor.execute(
+        "SELECT COALESCE(MAX(user_sort_order), -1) + 1 FROM http_requests WHERE collection_id = ?", (collection_id,)
+    ).fetchone()[0]
+    added = 0
+    for name, method, path, body, headers in MOCK_ENDPOINTS:
+        if name in have:
+            continue
+        cursor.execute(
+            """
+            INSERT INTO http_requests (collection_id, name, url, method, body, request_headers, status_code, response_id, user_sort_order)
+            VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?)
+            """,
+            (collection_id, name, f"{MOCK_BASE_URL}{path}", method, body or "", headers or "", next_order),
+        )
+        next_order += 1
+        added += 1
+    conn.commit()
+    return added
+
+
 def create_mock_requests(conn: sqlite3.Connection, collection_id: int) -> int:
     """Insert one request per mock endpoint into the collection. Returns request count."""
     cursor = conn.cursor()
@@ -1035,7 +1067,8 @@ def main() -> int:
             if args.force:
                 delete_mock_collection(conn, project_id)
             else:
-                print(f"'{MOCK_COLLECTION_NAME}' collection already exists (id={existing_id}). Use --force to recreate it.")
+                added = add_missing_mock_requests(conn, existing_id)
+                print(f"'{MOCK_COLLECTION_NAME}' collection already exists (id={existing_id}); added {added} new mock request(s). Use --force to recreate it.")
         if existing_id is None or args.force:
             collection_id = create_mock_collection(conn, project_id)
             requests = create_mock_requests(conn, collection_id)
