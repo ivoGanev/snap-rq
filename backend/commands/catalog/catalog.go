@@ -40,6 +40,8 @@ var All = []commands.Factory{
 	requests.NewDuplicate,
 	requests.NewReorder,
 	requests.NewBulkSet,
+	requests.NewEditMany,
+	requests.NewCreateMany,
 
 	// response history and export (the send itself is an observable command)
 	responses.NewList,
