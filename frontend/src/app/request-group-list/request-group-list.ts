@@ -104,6 +104,7 @@ export class RequestGroupList {
   readonly showMoreMenu = input<boolean>(false);
 
   readonly addClick = output<void>();
+  readonly addMenuOpen = output<AddMenuPosition>();
   readonly moreMenuOpen = output<AddMenuPosition>();
   readonly itemSelect = output<SidebarItem>();
   readonly itemContextMenu = output<{ item: SidebarItem; event: MouseEvent }>();
@@ -132,17 +133,16 @@ export class RequestGroupList {
     return 'Drop to create a collection';
   }
 
-  onAddClick(): void {
-    this.addClick.emit();
+  onAddClick(event: MouseEvent): void {
+    if (this.showMoreMenu()) {
+      this.addMenuOpen.emit(menuPosition(event));
+    } else {
+      this.addClick.emit();
+    }
   }
 
   onMoreMenuClick(event: MouseEvent): void {
-    // Keep the click from reaching the context-menu outlet's document click
-    // listener, which closes any open menu.
-    event.preventDefault();
-    event.stopPropagation();
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    this.moreMenuOpen.emit({ x: rect.left, y: rect.bottom + 4 });
+    this.moreMenuOpen.emit(menuPosition(event));
   }
 
   onItemClick(item: SidebarItem): void {
@@ -192,4 +192,12 @@ export class RequestGroupList {
       appearance.appearance_value === this.iconManifest.defaultIconId()
     );
   }
+}
+
+/** Below the clicked button. The click is stopped so the menu outlet's document listener doesn't close the menu. */
+function menuPosition(event: MouseEvent): AddMenuPosition {
+  event.preventDefault();
+  event.stopPropagation();
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  return { x: rect.left, y: rect.bottom + 4 };
 }

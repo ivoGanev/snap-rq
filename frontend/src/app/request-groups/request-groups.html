@@ -37,7 +37,8 @@
         [dropTargetKey]="dropTargetKey()"
         [dropZoneActive]="dropZoneActive()"
         [showMoreMenu]="folderFilter() === 'collections'"
-        (moreMenuOpen)="openCollectionsMoreMenu($event)"
+        (addMenuOpen)="openCollectionsMenu(collectionsAddMenu, $event)"
+        (moreMenuOpen)="openCollectionsMenu(collectionsMoreMenu, $event)"
         (addClick)="createAndRename()"
         (itemSelect)="selectSidebarItem($event)"
         (itemContextMenu)="openItemContextMenu($event.item, $event.event, itemContextMenu)"
@@ -129,16 +130,20 @@
   }
 </ng-template>
 
-<ng-template #collectionsMoreMenu>
-  <button class="context-menu-item" type="button" [disabled]="!canAddRequest()" (click)="onCollectionsMore('request')">
+<ng-template #collectionsAddMenu>
+  <button class="context-menu-item" type="button" (click)="onCollectionsMenu('collection')">New collection</button>
+  <button class="context-menu-item" type="button" [disabled]="!canAddRequest()" (click)="onCollectionsMenu('request')">
     New request
   </button>
-  <button class="context-menu-item" type="button" [disabled]="!canAddRequest()" (click)="onCollectionsMore('curl')">
+  <button class="context-menu-item" type="button" [disabled]="!canAddRequest()" (click)="onCollectionsMenu('curl')">
     New request from cURL…
   </button>
   <div class="context-menu-divider" aria-hidden="true"></div>
-  <button class="context-menu-item" type="button" (click)="onCollectionsMore('import')">Import OpenAPI…</button>
-  <button class="context-menu-item" type="button" (click)="onCollectionsMore('export')">Export OpenAPI…</button>
+  <button class="context-menu-item" type="button" (click)="onCollectionsMenu('import')">Import OpenAPI…</button>
+</ng-template>
+
+<ng-template #collectionsMoreMenu>
+  <button class="context-menu-item" type="button" (click)="onCollectionsMenu('export')">Export OpenAPI…</button>
 </ng-template>
 
 <!-- Appearance popup -->
