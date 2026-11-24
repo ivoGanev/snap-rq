@@ -207,6 +207,17 @@
   position: relative;
 }
 
+// Covers the margin up to the sidebar's edge, where the row + sits, so the
+// pointer stays on the row while it moves to the +.
+.group-list-item::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 100%;
+  width: var(--s-3);
+}
+
 .group-list-item::before {
   content: '';
   position: absolute;
