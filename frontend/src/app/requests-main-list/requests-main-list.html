@@ -115,9 +115,7 @@
     [style.--action-col-width]="canDragOut() ? '64px' : '44px'"
   >
     <div class="spreadsheet-header">
-      <div class="spreadsheet-header-cell spreadsheet-header-cell--action">
-        <ng-container *ngTemplateOutlet="addRequestButtons" />
-      </div>
+      <div class="spreadsheet-header-cell spreadsheet-header-cell--action"></div>
       <div
         #methodHeaderCell
         class="spreadsheet-header-cell spreadsheet-header-cell--method"
@@ -194,6 +192,12 @@
         </div>
       }
     </div>
+
+    @if (state.selectedCollection()) {
+      <div class="add-request-row">
+        <ng-container *ngTemplateOutlet="addRequestButtons" />
+      </div>
+    }
 
     <cdk-virtual-scroll-viewport
       [itemSize]="rowHeight"

@@ -17,8 +17,14 @@
   margin-left: var(--s-2);
 }
 
-.spreadsheet-header-cell--action {
-  justify-content: center;
+.add-request-row {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  height: 38px;
+  padding: 0 var(--s-2);
+  border-bottom: 1px solid var(--glass-border);
 }
 
 .add-request-icon {
