@@ -1,5 +1,3 @@
-@use '../../styles/buttons' as btn;
-
 .group-list-header {
   flex: 0 0 auto;
   padding: 0 var(--s-3);
@@ -16,25 +14,31 @@
 
 .add-button {
   flex: 0 0 auto;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   padding: 0;
-  font-size: 1.125rem;
-  font-weight: 700;
-  line-height: 1;
-  color: var(--on-accent);
-  background: var(--grad);
+  color: var(--muted);
+  background: transparent;
   border: none;
-  border-radius: var(--radius);
+  border-radius: 6px;
   cursor: pointer;
   transition:
-    filter 0.15s ease,
-    opacity 0.15s ease;
+    background 0.12s ease,
+    color 0.12s ease;
   --wails-draggable: no-drag;
-  @include btn.btn-primary;
+}
+
+.add-button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.add-button:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--hover-highlight);
 }
 
 .add-button:disabled {
