@@ -10,14 +10,20 @@
         </span>
         <span class="binned-request-url">{{ req.url }}</span>
       </div>
-      <div class="binned-request-info">
-        <span>Original collection: {{ req.original_collection_name || 'Deleted' }}</span>
-        <span>Deleted: {{ req.deleted_at }}</span>
-      </div>
-      <div class="binned-request-actions">
-        <button class="restore-button" type="button" (click)="openRestorePicker()">Restore</button>
-        <button class="delete-button" type="button" (click)="deletePermanently()">Delete permanently</button>
-      </div>
+      <dl class="binned-request-info">
+        <dt>From</dt>
+        <dd>{{ req.original_collection_name || 'A deleted collection' }}</dd>
+        <dt>Deleted</dt>
+        <dd>{{ deletedAgo() }}</dd>
+      </dl>
+    </div>
+    <div class="binned-request-actions">
+      <button class="bin-action" type="button" (click)="restore()">
+        {{ originalName() ? 'Restore to ' + originalName() : 'Restore…' }}
+      </button>
+      <button class="bin-action bin-action--danger" type="button" (click)="deletePermanently()">
+        Delete permanently
+      </button>
     </div>
   </div>
 }
