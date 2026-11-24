@@ -40,6 +40,10 @@ func (c Create) Run(input json.RawMessage) (any, error) {
 	if in.EnvironmentID == 0 {
 		return nil, errors.New("environment id is required")
 	}
+	// A new row starts unnamed; the editor names it as the user types.
+	if in.Key != "" && !models.ValidVariableName(in.Key) {
+		return nil, errors.New(models.VariableNameError)
+	}
 
 	if in.Secret && in.Value != "" {
 		return nil, errors.New("create a secret empty, then set its value with variable.update")

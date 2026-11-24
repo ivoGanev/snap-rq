@@ -230,3 +230,31 @@ func TestRecoveryKeyIsAnnouncedOnceAndAgainOnlyForANewKey(t *testing.T) {
 		t.Errorf("after marking the new key = %q, want seen", got)
 	}
 }
+
+func TestAnInvalidNameIsNeitherCreatedNorSaved(t *testing.T) {
+	f := newFixture(t)
+	raw, _ := json.Marshal(map[string]any{"environment_id": f.envID, "key": "a b"})
+	if _, err := f.runner.Run("variable.create", raw); err == nil {
+		t.Error(`creating "a b" must fail: {{a b}} is never filled in`)
+	}
+
+	created := f.run("variable.create", map[string]any{"environment_id": f.envID, "key": ""}).(models.EnvironmentVariable)
+	raw, _ = json.Marshal(map[string]any{"id": created.ID, "key": "a/b", "value": ""})
+	if _, err := f.runner.Run("variable.update", raw); err == nil {
+		t.Error(`renaming to "a/b" must fail`)
+	}
+	f.run("variable.update", map[string]any{"id": created.ID, "key": "fleet-management.v2", "value": ""})
+}
+
+func TestAnExistingInvalidNameKeepsItsValueEditable(t *testing.T) {
+	f := newFixture(t)
+	res, err := f.db.Exec(`INSERT INTO environment_variables (environment_id, key, value) VALUES (?, 'old name', 'x')`, f.envID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, _ := res.LastInsertId()
+	f.run("variable.update", map[string]any{"id": id, "key": "old name", "value": "y"})
+	if value, _ := f.stored(id); value != "y" {
+		t.Errorf("stored %q, want the edited value", value)
+	}
+}

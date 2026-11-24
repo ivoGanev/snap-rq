@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
+
+	"snap-rq/backend/models"
 )
 
 type exportCounts struct {
@@ -23,9 +25,6 @@ var exportMethods = map[string]bool{
 	"GET": true, "PUT": true, "POST": true, "DELETE": true,
 	"OPTIONS": true, "HEAD": true, "PATCH": true, "TRACE": true,
 }
-
-// variablePattern matches a SnapRQ {{variable}}.
-var variablePattern = regexp.MustCompile(`\{\{\s*([^{}\s]+)\s*\}\}`)
 
 type exportRequest struct {
 	Name, URL, Method, Body, BodyType, BodyForm, Headers string
@@ -246,7 +245,7 @@ func formSchema(raw string) *openapi3.Schema {
 
 // specPath writes SnapRQ {{variable}} placeholders the way OpenAPI does.
 func specPath(path string) string {
-	return variablePattern.ReplaceAllString(path, "{$1}")
+	return models.VariablePlaceholder.ReplaceAllString(path, "{$1}")
 }
 
 func pathParameters(path string) openapi3.Parameters {
@@ -341,7 +340,7 @@ func queryParameters(raw string) openapi3.Parameters {
 // leadingVariable splits a URL that starts with a {{variable}} base, such as
 // {{base_url}}/pets, into the variable name and the rest.
 func leadingVariable(s string) (name, rest string, ok bool) {
-	m := variablePattern.FindStringSubmatchIndex(s)
+	m := models.VariablePlaceholder.FindStringSubmatchIndex(s)
 	if m == nil || m[0] != 0 {
 		return "", s, false
 	}
