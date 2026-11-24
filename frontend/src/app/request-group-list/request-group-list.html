@@ -47,6 +47,22 @@
         (click)="onItemClick(item)"
         (contextmenu)="onContextMenu(item, $event)"
       >
+        <button
+          class="item-indicator"
+          type="button"
+          [style.background-color]="colorValue(item.appearance) ?? null"
+          (click)="onAppearanceClick(item, $event)"
+          [attr.aria-label]="'Edit appearance for ' + item.name"
+        >
+          @let cp = iconPath(item);
+          @if (cp) {
+            <img [src]="cp" alt="" />
+          } @else if (isDefaultAppearance(item.appearance)) {
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+            </svg>
+          }
+        </button>
         @if (renamingItem()?.kind === item.kind && renamingItem()?.id === item.id) {
           <div class="rename-form">
             <input
@@ -64,22 +80,6 @@
             />
           </div>
         } @else {
-          <button
-            class="item-indicator"
-            type="button"
-            [style.background-color]="colorValue(item.appearance) ?? null"
-            (click)="onAppearanceClick(item, $event)"
-            [attr.aria-label]="'Edit appearance for ' + item.name"
-          >
-            @let cp = iconPath(item);
-            @if (cp) {
-              <img [src]="cp" alt="" />
-            } @else if (isDefaultAppearance(item.appearance)) {
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-              </svg>
-            }
-          </button>
           <span class="group-list-item-label" (dblclick)="onRenameStart(item)">{{ item.name }}</span>
           @if (item.kind === 'collection' && item.id === lastUsedCollectionId()) {
             <app-last-used-paw />

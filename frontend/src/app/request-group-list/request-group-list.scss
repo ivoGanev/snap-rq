@@ -141,16 +141,23 @@
   min-width: 0;
 }
 
+// Inputs don't inherit fonts; this one matches the label it replaces, and the
+// negative margin puts its text where the label's was.
 .rename-input {
   flex: 1 1 auto;
   min-width: 0;
-  padding: 2px var(--s-2);
+  margin: -2px 0 -2px -5px;
+  padding: 1px 4px;
+  font: inherit;
+  color: var(--text);
   background: var(--input-bg);
   border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  color: var(--text);
-  font-size: 0.875rem;
+  border-radius: 4px;
   outline: none;
+
+  &:focus {
+    border-color: var(--accent);
+  }
 }
 
 .state-message {
