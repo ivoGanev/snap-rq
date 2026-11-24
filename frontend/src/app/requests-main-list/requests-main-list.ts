@@ -242,6 +242,7 @@ export class RequestsMainList {
     startWidth: number;
   } | null>(null);
   readonly isResizingColumn = computed(() => this.columnResizeState() !== null);
+  protected readonly resizingColumn = computed(() => this.columnResizeState()?.column ?? null);
   readonly methodColumnWidthCss = computed(() => `${this.methodColumnWidth()}px`);
   readonly nameColumnWidthCss = computed(() => `${this.nameColumnWidth()}px`);
 

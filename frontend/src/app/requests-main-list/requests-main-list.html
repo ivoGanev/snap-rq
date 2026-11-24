@@ -343,11 +343,13 @@
     <div class="spreadsheet-overlay" aria-hidden="true">
       <div
         class="column-separator"
+        [class.is-active]="resizingColumn() === 'method'"
         [style.left.px]="methodSeparatorLeft()"
         (mousedown)="startColumnResize($event, 'method')"
       ></div>
       <div
         class="column-separator"
+        [class.is-active]="resizingColumn() === 'name'"
         [style.left.px]="nameSeparatorLeft()"
         (mousedown)="startColumnResize($event, 'name')"
       ></div>
