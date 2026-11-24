@@ -534,8 +534,6 @@ export class RequestGroups {
     }
   }
 
-  protected readonly canAddRequest = computed(() => !!this.state.selectedCollection() && !this.state.showingBin());
-
   /**
    * Opens a Collections header menu through the shared context menu, which is drawn at the
    * root of the app. A menu drawn inside the sidebar would be clipped and
@@ -543,30 +541,27 @@ export class RequestGroups {
    * It opens on the next tick so the click that asked for it, and the outlet's
    * document click listener, are finished first.
    */
-  openCollectionsMenu(menu: TemplateRef<{ $implicit: null }>, position: { x: number; y: number }): void {
-    setTimeout(() => this.contextMenu.open(menu, null, position.x, position.y), 0);
+  openCollectionsMenu<C>(menu: TemplateRef<{ $implicit: C }>, context: C, position: { x: number; y: number }): void {
+    setTimeout(() => this.contextMenu.open(menu, context, position.x, position.y), 0);
   }
 
-  onCollectionsMenu(action: 'collection' | 'request' | 'curl' | 'import' | 'export'): void {
+  /**
+   * Opens the collection, then asks the request list for the new request on
+   * the next tick: opening a view resets the list's selection and rename.
+   */
+  newRequestIn(item: SidebarItem, kind: 'blank' | 'curl'): void {
     this.contextMenu.close();
-    switch (action) {
-      case 'collection':
-        void this.createAndRename();
-        break;
-      case 'request':
-        this.state.addRequestIntent.set('blank');
-        break;
-      case 'curl':
-        this.state.addRequestIntent.set('curl');
-        break;
-      case 'import':
-        void this.importOpenApi();
-        break;
-      case 'export':
-        void this.exportOpenApi();
-        break;
-    }
+    if (item.kind !== 'collection') return;
+    this.selectSidebarItem(item);
+    setTimeout(() => this.state.addRequestIntent.set({ kind, collectionId: item.id }), 0);
   }
+
+  onCollectionsMenu(action: 'import' | 'export'): void {
+    this.contextMenu.close();
+    if (action === 'import') void this.importOpenApi();
+    else void this.exportOpenApi();
+  }
+
 
   async importOpenApi(): Promise<void> {
     const project = this.state.selectedProject();

@@ -67,7 +67,8 @@ export class WorkspaceStateService {
   /** The request list's search, typed in the top bar. */
   readonly requestSearchQuery = signal('');
   /** Set by the top bar's add buttons; the request list carries it out. */
-  readonly addRequestIntent = signal<'blank' | 'curl' | null>(null);
+  /** A new request to create in a collection, once that collection is open. */
+  readonly addRequestIntent = signal<{ kind: 'blank' | 'curl'; collectionId: number } | null>(null);
   readonly sidebarListOpen = signal(false);
   readonly multiSelectionActive = signal(false);
   readonly zenModeOpen = signal(false);

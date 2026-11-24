@@ -573,8 +573,8 @@ export class RequestsMainList {
     untracked(() => {
       this.state.addRequestIntent.set(null);
       const collection = this.state.selectedCollection();
-      if (!collection) return;
-      if (intent === 'blank') void this.addBlankRequest(collection);
+      if (collection?.id !== intent.collectionId) return;
+      if (intent.kind === 'blank') void this.addBlankRequest(collection);
       else this.curlImportFor.set(collection);
     });
   });

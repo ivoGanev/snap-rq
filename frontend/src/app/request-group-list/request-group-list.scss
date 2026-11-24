@@ -160,6 +160,44 @@
   }
 }
 
+// Shown on the hovered and selected rows only.
+.row-add {
+  flex: 0 0 auto;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: auto;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+
+  svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  &:hover {
+    color: var(--text);
+    background: var(--hover-highlight);
+  }
+}
+
+.group-list-item:hover .row-add,
+.group-list-item.is-selected .row-add,
+.row-add:focus-visible {
+  display: inline-flex;
+}
+
+// The paw and the row + share the right end; the + follows the paw.
+.group-list-item app-last-used-paw + .row-add {
+  margin-left: 0;
+}
+
 .state-message {
   padding: var(--s-2) var(--s-3);
   font-size: 0.875rem;

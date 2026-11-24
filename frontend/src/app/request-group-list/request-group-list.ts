@@ -104,8 +104,8 @@ export class RequestGroupList {
   readonly showMoreMenu = input<boolean>(false);
 
   readonly addClick = output<void>();
-  readonly addMenuOpen = output<AddMenuPosition>();
   readonly moreMenuOpen = output<AddMenuPosition>();
+  readonly rowAddMenuOpen = output<{ item: SidebarItem; position: AddMenuPosition }>();
   readonly itemSelect = output<SidebarItem>();
   readonly itemContextMenu = output<{ item: SidebarItem; event: MouseEvent }>();
   readonly appearanceClick = output<{ item: SidebarItem; event: MouseEvent }>();
@@ -133,12 +133,12 @@ export class RequestGroupList {
     return 'Drop to create a collection';
   }
 
-  onAddClick(event: MouseEvent): void {
-    if (this.showMoreMenu()) {
-      this.addMenuOpen.emit(menuPosition(event));
-    } else {
-      this.addClick.emit();
-    }
+  onAddClick(): void {
+    this.addClick.emit();
+  }
+
+  onRowAddClick(item: SidebarItem, event: MouseEvent): void {
+    this.rowAddMenuOpen.emit({ item, position: menuPosition(event) });
   }
 
   onMoreMenuClick(event: MouseEvent): void {
