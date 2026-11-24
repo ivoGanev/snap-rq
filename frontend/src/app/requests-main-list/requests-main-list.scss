@@ -197,11 +197,12 @@
   pointer-events: none;
 }
 
+// Only the marker grabs; the rest of the column edge is ordinary list.
 .column-separator {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 9px;
+  top: 22px;
+  width: 14px;
+  height: 16px;
   transform: translateX(-50%);
   cursor: col-resize;
   pointer-events: auto;
@@ -213,7 +214,7 @@
 .column-separator::before {
   content: '';
   position: absolute;
-  top: 26px;
+  top: 4px;
   left: calc(50% - 4px);
   width: 8px;
   height: 9px;
