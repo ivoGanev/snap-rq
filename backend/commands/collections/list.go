@@ -28,7 +28,8 @@ func (c List) Run(input json.RawMessage) (any, error) {
 	}
 	rows, err := c.tx.Query(`
 		SELECT col.id, col.project_id, col.name,
-		       COALESCE(ca.appearance_type, 'icon'), COALESCE(ca.appearance_value, 'default')
+		       COALESCE(ca.appearance_type, 'icon'), COALESCE(ca.appearance_value, 'default'),
+		       (SELECT COALESCE(MAX(hr.last_used_at), 0) FROM http_requests hr WHERE hr.collection_id = col.id)
 		FROM collections col
 		LEFT JOIN collection_appearances ca ON ca.collection_id = col.id
 		WHERE col.project_id = ?
@@ -42,7 +43,7 @@ func (c List) Run(input json.RawMessage) (any, error) {
 	for rows.Next() {
 		var col models.Collection
 		if err := rows.Scan(&col.ID, &col.ProjectID, &col.Name,
-			&col.Appearance.AppearanceType, &col.Appearance.AppearanceValue); err != nil {
+			&col.Appearance.AppearanceType, &col.Appearance.AppearanceValue, &col.LastUsedAt); err != nil {
 			return nil, fmt.Errorf("reading a collection: %w", err)
 		}
 		col.Appearance.CollectionID = col.ID
