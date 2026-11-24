@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"snap-rq/backend/models"
@@ -261,30 +262,18 @@ func ensureScheme(u string) string {
 }
 
 // urlencodeData implements curl's --data-urlencode value forms: "content",
-// "=content" and "name=content". Only what would change the query's meaning
-// is encoded (%, &, #, +, control characters), so the URL stays readable and
-// {{placeholders}} keep working; the rest is encoded when the request is sent.
+// "=content" and "name=content". The content part is percent-encoded.
 func urlencodeData(s string) string {
+	enc := func(v string) string {
+		return strings.ReplaceAll(url.QueryEscape(v), "+", "%20")
+	}
 	if name, content, found := strings.Cut(s, "="); found {
 		if name == "" {
-			return encodeQueryValue(content)
+			return enc(content)
 		}
-		return name + "=" + encodeQueryValue(content)
+		return name + "=" + enc(content)
 	}
-	return encodeQueryValue(s)
-}
-
-func encodeQueryValue(v string) string {
-	var b strings.Builder
-	for i := 0; i < len(v); i++ {
-		c := v[i]
-		if c == '%' || c == '&' || c == '#' || c == '+' || c < 0x20 || c == 0x7f {
-			fmt.Fprintf(&b, "%%%02X", c)
-			continue
-		}
-		b.WriteByte(c)
-	}
-	return b.String()
+	return enc(s)
 }
 
 // shellQuote returns a single-quoted shell word, falling back to double quotes
