@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 
+	"snap-rq/backend/identity"
+
 	"github.com/zalando/go-keyring"
 )
 
@@ -33,8 +35,8 @@ type KeyStore interface {
 }
 
 const (
-	keyringService = "SnapRQ"
-	keyringAccount = "variable-encryption-key"
+	keyringService = identity.KeyringService
+	keyringAccount = identity.KeyringAccount
 )
 
 // OSKeyStore uses the OS credential store (Windows Credential Manager, macOS
