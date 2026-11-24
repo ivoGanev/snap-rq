@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, OnDestroy, TemplateRef, ViewChild, afterNextRender, afterRenderEffect, computed, effect, inject, linkedSignal, signal, untracked, viewChild } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { Clipboard } from '@wailsio/runtime';
@@ -84,7 +85,7 @@ const NAME_COLUMN_MIN_WIDTH = 120;
  */
 @Component({
   selector: 'app-requests-main-list',
-  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, Select, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog, CurlImportDialog, SendButton, UsageMeter],
+  imports: [NgTemplateOutlet, FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, Select, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog, CurlImportDialog, SendButton, UsageMeter],
   templateUrl: './requests-main-list.html',
   styleUrl: './requests-main-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -493,7 +494,7 @@ export class RequestsMainList {
     !this.state.showingBin() && this.selectedRowIds().size === 1 ? this.selectedRequest() : null,
   );
   protected readonly showHeader = computed(
-    () => !!this.state.selectedCollection() || this.selectedRowIds().size > 0,
+    () => this.selectedRowIds().size > 0,
   );
   // Reset only when another request is selected: the saved URL coming back
   // mid-typing would otherwise overwrite what was typed since.

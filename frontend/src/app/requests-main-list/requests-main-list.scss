@@ -11,32 +11,50 @@
   --header-control-height: 100%;
 }
 
-.add-request-button {
-  height: var(--header-control-height);
-  padding: 0 18px;
-  font-size: 0.8125rem;
+.add-request-icons {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: var(--s-2);
+}
+
+.spreadsheet-header-cell--action {
+  justify-content: center;
+}
+
+.add-request-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
   font-weight: 700;
-  color: var(--on-accent);
-  background: var(--grad);
+  color: var(--muted);
+  background: transparent;
   border: none;
-  border-radius: 0;
+  border-radius: 6px;
   cursor: pointer;
   transition:
-    filter 0.15s ease,
-    opacity 0.15s ease;
+    background 0.12s ease,
+    color 0.12s ease;
   --wails-draggable: no-drag;
-  @include btn.btn-primary;
 }
 
-.add-request-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.add-request-icon svg {
+  width: 17px;
+  height: 17px;
 }
 
-// "+ Request | cURL": two buttons drawn as one control, each half one click.
-.add-request-split {
-  display: inline-flex;
-  gap: 1px;
+.add-request-icon--text {
+  width: auto;
+  padding: 0 4px;
+}
+
+.add-request-icon:hover {
+  color: var(--text);
+  background: var(--hover-highlight);
 }
 
 .header-spacer {
