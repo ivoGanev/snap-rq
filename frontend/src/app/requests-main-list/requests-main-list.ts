@@ -176,11 +176,10 @@ export class RequestsMainList {
       !this.requestSearchQuery().trim(),
   );
 
-  /**
-   * A drag handle is offered so requests can be reordered or moved, except in
-   * the bin and the smart views (their order is fixed).
-   */
-  readonly canDragOut = computed(() => !this.state.showingBin() && !this.state.smartView());
+  /** The bin, All requests and the smart views have a fixed order and no drag handle. */
+  readonly canDragOut = computed(
+    () => !this.state.showingBin() && !this.state.smartView() && this.activeViewKind() !== 'all',
+  );
 
   /** Whether the colour picker is available (selection in a colour-able view). */
   readonly canColorSelection = computed(
