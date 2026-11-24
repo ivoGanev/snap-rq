@@ -44,6 +44,9 @@ Each comes with a way to check the same thing by hand. The steps use `https://ht
 10. **The top bar is the window's title bar**
    `top-bar.e2e.ts` and `top-bar-webkit.e2e.ts`, in Chromium and WebKit. On macOS the bar sits at the very top, with the traffic lights centred on it and the sidebar toggle just right of them. On Windows it sits at the very top with minimise, maximise and close at its right end. Drag the empty bar to move the window; double-click it to maximise.
 
+11. **Every variable name that can be saved shows as a chip**
+   `variable-chips.e2e.ts` and `variable-chips-webkit.e2e.ts`, in Chromium and WebKit. Add the variable `fleet-management.v2` to an environment and select it. Use `{{fleet-management.v2}}` in a request's URL, a header and the body: each shows as a chip, not plain text. In the variables editor, a name with a space or any symbol other than `_`, `-` and `.` is underlined in red with an explanation, and isn't saved. The allowed names are listed in `testdata/variable-names.json`, which the Go and frontend unit tests share.
+
 ## Tests worth writing
 
 Add a line when you find something a test should cover: what should happen, and why it matters. Remove it once the test exists, and add the test above if it's end-to-end.
@@ -52,6 +55,6 @@ Add a line when you find something a test should cover: what should happen, and 
 2. **The in-flight view's Cancel button.** The view appears after 200 ms, the clock ticks, and Cancel returns to the previous response with nothing saved. Go tests cover cancelling, but not the button or the view.
 3. **Undo and redo from the keyboard.** Ctrl+Z after deleting a request brings it back in the list, and Ctrl+Y removes it again.
 4. **Importing a cURL command or an OpenAPI file through the UI.** The parsers have Go tests; the import dialogs have none.
-5. **Rendering in WebKit.** Only the top bar's tests run in WebKit; the rest use Chromium, but macOS and Linux show the app in WebKit (see the SVG sizing rule in AGENTS.md).
+5. **Rendering in WebKit.** Only the top bar's and the variable chips' tests run in WebKit; the rest use Chromium, but macOS and Linux show the app in WebKit (see the SVG sizing rule in AGENTS.md).
 6. **Restoring a locked vault with the recovery key.** After the key is lost, secrets show as locked, and entering the recovery key unlocks them.
 7. **The MCP server with a real client.** A client connects, lists the tools, and needs approval before running a command that writes.
