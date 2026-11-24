@@ -91,6 +91,8 @@ func (c BulkSet) Run(input json.RawMessage) (any, error) {
 			return nil, err
 		}
 		in.Value = slot
+	} else if _, ok := in.Value.(string); !ok {
+		return nil, notText(in.Field, in.Value)
 	}
 
 	for _, id := range in.IDs {

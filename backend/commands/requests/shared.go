@@ -4,6 +4,7 @@ package requests
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 
 	"snap-rq/backend/models"
@@ -79,4 +80,24 @@ func normalizeBodyType(bodyType string) string {
 		return bodyType
 	}
 	return "json"
+}
+
+// notText explains a non-string value for a text column; the database would
+// otherwise fail with a driver error that names neither the field nor the fix.
+func notText(field string, value any) error {
+	kind := "null"
+	switch value.(type) {
+	case map[string]any:
+		kind = "an object"
+	case []any:
+		kind = "an array"
+	case float64, json.Number:
+		kind = "a number"
+	case bool:
+		kind = "a boolean"
+	}
+	if value != nil && kind == "null" {
+		kind = fmt.Sprintf("%T", value)
+	}
+	return fmt.Errorf("%s must be a string, not %s; send JSON bodies as text", field, kind)
 }
