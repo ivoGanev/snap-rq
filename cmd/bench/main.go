@@ -15,6 +15,7 @@ import (
 	"snap-rq/backend/commands"
 	"snap-rq/backend/commands/catalog"
 	"snap-rq/backend/database"
+	"snap-rq/backend/identity"
 )
 
 // query mirrors the exact SQL used by RequestService.GetAllRequestSummaries,
@@ -164,7 +165,7 @@ func main() {
 
 // appDBPath returns the same SQLite path that database.Open uses.
 func appDBPath() string {
-	return filepath.Join(xdg.DataHome, "SnapRQ", "app.db")
+	return filepath.Join(xdg.DataHome, identity.DataDirName, identity.DatabaseFile)
 }
 
 // getSchema returns the CREATE TABLE and CREATE INDEX statements for

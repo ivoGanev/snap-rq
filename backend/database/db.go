@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"snap-rq/backend/cookies"
+	"snap-rq/backend/identity"
 	"snap-rq/backend/models"
 
 	"github.com/adrg/xdg"
@@ -23,7 +24,7 @@ func Open() (*sql.DB, error) {
 }
 
 // Path is where the app's database lives.
-func Path() string { return filepath.Join(DataDir(), "app.db") }
+func Path() string { return filepath.Join(DataDir(), identity.DatabaseFile) }
 
 // DataDirEnv names an environment variable that moves the data folder, e.g.
 // to a throwaway folder for the end-to-end tests.
@@ -35,7 +36,36 @@ func DataDir() string {
 	if dir := os.Getenv(DataDirEnv); dir != "" {
 		return dir
 	}
-	return filepath.Join(xdg.DataHome, "SnapRQ")
+	return filepath.Join(xdg.DataHome, identity.DataDirName)
+}
+
+// MovePreviousDataDir moves the data folder from an earlier name
+// (identity.PreviousDataDirNames), so a renamed app keeps its profile. It
+// reports the folder it moved, or "" when there was nothing to move.
+func MovePreviousDataDir() (string, error) {
+	if CustomDataDir() {
+		return "", nil
+	}
+	return movePreviousDataDir(xdg.DataHome, identity.DataDirName, identity.PreviousDataDirNames)
+}
+
+// An existing current folder is never replaced: it may already hold data.
+func movePreviousDataDir(parent, current string, previous []string) (string, error) {
+	to := filepath.Join(parent, current)
+	if _, err := os.Stat(to); err == nil {
+		return "", nil
+	}
+	for _, name := range previous {
+		from := filepath.Join(parent, name)
+		if _, err := os.Stat(from); err != nil {
+			continue
+		}
+		if err := os.Rename(from, to); err != nil {
+			return "", fmt.Errorf("moving the data folder %s to %s: %w", from, to, err)
+		}
+		return from, nil
+	}
+	return "", nil
 }
 
 // CustomDataDir reports whether the data folder was moved with

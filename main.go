@@ -19,6 +19,7 @@ import (
 	"snap-rq/backend/commands/catalog"
 	"snap-rq/backend/commands/requests"
 	"snap-rq/backend/database"
+	"snap-rq/backend/identity"
 	"snap-rq/backend/mcp"
 	"snap-rq/backend/secrets"
 	"snap-rq/backend/selfupdate"
@@ -42,15 +43,17 @@ var assets embed.FS
 // SemVer default so the updater initialises, and treats them as older than any release.
 var currentVersion = "0.0.0-dev"
 
-// updaterRepository is the GitHub repository (owner/repo) that publishes
-// releases for the self-updater.
-const updaterRepository = "ivoGanev/snap-rq"
-
 func init() {
 	application.RegisterEvent[string]("time")
 }
 
 func main() {
+	if from, err := database.MovePreviousDataDir(); err != nil {
+		log.Printf("data folder: %v", err)
+	} else if from != "" {
+		log.Printf("moved the data folder %s to %s", from, database.DataDir())
+	}
+
 	// Secret variable values are encrypted with a key kept in the OS
 	// credential store (a 0600 file when there is none). A moved data folder
 	// (the e2e tests' throwaway one) keeps its own key file and never touches
@@ -303,8 +306,8 @@ func (s *UpdaterService) Restart() error {
 // configureUpdater wires the in-app self-updater to GitHub Releases.
 func configureUpdater(app *application.App) error {
 	gh, err := github.New(github.Config{
-		Repository:    updaterRepository,
-		ChecksumAsset: "SHA256SUMS",
+		Repository:    identity.UpdaterRepository,
+		ChecksumAsset: identity.ChecksumAsset,
 		AssetMatcher:  matchUpdateAsset,
 	})
 	if err != nil {
