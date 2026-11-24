@@ -76,18 +76,29 @@
   margin: 0 var(--s-3);
   border-radius: var(--radius);
   cursor: pointer;
-  transform-origin: left center;
-  transition:
-    box-shadow 0.2s ease,
-    transform 0.15s ease;
+  transition: box-shadow 0.2s ease;
   --wails-draggable: no-drag;
 }
 
-// Hover grows the row in place; a transform takes no layout space, so the
-// rows around it stay put.
 .group-list-item:hover {
   box-shadow: none;
-  transform: scale(1.04);
+}
+
+// Hover grows the row's contents from their top-left corner. The row itself
+// keeps its size, so its hover area never spills onto the next row (which
+// would hand the hover back and forth) and no other row moves.
+.group-list-item-body {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  transform-origin: left top;
+  transition: transform 0.15s ease;
+}
+
+.group-list-item:hover .group-list-item-body {
+  transform: scale(1.08);
 }
 
 .group-list-item.is-selected {
