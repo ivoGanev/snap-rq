@@ -47,6 +47,9 @@ Each comes with a way to check the same thing by hand. The steps use `https://ht
 11. **Every variable name that can be saved shows as a chip**
    `variable-chips.e2e.ts` and `variable-chips-webkit.e2e.ts`, in Chromium and WebKit. Add the variable `fleet-management.v2` to an environment and select it. Use `{{fleet-management.v2}}` in a request's URL, a header and the body: each shows as a chip, not plain text. In the variables editor, a name with a space or any symbol other than `_`, `-` and `.` is underlined in red with an explanation, and isn't saved. The allowed names are listed in `testdata/variable-names.json`, which the Go and frontend unit tests share.
 
+12. **A paw marks the last sent request and its collection**
+   `last-used-paw.e2e.ts` and `last-used-paw-webkit.e2e.ts`, in Chromium and WebKit. In a new collection, create three requests and send the first two. Under Collections, only that collection has the paw, at its right end. Open it: only the request sent last has the paw, at the right end of its row. Send another request: both paws move to it straight away, without a reload.
+
 ## Tests worth writing
 
 Add a line when you find something a test should cover: what should happen, and why it matters. Remove it once the test exists, and add the test above if it's end-to-end.
