@@ -1,0 +1,27 @@
+<app-inspector-header [title]="requests().length + ' deleted requests'" />
+
+<div class="binned-request-panel">
+  <div class="binned-request-card">
+    <ul class="binned-request-list">
+      @for (req of listed(); track req.id) {
+        <li class="binned-request-list-item">
+          <span class="request-method" [attr.data-method]="req.method">{{ req.method }}</span>
+          <span class="binned-request-list-name">{{ req.name }}</span>
+        </li>
+      }
+    </ul>
+    @if (more() > 0) {
+      <span class="binned-request-more">and {{ more() }} more</span>
+    }
+  </div>
+  <div class="binned-request-actions">
+    <button class="bin-action" type="button" (click)="restoreAll()">Restore all</button>
+    <button class="bin-action bin-action--danger" type="button" (click)="deleteAll()">
+      Delete permanently
+    </button>
+  </div>
+</div>
+
+@if (restorePickerOpen()) {
+  <app-restore-to-collection-dialog [binIds]="content().binIds" (closed)="onPickerClosed()" />
+}

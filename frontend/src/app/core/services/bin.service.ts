@@ -3,6 +3,7 @@ import type { HttpBinnedRequestSummary, HttpRequest } from '../models/http';
 import { CommandApiService } from './command.service';
 import { ChangeBus } from './change-bus.service';
 import { RequestApiService } from './request.service';
+import { CollectionApiService } from './collection.service';
 
 export type { HttpBinnedRequestSummary };
 
@@ -20,6 +21,7 @@ export interface RestoreInput {
 export class BinApiService {
   private readonly commands = inject(CommandApiService);
   private readonly requestApi = inject(RequestApiService);
+  private readonly collectionApi = inject(CollectionApiService);
   private readonly bus = inject(ChangeBus);
   private projectId: number | null = null;
 
@@ -58,6 +60,22 @@ export class BinApiService {
       await this.requestApi.restoreRequest(req);
     }
     return restored ?? [];
+  }
+
+  /** The collection a binned request goes back to, or null when it's gone. */
+  originalCollectionName(req: HttpBinnedRequestSummary): string | null {
+    return this.collectionApi.collections().find((c) => c.id === req.original_collection_id)?.name ?? null;
+  }
+
+  /**
+   * Restores each request to its original collection. Returns false, having
+   * restored nothing, when one's collection is gone and the user must pick.
+   */
+  async restoreToOriginal(binIds: number[]): Promise<boolean> {
+    const binned = this.binnedRequests().filter((r) => binIds.includes(r.id));
+    if (binned.some((r) => this.originalCollectionName(r) === null)) return false;
+    await this.restoreMany(binned.map((r) => ({ bin_id: r.id, collection_id: r.original_collection_id })));
+    return true;
   }
 
   async deletePermanently(binId: number): Promise<void> {
