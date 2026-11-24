@@ -229,7 +229,7 @@ export class RequestsMainList {
   readonly dropHighlightedId = signal<number | null>(null);
   private dropHighlightTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  protected readonly rowHeight = 44;
+  protected readonly rowHeight = 38;
   /**  CDK buffer settings for smoother fast scrolling. */
   protected readonly virtualMinBufferPx = 200*10;
   protected readonly virtualMaxBufferPx = 400*10;

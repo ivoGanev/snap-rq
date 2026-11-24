@@ -17,6 +17,7 @@
     </div>
   }
   @if (headerRequest(); as req) {
+    <div class="header-url-field">
     <app-select
       class="header-method-select"
       aria-label="Method"
@@ -35,6 +36,7 @@
       (textChange)="onUrlChange($event)"
       (submit)="sendFromUrl()"
     ></app-code-editor>
+    </div>
   } @else {
     <span class="header-spacer"></span>
   }
