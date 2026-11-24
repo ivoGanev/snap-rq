@@ -422,38 +422,6 @@ func headerHas(headers, name string) bool {
 	return false
 }
 
-// encodeUnsafeQuery percent-encodes the characters a query can't carry on the
-// wire (spaces, quotes, braces, non-ASCII, a % that starts no escape). URLs are
-// stored as typed; Go sends a raw space in the query, which servers reject.
-func encodeUnsafeQuery(rawURL string) string {
-	start := strings.IndexByte(rawURL, '?')
-	if start < 0 {
-		return rawURL
-	}
-	end := len(rawURL)
-	if hash := strings.IndexByte(rawURL[start:], '#'); hash >= 0 {
-		end = start + hash
-	}
-	var b strings.Builder
-	b.WriteString(rawURL[:start+1])
-	query := rawURL[start+1 : end]
-	for i := 0; i < len(query); i++ {
-		c := query[i]
-		escape := c == '%' && !(i+2 < len(query) && isHex(query[i+1]) && isHex(query[i+2]))
-		if escape || c <= ' ' || c >= 0x7f || strings.IndexByte(`"<>\^`+"`"+`{|}`, c) >= 0 {
-			fmt.Fprintf(&b, "%%%02X", c)
-			continue
-		}
-		b.WriteByte(c)
-	}
-	b.WriteString(rawURL[end:])
-	return b.String()
-}
-
-func isHex(c byte) bool {
-	return ('0' <= c && c <= '9') || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F')
-}
-
 // doHTTP runs the request and returns a response; network and build errors
 // become a status-0 response body instead of a Go error.
 func (c Send) doHTTP(ctx context.Context, req models.HttpRequest, values map[string]string) models.HttpResponse {
@@ -465,7 +433,7 @@ func (c Send) doHTTP(ctx context.Context, req models.HttpRequest, values map[str
 	if method == "" {
 		method = http.MethodGet
 	}
-	req.URL = encodeUnsafeQuery(ensureScheme(req.URL))
+	req.URL = ensureScheme(req.URL)
 
 	var bodyReader io.Reader
 	var contentType string
