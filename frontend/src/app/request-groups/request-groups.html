@@ -36,9 +36,9 @@
         [selectedKey]="selectedKey()"
         [dropTargetKey]="dropTargetKey()"
         [dropZoneActive]="dropZoneActive()"
-        [showAddMenu]="folderFilter() === 'collections'"
-        (addMenuOpen)="openCollectionsAddMenu($event)"
-        (addClick)="onAddButtonClick()"
+        [showMoreMenu]="folderFilter() === 'collections'"
+        (moreMenuOpen)="openCollectionsMoreMenu($event)"
+        (addClick)="createAndRename()"
         (itemSelect)="selectSidebarItem($event)"
         (itemContextMenu)="openItemContextMenu($event.item, $event.event, itemContextMenu)"
         (appearanceClick)="openAppearancePopup($event.item, $event.event)"
@@ -89,61 +89,6 @@
   </div>
 }
 
-<!-- Add: Favourites -->
-@if (newFavouritePopupOpen()) {
-  <div class="overlay-backdrop" (click)="closeNewFavouritePopup()">
-    <div class="overlay-panel new-collection-popup" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Add new favourites</h3>
-        <button class="overlay-close" type="button" (click)="closeNewFavouritePopup()">Close</button>
-      </div>
-      <div class="overlay-body">
-        <label class="edit-field">
-          <span class="edit-label">Name</span>
-          <input
-            class="edit-input"
-            type="text"
-            placeholder="Favourites name"
-            [ngModel]="newFavouriteName()"
-            (ngModelChange)="newFavouriteName.set($event)"
-            (keydown.enter)="addFavouriteCollection()"
-          />
-        </label>
-      </div>
-      <div class="overlay-footer">
-        <button class="variable-add" type="button" (click)="addFavouriteCollection()">Add favourites</button>
-      </div>
-    </div>
-  </div>
-}
-
-<!-- Add: Script -->
-@if (newScriptPopupOpen()) {
-  <div class="overlay-backdrop" (click)="closeNewScriptPopup()">
-    <div class="overlay-panel new-collection-popup" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Add new script</h3>
-        <button class="overlay-close" type="button" (click)="closeNewScriptPopup()">Close</button>
-      </div>
-      <div class="overlay-body">
-        <label class="edit-field">
-          <span class="edit-label">Name</span>
-          <input
-            class="edit-input"
-            type="text"
-            placeholder="Script name"
-            [ngModel]="newScriptName()"
-            (ngModelChange)="newScriptName.set($event)"
-            (keydown.enter)="addScript()"
-          />
-        </label>
-      </div>
-      <div class="overlay-footer">
-        <button class="variable-add" type="button" (click)="addScript()">Add script</button>
-      </div>
-    </div>
-  </div>
-}
 
 <ng-template #itemContextMenu let-item>
   @if (item.kind !== 'script') {
@@ -184,10 +129,16 @@
   }
 </ng-template>
 
-<ng-template #collectionsAddMenu>
-  <button class="context-menu-item" type="button" (click)="onCollectionAddMenu('new')">New Collection</button>
-  <button class="context-menu-item" type="button" (click)="onCollectionAddMenu('import')">Import</button>
-  <button class="context-menu-item" type="button" (click)="onCollectionAddMenu('export')">Export</button>
+<ng-template #collectionsMoreMenu>
+  <button class="context-menu-item" type="button" [disabled]="!canAddRequest()" (click)="onCollectionsMore('request')">
+    New request
+  </button>
+  <button class="context-menu-item" type="button" [disabled]="!canAddRequest()" (click)="onCollectionsMore('curl')">
+    New request from cURL…
+  </button>
+  <div class="context-menu-divider" aria-hidden="true"></div>
+  <button class="context-menu-item" type="button" (click)="onCollectionsMore('import')">Import OpenAPI…</button>
+  <button class="context-menu-item" type="button" (click)="onCollectionsMore('export')">Export OpenAPI…</button>
 </ng-template>
 
 <!-- Appearance popup -->

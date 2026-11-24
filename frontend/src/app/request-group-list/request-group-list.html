@@ -1,17 +1,34 @@
 <div class="column-header group-list-header">
   <span class="group-list-title">{{ folderTitle() }}</span>
-  <button
-    class="add-button"
-    type="button"
-    (click)="showAddMenu() ? onAddMenuClick($event) : onAddClick()"
-    [attr.aria-label]="showAddMenu() ? 'Add, import or export' : 'Add new ' + folderFilter()"
-    [title]="showAddMenu() ? 'Add, import or export' : 'Add new ' + folderFilter()"
-  >
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 8v8M8 12h8" />
-    </svg>
-  </button>
+  <span class="group-list-actions">
+    <button
+      class="add-button"
+      type="button"
+      (click)="onAddClick()"
+      [attr.aria-label]="'Add new ' + folderFilter()"
+      [title]="'Add new ' + folderFilter()"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 8v8M8 12h8" />
+      </svg>
+    </button>
+    @if (showMoreMenu()) {
+      <button
+        class="add-button"
+        type="button"
+        (click)="onMoreMenuClick($event)"
+        aria-label="More collection actions"
+        title="New request, cURL, import and export"
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="5" cy="12" r="1.8" />
+          <circle cx="12" cy="12" r="1.8" />
+          <circle cx="19" cy="12" r="1.8" />
+        </svg>
+      </button>
+    }
+  </span>
 </div>
 
 <div class="group-list-scroll" [class.is-drop-zone]="dropZoneActive()">
