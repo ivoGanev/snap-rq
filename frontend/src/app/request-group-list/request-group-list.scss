@@ -166,8 +166,8 @@
   display: none;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   margin-left: auto;
   padding: 0;
   color: var(--muted);
@@ -177,8 +177,8 @@
   cursor: pointer;
 
   svg {
-    width: 13px;
-    height: 13px;
+    width: 16px;
+    height: 16px;
   }
 
   &:hover {
@@ -191,11 +191,6 @@
 .group-list-item.is-selected .row-add,
 .row-add:focus-visible {
   display: inline-flex;
-}
-
-// The paw and the row + share the right end; the + follows the paw.
-.group-list-item app-last-used-paw + .row-add {
-  margin-left: 0;
 }
 
 .state-message {

@@ -4,7 +4,6 @@ import type { Collection, CollectionAppearance } from '../core/services/collecti
 import type { FavouriteCollection, FavouriteAppearance } from '../core/services/favourite.service';
 import type { Script, ScriptAppearance } from '../core/services/script.service';
 import { IconManifestService } from '../core/services/icon-manifest.service';
-import { LastUsedPaw } from '../last-used-paw/last-used-paw';
 
 export type SidebarFolder = 'collections' | 'favourites' | 'scripts';
 export type SidebarItemAppearance = CollectionAppearance | FavouriteAppearance | ScriptAppearance;
@@ -73,7 +72,7 @@ const FOLDER_META: Record<SidebarFolder, { title: string; emptyMessage: string }
 
 @Component({
   selector: 'app-request-group-list',
-  imports: [SelectOnFocusDirective, LastUsedPaw],
+  imports: [SelectOnFocusDirective],
   templateUrl: './request-group-list.html',
   styleUrl: './request-group-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -84,18 +83,6 @@ export class RequestGroupList {
   readonly folderFilter = input.required<SidebarFolder>();
   readonly items = input.required<SidebarItem[]>();
 
-  /** The collection holding the most recently sent request, if any was sent. */
-  protected readonly lastUsedCollectionId = computed(() => {
-    let id: number | null = null;
-    let latest = 0;
-    for (const item of this.items()) {
-      if (item.kind === 'collection' && item.data.last_used_at > latest) {
-        latest = item.data.last_used_at;
-        id = item.id;
-      }
-    }
-    return id;
-  });
   readonly renamingItem = input<SidebarItem | null>(null);
   readonly renameValue = model('');
   readonly selectedKey = input<string | null>(null);
@@ -138,7 +125,8 @@ export class RequestGroupList {
   }
 
   onRowAddClick(item: SidebarItem, event: MouseEvent): void {
-    this.rowAddMenuOpen.emit({ item, position: menuPosition(event) });
+    // Beside the button, so the menu doesn't cover the rows below.
+    this.rowAddMenuOpen.emit({ item, position: menuPosition(event, 'beside') });
   }
 
   onMoreMenuClick(event: MouseEvent): void {
@@ -194,10 +182,10 @@ export class RequestGroupList {
   }
 }
 
-/** Below the clicked button. The click is stopped so the menu outlet's document listener doesn't close the menu. */
-function menuPosition(event: MouseEvent): AddMenuPosition {
+/** Below or beside the clicked button. The click is stopped so the menu outlet's document listener doesn't close the menu. */
+function menuPosition(event: MouseEvent, place: 'below' | 'beside' = 'below'): AddMenuPosition {
   event.preventDefault();
   event.stopPropagation();
   const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-  return { x: rect.left, y: rect.bottom + 4 };
+  return place === 'below' ? { x: rect.left, y: rect.bottom + 4 } : { x: rect.right + 4, y: rect.top };
 }

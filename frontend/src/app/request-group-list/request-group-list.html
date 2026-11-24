@@ -81,9 +81,6 @@
           </div>
         } @else {
           <span class="group-list-item-label" (dblclick)="onRenameStart(item)">{{ item.name }}</span>
-          @if (item.kind === 'collection' && item.id === lastUsedCollectionId()) {
-            <app-last-used-paw />
-          }
           @if (item.kind === 'collection') {
             <button
               class="row-add"
@@ -93,8 +90,9 @@
               (click)="onRowAddClick(item, $event)"
               (dblclick)="$event.stopPropagation()"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
-                <path d="M12 6v12M6 12h12" />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 8v8M8 12h8" />
               </svg>
             </button>
           }
