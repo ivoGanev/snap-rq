@@ -1,6 +1,8 @@
 import { Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
-import { Dialogs } from '@wailsio/runtime';
+import { Clipboard, Dialogs } from '@wailsio/runtime';
+import { DisplayService } from '../../../bindings/snap-rq/backend/mcp';
+import type { MaskedResponse } from '../../../bindings/snap-rq/backend/mcp/models';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
 import { RequestApiService, type HttpRequest, type HttpResponse } from '../core/services/request.service';
 import {
@@ -21,6 +23,9 @@ import { ConfirmService } from '../core/services/confirm.service';
  */
 const SHOW_AFTER_MS = 200;
 const SHOW_AT_LEAST_MS = 500;
+
+/** How a hidden cookie value is shown, as the backend shows other secrets. */
+const HIDDEN = '•••••';
 
 @Component({
   selector: 'app-response-viewer',
@@ -53,9 +58,36 @@ export class ResponseViewer {
     (this.failedResponse()?.body ?? '').replace(/^request failed:\s*/, ''),
   );
 
+  /** The selected response with its secrets hidden; null until the backend has masked it. */
+  private readonly masked = signal<{ id: number; view: MaskedResponse } | null>(null);
+  private readonly maskedView = computed(() => {
+    const resp = this.state.selectedResponse();
+    const masked = this.masked();
+    return resp && masked?.id === resp.id ? masked.view : null;
+  });
+  protected readonly headersMasked = computed(() => this.maskedView()?.headers_masked ?? false);
+  protected readonly bodyMasked = computed(() => this.maskedView()?.body_masked ?? false);
+  /** Per section, for the response shown; any other response starts hidden again. */
+  protected readonly revealHeaders = signal(false);
+  protected readonly revealBody = signal(false);
+  protected readonly copied = signal<'headers' | 'body' | null>(null);
+  private copiedTimer: ReturnType<typeof setTimeout> | undefined;
+
+  protected readonly shownHeaders = computed(() => {
+    const resp = this.state.selectedResponse();
+    if (!resp) return '';
+    return this.revealHeaders() ? resp.headers : (this.maskedView()?.headers ?? '');
+  });
+  private readonly shownBody = computed(() => {
+    const resp = this.state.selectedResponse();
+    if (!resp) return '';
+    return this.revealBody() ? resp.body : (this.maskedView()?.body ?? '');
+  });
+
   /** Set-Cookie lines of the selected response, parsed for display. */
   protected readonly responseCookies = computed(() => {
     const headers = this.state.selectedResponse()?.headers ?? '';
+    const hide = this.headersMasked() && !this.revealHeaders();
     const out: { name: string; value: string; attrs: string }[] = [];
     for (const line of headers.split(/\r?\n/)) {
       const m = /^set-cookie:\s*(.*)$/i.exec(line);
@@ -64,7 +96,7 @@ export class ResponseViewer {
       const eq = pair.indexOf('=');
       out.push({
         name: (eq < 0 ? '' : pair.slice(0, eq)).trim(),
-        value: (eq < 0 ? pair : pair.slice(eq + 1)).trim(),
+        value: hide ? HIDDEN : (eq < 0 ? pair : pair.slice(eq + 1)).trim(),
         attrs: rest.map((a) => a.trim()).filter(Boolean).join('; '),
       });
     }
@@ -86,7 +118,41 @@ export class ResponseViewer {
       const request = this.inFlight();
       untracked(() => this.updateInFlightView(request));
     });
-    inject(DestroyRef).onDestroy(() => clearTimeout(this.inFlightTimer));
+    effect(() => {
+      const resp = this.state.selectedResponse();
+      untracked(() => this.mask(resp));
+    });
+    inject(DestroyRef).onDestroy(() => {
+      clearTimeout(this.inFlightTimer);
+      clearTimeout(this.copiedTimer);
+    });
+  }
+
+  private mask(resp: HttpResponse | null): void {
+    this.revealHeaders.set(false);
+    this.revealBody.set(false);
+    if (!resp) {
+      this.masked.set(null);
+      return;
+    }
+    DisplayService.MaskResponse(resp.headers ?? '', resp.body ?? '')
+      .then((view) => {
+        if (this.state.selectedResponse()?.id === resp.id) this.masked.set({ id: resp.id, view });
+      })
+      .catch((err: unknown) => console.error('Masking the response failed:', err));
+  }
+
+  /** Copies the section as shown: hidden values stay hidden unless revealed. */
+  async copy(section: 'headers' | 'body'): Promise<void> {
+    const text = section === 'headers' ? this.shownHeaders() : this.bodyLines().join('\n');
+    try {
+      await Clipboard.SetText(text);
+      this.copied.set(section);
+      clearTimeout(this.copiedTimer);
+      this.copiedTimer = setTimeout(() => this.copied.set(null), 1500);
+    } catch (err) {
+      console.error('Copying failed:', err);
+    }
   }
 
   private updateInFlightView(request: HttpRequest | null): void {
@@ -122,10 +188,11 @@ export class ResponseViewer {
 
   readonly bodyLines = computed<string[]>(() => {
     const resp = this.state.selectedResponse();
-    if (!resp || !resp.body || resp.body.length === 0) {
+    const body = this.shownBody();
+    if (!resp || !body) {
       return [];
     }
-    const formatted = prettifyResponseBody(resp.body, resp.headers, this.prettifyEnabled());
+    const formatted = prettifyResponseBody(body, resp.headers, this.prettifyEnabled());
     return formatted.length > 0 ? formatted.split('\n') : [];
   });
 
