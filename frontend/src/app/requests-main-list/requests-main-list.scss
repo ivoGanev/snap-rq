@@ -141,10 +141,6 @@
 }
 
 // The bar without a request: same shape, nothing to use.
-.header-url-field.is-idle .header-method-select {
-  display: flex;
-}
-
 .header-url-field.is-idle .header-url-box {
   padding-left: var(--s-3);
 }
