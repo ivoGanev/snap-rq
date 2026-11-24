@@ -26,14 +26,26 @@
   backdrop-filter: blur(8px);
 }
 
-// Windows: the bar is the title bar. Its empty space drags the window (and
-// double-click maximises); the window controls reach the right edge.
+// The bar is the title bar: its empty space drags the window (and
+// double-click maximises). On Windows the window controls reach the right edge.
 .top-bar.is-frameless {
   padding-right: 0;
+}
+
+// macOS draws its traffic lights over the bar's left end.
+.top-bar.is-mac {
+  padding-left: 78px;
+}
+
+.top-bar.is-frameless,
+.top-bar.is-mac {
   --wails-draggable: drag;
 }
 
-.top-bar.is-frameless button {
+.top-bar.is-frameless button,
+.top-bar.is-frameless input,
+.top-bar.is-mac button,
+.top-bar.is-mac input {
   --wails-draggable: no-drag;
 }
 

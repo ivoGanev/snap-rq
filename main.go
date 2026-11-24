@@ -174,17 +174,26 @@ func main() {
 
 	win = app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title: "SnapRQ",
-		// Windows: the app's top bar is the title bar, with its own window
-		// buttons (app-window-controls). macOS keeps its native traffic lights.
+		// The app's top bar is the title bar: Windows gets its own window buttons
+		// (app-window-controls); macOS keeps its traffic lights over the bar.
 		Frameless: runtime.GOOS == "windows",
 		// Window sized to the golden ratio (1000 / 618 ≈ 1.618).
 		Width:      1000,
 		Height:     618,
 		StartState: application.WindowStateMaximised,
+		// A compact toolbar centres the traffic lights in a bar as tall as the
+		// top bar. The bar's CSS drag region moves the window, so clicks on its
+		// buttons aren't taken for drags.
 		Mac: application.MacWindow{
-			InvisibleTitleBarHeight: 50,
-			Backdrop:                application.MacBackdropTranslucent,
-			TitleBar:                application.MacTitleBarHiddenInset,
+			Backdrop: application.MacBackdropTranslucent,
+			TitleBar: application.MacTitleBar{
+				AppearsTransparent:   true,
+				HideTitle:            true,
+				FullSizeContent:      true,
+				UseToolbar:           true,
+				HideToolbarSeparator: true,
+				ToolbarStyle:         application.MacToolbarStyleUnifiedCompact,
+			},
 		},
 		BackgroundColour: application.NewRGB(6, 7, 15),
 		URL:              "/",
