@@ -5,6 +5,7 @@
 //   /slow?ms=1500   200 after the given delay
 //   /status/404     that status code
 //   /echo           200 {"headers": the request's headers}
+//   /secrets        200 a login response: secrets in the body, a token and a session cookie in the headers
 import { createServer } from 'node:http';
 
 const port = Number(process.argv[2] ?? 9872);
@@ -20,6 +21,22 @@ createServer((req, res) => {
   if (url.pathname === '/echo') {
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ headers: req.headers }));
+    return;
+  }
+  if (url.pathname === '/secrets') {
+    res.writeHead(200, {
+      'content-type': 'application/json',
+      'x-request-id': 'req-0001',
+      'x-auth-token': 'tok-header-4',
+      'set-cookie': 'session_id=sess-5; Path=/; HttpOnly',
+    });
+    res.end(
+      JSON.stringify({
+        user: { id: 42, username: 'demo-user', password: 'hunter2' },
+        access_token: 'tok-access-1',
+        expires_in: 3600,
+      }),
+    );
     return;
   }
   if (url.pathname === '/slow') {
