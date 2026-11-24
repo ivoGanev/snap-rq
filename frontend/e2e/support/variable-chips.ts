@@ -68,15 +68,19 @@ export function variableChipTests(): void {
     await openApp(page);
     await seed(page);
     await page.getByRole('button', { name: 'Edit environment variables' }).click();
+    const keys = page.locator('.variables-cell--key input');
+    await expect(keys).toHaveCount(1);
     await page.locator('.variable-add-button').click();
+    await expect(keys).toHaveCount(2);
 
-    const key = page.locator('.variables-cell--key input').last();
-    await key.fill('a b');
-    await expect(key).toHaveClass(/is-invalid/);
+    // The new row's place in the list can change once it loads, so it's found by its state.
+    await page.locator('.variables-cell--key input:placeholder-shown').fill('a b');
+    const invalid = page.locator('.variables-cell--key input.is-invalid');
+    await expect(invalid).toHaveValue('a b');
     await expect(page.locator('.variables-key-error')).toBeVisible();
 
-    await key.fill('a-b.c');
-    await expect(key).not.toHaveClass(/is-invalid/);
+    await invalid.fill('a-b.c');
+    await expect(page.locator('.variables-cell--key input.is-invalid')).toHaveCount(0);
     await expect(page.locator('.variables-key-error')).toHaveCount(0);
   });
 }
