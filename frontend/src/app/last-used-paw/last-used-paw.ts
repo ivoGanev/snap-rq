@@ -1,9 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, input } from '@angular/core';
 
 /** Marks the most recently used entry of a list. */
 @Component({
   selector: 'app-last-used-paw',
-  host: { class: 'last-used-paw', role: 'img', 'aria-label': 'Last used', title: 'Last used' },
+  host: { class: 'last-used-paw', role: 'img', '[attr.aria-label]': 'hint()', '[title]': 'hint()' },
   template: `
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <ellipse cx="4.6" cy="10.2" rx="2.1" ry="2.6" transform="rotate(-20 4.6 10.2)" />
@@ -30,4 +30,6 @@ import { Component } from '@angular/core';
     }
   `,
 })
-export class LastUsedPaw {}
+export class LastUsedPaw {
+  readonly hint = input('Last used');
+}
