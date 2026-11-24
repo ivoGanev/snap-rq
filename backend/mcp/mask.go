@@ -36,8 +36,11 @@ var (
 	urlQueryParam   = regexp.MustCompile(`([?&])([^=&#\s]+)=([^&#\s]*)`)
 )
 
-// Masker decides what is secret.
-type Masker struct{ names []string }
+// Masker decides what is secret, and what a hidden value is shown as.
+type Masker struct {
+	names  []string
+	hidden string
+}
 
 // NewMasker adds the user's own names to the built-in list.
 func NewMasker(extra []string) *Masker {
@@ -47,7 +50,15 @@ func NewMasker(extra []string) *Masker {
 			names = append(names, e)
 		}
 	}
-	return &Masker{names: names}
+	return &Masker{names: names, hidden: Redacted}
+}
+
+// ShowingAs returns a masker that shows hidden values as hidden instead of
+// Redacted, e.g. for the app's own response view.
+func (m *Masker) ShowingAs(hidden string) *Masker {
+	c := *m
+	c.hidden = hidden
+	return &c
 }
 
 func (m *Masker) sensitive(name string) bool {
@@ -66,7 +77,7 @@ func (m *Masker) Value(name, value string) string {
 	if value == "" || !m.sensitive(name) || placeholderValue.MatchString(value) {
 		return value
 	}
-	return Redacted
+	return m.hidden
 }
 
 // Headers masks "Name: value" lines.
@@ -93,7 +104,7 @@ func (m *Masker) URL(text string) string {
 		if placeholderValue.MatchString(g[2]) {
 			return s
 		}
-		return g[1] + Redacted + g[3]
+		return g[1] + m.hidden + g[3]
 	})
 	return urlQueryParam.ReplaceAllStringFunc(text, func(s string) string {
 		g := urlQueryParam.FindStringSubmatch(s)
@@ -114,7 +125,7 @@ func (m *Masker) Body(text string) string {
 				return s
 			}
 			if masked := m.Value(key, value); masked != value {
-				return g[1] + g[2] + `"` + Redacted + `"`
+				return g[1] + g[2] + `"` + m.hidden + `"`
 			}
 			return s
 		})
