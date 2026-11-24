@@ -77,6 +77,12 @@
   border-radius: 0;
 }
 
+// The overlay pane is a flex row; growing fills the width it was given.
+.select-list.is-flush {
+  flex: 1 1 auto;
+  box-sizing: border-box;
+}
+
 .select-group {
   padding: 8px 14px 4px;
   font-size: 0.6875rem;
