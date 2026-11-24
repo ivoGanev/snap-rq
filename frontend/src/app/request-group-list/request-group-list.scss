@@ -168,6 +168,7 @@
   justify-content: center;
   // Pinned to the sidebar's right edge, past the row's padding and margin.
   position: absolute;
+  z-index: 1;
   top: 50%;
   right: calc(-1 * var(--s-3));
   transform: translateY(-50%);
