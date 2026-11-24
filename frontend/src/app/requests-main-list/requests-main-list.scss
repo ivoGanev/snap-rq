@@ -35,32 +35,9 @@
   font-weight: 800;
   letter-spacing: 0.04em;
   color: var(--text);
-  background: var(--hover-highlight);
-}
-
-.header-method-select[data-method='GET'] {
-  color: var(--method-get-fg);
-  background: var(--method-get-bg);
-}
-
-.header-method-select[data-method='POST'] {
-  color: var(--method-post-fg);
-  background: var(--method-post-bg);
-}
-
-.header-method-select[data-method='PUT'] {
-  color: var(--method-put-fg);
-  background: var(--method-put-bg);
-}
-
-.header-method-select[data-method='DELETE'] {
-  color: var(--danger-text);
-  background: var(--danger-bg);
-}
-
-.header-method-select[data-method='PATCH'] {
-  color: var(--method-patch-fg);
-  background: var(--method-patch-bg);
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  border-right: none;
 }
 
 .header-url-box {

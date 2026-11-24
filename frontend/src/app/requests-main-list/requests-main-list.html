@@ -10,7 +10,6 @@
         class="header-method-select"
         aria-label="Method"
         [flush]="true"
-        [attr.data-method]="req.method"
         [options]="methodOptions"
         [value]="req.method"
         (valueChange)="chooseMethod(req, $event)"
