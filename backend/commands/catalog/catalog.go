@@ -50,6 +50,7 @@ var All = []commands.Factory{
 
 	// trash bin
 	bin.NewList,
+	bin.NewGet,
 	bin.NewRestore,
 	bin.NewDeletePermanently,
 
