@@ -9,7 +9,7 @@ import type { InspectorContentOf } from '../../inspector';
   selector: 'app-response-pane',
   imports: [ResponseViewer],
   template: `
-    <app-response-viewer />
+    <app-response-viewer [canClearHistory]="true" />
   `,
   styles: `
     :host {

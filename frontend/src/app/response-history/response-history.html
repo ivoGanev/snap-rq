@@ -1,4 +1,5 @@
-<!-- The whole line folds and unfolds the timeline. -->
+<div class="history-header">
+<!-- The whole line, bar the bin, folds and unfolds the timeline. -->
 <button class="history-bar" type="button" [attr.aria-expanded]="open()" (click)="toggle()">
   <span class="history-toggle">
     <svg class="history-chevron" [class.is-open]="open()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -14,6 +15,17 @@
     </span>
   }
 </button>
+@if (clearable()) {
+  <button class="history-clear" type="button" title="Clear history" aria-label="Clear history" (click)="clear.emit()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M4 7h16" />
+      <path d="M9 7V4.5h6V7" />
+      <path d="M6.5 7l1 13h9l1-13" />
+      <path d="M10 11v5.5M14 11v5.5" />
+    </svg>
+  </button>
+}
+</div>
 
 @if (open()) {
   <ol class="history-timeline" aria-label="Response history">

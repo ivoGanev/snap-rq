@@ -39,6 +39,9 @@ export class ResponseHistory {
   readonly responses = input.required<HttpResponse[]>();
   readonly selected = input<HttpResponse | null>(null);
   readonly select = output<HttpResponse>();
+  /** Shows the bin that clears the whole history. */
+  readonly clearable = input(false);
+  readonly clear = output<void>();
 
   protected readonly open = signal(readOpen());
   /** Ticks, so "2 min ago" stays true. */
