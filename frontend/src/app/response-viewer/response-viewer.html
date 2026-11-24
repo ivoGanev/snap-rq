@@ -9,7 +9,9 @@
   <app-response-history
     [responses]="responses()"
     [selected]="state.selectedResponse()"
+    [clearable]="canClearHistory()"
     (select)="selectResponse($event)"
+    (clear)="clearHistory()"
   />
 }
 

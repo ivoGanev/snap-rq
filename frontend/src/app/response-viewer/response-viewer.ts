@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { Dialogs } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
@@ -13,6 +13,7 @@ import { httpStatusClass, httpStatusText, isRequestError } from '../core/http-st
 import { ScriptLog } from '../script-log/script-log';
 import { ResponseHistory } from '../response-history/response-history';
 import { RequestInFlight } from '../request-in-flight/request-in-flight';
+import { ConfirmService } from '../core/services/confirm.service';
 
 /**
  * Against flicker: a send that ends within SHOW_AFTER_MS never shows the
@@ -30,6 +31,10 @@ const SHOW_AT_LEAST_MS = 500;
 export class ResponseViewer {
   protected readonly state = inject(WorkspaceStateService);
   private readonly requestApi = inject(RequestApiService);
+  private readonly confirm = inject(ConfirmService);
+
+  /** Offers the bin that clears the request's history. */
+  readonly canClearHistory = input(false);
 
   protected readonly responses = this.requestApi.responses;
   protected readonly statusClass = httpStatusClass;
@@ -154,6 +159,27 @@ export class ResponseViewer {
 
   selectResponse(resp: HttpResponse): void {
     this.state.selectedResponse.set(resp);
+  }
+
+  async clearHistory(): Promise<void> {
+    const requestId = this.responses()[0]?.request_id;
+    if (requestId === undefined) return;
+    const count = this.responses().length;
+    const name = this.state.selectedRequest()?.name;
+    const saved = count === 1 ? 'The saved response' : `All ${count} saved responses`;
+    const confirmed = await this.confirm.ask({
+      title: 'Clear history?',
+      message: `${saved}${name ? ` of "${name}"` : ''} will be permanently deleted. This cannot be undone.`,
+      confirmLabel: 'Clear history',
+      danger: true,
+    });
+    if (!confirmed) return;
+    try {
+      await this.requestApi.clearResponses(requestId);
+      this.state.selectedResponse.set(null);
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   togglePrettify(): void {

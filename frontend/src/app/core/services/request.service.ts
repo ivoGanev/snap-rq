@@ -315,6 +315,13 @@ export class RequestApiService {
     this.responses.set(all ?? []);
   }
 
+  /** Deletes a request's whole response history; its status goes with it. */
+  async clearResponses(requestId: number): Promise<void> {
+    await this.commands.execute('response.clear_for_request', { request_id: requestId });
+    this.responses.set([]);
+    this.patch(requestId, { status_code: 0, response_id: 0 });
+  }
+
   async saveResponseToFile(responseId: number, filePath: string): Promise<void> {
     await this.commands.execute('response.save_to_file', {
       response_id: responseId,
