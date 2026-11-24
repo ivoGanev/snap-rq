@@ -140,30 +140,6 @@
   transform: scale(0.94);
 }
 
-// The bar without a request: same shape, nothing to use.
-.header-url-field.is-idle .header-url-box {
-  padding-left: var(--s-3);
-}
-
-.header-url-idle {
-  overflow: hidden;
-  font-size: 0.8125rem;
-  font-style: italic;
-  color: var(--muted);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.header-send-idle {
-  display: flex;
-  align-items: center;
-  padding: 0 64px;
-  font-size: 0.9375rem;
-  font-weight: 700;
-  color: var(--muted);
-  background: var(--hover-highlight);
-}
-
 .selection-count {
   align-self: center;
   padding: 0 var(--s-3);
