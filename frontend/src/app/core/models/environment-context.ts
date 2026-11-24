@@ -5,7 +5,27 @@ export interface EnvironmentVariableValue {
   secret?: boolean;
 }
 
-const VARIABLE_REGEX = /\{\{\s*([a-zA-Z0-9_-]+)\s*\}\}/g;
+// Mirrors backend/models/variable_name.go; testdata/variable-names.json tests both.
+const VARIABLE_NAME_CHARS = 'A-Za-z0-9_.-';
+const VARIABLE_NAME = new RegExp(`^[${VARIABLE_NAME_CHARS}]+$`);
+
+export const VARIABLE_NAME_ERROR = 'Use only letters, digits, _, - and .';
+
+export function isValidVariableName(name: string): boolean {
+  return VARIABLE_NAME.test(name);
+}
+
+const PLACEHOLDER = String.raw`\{\{\s*([${VARIABLE_NAME_CHARS}]+)\s*\}\}`;
+
+/** `{{name}}` with optional padding; group 1 is the name. A new global regex per call, so no lastIndex is shared. */
+export function variablePlaceholderRegex(): RegExp {
+  return new RegExp(PLACEHOLDER, 'g');
+}
+
+/** The same placeholder inside JSON string quotes. */
+export function quotedVariablePlaceholderRegex(): RegExp {
+  return new RegExp(`"${PLACEHOLDER}"`, 'g');
+}
 
 /**
  * An environment resolved into an interpolation context.
@@ -42,7 +62,7 @@ export class EnvironmentContext {
   /** Resolves `{{ key }}` placeholders; unknown keys are left untouched. */
   interpolate(text: string): string {
     if (this.values.size === 0 || !text.includes('{{')) return text;
-    return text.replace(VARIABLE_REGEX, (match, key: string) => {
+    return text.replace(variablePlaceholderRegex(), (match, key: string) => {
       const value = this.values.get(key);
       return value === undefined ? match : value;
     });
