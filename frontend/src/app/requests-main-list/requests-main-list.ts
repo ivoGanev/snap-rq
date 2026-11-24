@@ -780,13 +780,15 @@ export class RequestsMainList {
   ): void {
     const remembered =
       groupKeyOfView !== null ? this.selectionState.getSelection(groupKeyOfView) : null;
-    if (!remembered) return;
 
     // Keep only rows that are still in this list; the main row falls back to
     // the first remaining one.
     const present = new Set(requests.map((r) => r.id));
-    const ids = remembered.ids.filter((id) => present.has(id));
-    if (ids.length === 0) return;
+    const ids = remembered?.ids.filter((id) => present.has(id)) ?? [];
+    if (!remembered || ids.length === 0) {
+      this.selectFirstRequest(requests);
+      return;
+    }
     const rememberedId = present.has(remembered.primary) ? remembered.primary : ids[0];
     const primary = requests.find((r) => r.id === rememberedId);
     if (!primary) return;
@@ -818,6 +820,15 @@ export class RequestsMainList {
       const offset = Math.max(0, index * this.rowHeight - (viewportSize - this.rowHeight) / 2);
       this.viewport.scrollToOffset(offset);
     }
+  }
+
+  // A selected request shows the URL bar above the list; selecting one up front
+  // keeps the list from shifting down on the first click.
+  private selectFirstRequest(requests: HttpRequestSummary[]): void {
+    untracked(() => {
+      const first = this.displayRows().find((row) => row.kind === 'request')?.req ?? requests[0];
+      if (first) this.selectCell(first, 'name', false);
+    });
   }
 
   onWindowKeydown(event: KeyboardEvent): void {
