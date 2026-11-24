@@ -42,6 +42,10 @@ import { linter, lintGutter, type Diagnostic } from '@codemirror/lint';
 import { defaultKeymap, history, historyKeymap, redo } from '@codemirror/commands';
 import { scriptCompletions } from './script-completions';
 import type { ScriptProblem } from '../core/models/script-problem';
+import {
+  quotedVariablePlaceholderRegex,
+  variablePlaceholderRegex,
+} from '../core/models/environment-context';
 
 export type EditorLanguage = 'json' | 'text' | 'javascript';
 
@@ -91,8 +95,6 @@ const JSON_HIGHLIGHT = HighlightStyle.define([
   { tag: [t.separator, t.brace, t.squareBracket], color: 'var(--syntax-punctuation)' },
 ]);
 
-const VARIABLE_QUOTED_REGEX = /"\{\{\s*(\w+)\s*\}\}"/g;
-const VARIABLE_UNQUOTED_REGEX = /\{\{\s*(\w+)\s*\}\}/g;
 const INDENT = '  ';
 
 class VariableWidget extends WidgetType {
@@ -156,7 +158,7 @@ function variableDecorations(): Extension {
         const variables = view.state.field(variablesField);
         const decorations: Array<{ from: number; to: number; value: Decoration }> = [];
         const text = view.state.doc.toString();
-        const regex = /\{\{\s*(\w+)\s*\}\}/g;
+        const regex = variablePlaceholderRegex();
         let match: RegExpExecArray | null;
         while ((match = regex.exec(text)) !== null) {
           const key = match[1];
@@ -682,7 +684,7 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
   private getVariableRanges(doc: { toString(): string }): { from: number; to: number }[] {
     const ranges: { from: number; to: number }[] = [];
     const text = doc.toString();
-    const regex = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
+    const regex = variablePlaceholderRegex();
     let match: RegExpExecArray | null;
     while ((match = regex.exec(text)) !== null) {
       ranges.push({ from: match.index, to: match.index + match[0].length });
@@ -795,13 +797,13 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
     const placeholders = new Map<string, string>();
     let counter = 0;
 
-    let text = value.replace(VARIABLE_QUOTED_REGEX, (match: string) => {
+    let text = value.replace(quotedVariablePlaceholderRegex(), (match: string) => {
       const token = `"__VAR_Q_${counter++}__"`;
       placeholders.set(token, match);
       return token;
     });
 
-    text = text.replace(VARIABLE_UNQUOTED_REGEX, (match: string) => {
+    text = text.replace(variablePlaceholderRegex(), (match: string) => {
       const token = `"__VAR_U_${counter++}__"`;
       placeholders.set(token, match);
       return token;

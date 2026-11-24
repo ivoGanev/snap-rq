@@ -144,11 +144,16 @@
                 <td class="variables-cell variables-cell--key">
                   <input
                     class="variables-input"
+                    [class.is-invalid]="keyIsInvalid(variable)"
                     type="text"
                     placeholder="KEY"
+                    [attr.aria-invalid]="keyIsInvalid(variable)"
                     [ngModel]="variable.key"
                     (ngModelChange)="updateKey(variable, $event)"
                   />
+                  @if (keyIsInvalid(variable)) {
+                    <div class="variables-key-error" role="alert">{{ variableNameError }}</div>
+                  }
                 </td>
                 <td class="variables-cell variables-cell--value">
                   @if (!variable.secret) {

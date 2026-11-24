@@ -18,6 +18,10 @@ import {
 import { ConfirmService } from '../core/services/confirm.service';
 import { SecretsApiService } from '../core/services/secrets.service';
 import { RecoveryKeyDialog } from '../dialogs/recovery-key-dialog/recovery-key-dialog';
+import {
+  isValidVariableName,
+  VARIABLE_NAME_ERROR,
+} from '../core/models/environment-context';
 
 type SortColumn = 'key' | 'value';
 type SortDirection = 'asc' | 'desc';
@@ -62,6 +66,9 @@ export class VariablesEditor {
   protected readonly recoveryKeyOpen = signal(false);
   protected readonly recoveryInput = signal('');
   protected readonly unlockError = signal('');
+  /** Names typed that break the rule, by variable id. They stay in the input but aren't saved. */
+  private readonly invalidKeys = signal<ReadonlyMap<number, string>>(new Map());
+  protected readonly variableNameError = VARIABLE_NAME_ERROR;
 
   readonly deleteConfirmOpen = signal(false);
   readonly environmentPendingDelete = signal<Environment | null>(null);
@@ -82,6 +89,7 @@ export class VariablesEditor {
     effect(() => {
       this.state.selectedEnvironment();
       this.revealed.set(new Map());
+      this.invalidKeys.set(new Map());
     });
   }
 
@@ -217,7 +225,21 @@ export class VariablesEditor {
     }
   }
 
+  protected keyIsInvalid(variable: EnvironmentVariable): boolean {
+    const key = this.invalidKeys().get(variable.id) ?? variable.key;
+    return key !== '' && !isValidVariableName(key);
+  }
+
   async updateKey(variable: EnvironmentVariable, key: string): Promise<void> {
+    if (key !== '' && !isValidVariableName(key)) {
+      this.invalidKeys.update((m) => new Map(m).set(variable.id, key));
+      return;
+    }
+    this.invalidKeys.update((m) => {
+      const next = new Map(m);
+      next.delete(variable.id);
+      return next;
+    });
     this.patchLocal(variable.id, { key });
     try {
       // A secret's value isn't here; leaving it out keeps it as it is.
