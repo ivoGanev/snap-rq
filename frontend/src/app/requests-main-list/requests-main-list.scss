@@ -48,6 +48,45 @@
   flex: 1 1 auto;
 }
 
+.header-method-select {
+  flex: 0 0 auto;
+  align-self: stretch;
+  align-items: center;
+  min-width: 92px;
+  padding: 0 var(--s-2);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  background: var(--hover-highlight);
+  border-radius: var(--radius);
+}
+
+.header-method-select[data-method='GET'] {
+  color: var(--method-get-fg);
+  background: var(--method-get-bg);
+}
+
+.header-method-select[data-method='POST'] {
+  color: var(--method-post-fg);
+  background: var(--method-post-bg);
+}
+
+.header-method-select[data-method='PUT'] {
+  color: var(--method-put-fg);
+  background: var(--method-put-bg);
+}
+
+.header-method-select[data-method='DELETE'] {
+  color: var(--danger-text);
+  background: var(--danger-bg);
+}
+
+.header-method-select[data-method='PATCH'] {
+  color: var(--method-patch-fg);
+  background: var(--method-patch-bg);
+}
+
 .header-url-editor {
   flex: 1 1 auto;
   min-width: 0;
@@ -431,23 +470,6 @@
     animation: none;
     transform: scale(1.3);
   }
-}
-
-// Method dropdown (opened from the badge).
-.method-menu-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-3);
-}
-
-.method-menu-item.is-current {
-  background: var(--selected-bg);
-}
-
-.method-menu-check {
-  color: var(--accent-3, var(--accent));
-  font-weight: 700;
 }
 
 .spreadsheet-cell--action {

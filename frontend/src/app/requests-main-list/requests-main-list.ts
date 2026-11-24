@@ -27,6 +27,7 @@ import { RequestBodyTab } from '../request-body-tab/request-body-tab';
 import { ScriptTabs } from '../script-tabs/script-tabs';
 import { RequestHeadersTab } from '../request-headers-tab/request-headers-tab';
 import { CodeEditor } from '../code-editor/code-editor';
+import { Select, type SelectOption } from '../select/select';
 import { SelectOnFocusDirective } from '../core/directives/select-on-focus.directive';
 import { requestColorInfo } from '../core/request-colors';
 import type { WorkspaceViewKind } from '../core/workspace/workspace-view';
@@ -83,7 +84,7 @@ const NAME_COLUMN_MIN_WIDTH = 120;
  */
 @Component({
   selector: 'app-requests-main-list',
-  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog, CurlImportDialog, SendButton, UsageMeter],
+  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, Select, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog, CurlImportDialog, SendButton, UsageMeter],
   templateUrl: './requests-main-list.html',
   styleUrl: './requests-main-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -114,7 +115,7 @@ export class RequestsMainList {
   private readonly viewport!: CdkVirtualScrollViewport;
 
   protected readonly bottomTabs = BOTTOM_TABS;
-  protected readonly httpMethods = HTTP_METHODS;
+  protected readonly methodOptions: SelectOption[] = HTTP_METHODS.map((method) => ({ value: method, label: method }));
   protected readonly requestScripts = this.scriptApi.requestScripts;
   protected readonly requestFavouriteIds = this.favouriteApi.requestsMembership;
   protected readonly collections = this.collectionApi.collections;
@@ -1991,25 +1992,7 @@ export class RequestsMainList {
     this.closeEditModal();
   }
 
-  // ---------- Method dropdown ----------
-
-  openMethodMenu(
-    req: HttpRequestSummary | HttpBinnedRequestSummary,
-    event: MouseEvent,
-    template: TemplateRef<{ $implicit: HttpRequestSummary | HttpBinnedRequestSummary }>,
-  ): void {
-    // Modifier clicks keep their multi-select meaning.
-    if (this.state.showingBin() || event.ctrlKey || event.metaKey || event.shiftKey) return;
-    event.stopPropagation();
-    this.selectCell(req as HttpRequestSummary, 'method');
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    const menuHeight = this.httpMethods.length * 38 + 8;
-    const y = rect.bottom + 6 + menuHeight > window.innerHeight ? rect.top - menuHeight - 6 : rect.bottom + 6;
-    this.contextMenu.open(template, req, rect.left, Math.max(8, y));
-  }
-
-  async chooseMethod(req: HttpRequestSummary, method: string): Promise<void> {
-    this.contextMenu.close();
+  protected async chooseMethod(req: HttpRequestSummary, method: string): Promise<void> {
     if (method === req.method) return;
     await this.updateRequestField(req, 'method', method);
   }

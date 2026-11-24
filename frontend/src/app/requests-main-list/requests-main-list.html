@@ -16,7 +16,15 @@
       </button>
     </div>
   }
-  @if (headerRequest()) {
+  @if (headerRequest(); as req) {
+    <app-select
+      class="header-method-select"
+      aria-label="Method"
+      [attr.data-method]="req.method"
+      [options]="methodOptions"
+      [value]="req.method"
+      (valueChange)="chooseMethod(req, $event)"
+    />
     <app-code-editor
       class="header-url-editor"
       language="text"
@@ -257,7 +265,6 @@
             class="request-method"
             [attr.data-method]="req.method"
             [class.is-cell-selected]="rowState()[req.id]?.isCellSelected?.['method']"
-            (click)="openMethodMenu(req, $event, methodMenu)"
           >{{ req.method }}</span>
         </div>
 
@@ -437,22 +444,6 @@
     </div>
   </div>
 }
-
-<ng-template #methodMenu let-req>
-  @for (method of httpMethods; track method) {
-    <button
-      class="context-menu-item method-menu-item"
-      [class.is-current]="method === req.method"
-      type="button"
-      (click)="chooseMethod(req, method)"
-    >
-      <span class="request-method" [attr.data-method]="method">{{ method }}</span>
-      @if (method === req.method) {
-        <span class="method-menu-check" aria-hidden="true">✓</span>
-      }
-    </button>
-  }
-</ng-template>
 
 @if (scriptPickerFor(); as requests) {
   <app-script-picker-dialog [requests]="requests" (closed)="scriptPickerFor.set(null)" />
