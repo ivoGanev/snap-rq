@@ -4,8 +4,11 @@
   position: relative;
   z-index: 50;
   justify-content: flex-start;
-  gap: var(--s-3);
-  --header-control-height: 36px;
+  align-items: stretch;
+  gap: 0;
+  height: 44px;
+  padding: 0;
+  --header-control-height: 100%;
 }
 
 .add-request-button {
@@ -104,6 +107,8 @@
 }
 
 .selection-count {
+  align-self: center;
+  padding: 0 var(--s-3);
   font-family: var(--font-display);
   font-size: 0.75rem;
   font-weight: 700;
@@ -114,8 +119,8 @@
 
 .header-actions {
   display: flex;
-  align-items: center;
-  gap: var(--s-2);
+  align-items: stretch;
+  gap: 0;
 }
 
 .restore-button {
