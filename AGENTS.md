@@ -3,8 +3,8 @@
 - CodeMirror creates DOM dynamically. Angular-scoped selectors targeting .cm-editor or .cm-scroller may not match those generated elements. Put CodeMirror-specific rules in EditorView.theme() or global CSS.
 - When working on a feature/fix: (1) check out a non-main branch; (2) present a plan and STOP — do not edit any file until the user approves; (3) after approval, implement and run build/typecheck; (4) commit after every prompt and push to remote.
 - R&D mode: a branch the user calls a trial, experiment or R&D is exploratory until the user decides to keep it.
-  - Don't create or edit tests (Go, unit, e2e) and don't update docs/tests.md. Build, and run the existing suite only to catch breakage.
-  - Tests come once the user decides to keep the result, before its PR.
+  - Don't write, edit or run tests (Go, unit, e2e), and don't update docs/tests.md, until the user says so. Only build/typecheck.
+  - Change only what the prompt asks for; leave everything else as it is.
 - Comments explain only a why the code can't show: a constraint, a gotcha, a workaround. Nothing else gets a comment.
   - Don't restate the code: no doc comments that repeat the function name, no step headers, no narrating the next line or assertion.
   - Describe the code as it is. No history ("now", "used to", "instead of the old…") and no references to the task, the conversation, a review or an earlier attempt; that goes in the commit message.
