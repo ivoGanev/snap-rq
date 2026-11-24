@@ -94,6 +94,19 @@
     </div>
   }
 
+  @if (state.showingBin() && binApi.binnedRequests().length > 0) {
+    <div class="top-bar-add">
+      <button
+        class="top-bar-icon top-bar-icon--text top-bar-empty-bin"
+        type="button"
+        title="Permanently delete everything in the bin"
+        (click)="emptyBin()"
+      >
+        Empty bin
+      </button>
+    </div>
+  }
+
   @if (searchOpen()) {
     <input
       #searchInput

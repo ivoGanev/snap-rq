@@ -165,6 +165,12 @@
   font-weight: 700;
 }
 
+.top-bar-empty-bin:hover:not(:disabled) {
+  color: var(--danger-text);
+  background: var(--danger-bg);
+  box-shadow: none;
+}
+
 .top-bar-search {
   width: 220px;
   padding: 4px var(--s-2);
