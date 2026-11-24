@@ -59,7 +59,7 @@
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 0 0 var(--s-3);
+  padding: var(--s-1) 0 var(--s-3);
 }
 
 .group-list {
@@ -84,21 +84,22 @@
   box-shadow: none;
 }
 
-// Hover grows the row's contents from their top-left corner. The row itself
-// keeps its size, so its hover area never spills onto the next row (which
-// would hand the hover back and forth) and no other row moves.
+// Hover and selection grow the row's contents from their bottom-left
+// corner. The row itself keeps its size, so its hover area never spills onto
+// the next row (which would hand the hover back and forth) and no other row moves.
 .group-list-item-body {
   flex: 1 1 auto;
   display: flex;
   align-items: center;
   gap: var(--s-2);
   min-width: 0;
-  transform-origin: left top;
+  transform-origin: left bottom;
   transition: transform 0.15s ease;
 }
 
-.group-list-item:hover .group-list-item-body {
-  transform: scale(1.08);
+.group-list-item:hover .group-list-item-body,
+.group-list-item.is-selected .group-list-item-body {
+  transform: scale(1.12);
 }
 
 .group-list-item.is-selected {
@@ -206,10 +207,6 @@
   opacity: 0.45;
 }
 
-.group-list-item.is-selected::before,
-.group-list-item.is-selected:hover::before {
-  opacity: 1;
-}
 
 // Active drop target: a solid accent ring + soft fill so the destination is
 // unambiguous while a request is being dragged from the list.
