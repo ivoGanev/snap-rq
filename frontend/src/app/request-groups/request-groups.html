@@ -131,13 +131,13 @@
 </ng-template>
 
 <ng-template #collectionsAddMenu>
-  <button class="context-menu-item" type="button" (click)="onCollectionsMenu('collection')">New collection</button>
   <button class="context-menu-item" type="button" [disabled]="!canAddRequest()" (click)="onCollectionsMenu('request')">
     New request
   </button>
   <button class="context-menu-item" type="button" [disabled]="!canAddRequest()" (click)="onCollectionsMenu('curl')">
     New request from cURL…
   </button>
+  <button class="context-menu-item" type="button" (click)="onCollectionsMenu('collection')">New collection</button>
   <div class="context-menu-divider" aria-hidden="true"></div>
   <button class="context-menu-item" type="button" (click)="onCollectionsMenu('import')">Import OpenAPI…</button>
 </ng-template>
