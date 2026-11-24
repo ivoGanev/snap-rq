@@ -44,36 +44,6 @@
     @if (selectedRowIds().size > 1) {
       <span class="selection-count">{{ selectedRowIds().size }} selected</span>
     }
-    @if (selectedRowIds().size > 0) {
-      <div class="header-actions">
-        @if (state.showingBin()) {
-          <button
-            class="restore-button"
-            type="button"
-            (click)="openRestoreCollectionPicker()"
-            [attr.aria-label]="
-              selectedRowIds().size === 1
-                ? 'Restore selected request'
-                : 'Restore ' + selectedRowIds().size + ' requests'
-            "
-          >
-            Restore
-          </button>
-          <button
-            class="delete-button delete-button--top-bar"
-            type="button"
-            (click)="requestPermanentDelete()"
-            [attr.aria-label]="
-              selectedRowIds().size === 1
-                ? 'Delete selected request permanently'
-                : 'Delete ' + selectedRowIds().size + ' requests permanently'
-            "
-          >
-            Delete
-          </button>
-        }
-      </div>
-    }
   </div>
 }
 

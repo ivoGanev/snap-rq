@@ -43,6 +43,8 @@ import { RecoveryKeyDialog } from './dialogs/recovery-key-dialog/recovery-key-di
 import { SecretsApiService } from './core/services/secrets.service';
 import { McpApprovalOutlet } from './mcp-approval-outlet/mcp-approval-outlet';
 import { CookieApiService } from './core/services/cookie.service';
+import { BinApiService } from './core/services/bin.service';
+import { ConfirmService } from './core/services/confirm.service';
 import { ZenMode } from './zen-mode/zen-mode';
 import { ContextMenuOutlet } from './context-menu-outlet/context-menu-outlet';
 import { ToastOutlet } from './toast-outlet/toast-outlet';
@@ -92,6 +94,8 @@ export class App implements OnInit, AfterViewInit {
   private readonly iconManifest = inject(IconManifestService);
   private readonly iconApi = inject(IconApiService);
   private readonly cookieApi = inject(CookieApiService);
+  protected readonly binApi = inject(BinApiService);
+  private readonly confirm = inject(ConfirmService);
 
   protected readonly projects = this.projectApi.projects;
   protected readonly environments = this.environmentApi.environments;
@@ -117,6 +121,29 @@ export class App implements OnInit, AfterViewInit {
   protected readonly cookieCount = this.cookieApi.cookies;
   protected readonly isWindows = document.documentElement.classList.contains('platform-windows');
   protected readonly isMac = document.documentElement.classList.contains('platform-mac');
+
+  async emptyBin(): Promise<void> {
+    const ids = this.binApi.binnedRequests().map((r) => r.id);
+    if (ids.length === 0) return;
+    const confirmed = await this.confirm.ask({
+      title: 'Empty the trash bin?',
+      message:
+        ids.length === 1
+          ? 'The request in the bin will be permanently deleted. This cannot be undone.'
+          : `All ${ids.length} requests in the bin will be permanently deleted. This cannot be undone.`,
+      confirmLabel: 'Empty bin',
+      danger: true,
+    });
+    if (!confirmed) return;
+    try {
+      await this.binApi.deleteManyPermanently(ids);
+      this.state.selectedBinnedRequest.set(null);
+      this.state.selectedIds.set(new Set());
+      this.state.multiSelectionActive.set(false);
+    } catch (err) {
+      console.error(err);
+    }
+  }
   protected readonly searchOpen = signal(false);
   private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
   private readonly injector = inject(Injector);

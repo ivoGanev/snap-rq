@@ -19,7 +19,7 @@ import { UsageMeter } from '../usage-meter/usage-meter';
 import { LastUsedPaw } from '../last-used-paw/last-used-paw';
 import { buildSearchIndex, filterRequests, queryWords, rankRequests } from '../core/request-search';
 import { DragSessionService } from '../core/services/drag-session.service';
-import { BinApiService, type HttpBinnedRequestSummary, type RestoreInput } from '../core/services/bin.service';
+import { BinApiService, type HttpBinnedRequestSummary } from '../core/services/bin.service';
 import { ContextMenuService } from '../core/services/context-menu.service';
 import { ConfirmService } from '../core/services/confirm.service';
 import { isEditableTarget } from '../core/dom/editable-target';
@@ -507,7 +507,7 @@ export class RequestsMainList {
     !this.state.showingBin() && this.selectedRowIds().size === 1 ? this.selectedRequest() : null,
   );
   protected readonly showHeader = computed(
-    () => this.selectedRowIds().size > 0,
+    () => !this.state.showingBin() && this.selectedRowIds().size > 0,
   );
   // Reset only when another request is selected: the saved URL coming back
   // mid-typing would otherwise overwrite what was typed since.
@@ -1793,30 +1793,18 @@ export class RequestsMainList {
   openRestoreCollectionPicker(): void {
     this.contextMenu.close();
     const selectedIds = [...this.selectedRowIds()];
-    const binned = this.binApi.binnedRequests().filter(r => selectedIds.includes(r.id));
-    const collections = this.collectionApi.collections();
-    const missingOriginal = binned.some(r => !collections.some(c => c.id === r.original_collection_id));
-
-    if (!missingOriginal) {
-      const inputs: RestoreInput[] = binned.map(r => ({
-        bin_id: r.id,
-        collection_id: r.original_collection_id,
-      }));
-      void this.doRestore(inputs);
-      return;
-    }
-
-    this.restorePickerFor.set(selectedIds);
+    void this.restoreOrPick(selectedIds);
   }
 
-  private async doRestore(inputs: RestoreInput[]): Promise<void> {
-    if (inputs.length === 0) return;
-
+  private async restoreOrPick(binIds: number[]): Promise<void> {
     this.state.loading.set(true);
     try {
-      await this.binApi.restoreMany(inputs);
-      this.state.selectedBinnedRequest.set(null);
-      this.clearSelection();
+      if (await this.binApi.restoreToOriginal(binIds)) {
+        this.state.selectedBinnedRequest.set(null);
+        this.clearSelection();
+      } else {
+        this.restorePickerFor.set(binIds);
+      }
     } catch (err) {
       console.error(err);
     } finally {

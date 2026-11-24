@@ -123,42 +123,6 @@
   letter-spacing: 0.05em;
 }
 
-.header-actions {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-}
-
-.restore-button {
-  height: var(--header-control-height);
-  padding: 0 18px;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  color: var(--on-accent);
-  background: var(--grad-success);
-  border: none;
-  border-radius: 0;
-  cursor: pointer;
-  transition: filter 0.15s ease;
-  --wails-draggable: no-drag;
-  @include btn.btn-success;
-}
-
-.delete-button--top-bar {
-  height: var(--header-control-height);
-  padding: 0 18px;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  color: var(--on-accent);
-  background: var(--danger-solid);
-  border: none;
-  border-radius: 0;
-  cursor: pointer;
-  transition: filter 0.15s ease;
-  --wails-draggable: no-drag;
-  @include btn.btn-danger;
-}
-
 .state-message--bin strong {
   display: inline-block;
   margin-bottom: 0.25rem;
