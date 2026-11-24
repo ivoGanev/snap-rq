@@ -192,23 +192,6 @@
   color: var(--accent);
 }
 
-.top-bar-badge {
-  position: absolute;
-  top: 1px;
-  right: 0;
-  min-width: 14px;
-  height: 14px;
-  padding: 0 3px;
-  box-sizing: border-box;
-  font-size: 0.625rem;
-  font-weight: 700;
-  line-height: 14px;
-  text-align: center;
-  color: var(--on-accent);
-  background: var(--accent);
-  border-radius: 7px;
-}
-
 .app-shell {
   position: relative;
   flex: 1 1 auto;
