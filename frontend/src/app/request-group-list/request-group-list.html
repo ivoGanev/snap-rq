@@ -64,6 +64,9 @@
             }
           </button>
           <span class="group-list-item-label" (dblclick)="onRenameStart(item)">{{ item.name }}</span>
+          @if (item.kind === 'collection' && item.id === lastUsedCollectionId()) {
+            <app-last-used-paw />
+          }
         }
       </li>
     }

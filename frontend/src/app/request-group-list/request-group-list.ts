@@ -1,9 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject, input, model, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, model, output } from '@angular/core';
 import { SelectOnFocusDirective } from '../core/directives/select-on-focus.directive';
 import type { Collection, CollectionAppearance } from '../core/services/collection.service';
 import type { FavouriteCollection, FavouriteAppearance } from '../core/services/favourite.service';
 import type { Script, ScriptAppearance } from '../core/services/script.service';
 import { IconManifestService } from '../core/services/icon-manifest.service';
+import { LastUsedPaw } from '../last-used-paw/last-used-paw';
 
 export type SidebarFolder = 'collections' | 'favourites' | 'scripts';
 export type SidebarItemAppearance = CollectionAppearance | FavouriteAppearance | ScriptAppearance;
@@ -72,7 +73,7 @@ const FOLDER_META: Record<SidebarFolder, { title: string; emptyMessage: string }
 
 @Component({
   selector: 'app-request-group-list',
-  imports: [SelectOnFocusDirective],
+  imports: [SelectOnFocusDirective, LastUsedPaw],
   templateUrl: './request-group-list.html',
   styleUrl: './request-group-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -82,6 +83,19 @@ export class RequestGroupList {
 
   readonly folderFilter = input.required<SidebarFolder>();
   readonly items = input.required<SidebarItem[]>();
+
+  /** The collection holding the most recently sent request, if any was sent. */
+  protected readonly lastUsedCollectionId = computed(() => {
+    let id: number | null = null;
+    let latest = 0;
+    for (const item of this.items()) {
+      if (item.kind === 'collection' && item.data.last_used_at > latest) {
+        latest = item.data.last_used_at;
+        id = item.id;
+      }
+    }
+    return id;
+  });
   readonly renamingItem = input<SidebarItem | null>(null);
   readonly renameValue = model('');
   readonly selectedKey = input<string | null>(null);

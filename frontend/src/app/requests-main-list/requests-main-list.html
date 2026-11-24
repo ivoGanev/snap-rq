@@ -307,6 +307,9 @@
             class="cell-text"
             (dblclick)="onCellDoubleClick(req, 'url')"
           >{{ rowState()[req.id]?.displayUrl ?? req.url }}</span>
+          @if (req.id === lastUsedRequestId()) {
+            <app-last-used-paw />
+          }
         </div>
 
         @if (showUsage()) {

@@ -14,6 +14,8 @@ export interface Collection {
   project_id: number;
   name: string;
   appearance: CollectionAppearance;
+  /** Latest send of any of its requests (Unix ns, 0 = never). */
+  last_used_at: number;
 }
 
 /**
@@ -39,7 +41,7 @@ export class CollectionApiService {
     this.collections.set(all ?? []);
   }
 
-  async create(collection: Omit<Collection, 'id' | 'appearance'>): Promise<Collection> {
+  async create(collection: Omit<Collection, 'id' | 'appearance' | 'last_used_at'>): Promise<Collection> {
     const created = await this.commands.execute<Collection>('collection.create', collection);
     await this.loadForProject(created.project_id);
     return created;
