@@ -207,8 +207,8 @@ func TestCurlToRequestGetWithDataUrlencode(t *testing.T) {
 	if !strings.HasPrefix(req.URL, "http://localhost:4000/analytics-api/v1/load?query=") {
 		t.Fatalf("unexpected URL: %s", req.URL)
 	}
-	if strings.ContainsAny(req.URL, `{}" `) {
-		t.Errorf("query value must be percent-encoded, got %s", req.URL)
+	if !strings.Contains(req.URL, `query={"measures":`) {
+		t.Errorf("the query value should stay readable, got %s", req.URL)
 	}
 	_, rawQuery, _ := strings.Cut(req.URL, "?")
 	values, err := url.ParseQuery(rawQuery)
@@ -264,39 +264,45 @@ func TestCurlToRequestPostWithQuotedUrlAndMultilineFluxBody(t *testing.T) {
 	}
 }
 
-func TestRequestToCurlUsesDataUrlencodeForQuery(t *testing.T) {
-	const query = "{\n    \"measures\": [\"orders.count\"],\n    \"limit\": 10\n  }"
-	req := models.HttpRequest{
-		URL:            "http://localhost:4000/analytics-api/v1/load?query=" + url.QueryEscape(query) + "&tenant=main",
-		Method:         "GET",
-		RequestHeaders: "Authorization: x",
+// Copy as cURL, then import: the URL comes back exactly as typed.
+func TestCurlRoundTripKeepsTheURLAsTyped(t *testing.T) {
+	for _, u := range []string{
+		"https://example.com/search?q=hello world&page=2",
+		"https://example.com/items?filter=name:eq,active&sort=-created",
+		"{{base}}/users?token={{token}}&id={{ user-id }}",
+		"https://example.com/api?query=%7B%22a%22%3A1%7D",
+		"https://example.com/api?flag&a=1#frag",
+		"https://example.com/api?a%20b=1",
+	} {
+		curl := RequestToCurl(models.HttpRequest{URL: u, Method: "GET"})
+		if strings.Contains(curl, "-G") || strings.Contains(curl, "--data-urlencode") {
+			t.Errorf("%s: the query should stay in the URL, got %s", u, curl)
+		}
+		parsed, err := CurlToRequest(1, curl)
+		if err != nil {
+			t.Fatalf("%s: %v", u, err)
+		}
+		want := u
+		if strings.HasPrefix(u, "{{") {
+			want = "http://" + u
+		}
+		if parsed.URL != want {
+			t.Errorf("round trip changed the URL:\n got: %s\nwant: %s", parsed.URL, want)
+		}
 	}
-	curl := RequestToCurl(req)
+}
 
-	if !strings.HasPrefix(curl, "curl -G 'http://localhost:4000/analytics-api/v1/load'") {
-		t.Errorf("expected -G with base URL, got: %s", curl)
-	}
-	if !strings.Contains(curl, "--data-urlencode 'query="+query+"'") {
-		t.Errorf("expected decoded query data-urlencode, got: %s", curl)
-	}
-	if !strings.Contains(curl, "--data-urlencode 'tenant=main'") {
-		t.Errorf("expected tenant data-urlencode, got: %s", curl)
-	}
-
-	parsed, err := CurlToRequest(1, curl)
+// A real -G --data-urlencode encodes only what would change the query.
+func TestDataUrlencodeKeepsTheQueryReadable(t *testing.T) {
+	curl := `curl -G https://example.com/search --data-urlencode 'q=hello world' --data-urlencode 'f=a:b,c/d@e' ` +
+		`--data-urlencode 'token={{token}}' --data-urlencode 'odd=1&2#3+4%5'`
+	req, err := CurlToRequest(1, curl)
 	if err != nil {
-		t.Fatalf("round trip failed: %v", err)
+		t.Fatal(err)
 	}
-	_, rawQuery, _ := strings.Cut(parsed.URL, "?")
-	values, err := url.ParseQuery(rawQuery)
-	if err != nil {
-		t.Fatalf("invalid query: %v", err)
-	}
-	if values.Get("query") != query || values.Get("tenant") != "main" {
-		t.Errorf("round trip query mismatch: %s", parsed.URL)
-	}
-	if parsed.Method != "GET" || parsed.Body != "" {
-		t.Errorf("unexpected method/body: %s %q", parsed.Method, parsed.Body)
+	want := "https://example.com/search?q=hello world&f=a:b,c/d@e&token={{token}}&odd=1%262%233%2B4%255"
+	if req.URL != want {
+		t.Errorf("got  %s\nwant %s", req.URL, want)
 	}
 }
 
@@ -312,19 +318,6 @@ func TestRequestToCurlKeepsQueryInUrlWhenBodyPresent(t *testing.T) {
 	}
 	if !strings.Contains(curl, "'https://example.com/api?a=1'") {
 		t.Errorf("expected URL unchanged, got: %s", curl)
-	}
-}
-
-func TestRequestToCurlKeepsUrlForUnrepresentableQuery(t *testing.T) {
-	for _, u := range []string{
-		"https://example.com/api?flag",
-		"https://example.com/api?a=1#frag",
-		"https://example.com/api?a%20b=1",
-	} {
-		curl := RequestToCurl(models.HttpRequest{URL: u, Method: "GET"})
-		if strings.Contains(curl, "-G") {
-			t.Errorf("did not expect -G for %s, got: %s", u, curl)
-		}
 	}
 }
 
