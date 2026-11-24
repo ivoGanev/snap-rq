@@ -1,4 +1,4 @@
-import { Component, ElementRef, computed, input, output, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, computed, inject, input, output, signal, viewChild } from '@angular/core';
 import { CdkConnectedOverlay, CdkOverlayOrigin, type ConnectedPosition } from '@angular/cdk/overlay';
 
 export interface SelectOption<T = string> {
@@ -25,11 +25,14 @@ export class Select<T = string> {
   readonly value = input<T | null | undefined>(null);
   readonly placeholder = input('');
   readonly ariaLabel = input<string | null>(null, { alias: 'aria-label' });
+  /** Opens flush under the whole control, square, for controls joined into a bar. */
+  readonly flush = input(false);
   readonly valueChange = output<T>();
 
   protected readonly open = signal(false);
   protected readonly active = signal(-1);
   protected readonly listId = `app-select-${nextId++}`;
+  protected readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
   private readonly list = viewChild<ElementRef<HTMLElement>>('list');
   private typed = '';
@@ -38,10 +41,13 @@ export class Select<T = string> {
   protected readonly selectedIndex = computed(() => this.options().findIndex((o) => o.value === this.value()));
   protected readonly label = computed(() => this.options()[this.selectedIndex()]?.label ?? this.placeholder());
 
-  protected readonly positions: ConnectedPosition[] = [
-    { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 4 },
-    { originX: 'start', originY: 'top', overlayX: 'start', overlayY: 'bottom', offsetY: -4 },
-  ];
+  protected readonly positions = computed<ConnectedPosition[]>(() => {
+    const gap = this.flush() ? 0 : 4;
+    return [
+      { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: gap },
+      { originX: 'start', originY: 'top', overlayX: 'start', overlayY: 'bottom', offsetY: -gap },
+    ];
+  });
 
   protected startsGroup(index: number): string | null {
     const group = this.options()[index].group;
@@ -54,7 +60,8 @@ export class Select<T = string> {
   }
 
   protected width(): number {
-    return this.trigger().nativeElement.getBoundingClientRect().width;
+    const anchor = this.flush() ? this.host : this.trigger();
+    return anchor.nativeElement.getBoundingClientRect().width;
   }
 
   // A list opening under a resting pointer gets pointer events without any

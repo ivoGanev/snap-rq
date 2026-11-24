@@ -72,6 +72,11 @@
   user-select: none;
 }
 
+.select-list.is-flush,
+.select-list.is-flush .select-option {
+  border-radius: 0;
+}
+
 .select-group {
   padding: 8px 14px 4px;
   font-size: 0.6875rem;
