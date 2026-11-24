@@ -35,9 +35,14 @@
   font-weight: 800;
   letter-spacing: 0.04em;
   color: var(--text);
-  background: var(--input-bg);
+  background: var(--hover-bg);
   border: 1px solid var(--glass-border);
   border-right: none;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: var(--hover-highlight);
+  }
 }
 
 .header-url-box {
