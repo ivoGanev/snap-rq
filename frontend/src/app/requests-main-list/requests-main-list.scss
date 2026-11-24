@@ -209,8 +209,8 @@
   --wails-draggable: no-drag;
 }
 
-// A small marker on the heading row's bottom edge, like Word's ruler, shows
-// where a column can be resized; the dragged edge keeps its colour.
+// A small marker on the heading row's bottom edge shows where a column can be
+// resized, while the heading row is hovered; the dragged edge keeps its colour.
 .column-separator::before {
   content: '';
   position: absolute;
@@ -220,10 +220,17 @@
   height: 9px;
   background: var(--muted);
   clip-path: polygon(0 0, 100% 0, 100% 45%, 50% 100%, 0 45%);
-  opacity: 0.55;
+  opacity: 0;
   transition:
     opacity 0.12s ease,
     background 0.12s ease;
+}
+
+// The marker lies over the heading row, so hovering it leaves the row unhovered.
+.spreadsheet-wrapper:has(.spreadsheet-header:hover) .column-separator::before,
+.spreadsheet-wrapper.is-resizing .column-separator::before,
+.column-separator:hover::before {
+  opacity: 0.55;
 }
 
 .spreadsheet-wrapper:not(.is-resizing) .column-separator:hover::before,
