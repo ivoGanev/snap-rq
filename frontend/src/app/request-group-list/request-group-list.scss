@@ -169,6 +169,7 @@
   width: 22px;
   height: 22px;
   margin-left: auto;
+  margin-right: calc(-1 * var(--s-2));
   padding: 0;
   color: var(--muted);
   background: transparent;
@@ -188,7 +189,6 @@
 }
 
 .group-list-item:hover .row-add,
-.group-list-item.is-selected .row-add,
 .row-add:focus-visible {
   display: inline-flex;
 }

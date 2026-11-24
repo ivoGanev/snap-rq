@@ -92,7 +92,8 @@ export class RequestGroupList {
 
   readonly addClick = output<void>();
   readonly moreMenuOpen = output<AddMenuPosition>();
-  readonly rowAddMenuOpen = output<{ item: SidebarItem; position: AddMenuPosition }>();
+  readonly rowAddMenuOpen = output<{ item: SidebarItem; position: AddMenuPosition; byHover: boolean }>();
+  readonly rowAddLeave = output<void>();
   readonly itemSelect = output<SidebarItem>();
   readonly itemContextMenu = output<{ item: SidebarItem; event: MouseEvent }>();
   readonly appearanceClick = output<{ item: SidebarItem; event: MouseEvent }>();
@@ -124,9 +125,14 @@ export class RequestGroupList {
     this.addClick.emit();
   }
 
+  onRowAddHover(item: SidebarItem, event: PointerEvent): void {
+    this.rowAddMenuOpen.emit({ item, position: sidebarEdgePosition(event), byHover: true });
+  }
+
   onRowAddClick(item: SidebarItem, event: MouseEvent): void {
-    // Beside the button, so the menu doesn't cover the rows below.
-    this.rowAddMenuOpen.emit({ item, position: menuPosition(event, 'beside') });
+    event.preventDefault();
+    event.stopPropagation();
+    this.rowAddMenuOpen.emit({ item, position: sidebarEdgePosition(event), byHover: false });
   }
 
   onMoreMenuClick(event: MouseEvent): void {
@@ -182,10 +188,18 @@ export class RequestGroupList {
   }
 }
 
-/** Below or beside the clicked button. The click is stopped so the menu outlet's document listener doesn't close the menu. */
-function menuPosition(event: MouseEvent, place: 'below' | 'beside' = 'below'): AddMenuPosition {
+/** Below the clicked button. The click is stopped so the menu outlet's document listener doesn't close the menu. */
+function menuPosition(event: MouseEvent): AddMenuPosition {
   event.preventDefault();
   event.stopPropagation();
   const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-  return place === 'below' ? { x: rect.left, y: rect.bottom + 4 } : { x: rect.right + 4, y: rect.top };
+  return { x: rect.left, y: rect.bottom + 4 };
+}
+
+/** On the line between the sidebar and the request list, level with the button's row. */
+function sidebarEdgePosition(event: Event): AddMenuPosition {
+  const button = event.currentTarget as HTMLElement;
+  const row = button.closest('.group-list-item') ?? button;
+  const sidebar = button.closest('.sidebar-left') ?? row;
+  return { x: sidebar.getBoundingClientRect().right, y: row.getBoundingClientRect().top };
 }

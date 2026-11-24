@@ -86,7 +86,8 @@
               class="row-add"
               type="button"
               [attr.aria-label]="'New request in ' + item.name"
-              title="New request"
+              (pointerenter)="onRowAddHover(item, $event)"
+              (pointerleave)="rowAddLeave.emit()"
               (click)="onRowAddClick(item, $event)"
               (dblclick)="$event.stopPropagation()"
             >

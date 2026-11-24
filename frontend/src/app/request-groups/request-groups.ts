@@ -117,7 +117,7 @@ export class RequestGroups {
   private readonly selectionState = inject(SelectionStateService);
   protected readonly iconManifest = inject(IconManifestService);
   private readonly scriptApi = inject(ScriptApiService);
-  private readonly contextMenu = inject(ContextMenuService);
+  protected readonly contextMenu = inject(ContextMenuService);
   private readonly commandApi = inject(CommandApiService);
   private readonly confirm = inject(ConfirmService);
   protected readonly drag = inject(DragSessionService);
@@ -541,7 +541,16 @@ export class RequestGroups {
    * It opens on the next tick so the click that asked for it, and the outlet's
    * document click listener, are finished first.
    */
-  openCollectionsMenu<C>(menu: TemplateRef<{ $implicit: C }>, context: C, position: { x: number; y: number }): void {
+  openCollectionsMenu<C>(
+    menu: TemplateRef<{ $implicit: C }>,
+    context: C,
+    position: { x: number; y: number },
+    byHover = false,
+  ): void {
+    if (byHover) {
+      this.contextMenu.open(menu, context, position.x, position.y, true);
+      return;
+    }
     setTimeout(() => this.contextMenu.open(menu, context, position.x, position.y), 0);
   }
 

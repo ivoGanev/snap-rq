@@ -4,6 +4,8 @@
     class="context-menu context-menu-panel"
     (click)="onMenuClick($event)"
     (contextmenu)="onMenuContextMenu($event)"
+    (pointerenter)="menu.pointerEntered()"
+    (pointerleave)="menu.pointerLeft()"
   >
     <ng-container
       *ngTemplateOutlet="menu.template()!; context: { $implicit: menu.context() }"
