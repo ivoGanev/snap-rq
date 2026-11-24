@@ -42,11 +42,6 @@ export class BinApiService {
     this.binnedRequests.set(all ?? []);
   }
 
-  /** A binned request with what it sends; the id is the bin id. */
-  get(binId: number): Promise<HttpRequest> {
-    return this.commands.execute<HttpRequest>('bin.get', { id: binId });
-  }
-
   clear(): void {
     this.binnedRequests.set([]);
   }
