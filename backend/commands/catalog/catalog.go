@@ -46,6 +46,7 @@ var All = []commands.Factory{
 	// response history and export (the send itself is an observable command)
 	responses.NewList,
 	responses.NewSaveToFile,
+	responses.NewClear,
 
 	// trash bin
 	bin.NewList,
