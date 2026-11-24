@@ -48,6 +48,8 @@ export interface InspectorSelection {
   binned: HttpBinnedRequestSummary | null;
   /** How many rows are selected in the request list. */
   selectedCount: number;
+  /** The selected rows' ids (bin ids in the trash bin). */
+  selectedIds: number[];
 }
 
 interface ViewBehaviour {
@@ -163,7 +165,10 @@ export class TrashView implements ViewBehaviour {
   readonly canColour = false;
   readonly survivesProjectSwitch = true;
 
-  inspect({ binned, selectedCount }: InspectorSelection): InspectorContent {
+  readonly inspectsMultiSelection = true;
+
+  inspect({ binned, selectedCount, selectedIds }: InspectorSelection): InspectorContent {
+    if (selectedCount > 1) return { kind: 'binned-requests', binIds: selectedIds };
     if (binned) return { kind: 'binned-request', binId: binned.id };
     return selectedCount === 0 ? SELECT_A_REQUEST : NOTHING_YET;
   }

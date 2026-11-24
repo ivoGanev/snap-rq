@@ -1,5 +1,7 @@
 @use '../../../../styles/buttons' as btn;
 
+// Shared by the single and the multi-selection bin panes.
+
 // Lay the pane out as if it were a direct child of the Inspector.
 :host {
   display: contents;
@@ -9,6 +11,7 @@
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
+  gap: var(--s-3);
   min-height: 0;
   padding: var(--s-3);
 }
@@ -17,6 +20,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
+  min-height: 0;
   padding: var(--s-3);
   background: var(--input-bg);
   border: 1px solid var(--glass-border);
@@ -34,6 +38,7 @@
   display: flex;
   align-items: center;
   gap: var(--s-2);
+  min-width: 0;
 }
 
 .binned-request-url {
@@ -43,48 +48,79 @@
 }
 
 .binned-request-info {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--s-1) var(--s-3);
+  margin: 0;
+  font-size: 0.8125rem;
+
+  dt {
+    color: var(--muted);
+  }
+
+  dd {
+    margin: 0;
+    color: var(--text);
+  }
+}
+
+.binned-request-list {
   display: flex;
   flex-direction: column;
   gap: var(--s-1);
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.binned-request-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  font-size: 0.8125rem;
+  color: var(--text);
+}
+
+.binned-request-list-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.binned-request-more {
   font-size: 0.8125rem;
   color: var(--muted);
 }
 
 .binned-request-actions {
   display: flex;
+  flex-direction: column;
   gap: var(--s-2);
-  margin-top: auto;
 }
 
-.restore-button {
+.bin-action {
   padding: var(--btn-pad-md);
   font-size: 0.875rem;
-  font-weight: 700;
-  color: var(--on-accent);
-  background: var(--grad-success);
-  border: none;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius);
-  cursor: pointer;
-  transition: filter 0.15s ease;
   --wails-draggable: no-drag;
-  @include btn.btn-success;
+  @include btn.btn-secondary;
 }
 
-.delete-button {
-  padding: var(--btn-pad-md);
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: var(--on-accent);
-  background: var(--danger-solid);
-  border: none;
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: filter 0.15s ease;
-  --wails-draggable: no-drag;
-  @include btn.btn-danger;
+.bin-action--danger {
+  border-color: transparent;
+  @include btn.btn-quiet-danger;
 }
 
 .request-method {
+  flex: 0 0 auto;
   display: inline-block;
   font-size: 0.6875rem;
   font-weight: 800;

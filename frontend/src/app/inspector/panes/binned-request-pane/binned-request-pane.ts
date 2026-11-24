@@ -2,8 +2,9 @@ import { Component, computed, inject, input, signal } from '@angular/core';
 import { InspectorHeader } from '../../inspector-header/inspector-header';
 import type { InspectorContentOf } from '../../inspector';
 import { WorkspaceStateService } from '../../../core/services/workspace-state.service';
-import { BinApiService, type RestoreInput } from '../../../core/services/bin.service';
-import { CollectionApiService } from '../../../core/services/collection.service';
+import { BinApiService } from '../../../core/services/bin.service';
+import { ConfirmService } from '../../../core/services/confirm.service';
+import { parseSavedTime, relativeTime } from '../../../core/time';
 import { RestoreToCollectionDialog } from '../../../dialogs/restore-to-collection-dialog/restore-to-collection-dialog';
 
 /**
@@ -20,38 +21,34 @@ import { RestoreToCollectionDialog } from '../../../dialogs/restore-to-collectio
 export class BinnedRequestPane {
   private readonly state = inject(WorkspaceStateService);
   private readonly binApi = inject(BinApiService);
-  private readonly collectionApi = inject(CollectionApiService);
+  private readonly confirm = inject(ConfirmService);
 
   readonly content = input.required<InspectorContentOf<'binned-request'>>();
 
   protected readonly request = computed(
-    () => this.binApi.binnedRequests().find(r => r.id === this.content().binId) ?? null,
+    () => this.binApi.binnedRequests().find((r) => r.id === this.content().binId) ?? null,
   );
+  protected readonly originalName = computed(() => {
+    const req = this.request();
+    return req ? this.binApi.originalCollectionName(req) : null;
+  });
+  protected readonly deletedAgo = computed(() => {
+    const req = this.request();
+    return req ? relativeTime(parseSavedTime(req.deleted_at), Date.now()) : '';
+  });
   /** Open when the request's original collection is gone and the user must pick one. */
   protected readonly restorePickerOpen = signal(false);
 
-  openRestorePicker(): void {
+  async restore(): Promise<void> {
     const req = this.request();
     if (!req) return;
-
-    const collections = this.collectionApi.collections();
-    const originalExists = collections.some(c => c.id === req.original_collection_id);
-
-    if (originalExists) {
-      void this.doRestore([{ bin_id: req.id, collection_id: req.original_collection_id }]);
-      return;
-    }
-
-    this.restorePickerOpen.set(true);
-  }
-
-  private async doRestore(inputs: RestoreInput[]): Promise<void> {
-    if (inputs.length === 0) return;
-
     this.state.loading.set(true);
     try {
-      await this.binApi.restoreMany(inputs);
-      this.state.selectedBinnedRequest.set(null);
+      if (await this.binApi.restoreToOriginal([req.id])) {
+        this.state.selectedBinnedRequest.set(null);
+      } else {
+        this.restorePickerOpen.set(true);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -62,6 +59,13 @@ export class BinnedRequestPane {
   async deletePermanently(): Promise<void> {
     const req = this.request();
     if (!req) return;
+    const confirmed = await this.confirm.ask({
+      title: 'Delete permanently?',
+      message: `"${req.name}" will be permanently deleted. This cannot be undone.`,
+      confirmLabel: 'Delete permanently',
+      danger: true,
+    });
+    if (!confirmed) return;
 
     this.state.loading.set(true);
     try {

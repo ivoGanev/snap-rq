@@ -5,6 +5,7 @@ import { inspectRequest } from '../core/workspace/workspace-view';
 import { MessagePane } from './panes/message-pane/message-pane';
 import { ResponsePane } from './panes/response-pane/response-pane';
 import { BinnedRequestPane } from './panes/binned-request-pane/binned-request-pane';
+import { BinnedRequestsPane } from './panes/binned-requests-pane/binned-requests-pane';
 import { ScriptPane } from './panes/script-pane/script-pane';
 import type { Script } from '../core/services/script.service';
 
@@ -23,6 +24,8 @@ export type InspectorContent =
   | { kind: 'response'; requestId: number }
   /** A request in the trash bin. */
   | { kind: 'binned-request'; binId: number }
+  /** Several requests in the trash bin. */
+  | { kind: 'binned-requests'; binIds: number[] }
   /** A script: try its hooks against a request, and a quick reference. */
   | { kind: 'script'; script: Script };
 
@@ -33,6 +36,7 @@ const PANES: { readonly [K in InspectorContent['kind']]: Type<unknown> } = {
   message: MessagePane,
   response: ResponsePane,
   'binned-request': BinnedRequestPane,
+  'binned-requests': BinnedRequestsPane,
   script: ScriptPane,
 };
 
@@ -55,14 +59,15 @@ export class Inspector {
   private readonly state = inject(WorkspaceStateService);
 
   protected readonly content = computed<InspectorContent>(() => {
-    if (this.state.multiSelectionActive()) return MULTI_SELECTION;
+    const view = this.state.view();
+    if (this.state.multiSelectionActive() && !(view && 'inspectsMultiSelection' in view)) return MULTI_SELECTION;
 
     const selection = {
       request: this.state.selectedRequest(),
       binned: this.state.selectedBinnedRequest(),
       selectedCount: this.state.selectedIds().size,
+      selectedIds: [...this.state.selectedIds()],
     };
-    const view = this.state.view();
     return view ? view.inspect(selection) : inspectRequest(selection);
   });
 
