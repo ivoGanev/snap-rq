@@ -238,16 +238,6 @@
   --wails-draggable: no-drag;
 }
 
-.column-separator::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: calc(50% - 0.5px);
-  width: 1px;
-  background: var(--glass-border);
-}
-
 // The Most used view has a Usage column on the right (empty by default, so
 // absent).
 .spreadsheet-header,
