@@ -26,16 +26,36 @@
       [value]="req.method"
       (valueChange)="chooseMethod(req, $event)"
     />
-    <app-code-editor
-      class="header-url-editor"
-      language="text"
-      placeholder="Enter a URL"
-      [singleLine]="true"
-      [text]="urlDraft()"
-      [variables]="state.environmentVariables()"
-      (textChange)="onUrlChange($event)"
-      (submit)="sendFromUrl()"
-    ></app-code-editor>
+    <div class="header-url-box">
+      <app-code-editor
+        class="header-url-editor"
+        language="text"
+        placeholder="Enter a URL"
+        [singleLine]="true"
+        [text]="urlDraft()"
+        [variables]="state.environmentVariables()"
+        (textChange)="onUrlChange($event)"
+        (submit)="sendFromUrl()"
+      ></app-code-editor>
+      <button
+        class="header-url-icon"
+        type="button"
+        [attr.aria-label]="curlCopied() ? 'cURL copied' : 'Copy as cURL'"
+        [title]="curlCopied() ? 'Copied' : 'Copy as cURL'"
+        (click)="copyCurlFromUrl()"
+      >
+        @if (curlCopied()) {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+        } @else {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="9" y="9" width="13" height="13" rx="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+        }
+      </button>
+    </div>
     <app-send-button class="header-send" variant="primary" [requestId]="req.id" (send)="sendSelectedRequest($event)" />
     </div>
   } @else {

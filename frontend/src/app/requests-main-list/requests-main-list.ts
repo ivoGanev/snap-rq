@@ -514,6 +514,20 @@ export class RequestsMainList {
     await this.sendSelectedRequest(new Event('submit'));
   }
 
+  protected readonly curlCopied = signal(false);
+  private curlCopiedTimer: ReturnType<typeof setTimeout> | undefined;
+
+  protected async copyCurlFromUrl(): Promise<void> {
+    clearTimeout(this.urlSaveTimer);
+    const req = this.headerRequest();
+    if (!req) return;
+    await this.saveUrl(req, this.urlDraft());
+    await this.copyRequestCurl(req);
+    this.curlCopied.set(true);
+    clearTimeout(this.curlCopiedTimer);
+    this.curlCopiedTimer = setTimeout(() => this.curlCopied.set(false), 1500);
+  }
+
   private async saveUrl(req: HttpRequestSummary, url: string): Promise<void> {
     if (url !== req.url) await this.updateRequestField(req, 'url', url);
   }

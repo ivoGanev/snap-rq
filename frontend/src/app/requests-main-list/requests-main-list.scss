@@ -52,10 +52,12 @@
   min-width: 0;
 }
 
+// Wide enough for OPTIONS, so switching methods doesn't move the URL.
 .header-method-select {
   flex: 0 0 auto;
   align-items: center;
-  min-width: 96px;
+  width: 120px;
+  box-sizing: border-box;
   padding: 0 var(--s-3);
   font-size: 0.8125rem;
   font-weight: 800;
@@ -89,21 +91,53 @@
   background: var(--method-patch-bg);
 }
 
-// Grid centres the editor vertically while stretching it across.
-.header-url-editor {
+.header-url-box {
   flex: 1 1 auto;
-  display: grid;
+  display: flex;
   align-items: center;
+  gap: var(--s-1);
   min-width: 0;
+  padding-right: var(--s-1);
   box-sizing: border-box;
   border: 1px solid var(--glass-border);
   background: var(--input-bg);
-  overflow: hidden;
   --wails-draggable: no-drag;
 }
 
-.header-url-editor:focus-within {
+.header-url-box:focus-within {
   border-color: var(--focus-border);
+}
+
+.header-url-editor {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.header-url-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.header-url-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.header-url-icon:hover {
+  color: var(--text);
+  background: var(--hover-highlight);
 }
 
 .selection-count {
