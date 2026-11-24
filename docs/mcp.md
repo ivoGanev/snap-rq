@@ -43,6 +43,7 @@ Package `backend/mcp` (imports the SDK as `sdk`):
 | `server.go` | Lifecycle, SDK server, live tool sync |
 | `tools_read.go` | Tool bindings (typed inputs) for read tools |
 | `tools_organize.go` | Typed inputs and bindings for organize tools, incl. the two composed tools (`create_request`, `move_requests`) |
+| `tools_content.go` | Typed inputs and bindings for the content tools (`create_requests`, `edit_request_content`) |
 
 ## Tools (phase 2)
 
@@ -52,13 +53,22 @@ All read tools are `list_*` / `get_request`. Organize tools:
 |---|---|---|
 | Collections | `create_collection`, `rename_collection` | yes |
 | Requests | `create_request`, `duplicate_request`, `delete_requests` (to trash), `restore_from_trash`, `bulk_edit_requests`, `reorder_requests` | yes |
+| Content (asks first) | `create_requests` (`request.create_many`), `edit_request_content` (`request.edit_many`) | yes, one step per call |
 | Moving | `move_requests` (reads each request, writes it back with a new `collection_id`) | **no** (same as moving in the UI; move back to revert) |
 | Scripts | `attach_script`, `detach_script`, `rename_script`, `reorder_script_requests`, `set_script_request_colors` | yes |
 | Favourites | `create_favourite`, `rename_favourite`, `add_to_favourite`, `remove_from_favourite`, `reorder_favourite_requests`, `set_favourite_request_colors` | yes |
 
 Deliberately left out for now:
 
-- **Free-form request editing** (`request.update`). It overwrites every column and is not undoable, so a partial edit would need read-merge-write. `bulk_edit_requests` changes `name` or `color` (one field per call, undoable); `edit_request_content` (class `content`, off by default) changes url, method, headers, body, body_type, body_form.
+- **Free-form request editing** (`request.update`). It overwrites every column and is not undoable, so a partial edit would need read-merge-write. `bulk_edit_requests` changes `name` or `color` (one field per call, undoable, returns the ids changed); `edit_request_content` (class `content`) takes a list of `{id, field, value}` changes to url, method, request_headers, body, body_type, body_form.
+
+The request tools follow a few rules, so a client can work in one call and trust the answer:
+
+- **Field names are `get_request`'s.** Headers are `request_headers` everywhere; `headers` gets an error saying so.
+- **Every content value is a string.** The schema says so, and a JSON body goes in as its text. An object or number is refused with a message naming the field, never a database error (`request.bulk_set` checks this too, for every caller).
+- **All or nothing.** `create_requests` and `edit_request_content` run in one transaction: an error starts with "nothing was changed" / "no request was created" and names the request that failed.
+- **Results echo.** `create_requests` and `edit_request_content` return the requests as `get_request` would (secrets masked); `bulk_edit_requests` returns `{"updated": [ids]}`.
+- **Order.** `create_requests` appends in the order given. `reorder_requests` sets a collection's order from every id it holds.
 - **Appearance tools** (collection, script, favourite icons/colours). The icon vocabulary lives in the frontend, so a tool cannot validate values yet.
 - Note on undo merging: quick repeats of the same command on the same rows share one undo step, so several `bulk_edit_requests` calls on different fields within 750 ms undo only the first field. Do one field per call and do not chain them.
 
@@ -68,7 +78,7 @@ Deliberately left out for now:
 |---|---|---|
 | `read` | queries only | on |
 | `organize` | recoverable edits: rename, move, reorder, attach scripts, favourite, colour, duplicate, bulk rename/colour, delete-to-trash, restore | on |
-| `content` | change what a request sends: URL, method, headers, body (`edit_request_content`); shown to users as "Edit requests" | on, and every call asks first |
+| `content` | create requests with content, or change what a request sends: URL, method, headers, body (`create_requests`, `edit_request_content`); shown to users as "Edit requests" | on, and every call asks first |
 | `destructive` | cascading or permanent deletes | off |
 | `external` | outbound network (`send_request`) | off |
 | `sensitive` | variable values, cookie jar | off (not planned) |
@@ -158,9 +168,9 @@ The settings screen lists the always-hidden names (`BuiltinSecretNames`, returne
 
 ## Why a `content` class, and approvals
 
-A client that can rewrite URLs and headers could, after reading a malicious response or request name (prompt injection), point your saved `Authorization` headers at another host, or add a form-data `file_path`, which would be sent the next time you click Send. So `create_request` only takes a name and method, `bulk_edit_requests` only changes name and colour, and everything that changes what a request sends is `edit_request_content`.
+A client that can rewrite URLs and headers could, after reading a malicious response or request name (prompt injection), point your saved `Authorization` headers at another host, or add a form-data `file_path`, which would be sent the next time you click Send. So `create_request` only takes a name and method, `bulk_edit_requests` only changes name and colour, and everything that sets what a request sends is a content tool: `create_requests` for new requests, `edit_request_content` for existing ones.
 
-Risky tools ask the user first. `approvalTools` (`approval.go`) lists them: `edit_request_content` and `delete_requests`. One setting, `mcp_require_approval` (absent = on), turns asking on or off for all of them; turning it off asks for confirmation. Flow of a risky call, in `register`: tool switched on? -> `gate` -> `Broker.Ask` emits the Wails event `mcp:approval` -> the window shows the dialog (`mcp-approval-outlet`) -> `SettingsService.RespondApproval` -> run or refuse. There is no timeout: the call waits as long as the client keeps it open, and if the client gives up (cancels or disconnects) the dialog is withdrawn. Saying no, having no window to ask in, or having no approver all mean refuse (fail closed). Refusals are logged as `refused`. The dialog text is built from the real requests (`describe`): who is asking, how many requests, the old and new host for a URL change, and a warning when requests that send a login would be pointed at a new host. Secrets are masked in it.
+Risky tools ask the user first. `approvalTools` (`approval.go`) lists them: `create_requests`, `edit_request_content` and `delete_requests`. One setting, `mcp_require_approval` (absent = on), turns asking on or off for all of them; turning it off asks for confirmation. Flow of a risky call, in `register`: tool switched on? -> `gate` -> `Broker.Ask` emits the Wails event `mcp:approval` -> the window shows the dialog (`mcp-approval-outlet`) -> `SettingsService.RespondApproval` -> run or refuse. There is no timeout: the call waits as long as the client keeps it open, and if the client gives up (cancels or disconnects) the dialog is withdrawn. Saying no, having no window to ask in, or having no approver all mean refuse (fail closed). Refusals are logged as `refused`. The dialog text is built from the real requests (`describe`): who is asking, how many requests, the old and new host for a URL change, and a warning when requests that send a login would be pointed at a new host. For `create_requests` it lists each new request's method and address, and warns when one would send a login. Secrets are masked in it.
 
 Per-tool switches stay: a tool switched off is not offered at all.
 
