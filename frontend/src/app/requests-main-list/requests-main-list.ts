@@ -617,6 +617,7 @@ export class RequestsMainList {
         this.sortDirection.set('asc');
       }
       this.clearSelection();
+      this.firstSelectPending.set(null);
       this.state.selectedRequest.set(null);
       this.state.selectedResponse.set(null);
       this.state.selectedBinnedRequest.set(null);
@@ -718,9 +719,10 @@ export class RequestsMainList {
       // Smart views arrange the project's requests (see smartGroups).
       if (smart && projectId !== null) {
         const requests = this.activeRequests();
+        const selectedId = this.restoreSelection(requests, groupKeyOfView);
         await this.scriptApi.loadScriptsForRequests(requests);
         if (version !== this.loadVersion) return;
-        this.restoreRememberedSelection(requests, groupKeyOfView, scroll, restoreOffset);
+        if (scroll) this.restoreScroll(selectedId, restoreOffset);
         return;
       }
 
@@ -750,18 +752,20 @@ export class RequestsMainList {
       if (collectionId !== null) {
         if (version !== this.loadVersion) return;
         const requests = this.requestApi.forCollection(collectionId);
+        const selectedId = this.restoreSelection(requests, groupKeyOfView);
         await this.scriptApi.loadScriptsForRequests(requests);
         if (version !== this.loadVersion) return;
-        this.restoreRememberedSelection(requests, groupKeyOfView, scroll, restoreOffset);
+        if (scroll) this.restoreScroll(selectedId, restoreOffset);
         return;
       }
 
       if (showAll && projectId !== null) {
         if (version !== this.loadVersion) return;
         const requests = this.requestApi.forProject(projectId);
+        const selectedId = this.restoreSelection(requests, groupKeyOfView);
         await this.scriptApi.loadScriptsForRequests(requests);
         if (version !== this.loadVersion) return;
-        this.restoreRememberedSelection(requests, groupKeyOfView, scroll, restoreOffset);
+        if (scroll) this.restoreScroll(selectedId, restoreOffset);
         return;
       }
 
@@ -778,6 +782,12 @@ export class RequestsMainList {
     scroll: boolean,
     restoreOffset: number | null,
   ): void {
+    const id = this.restoreSelection(requests, groupKeyOfView);
+    if (scroll) this.restoreScroll(id, restoreOffset);
+  }
+
+  /** Selects the view's remembered rows, or its first request; returns the main row's id. */
+  private restoreSelection(requests: HttpRequestSummary[], groupKeyOfView: string | null): number | null {
     const remembered =
       groupKeyOfView !== null ? this.selectionState.getSelection(groupKeyOfView) : null;
 
@@ -786,12 +796,12 @@ export class RequestsMainList {
     const present = new Set(requests.map((r) => r.id));
     const ids = remembered?.ids.filter((id) => present.has(id)) ?? [];
     if (!remembered || ids.length === 0) {
-      this.selectFirstRequest(requests);
-      return;
+      this.selectFirstRequest(groupKeyOfView);
+      return null;
     }
     const rememberedId = present.has(remembered.primary) ? remembered.primary : ids[0];
     const primary = requests.find((r) => r.id === rememberedId);
-    if (!primary) return;
+    if (!primary) return null;
 
     // Restore selection without letting the outer reactive effect track the
     // workspace request signal. Otherwise any later change to selectedRequest
@@ -804,8 +814,11 @@ export class RequestsMainList {
         this.rememberSelection(primary.id);
       }
     });
+    return primary.id;
+  }
 
-    if (!scroll || !this.viewport) return;
+  private restoreScroll(rememberedId: number | null, restoreOffset: number | null): void {
+    if (rememberedId === null || !this.viewport) return;
 
     // Restore the exact scroll position this view had when we left it.
     if (restoreOffset !== null) {
@@ -823,13 +836,26 @@ export class RequestsMainList {
   }
 
   // A selected request shows the URL bar above the list; selecting one up front
-  // keeps the list from shifting down on the first click.
-  private selectFirstRequest(requests: HttpRequestSummary[]): void {
-    untracked(() => {
-      const first = this.displayRows().find((row) => row.kind === 'request')?.req ?? requests[0];
-      if (first) this.selectCell(first, 'name', false);
-    });
+  // keeps the list from shifting down on the first click. A view whose requests
+  // haven't arrived yet gets its first request when they do.
+  private readonly firstSelectPending = signal<string | null>(null);
+
+  private selectFirstRequest(groupKeyOfView: string | null): void {
+    this.firstSelectPending.set(groupKeyOfView);
   }
+
+  private readonly selectFirstWhenShown = effect(() => {
+    const key = this.firstSelectPending();
+    if (key === null) return;
+    const first = this.displayRows().find((row) => row.kind === 'request')?.req;
+    if (!first) return;
+    untracked(() => {
+      this.firstSelectPending.set(null);
+      if (key === this.activeGroupKey() && this.selectedRowIds().size === 0) {
+        this.selectCell(first as HttpRequestSummary, 'name', false);
+      }
+    });
+  });
 
   onWindowKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
