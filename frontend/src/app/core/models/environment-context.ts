@@ -1,3 +1,5 @@
+import type { VariableNameRule } from '../../../../bindings/snap-rq/backend/models';
+
 export interface EnvironmentVariableValue {
   key: string;
   value: string;
@@ -5,26 +7,34 @@ export interface EnvironmentVariableValue {
   secret?: boolean;
 }
 
-// Mirrors backend/models/variable_name.go; testdata/variable-names.json tests both.
-const VARIABLE_NAME_CHARS = 'A-Za-z0-9_.-';
-const VARIABLE_NAME = new RegExp(`^[${VARIABLE_NAME_CHARS}]+$`);
+// The backend's rule (backend/models/variable_name.go), set once at startup.
+// Until then no name is valid and no placeholder matches.
+let rule: VariableNameRule | null = null;
+let validName = /(?!)/;
+let placeholder = '(?!)';
 
-export const VARIABLE_NAME_ERROR = 'Use only letters, digits, _, - and .';
-
-export function isValidVariableName(name: string): boolean {
-  return VARIABLE_NAME.test(name);
+export function setVariableNameRule(next: VariableNameRule): void {
+  rule = next;
+  validName = new RegExp(`^[${next.chars}]+$`);
+  placeholder = String.raw`\{\{\s*([${next.chars}]+)\s*\}\}`;
 }
 
-const PLACEHOLDER = String.raw`\{\{\s*([${VARIABLE_NAME_CHARS}]+)\s*\}\}`;
+export function variableNameError(): string {
+  return rule?.message ?? '';
+}
+
+export function isValidVariableName(name: string): boolean {
+  return validName.test(name);
+}
 
 /** `{{name}}` with optional padding; group 1 is the name. A new global regex per call, so no lastIndex is shared. */
 export function variablePlaceholderRegex(): RegExp {
-  return new RegExp(PLACEHOLDER, 'g');
+  return new RegExp(placeholder, 'g');
 }
 
 /** The same placeholder inside JSON string quotes. */
 export function quotedVariablePlaceholderRegex(): RegExp {
-  return new RegExp(`"${PLACEHOLDER}"`, 'g');
+  return new RegExp(`"${placeholder}"`, 'g');
 }
 
 /**

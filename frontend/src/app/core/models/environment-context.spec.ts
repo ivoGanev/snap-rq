@@ -1,14 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import cases from '../../../../../testdata/variable-names.json';
 import {
   EnvironmentContext,
   isValidVariableName,
   quotedVariablePlaceholderRegex,
+  setVariableNameRule,
   variablePlaceholderRegex,
 } from './environment-context';
 
-// The same cases run against backend/models/variable_name.go, so a name the
-// backend saves is always one the editor shows as a chip.
+// The rule comes from the backend at startup. The fixture's chars are pinned to
+// backend/models/variable_name.go by its Go test, which runs the same cases.
+beforeAll(() => setVariableNameRule({ chars: cases.chars, message: '' }));
 
 function matchedName(text: string): string | undefined {
   return variablePlaceholderRegex().exec(text)?.[1];

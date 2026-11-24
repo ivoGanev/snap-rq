@@ -1,4 +1,5 @@
 {
+  "chars": "A-Za-z0-9_.-",
   "valid": ["BASE", "base_url", "fleet-management", "api.v2.host", "x1", "_", "A-b_c.D9"],
   "invalid": ["", "a b", "a{b", "a}b", "a/b", "a:b", "a\"b", "a&b", "a=b", "a#b", "a$b", "café", " lead", "trail "]
 }

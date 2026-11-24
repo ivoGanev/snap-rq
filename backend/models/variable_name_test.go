@@ -8,6 +8,7 @@ import (
 )
 
 type variableNameCases struct {
+	Chars   string   `json:"chars"`
 	Valid   []string `json:"valid"`
 	Invalid []string `json:"invalid"`
 }
@@ -27,6 +28,10 @@ func loadVariableNameCases(t *testing.T) variableNameCases {
 
 func TestValidVariableName(t *testing.T) {
 	cases := loadVariableNameCases(t)
+	// The frontend spec builds its rule from the fixture's chars.
+	if cases.Chars != VariableNameChars {
+		t.Fatalf("testdata/variable-names.json has chars %q, want %q", cases.Chars, VariableNameChars)
+	}
 	for _, name := range cases.Valid {
 		if !ValidVariableName(name) {
 			t.Errorf("%q should be a valid name", name)
