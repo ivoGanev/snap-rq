@@ -2,91 +2,93 @@
   <app-script-tabs />
 }
 
-<div class="column-header column-header--requests">
-  @if (state.selectedCollection(); as collection) {
-    <div class="add-request-split" role="group" aria-label="Add request">
-      <button class="add-request-button" type="button" (click)="addBlankRequest(collection)">+ Request</button>
-      <button
-        class="add-request-button"
-        type="button"
-        (click)="curlImportFor.set(collection)"
-        aria-label="Import request from cURL"
-      >
-        cURL
-      </button>
-    </div>
-  }
-  @if (headerRequest(); as req) {
-    <div class="header-url-field">
-    <app-select
-      class="header-method-select"
-      aria-label="Method"
-      [flush]="true"
-      [attr.data-method]="req.method"
-      [options]="methodOptions"
-      [value]="req.method"
-      (valueChange)="chooseMethod(req, $event)"
-    />
-    <div class="header-url-box">
-      <app-code-editor
-        class="header-url-editor"
-        language="text"
-        placeholder="Enter a URL"
-        [singleLine]="true"
-        [text]="urlDraft()"
-        [variables]="state.environmentVariables()"
-        (textChange)="onUrlChange($event)"
-        (submit)="sendFromUrl()"
-      ></app-code-editor>
-      <button
-        class="header-url-icon"
-        type="button"
-        [attr.aria-label]="curlCopied() ? 'cURL copied' : 'Copy as cURL'"
-        [title]="curlCopied() ? 'Copied' : 'Copy as cURL'"
-        (click)="copyCurlFromUrl()"
-      >
-        {{ curlCopied() ? '✓' : 'cURL' }}
-      </button>
-    </div>
-    <app-send-button class="header-send" variant="primary" [requestId]="req.id" (send)="sendSelectedRequest($event)" />
-    </div>
-  } @else {
-    <span class="header-spacer"></span>
-  }
-  @if (selectedRowIds().size > 1) {
-    <span class="selection-count">{{ selectedRowIds().size }} selected</span>
-  }
-  @if (selectedRowIds().size > 0) {
-    <div class="header-actions">
-      @if (state.showingBin()) {
+@if (showHeader()) {
+  <div class="column-header column-header--requests">
+    @if (state.selectedCollection(); as collection) {
+      <div class="add-request-split" role="group" aria-label="Add request">
+        <button class="add-request-button" type="button" (click)="addBlankRequest(collection)">+ Request</button>
         <button
-          class="restore-button"
+          class="add-request-button"
           type="button"
-          (click)="openRestoreCollectionPicker()"
-          [attr.aria-label]="
-            selectedRowIds().size === 1
-              ? 'Restore selected request'
-              : 'Restore ' + selectedRowIds().size + ' requests'
-          "
+          (click)="curlImportFor.set(collection)"
+          aria-label="Import request from cURL"
         >
-          Restore
+          cURL
         </button>
+      </div>
+    }
+    @if (headerRequest(); as req) {
+      <div class="header-url-field">
+      <app-select
+        class="header-method-select"
+        aria-label="Method"
+        [flush]="true"
+        [attr.data-method]="req.method"
+        [options]="methodOptions"
+        [value]="req.method"
+        (valueChange)="chooseMethod(req, $event)"
+      />
+      <div class="header-url-box">
+        <app-code-editor
+          class="header-url-editor"
+          language="text"
+          placeholder="Enter a URL"
+          [singleLine]="true"
+          [text]="urlDraft()"
+          [variables]="state.environmentVariables()"
+          (textChange)="onUrlChange($event)"
+          (submit)="sendFromUrl()"
+        ></app-code-editor>
         <button
-          class="delete-button delete-button--top-bar"
+          class="header-url-icon"
           type="button"
-          (click)="requestPermanentDelete()"
-          [attr.aria-label]="
-            selectedRowIds().size === 1
-              ? 'Delete selected request permanently'
-              : 'Delete ' + selectedRowIds().size + ' requests permanently'
-          "
+          [attr.aria-label]="curlCopied() ? 'cURL copied' : 'Copy as cURL'"
+          [title]="curlCopied() ? 'Copied' : 'Copy as cURL'"
+          (click)="copyCurlFromUrl()"
         >
-          Delete
+          {{ curlCopied() ? '✓' : 'cURL' }}
         </button>
-      }
-    </div>
-  }
-</div>
+      </div>
+      <app-send-button class="header-send" variant="primary" [requestId]="req.id" (send)="sendSelectedRequest($event)" />
+      </div>
+    } @else {
+      <span class="header-spacer"></span>
+    }
+    @if (selectedRowIds().size > 1) {
+      <span class="selection-count">{{ selectedRowIds().size }} selected</span>
+    }
+    @if (selectedRowIds().size > 0) {
+      <div class="header-actions">
+        @if (state.showingBin()) {
+          <button
+            class="restore-button"
+            type="button"
+            (click)="openRestoreCollectionPicker()"
+            [attr.aria-label]="
+              selectedRowIds().size === 1
+                ? 'Restore selected request'
+                : 'Restore ' + selectedRowIds().size + ' requests'
+            "
+          >
+            Restore
+          </button>
+          <button
+            class="delete-button delete-button--top-bar"
+            type="button"
+            (click)="requestPermanentDelete()"
+            [attr.aria-label]="
+              selectedRowIds().size === 1
+                ? 'Delete selected request permanently'
+                : 'Delete ' + selectedRowIds().size + ' requests permanently'
+            "
+          >
+            Delete
+          </button>
+        }
+      </div>
+    }
+  </div>
+}
 
 @if (!activeGroupName()) {
   <div class="state-message">Select a collection, favourite group, or script to view requests.</div>

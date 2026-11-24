@@ -492,6 +492,9 @@ export class RequestsMainList {
   protected readonly headerRequest = computed(() =>
     !this.state.showingBin() && this.selectedRowIds().size === 1 ? this.selectedRequest() : null,
   );
+  protected readonly showHeader = computed(
+    () => !!this.state.selectedCollection() || this.selectedRowIds().size > 0,
+  );
   // Reset only when another request is selected: the saved URL coming back
   // mid-typing would otherwise overwrite what was typed since.
   protected readonly urlDraft = linkedSignal<number | null, string>({
