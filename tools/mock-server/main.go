@@ -424,6 +424,33 @@ func delayHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// secretsHandler answers like a login endpoint: tokens and passwords in the
+// body and a session cookie and token in the headers, for the response view's
+// hidden values.
+func secretsHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w)
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Auth-Token", "mock-header-token-7f3a9c")
+	w.Header().Set("X-Request-Id", "req-0001")
+	http.SetCookie(w, &http.Cookie{Name: "session_id", Value: "mock-session-5b21e8", Path: "/", HttpOnly: true})
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"user": map[string]any{
+			"id":       42,
+			"username": "demo-user",
+			"email":    "user@example.test",
+			"password": "hunter2",
+		},
+		"access_token":  "mock-access-token-9d8c7b6a",
+		"refresh_token": "mock-refresh-token-1a2b3c4d",
+		"api_key":       "mock-api-key-55aa66bb",
+		"client_secret": "mock-client-secret-0f0f0f",
+		"expires_in":    3600,
+		"token_type":    "Bearer",
+		"scopes":        []string{"read", "write"},
+	})
+}
+
 func emptyHandler(w http.ResponseWriter, r *http.Request) {
 	enableCORS(w)
 	w.Header().Set("Content-Type", "application/json")
@@ -468,6 +495,7 @@ func main() {
 	// Special mocks.
 	mux.HandleFunc("/mock/delay", delayHandler)
 	mux.HandleFunc("/mock/empty", emptyHandler)
+	mux.HandleFunc("/mock/secrets", secretsHandler)
 
 	// Cookie jar mocks.
 	registerCookieHandlers(mux)
