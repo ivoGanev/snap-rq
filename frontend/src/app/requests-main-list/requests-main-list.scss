@@ -86,51 +86,6 @@
 }
 
 // Fixed width, so the ✓ after copying doesn't move the URL.
-.row-trailing {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
-  margin-left: auto;
-  padding-left: var(--s-2);
-}
-
-// Kept in the layout while hidden, so the paw doesn't move when it shows.
-.row-curl {
-  visibility: hidden;
-  flex: 0 0 auto;
-  width: 40px;
-  height: 22px;
-  padding: 0;
-  font-family: var(--font-display);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  color: var(--muted);
-  background: transparent;
-  border: none;
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition:
-    color 0.12s ease,
-    background 0.12s ease;
-
-  &:hover {
-    color: var(--text);
-    background: var(--hover-bg);
-  }
-
-  &:focus-visible {
-    visibility: visible;
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
-  }
-}
-
-.spreadsheet-row:hover .row-curl,
-.spreadsheet-row.is-selected .row-curl {
-  visibility: visible;
-}
-
 .selection-count {
   align-self: center;
   padding: 0 var(--s-3);

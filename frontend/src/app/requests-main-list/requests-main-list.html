@@ -268,21 +268,9 @@
             class="cell-text"
             (dblclick)="onCellDoubleClick(req, 'url')"
           >{{ rowState()[req.id]?.displayUrl ?? req.url }}</span>
-          <span class="row-trailing">
-            @if (req.id === lastUsedRequestId()) {
-              <app-last-used-paw [hint]="pawHint()" />
-            }
-            <button
-              class="row-curl"
-              type="button"
-              [title]="curlCopiedId() === req.id ? 'Copied' : 'Copy as cURL'"
-              [attr.aria-label]="curlCopiedId() === req.id ? 'cURL copied' : 'Copy ' + req.name + ' as cURL'"
-              (click)="copyRowCurl(req, $event)"
-              (dblclick)="$event.stopPropagation()"
-            >
-              {{ curlCopiedId() === req.id ? '✓' : 'cURL' }}
-            </button>
-          </span>
+          @if (req.id === lastUsedRequestId()) {
+            <app-last-used-paw [hint]="pawHint()" />
+          }
         </div>
 
         @if (showUsage()) {
