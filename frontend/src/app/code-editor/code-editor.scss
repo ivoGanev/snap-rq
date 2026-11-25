@@ -30,7 +30,6 @@
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  cursor: text;
 }
 
 .code-editor-editor-wrap {
@@ -46,7 +45,6 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  cursor: text;
 }
 
 .code-editor-editor .cm-editor {
