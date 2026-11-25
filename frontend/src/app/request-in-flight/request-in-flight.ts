@@ -11,8 +11,6 @@ export class RequestInFlight {
   private readonly requestApi = inject(RequestApiService);
 
   readonly requestId = input.required<number>();
-  readonly method = input('');
-  readonly url = input('');
 
   private readonly now = signal(Date.now());
   // Kept after the send ends, while the view is still held on screen.
