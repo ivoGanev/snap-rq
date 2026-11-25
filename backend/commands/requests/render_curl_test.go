@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"snap-rq/backend/commands/requests"
 	"snap-rq/backend/models"
 )
 
@@ -11,12 +12,10 @@ func renderCurl(h *harness, id, environmentID int64, plain map[string]string) st
 	h.t.Helper()
 	var req models.HttpRequest
 	h.run("request.get", map[string]any{"id": id}, &req)
-	vars := []map[string]string{}
-	for key, value := range plain {
-		vars = append(vars, map[string]string{"key": key, "value": value})
+	curl, err := requests.NewCurlService(h.db).Render(req, plain, environmentID)
+	if err != nil {
+		h.t.Fatalf("render: %v", err)
 	}
-	var curl string
-	h.run("request.render_curl", map[string]any{"request": req, "variables": vars, "environment_id": environmentID}, &curl)
 	return curl
 }
 

@@ -2,7 +2,6 @@ package requests
 
 import (
 	"database/sql"
-	"encoding/json"
 	"strings"
 	"testing"
 
@@ -73,22 +72,13 @@ func TestSendFailsClearlyWhenASecretIsLocked(t *testing.T) {
 func TestCopyAsCurlLeavesALockedSecretAsItsPlaceholder(t *testing.T) {
 	db := newSecretsTestDB(t, secrets.NewVault(secrets.MemoryKeyStore()), map[string]string{"API_KEY": "s3cr3t"})
 	secrets.SetDefault(secrets.NewVault(secrets.MemoryKeyStore())) // the key is gone
-	tx, err := db.Begin()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer tx.Rollback()
-
-	input, _ := json.Marshal(map[string]any{
-		"request":        models.HttpRequest{Method: "GET", URL: "https://api.example.com/{{API_KEY}}/{{HOST}}"},
-		"variables":      []map[string]string{{"key": "HOST", "value": "eu"}},
-		"environment_id": 1,
-	})
-	out, err := RenderCurl{tx: tx}.Run(input)
+	curl, err := NewCurlService(db).Render(
+		models.HttpRequest{Method: "GET", URL: "https://api.example.com/{{API_KEY}}/{{HOST}}"},
+		map[string]string{"HOST": "eu"}, 1)
 	if err != nil {
 		t.Fatalf("copy failed: %v", err)
 	}
-	if curl := out.(string); !strings.Contains(curl, "https://api.example.com/{{API_KEY}}/eu") {
+	if !strings.Contains(curl, "https://api.example.com/{{API_KEY}}/eu") {
 		t.Errorf("curl = %s, want the locked secret kept as its placeholder and the plain one filled in", curl)
 	}
 }

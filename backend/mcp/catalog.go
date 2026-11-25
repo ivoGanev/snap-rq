@@ -46,7 +46,6 @@ var NeverExposed = []string{
 	"response.save_to_file", // arbitrary file write
 	"openapi.export",        // arbitrary file write
 	"icon.cleanup",
-	"request.render_curl", // fills in real secret values
 }
 
 // Catalog is every tool MCP offers. Adding a tool is a deliberate edit here

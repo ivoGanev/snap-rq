@@ -28,7 +28,6 @@ var All = []commands.Factory{
 	// requests
 	requests.NewGet,
 	requests.NewTryScript,
-	requests.NewRenderCurl,
 	requests.NewListSummaries,
 	requests.NewListForCollection,
 	requests.NewListForProject,

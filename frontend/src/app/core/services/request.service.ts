@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Subject } from 'rxjs';
 import type { HttpRequest, HttpRequestSummary, HttpResponse, RequestUsage } from '../models/http';
 import type { EnvironmentVariableValue } from '../models/environment-context';
+import { CurlService } from '../../../../bindings/snap-rq/backend/commands/requests';
 import { CommandApiService } from './command.service';
 import { ChangeBus } from './change-bus.service';
 import { ToastService } from './toast.service';
@@ -342,11 +343,8 @@ export class RequestApiService {
     variables: { key: string; value: string }[],
     environmentId: number | null,
   ): Promise<string> {
-    return this.commands.execute('request.render_curl', {
-      request: req,
-      variables,
-      environment_id: environmentId,
-    });
+    const plain = Object.fromEntries(variables.map((v) => [v.key, v.value]));
+    return CurlService.Render(req, plain, environmentId ?? 0);
   }
 
   async curlToRequest(collectionId: number, curl: string): Promise<HttpRequest> {

@@ -6,36 +6,31 @@ import (
 	"maps"
 	"strings"
 
-	"snap-rq/backend/commands"
 	"snap-rq/backend/commands/curl"
+	"snap-rq/backend/models"
 )
 
-// RenderCurl writes a request as a curl command with the environment's
-// variables filled in the way a send fills them, secrets included. Scripts
-// don't run. MCP may never call it (see mcp.NeverExposed): its output holds
-// real secret values.
-type RenderCurl struct{ tx *sql.Tx }
+// CurlService gives the frontend a request as a curl command, with the
+// environment's variables filled in the way a send fills them, secrets
+// included. A bound service rather than a command: it's a lookup, and MCP,
+// which only reaches commands, must never see its real secret values.
+type CurlService struct{ db *sql.DB }
 
-func NewRenderCurl(tx *sql.Tx) commands.Command { return &RenderCurl{tx: tx} }
+func NewCurlService(db *sql.DB) *CurlService { return &CurlService{db: db} }
 
-func (RenderCurl) Info() commands.Info {
-	return commands.Info{FunctionID: "request.render_curl", Label: "Copy as cURL", ReadOnly: true}
-}
-
-func (c RenderCurl) Run(input json.RawMessage) (any, error) {
-	var in sendInput
-	if err := json.Unmarshal(input, &in); err != nil {
-		return nil, err
-	}
-	// A locked secret stays a {{placeholder}}: the copy still works.
-	secretValues, _, err := lookupSecrets(c.tx, in.EnvironmentID, in.Request)
+// Render fills in plain values and the environment's secrets; unknown
+// placeholders, and secrets the vault can't open, stay {{placeholders}}.
+// Scripts don't run.
+func (s *CurlService) Render(request models.HttpRequest, plain map[string]string, environmentID int64) (string, error) {
+	secretValues, _, err := lookupSecrets(s.db, environmentID, request)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	values := in.plainValues()
+	values := make(map[string]string, len(plain)+len(secretValues))
+	maps.Copy(values, plain)
 	maps.Copy(values, secretValues)
 
-	req := fillIn(in.Request, values)
+	req := fillIn(request, values)
 	req.BodyForm = fillInFormText(req.BodyForm, values)
 	return curl.RequestToCurl(req), nil
 }
