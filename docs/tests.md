@@ -64,6 +64,8 @@ Each comes with a way to check the same thing by hand. The steps use `https://ht
 
 16. **Only the body scrolls, and revealing a secret keeps its place**
    `response-layout.e2e.ts` and `response-layout-webkit.e2e.ts`, in Chromium and WebKit, against the stub's `/long`: a JSON list of 300 items, one with a very long note, and an `access_token` near item 200. Send it and open the response. Scroll the body down and to the right: the status line, URL and section headings don't move, the headers don't scroll sideways, and the body's horizontal scrollbar sits at the bottom of the panel. Scroll down to the hidden `access_token` and reveal the body: the token appears in place, and the body stays scrolled where it was, with the same line numbers.
+17. **The variables dropdown opens under the caret**
+   `variable-dropdown.e2e.ts` and `variable-dropdown-webkit.e2e.ts`, in Chromium and WebKit. Select an environment with a variable and open a request. Click at the end of the URL in the bar above the list and press Ctrl+Space: the list of variables opens just under the caret, not shifted down or to the right. Do the same in the drawer's Headers tab. Esc closes it.
 
 ## Tests worth writing
 
@@ -73,6 +75,6 @@ Add a line when you find something a test should cover: what should happen, and 
 2. **The in-flight view's Cancel button.** The view appears after 200 ms, the clock ticks, and Cancel returns to the previous response with nothing saved. Go tests cover cancelling, but not the button or the view.
 3. **Undo and redo from the keyboard.** Ctrl+Z after deleting a request brings it back in the list, and Ctrl+Y removes it again.
 4. **Importing a cURL command or an OpenAPI file through the UI.** The parsers have Go tests; the import dialogs have none.
-5. **Rendering in WebKit.** Only the top bar's, the variable chips', the last-used paw's, the response secrets' and the response layout's tests run in WebKit; the rest use Chromium, but macOS and Linux show the app in WebKit (see the SVG sizing rule in AGENTS.md).
+5. **Rendering in WebKit.** Only the top bar's, the variable chips', the last-used paw's, the response secrets', the response layout's and the variables dropdown's tests run in WebKit; the rest use Chromium, but macOS and Linux show the app in WebKit (see the SVG sizing rule in AGENTS.md).
 6. **Restoring a locked vault with the recovery key.** After the key is lost, secrets show as locked, and entering the recovery key unlocks them.
 7. **The MCP server with a real client.** A client connects, lists the tools, and needs approval before running a command that writes.
