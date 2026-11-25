@@ -17,8 +17,8 @@ Each comes with a way to check the same thing by hand. The steps use `https://ht
 4. **A request stays in flight until its last send finishes**
    `send-lifecycle.e2e.ts`. Send `https://httpbin.org/delay/3`, then change the URL to `http://%zz` and send again. The second send fails at once, but the request stays in flight until the first one answers.
 
-5. **A failed send shows its error, not status 0**
-   `request-error.e2e.ts`. Add the header `{"Accept": "application/json"}` (a JSON object where a header belongs) and send. The inspector shows "Couldn't send the request" with the reason and "Error" in the history. There's no status badge and no "No headers".
+5. **A failed send explains what went wrong, not status 0**
+   `request-error.e2e.ts`, with `backend/commands/requests/send_errors_test.go` for each kind of failure. Add the header `{"Accept": "application/json"}` (a JSON object where a header belongs) and send. The inspector shows "Couldn't send the request", then "Header line 1 isn't a header" and how headers are written, and "Error" in the history. There's no status line and no "No headers". Then send to `http://127.0.0.1:1/`: it reads "Nothing is answering at 127.0.0.1:1", and Go's own error is folded under Details.
 
 6. **The theme picker closes on an outside click**
    `theme-picker.e2e.ts`. Open the theme picker in the footer and click in the middle of the window. It closes.
