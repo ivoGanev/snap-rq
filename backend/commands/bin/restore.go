@@ -150,9 +150,10 @@ func (c Restore) restoreOne(binID, targetCollectionID int64) (models.HttpRequest
 	newestResponseID := int64(0)
 	for _, resp := range snapshot.Responses {
 		res, err := c.tx.Exec(`
-			INSERT INTO responses (request_id, headers, status_code, body, created_at, duration_ms, script_log)
-			VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			newID, resp.Headers, resp.StatusCode, resp.Body, resp.CreatedAt, resp.DurationMs, resp.ScriptLog)
+			INSERT INTO responses (request_id, headers, status_code, body, created_at, duration_ms, script_log, method, url)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			newID, resp.Headers, resp.StatusCode, resp.Body, resp.CreatedAt, resp.DurationMs, resp.ScriptLog,
+			resp.Method, resp.URL)
 		if err != nil {
 			return models.HttpRequest{}, fmt.Errorf("restoring response: %w", err)
 		}

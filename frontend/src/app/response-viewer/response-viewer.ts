@@ -1,5 +1,5 @@
 import { Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
-import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
+import { NgTemplateOutlet } from '@angular/common';
 import { Clipboard, Dialogs } from '@wailsio/runtime';
 import { DisplayService } from '../../../bindings/snap-rq/backend/mcp';
 import type { MaskedResponse } from '../../../bindings/snap-rq/backend/mcp/models';
@@ -10,12 +10,13 @@ import {
   prettifyResponseBody,
 } from '../core/prettifiers/response-prettifier';
 import { csvColumnWidths } from '../core/prettifiers/csv-prettifier';
-import { highlightLine, type SyntaxLanguage, type SyntaxToken } from '../core/highlighters/highlight';
+import type { SyntaxLanguage } from '../core/highlighters/highlight';
 import { httpStatusClass, httpStatusText, isRequestError } from '../core/http-status';
 import { ScriptLog } from '../script-log/script-log';
 import { ResponseHistory } from '../response-history/response-history';
 import { RequestInFlight } from '../request-in-flight/request-in-flight';
 import { ConfirmService } from '../core/services/confirm.service';
+import { ResponseText } from '../response-text/response-text';
 
 /**
  * Against flicker: a send that ends within SHOW_AFTER_MS never shows the
@@ -27,9 +28,12 @@ const SHOW_AT_LEAST_MS = 500;
 /** How a hidden cookie value is shown, as the backend shows other secrets. */
 const HIDDEN = '•••••';
 
+type ResponseSection = 'scripts' | 'headers' | 'cookies' | 'body';
+type CopyTarget = 'all' | 'headers' | 'body';
+
 @Component({
   selector: 'app-response-viewer',
-  imports: [CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, ScriptLog, ResponseHistory, RequestInFlight],
+  imports: [NgTemplateOutlet, ScriptLog, ResponseHistory, RequestInFlight, ResponseText],
   templateUrl: './response-viewer.html',
   styleUrl: './response-viewer.scss',
 })
@@ -68,16 +72,25 @@ export class ResponseViewer {
   });
   protected readonly headersMasked = computed(() => this.maskedView()?.headers_masked ?? false);
   protected readonly bodyMasked = computed(() => this.maskedView()?.body_masked ?? false);
+  protected readonly urlMasked = computed(() => this.maskedView()?.url_masked ?? false);
   /** Per section, for the response shown; any other response starts hidden again. */
+  protected readonly revealUrl = signal(false);
   protected readonly revealHeaders = signal(false);
   protected readonly revealBody = signal(false);
-  protected readonly copied = signal<'headers' | 'body' | null>(null);
+  protected readonly copied = signal<CopyTarget | null>(null);
+  /** Kept while switching responses, so a folded section stays folded. */
+  private readonly folded = signal<ReadonlySet<ResponseSection>>(new Set());
   private copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
   protected readonly shownHeaders = computed(() => {
     const resp = this.state.selectedResponse();
     if (!resp) return '';
     return this.revealHeaders() ? resp.headers : (this.maskedView()?.headers ?? '');
+  });
+  protected readonly shownUrl = computed(() => {
+    const resp = this.state.selectedResponse();
+    if (!resp) return '';
+    return this.revealUrl() ? resp.url : (this.maskedView()?.url ?? '');
   });
   private readonly shownBody = computed(() => {
     const resp = this.state.selectedResponse();
@@ -130,25 +143,27 @@ export class ResponseViewer {
   }
 
   private mask(resp: HttpResponse | null): void {
+    this.revealUrl.set(false);
     this.revealHeaders.set(false);
     this.revealBody.set(false);
     if (!resp) {
       this.masked.set(null);
       return;
     }
-    DisplayService.MaskResponse(resp.headers ?? '', resp.body ?? '')
+    DisplayService.MaskResponse(resp.url ?? '', resp.headers ?? '', resp.body ?? '')
       .then((view) => {
         if (this.state.selectedResponse()?.id === resp.id) this.masked.set({ id: resp.id, view });
       })
       .catch((err: unknown) => console.error('Masking the response failed:', err));
   }
 
-  /** Copies the section as shown: hidden values stay hidden unless revealed. */
-  async copy(section: 'headers' | 'body'): Promise<void> {
-    const text = section === 'headers' ? this.shownHeaders() : this.bodyLines().join('\n');
+  /** Copies what is shown: hidden values stay hidden unless revealed. */
+  async copy(target: CopyTarget): Promise<void> {
+    const text =
+      target === 'headers' ? this.shownHeaders() : target === 'body' ? this.bodyText() : this.wholeResponse();
     try {
       await Clipboard.SetText(text);
-      this.copied.set(section);
+      this.copied.set(target);
       clearTimeout(this.copiedTimer);
       this.copiedTimer = setTimeout(() => this.copied.set(null), 1500);
     } catch (err) {
@@ -187,14 +202,33 @@ export class ResponseViewer {
     this.shownInFlight.set(request);
   }
 
-  readonly bodyLines = computed<string[]>(() => {
+  private wholeResponse(): string {
+    const resp = this.state.selectedResponse();
+    if (!resp) return '';
+    const status = [resp.status_code, this.statusText(resp.status_code)].filter(Boolean).join(' ');
+    const parts = [status];
+    if (resp.url) parts.push(`${resp.method} ${this.shownUrl()}`);
+    parts.push('', this.shownHeaders(), '', this.bodyText());
+    return parts.join('\n');
+  }
+
+  isFolded(section: ResponseSection): boolean {
+    return this.folded().has(section);
+  }
+
+  toggleFold(section: ResponseSection): void {
+    this.folded.update((current) => {
+      const next = new Set(current);
+      if (!next.delete(section)) next.add(section);
+      return next;
+    });
+  }
+
+  protected readonly bodyText = computed(() => {
     const resp = this.state.selectedResponse();
     const body = this.shownBody();
-    if (!resp || !body) {
-      return [];
-    }
-    const formatted = prettifyResponseBody(body, resp.headers, this.prettifyEnabled());
-    return formatted.length > 0 ? formatted.split('\n') : [];
+    if (!resp || !body) return '';
+    return prettifyResponseBody(body, resp.headers, this.prettifyEnabled());
   });
 
   readonly bodyLanguage = computed<SyntaxLanguage>(() => {
@@ -212,18 +246,6 @@ export class ResponseViewer {
     const resp = this.state.selectedResponse();
     return resp?.body ? csvColumnWidths(resp.body) : [];
   });
-
-  lineTokens(line: string): SyntaxToken[] {
-    return highlightLine(line, this.bodyLanguage(), this.bodyColumnWidths());
-  }
-
-  tokenClass(type: SyntaxToken['type']): string {
-    return type === 'plain' ? '' : `tok-${type}`;
-  }
-
-  trackByLine(index: number, line: string): number {
-    return index;
-  }
 
   selectResponse(resp: HttpResponse): void {
     this.state.selectedResponse.set(resp);
@@ -252,20 +274,6 @@ export class ResponseViewer {
 
   togglePrettify(): void {
     this.prettifyEnabled.update(enabled => !enabled);
-  }
-
-  onBlockKeyDown(event: KeyboardEvent): void {
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
-      event.preventDefault();
-      const block = event.currentTarget as HTMLElement | null;
-      if (!block) return;
-      const selection = window.getSelection();
-      if (!selection) return;
-      const range = document.createRange();
-      range.selectNodeContents(block);
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
   }
 
   async downloadResponse(): Promise<void> {
