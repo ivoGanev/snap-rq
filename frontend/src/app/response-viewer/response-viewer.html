@@ -50,15 +50,17 @@
         </svg>
         <span>Download</span>
       </button>
-      <button
-        class="prettify-toggle"
-        type="button"
-        [class.is-active]="prettifyEnabled()"
-        (click)="togglePrettify()"
-        title="Toggle response prettifying"
-      >
-        <span>{{ prettifyEnabled() ? 'Pretty On' : 'Pretty Off' }}</span>
-      </button>
+      @if (showPrettifyToggle) {
+        <button
+          class="prettify-toggle"
+          type="button"
+          [class.is-active]="prettifyEnabled()"
+          (click)="togglePrettify()"
+          title="Toggle response prettifying"
+        >
+          <span>{{ prettifyEnabled() ? 'Pretty On' : 'Pretty Off' }}</span>
+        </button>
+      }
       <span class="response-duration">Duration: {{ state.selectedResponse()!.duration_ms }} ms</span>
     </div>
 
