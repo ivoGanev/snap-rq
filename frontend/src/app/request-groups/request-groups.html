@@ -42,7 +42,7 @@
         (addClick)="createAndRename()"
         (itemSelect)="selectSidebarItem($event)"
         (itemContextMenu)="openItemContextMenu($event.item, $event.event, itemContextMenu)"
-        (appearanceClick)="openAppearancePopup($event.item, $event.event)"
+        (appearanceClick)="openAppearanceMenu($event.item, $event.event, appearanceMenu)"
         (renameStart)="startRename($event)"
         (renameValueChange)="renameValue.set($event)"
         (renameSubmit)="saveRename()"
@@ -97,7 +97,7 @@
   } @else {
     <button class="context-menu-item" type="button" (click)="startRename(item)">Rename Script</button>
   }
-  <button class="context-menu-item" type="button" (click)="openAppearancePopup(item)">
+  <button class="context-menu-item" type="button" (click)="openAppearanceMenu(item, null, appearanceMenu)">
     Change style
   </button>
   @if (item.kind === 'favourite') {
@@ -146,78 +146,44 @@
   <button class="context-menu-item" type="button" (click)="onCollectionsMenu('export')">Export OpenAPI…</button>
 </ng-template>
 
-<!-- Appearance popup -->
-@if (appearancePopupOpen()) {
-  <div class="overlay-backdrop" (click)="closeAppearancePopup()">
-    <div class="overlay-panel appearance-popup" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Style — {{ appearanceTarget()?.name }}</h3>
-        <button class="overlay-close" type="button" (click)="closeAppearancePopup()">Close</button>
-      </div>
-
-      <div class="appearance-tabs">
+<ng-template #appearanceMenu let-item>
+  <div class="appearance-menu" [attr.aria-label]="'Style for ' + item.name">
+    <div class="appearance-colors">
+      <button
+        class="appearance-dot appearance-dot--reset"
+        type="button"
+        title="Default icon"
+        aria-label="Reset to the default icon"
+        (click)="resetAppearance(item)"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+          <line x1="6" y1="6" x2="18" y2="18" />
+          <line x1="18" y1="6" x2="6" y2="18" />
+        </svg>
+      </button>
+      @for (color of colorPalette; track color) {
         <button
-          class="appearance-tab"
-          [class.is-active]="appearanceTab() === 'icon'"
+          class="appearance-dot"
+          [class.is-selected]="isAppearanceSelected(item.appearance, 'color', color)"
           type="button"
-          (click)="appearanceTab.set('icon')"
-        >
-          Icon
-        </button>
+          [style.--dot-color]="color"
+          (click)="selectAppearance(item, 'color', color)"
+          [attr.aria-label]="'Select color ' + color"
+        ></button>
+      }
+    </div>
+    <div class="appearance-icons">
+      @for (icon of appearanceIconEntries(item); track icon.id) {
         <button
-          class="appearance-tab"
-          [class.is-active]="appearanceTab() === 'color'"
+          class="appearance-icon"
+          [class.is-selected]="isAppearanceSelected(item.appearance, 'icon', icon.id)"
           type="button"
-          (click)="appearanceTab.set('color')"
+          (click)="selectAppearance(item, 'icon', icon.id)"
+          [attr.aria-label]="'Select ' + icon.id + ' icon'"
         >
-          Color
+          <img [src]="icon.path" alt="" />
         </button>
-      </div>
-
-      <div class="overlay-body">
-        @if (appearanceTab() === 'icon') {
-          <div class="appearance-grid appearance-grid--icons">
-            @for (icon of appearanceIconEntries(); track icon.id) {
-              <button
-                class="appearance-swatch appearance-swatch--icon"
-                [class.is-selected]="isAppearanceSelected(appearanceTarget()!.appearance, 'icon', icon.id)"
-                type="button"
-                (click)="selectAppearanceIcon(icon.id)"
-                [attr.aria-label]="'Select ' + icon.id + ' icon'"
-              >
-                <img [src]="icon.path" alt="" />
-              </button>
-            }
-          </div>
-        } @else {
-          <div class="appearance-grid appearance-grid--colors">
-            @for (color of collectionColorPalette; track color) {
-              <button
-                class="appearance-swatch appearance-swatch--color"
-                [class.is-selected]="isAppearanceSelected(appearanceTarget()!.appearance, 'color', color)"
-                type="button"
-                [style.background-color]="color"
-                (click)="selectAppearanceColor(color)"
-                [attr.aria-label]="'Select color ' + color"
-              ></button>
-            }
-          </div>
-
-          <label class="appearance-color-field">
-            <span class="appearance-color-label">Custom color</span>
-            <input
-              class="appearance-color-input"
-              type="color"
-              [value]="appearanceTarget()!.appearance.appearance_type === 'color' ? appearanceTarget()!.appearance.appearance_value : '#6366f1'"
-              (change)="onAppearanceColorInput($event)"
-            />
-          </label>
-        }
-      </div>
-
-      <div class="overlay-footer">
-        <button class="overlay-close" type="button" (click)="resetAppearance()">Reset</button>
-      </div>
+      }
     </div>
   </div>
-}
+</ng-template>

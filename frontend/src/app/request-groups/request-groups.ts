@@ -72,24 +72,7 @@ type RemoveHandlerMap = {
   [K in SidebarItem['kind']]: (item: SidebarItemOfKind<K>) => Promise<void>;
 };
 
-const COLLECTION_COLOR_PALETTE: string[] = [
-  '#ef4444',
-  '#f97316',
-  '#f59e0b',
-  '#84cc16',
-  '#22c55e',
-  '#14b8a6',
-  '#06b6d4',
-  '#0ea5e9',
-  '#3b82f6',
-  '#6366f1',
-  '#8b5cf6',
-  '#a855f7',
-  '#d946ef',
-  '#f43f5e',
-  '#78716c',
-  '#374151',
-];
+const COLOR_PALETTE: string[] = ['#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
 
 /**
  * Left navigation shell. Collapsed mode renders an icon-only rail with an
@@ -268,11 +251,7 @@ export class RequestGroups {
   protected readonly renamingItem = signal<SidebarItem | null>(null);
   protected readonly renameValue = signal('');
 
-  // Appearance popup
-  protected readonly appearancePopupOpen = signal(false);
-  protected readonly appearanceTarget = signal<SidebarItem | null>(null);
-  protected readonly appearanceTab = signal<'icon' | 'color'>('icon');
-  protected readonly collectionColorPalette = COLLECTION_COLOR_PALETTE;
+  protected readonly colorPalette = COLOR_PALETTE;
 
   /** Per-folder adapters from domain models to the sidebar item union. */
   private readonly folderSources: Record<SidebarFolder, () => SidebarItem[]> = {
@@ -401,10 +380,6 @@ export class RequestGroups {
       this.contextMenu.close();
       return;
     }
-    if (this.appearancePopupOpen()) {
-      this.closeAppearancePopup();
-      return;
-    }
     if (this.newCollectionPopupOpen()) {
       this.closeNewCollectionPopup();
       return;
@@ -424,7 +399,6 @@ export class RequestGroups {
     if (
       this.contextMenu.isOpen() ||
       this.renamingItem() ||
-      this.appearancePopupOpen() ||
       this.newCollectionPopupOpen()
     ) {
       return;
@@ -709,48 +683,40 @@ export class RequestGroups {
 
   // ---------- Appearance ----------
 
-  openAppearancePopup(item: SidebarItem, event?: MouseEvent): void {
-    event?.stopPropagation();
+  openAppearanceMenu(
+    item: SidebarItem,
+    event: MouseEvent | null,
+    template: TemplateRef<{ $implicit: SidebarItem }>,
+  ): void {
+    let x: number;
+    let y: number;
+    if (event) {
+      const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      x = rect.left;
+      y = rect.bottom + 4;
+    } else {
+      const at = this.contextMenu.position();
+      x = at?.x ?? 0;
+      y = at?.y ?? 0;
+    }
+    this.contextMenu.open(template, item, x, y);
+  }
+
+  async selectAppearance(item: SidebarItem, type: 'icon' | 'color', value: string): Promise<void> {
+    await this.saveAppearance(item, { appearance_type: type, appearance_value: value });
+  }
+
+  async resetAppearance(item: SidebarItem): Promise<void> {
+    await this.saveAppearance(item, { appearance_type: 'icon', appearance_value: this.iconManifest.defaultIconId() });
+  }
+
+  private async saveAppearance(item: SidebarItem, patch: SidebarAppearancePatch): Promise<void> {
     this.contextMenu.close();
-    this.appearanceTarget.set(item);
-    this.appearanceTab.set('icon');
-    this.appearancePopupOpen.set(true);
-  }
-
-  closeAppearancePopup(): void {
-    this.appearancePopupOpen.set(false);
-    this.appearanceTarget.set(null);
-  }
-
-  async selectAppearanceIcon(iconId: string): Promise<void> {
-    await this.saveAppearance({ appearance_type: 'icon', appearance_value: iconId });
-    this.closeAppearancePopup();
-  }
-
-  async selectAppearanceColor(color: string): Promise<void> {
-    await this.saveAppearance({ appearance_type: 'color', appearance_value: color });
-    this.closeAppearancePopup();
-  }
-
-  async resetAppearance(): Promise<void> {
-    await this.saveAppearance({ appearance_type: 'icon', appearance_value: this.iconManifest.defaultIconId() });
-    this.closeAppearancePopup();
-  }
-
-  private async saveAppearance(patch: SidebarAppearancePatch): Promise<void> {
-    const item = this.appearanceTarget();
-    if (!item) return;
-
     try {
       await this.applyAppearance(item, patch);
     } catch (err) {
       console.error(err);
     }
-  }
-
-  onAppearanceColorInput(event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
-    void this.selectAppearanceColor(value);
   }
 
   // ---------- Delete ----------
@@ -855,10 +821,8 @@ export class RequestGroups {
     return appearance.appearance_type === type && appearance.appearance_value === value;
   }
 
-  /** Icons available in the appearance popup for the targeted item's pack. */
-  appearanceIconEntries() {
-    const target = this.appearanceTarget();
-    return target ? this.iconManifest.packIcons(FOLDER_FOR_KIND[target.kind]) : [];
+  appearanceIconEntries(item: SidebarItem) {
+    return this.iconManifest.packIcons(FOLDER_FOR_KIND[item.kind]);
   }
 }
 
