@@ -81,4 +81,41 @@ export function variableDropdownTests(): void {
     await page.locator('.bottom-tab', { hasText: 'Headers' }).click();
     await expectDropdownUnderCaret(page, 'app-request-headers-tab');
   });
+
+  test('the variables dropdown closes when focus leaves, and a click on a variable still inserts it', async ({
+    page,
+  }) => {
+    await openApp(page);
+    await seed(page);
+    const url = page.locator('.header-url-editor .cm-content');
+    const dropdown = page.locator('.variable-dropdown');
+    const open = async () => {
+      // At the start: a click on a chip doesn't focus the editor.
+      await url.click({ position: { x: 2, y: 4 } });
+      await page.keyboard.press('End');
+      await page.keyboard.press('Control+Space');
+      await expect(dropdown).toBeVisible();
+    };
+
+    await open();
+    await dropdown.getByRole('button', { name: 'api-host' }).click();
+    await expect(dropdown).toHaveCount(0);
+    await expect(page.locator('.header-url-editor .variable-chip', { hasText: 'api-host' })).toHaveCount(1);
+
+    // Focus leaving without a click, as when switching to another window.
+    await open();
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await expect(dropdown).toHaveCount(0);
+
+    // Like sidebar entries and rows: the click never reaches the document, and
+    // the mouse-down keeps the editor focused, so only the overlay sees it.
+    const pane = page.locator('app-response-pane');
+    await pane.evaluate((el) => {
+      el.addEventListener('mousedown', (e) => e.preventDefault());
+      el.addEventListener('click', (e) => e.stopPropagation());
+    });
+    await open();
+    await pane.click();
+    await expect(dropdown).toHaveCount(0);
+  });
 }

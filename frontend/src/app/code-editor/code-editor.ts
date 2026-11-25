@@ -234,7 +234,6 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
   ];
 
   private readonly boundDropdownKeydown = this.onDropdownKeydown.bind(this);
-  private readonly boundDocumentClick = this.onDocumentClick.bind(this);
   private readonly boundWindowResize = this.closeDropdown.bind(this);
 
   constructor() {
@@ -337,6 +336,13 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
   private baseExtensions(): Extension {
     return [
       drawSelection(),
+      // Any way focus leaves (a click that stops propagation, Tab, another window) closes it.
+      EditorView.domEventHandlers({
+        blur: () => {
+          this.closeDropdown();
+          return false;
+        },
+      }),
       dropCursor(),
       history(),
       keymap.of([...defaultKeymap, ...historyKeymap]),
@@ -790,22 +796,13 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
     return result;
   }
 
-  private onDocumentClick(event: MouseEvent): void {
-    const dropdown = (event.target as HTMLElement)?.closest('.variable-dropdown');
-    if (!dropdown) {
-      this.closeDropdown();
-    }
-  }
-
   private addGlobalListeners(): void {
     window.addEventListener('keydown', this.boundDropdownKeydown, true);
-    document.addEventListener('click', this.boundDocumentClick);
     window.addEventListener('resize', this.boundWindowResize);
   }
 
   private removeGlobalListeners(): void {
     window.removeEventListener('keydown', this.boundDropdownKeydown, true);
-    document.removeEventListener('click', this.boundDocumentClick);
     window.removeEventListener('resize', this.boundWindowResize);
   }
 }
