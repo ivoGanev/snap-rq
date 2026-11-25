@@ -11,6 +11,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { CdkConnectedOverlay, type ConnectedPosition } from '@angular/cdk/overlay';
 import {
   EditorState,
   type Extension,
@@ -190,7 +191,7 @@ function variableDecorations(): Extension {
 
 @Component({
   selector: 'app-code-editor',
-  imports: [FormsModule],
+  imports: [FormsModule, CdkConnectedOverlay],
   templateUrl: './code-editor.html',
   styleUrl: './code-editor.scss',
   host: {
@@ -221,13 +222,16 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
   private view: EditorView | null = null;
   private readonly languageCompartment = new Compartment();
   private readonly singleLineCompartment = new Compartment();
-  private charWidth = 7.8;
 
   readonly isJson = computed(() => this.language() === 'json');
   readonly dropdownOpen = signal(false);
-  readonly dropdownTop = signal(0);
-  readonly dropdownLeft = signal(0);
+  /** The caret's box the dropdown hangs from. */
+  readonly dropdownOrigin = signal({ x: 0, y: 0, width: 0, height: 0 });
   readonly dropdownIndex = signal(0);
+  protected readonly dropdownPositions: ConnectedPosition[] = [
+    { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 4 },
+    { originX: 'start', originY: 'top', overlayX: 'start', overlayY: 'bottom', offsetY: -4 },
+  ];
 
   private readonly boundDropdownKeydown = this.onDropdownKeydown.bind(this);
   private readonly boundDocumentClick = this.onDocumentClick.bind(this);
@@ -271,13 +275,6 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     const el = this.editorRef()?.nativeElement;
     if (!el) return;
-
-    this.charWidth = this.measureCharWidth(el);
-    // The editor font loads lazily; measure again from the editor content
-    // once it is available so the caret fallback position is accurate.
-    void document.fonts.ready.then(() => {
-      this.charWidth = this.measureCharWidth(this.view?.contentDOM ?? el);
-    });
 
     this.view = new EditorView({
       parent: el,
@@ -744,40 +741,10 @@ export class CodeEditor implements AfterViewInit, OnDestroy {
 
   private computeDropdownPosition(): void {
     if (!this.view) return;
-    const pos = this.view.state.selection.main.head;
-    const coords = this.view.coordsAtPos(pos);
-    if (coords) {
-      this.dropdownTop.set(Math.max(8, coords.bottom + 4));
-      this.dropdownLeft.set(Math.max(8, coords.left));
-      return;
-    }
-
-    // Fallback when coordsAtPos cannot determine the caret rectangle.
-    const editorRect = this.view.dom.getBoundingClientRect();
-    const line = this.view.state.doc.lineAt(pos);
-    const lineHeight = this.parseLineHeight(this.view.dom);
-    const column = pos - line.from;
-    this.dropdownTop.set(
-      Math.max(8, editorRect.top + line.number * lineHeight - this.view.scrollDOM.scrollTop + 4),
-    );
-    this.dropdownLeft.set(
-      Math.max(8, editorRect.left + column * this.charWidth - this.view.scrollDOM.scrollLeft),
-    );
-  }
-
-  private parseLineHeight(element: HTMLElement): number {
-    const raw = getComputedStyle(element).lineHeight;
-    const parsed = parseFloat(raw);
-    return isNaN(parsed) ? 20 : parsed;
-  }
-
-  private measureCharWidth(element: HTMLElement): number {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return 7.8;
-    const style = getComputedStyle(element);
-    ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-    return ctx.measureText('M').width;
+    const caret = this.view.coordsAtPos(this.view.state.selection.main.head);
+    // No caret box (e.g. the editor is scrolled out of view): hang it from the editor.
+    const box = caret ?? this.view.contentDOM.getBoundingClientRect();
+    this.dropdownOrigin.set({ x: box.left, y: box.top, width: 0, height: box.bottom - box.top });
   }
 
   private formatJson(value: string): string {

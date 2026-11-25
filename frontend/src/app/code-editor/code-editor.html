@@ -2,8 +2,15 @@
   <div class="code-editor-editor-wrap">
     <div #editor class="code-editor-editor"></div>
 
-    @if (dropdownOpen()) {
-      <div class="variable-dropdown" [style.top.px]="dropdownTop()" [style.left.px]="dropdownLeft()">
+    <!-- In the overlay layer: a blurred ancestor would shift a fixed element. -->
+    <ng-template
+      cdkConnectedOverlay
+      [cdkConnectedOverlayOrigin]="dropdownOrigin()"
+      [cdkConnectedOverlayOpen]="dropdownOpen()"
+      [cdkConnectedOverlayPositions]="dropdownPositions"
+      [cdkConnectedOverlayViewportMargin]="8"
+    >
+      <div class="variable-dropdown">
         @if (variables().length > 0) {
           @for (variable of variables(); track variable.key; let i = $index) {
             <button
@@ -20,6 +27,6 @@
         }
         <div class="variable-hint">Ctrl+Space to open</div>
       </div>
-    }
+    </ng-template>
   </div>
 </div>
