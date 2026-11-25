@@ -7,7 +7,10 @@
   min-height: 0;
 }
 
+// The panel is the only scroller, so its one horizontal scrollbar sits on
+// the visible bottom edge instead of under each wide block.
 .response-detail {
+  container-type: inline-size;
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
@@ -17,6 +20,21 @@
   font-size: 0.8125rem;
   line-height: 1.5;
   color: var(--text);
+}
+
+.response-content {
+  width: max-content;
+  min-width: 100%;
+}
+
+// The controls stay in view while wide text scrolls sideways under them.
+.response-status,
+.response-url,
+.section-head {
+  position: sticky;
+  left: var(--s-3);
+  box-sizing: border-box;
+  width: 100cqw;
 }
 
 .response-status {
@@ -238,7 +256,6 @@
   font: inherit;
   color: inherit;
   white-space: pre;
-  overflow-x: auto;
   user-select: text;
 }
 
