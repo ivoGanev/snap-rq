@@ -46,6 +46,7 @@ export class ResponseViewer {
   protected readonly statusText = httpStatusText;
   protected readonly isRequestError = isRequestError;
   protected readonly prettifyEnabled = signal(true);
+  protected readonly showPrettifyToggle = false;
 
   /** The selected response when it is a request that failed (no response arrived). */
   protected readonly failedResponse = computed(() => {
