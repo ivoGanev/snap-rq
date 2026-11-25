@@ -28,11 +28,6 @@
     <span class="flight-petals"></span>
   </div>
 
-  <div class="flight-request">
-    <span class="flight-method" [attr.data-method]="method()">{{ method() }}</span>
-    <span class="flight-url" [title]="url()">{{ url() }}</span>
-  </div>
-
   <span class="flight-elapsed">{{ elapsed() }}</span>
 
   <button class="flight-cancel" type="button" (click)="cancel()">Cancel</button>

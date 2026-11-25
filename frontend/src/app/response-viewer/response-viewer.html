@@ -1,5 +1,5 @@
 @if (shownInFlight(); as request) {
-  <app-request-in-flight [requestId]="request.id" [method]="request.method" [url]="request.url" />
+  <app-request-in-flight [requestId]="request.id" />
 } @else {
 @if (responses().length === 0 && !state.responsesLoading()) {
   <div class="state-message">No responses for this request.</div>
