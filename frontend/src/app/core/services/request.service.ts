@@ -333,8 +333,20 @@ export class RequestApiService {
   // Curl helpers
   // -----------------------------------------------------------------------
 
-  async requestToCurl(req: HttpRequest): Promise<string> {
-    return this.commands.execute('curl.render', req);
+  /**
+   * The request as a curl command with the environment's variables filled in,
+   * secrets included (the backend has their values); unknown ones stay {{key}}.
+   */
+  async requestToCurl(
+    req: HttpRequest,
+    variables: { key: string; value: string }[],
+    environmentId: number | null,
+  ): Promise<string> {
+    return this.commands.execute('request.render_curl', {
+      request: req,
+      variables,
+      environment_id: environmentId,
+    });
   }
 
   async curlToRequest(collectionId: number, curl: string): Promise<HttpRequest> {

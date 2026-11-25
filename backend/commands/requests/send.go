@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -47,25 +48,33 @@ type sendVariable struct {
 	Value string `json:"value"`
 }
 
+// sendInput is a request with the environment it is sent (or copied) with.
+type sendInput struct {
+	Request   models.HttpRequest `json:"request"`
+	Variables []sendVariable     `json:"variables"`
+	// EnvironmentID names the environment whose secret variables are
+	// filled in here: the frontend never has their values.
+	EnvironmentID int64 `json:"environment_id"`
+}
+
+func (in sendInput) plainValues() map[string]string {
+	plain := make(map[string]string, len(in.Variables))
+	for _, v := range in.Variables {
+		plain[v.Key] = v.Value
+	}
+	return plain
+}
+
 var errCancelled = errors.New("request cancelled")
 
 func (c Send) Run(input json.RawMessage, obs commands.Observer) {
-	var in struct {
-		Request   models.HttpRequest `json:"request"`
-		Variables []sendVariable     `json:"variables"`
-		// EnvironmentID names the environment whose secret variables are
-		// filled in here: the frontend never has their values.
-		EnvironmentID int64 `json:"environment_id"`
-	}
+	var in sendInput
 	if err := json.Unmarshal(input, &in); err != nil {
 		obs.Finish(nil, err)
 		return
 	}
 
-	plain := make(map[string]string, len(in.Variables))
-	for _, v := range in.Variables {
-		plain[v.Key] = v.Value
-	}
+	plain := in.plainValues()
 	req := in.Request
 
 	start := time.Now()
@@ -260,8 +269,27 @@ func (e *scriptEnv) Get(key string) (string, bool) {
 // actually uses, and only those. A locked one is an error naming it, rather
 // than sending "{{KEY}}" to the server.
 func (c Send) secretsFor(environmentID int64, req models.HttpRequest) (map[string]string, error) {
+	values, locked, err := lookupSecrets(c.db, environmentID, req)
+	if err != nil {
+		return nil, err
+	}
+	if len(locked) > 0 {
+		return nil, fmt.Errorf("the secret variable %s is locked: restore your recovery key or enter its value again", locked[0])
+	}
+	return values, nil
+}
+
+// secretQuerier is a database or a transaction.
+type secretQuerier interface {
+	secrets.Querier
+	Query(query string, args ...any) (*sql.Rows, error)
+}
+
+// lookupSecrets decrypts the environment's secret variables that req uses.
+// Secrets the vault can't open are listed in locked, sorted, not returned.
+func lookupSecrets(q secretQuerier, environmentID int64, req models.HttpRequest) (map[string]string, []string, error) {
 	if environmentID == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 	used := map[string]bool{}
 	for _, text := range []string{req.URL, req.Body, req.RequestHeaders, req.BodyForm} {
@@ -270,20 +298,20 @@ func (c Send) secretsFor(environmentID int64, req models.HttpRequest) (map[strin
 		}
 	}
 	if len(used) == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 
-	rows, err := c.db.Query(`SELECT key, value FROM environment_variables
+	rows, err := q.Query(`SELECT key, value FROM environment_variables
 		WHERE environment_id = ? AND secret = 1 AND value != ''`, environmentID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	stored := map[string]string{}
 	for rows.Next() {
 		var key, value string
 		if err := rows.Scan(&key, &value); err != nil {
 			rows.Close()
-			return nil, err
+			return nil, nil, err
 		}
 		if used[key] {
 			stored[key] = value
@@ -291,21 +319,24 @@ func (c Send) secretsFor(environmentID int64, req models.HttpRequest) (map[strin
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	values := make(map[string]string, len(stored))
+	var locked []string
 	for key, encrypted := range stored {
-		plain, err := secrets.Default().Decrypt(c.db, encrypted)
+		plain, err := secrets.Default().Decrypt(q, encrypted)
 		if errors.Is(err, secrets.ErrLocked) {
-			return nil, fmt.Errorf("the secret variable %s is locked: restore your recovery key or enter its value again", key)
+			locked = append(locked, key)
+			continue
 		}
 		if err != nil {
-			return nil, fmt.Errorf("decrypting the secret variable %s: %w", key, err)
+			return nil, nil, fmt.Errorf("decrypting the secret variable %s: %w", key, err)
 		}
 		values[key] = plain
 	}
-	return values, nil
+	slices.Sort(locked)
+	return values, locked, nil
 }
 
 // secretMask is what a secret value is shown as. Not "{{KEY}}": that would

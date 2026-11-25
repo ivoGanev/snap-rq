@@ -1654,7 +1654,9 @@ export class RequestsMainList {
 
     try {
       const full = await this.requestApi.getFull(req.id);
-      const curl = await this.requestApi.requestToCurl(full);
+      // Secrets are left out: the backend fills them in from the environment.
+      const plain = this.state.environmentVariables().filter((v) => !v.secret);
+      const curl = await this.requestApi.requestToCurl(full, plain, this.state.selectedEnvironment()?.id ?? null);
       await Clipboard.SetText(curl);
     } catch (err) {
       console.error(err);
