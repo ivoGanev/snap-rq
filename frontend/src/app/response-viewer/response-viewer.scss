@@ -76,28 +76,29 @@
 .download-response-button {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: var(--btn-pad-sm);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text);
-  background: var(--glass-strong);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
   --wails-draggable: no-drag;
-  @include btn.btn-secondary;
 }
 
 .download-response-button:hover {
+  color: var(--text);
   background: var(--hover-highlight);
-  border-color: var(--scrollbar-thumb);
 }
 
 .download-response-button svg {
-  width: 14px;
-  height: 14px;
+  width: 17px;
+  height: 17px;
 }
 
 .prettify-toggle {
