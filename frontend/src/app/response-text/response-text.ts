@@ -129,25 +129,44 @@ function folding(language: SyntaxLanguage): Extension[] {
 })
 export class ResponseText {
   readonly text = input.required<string>();
+  /** Which response is shown: a new one starts fresh, the same one is edited in place. */
+  readonly docId = input<number | null>(null);
   readonly language = input<SyntaxLanguage>('text');
   readonly csvWidths = input<number[]>([]);
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private view: EditorView | null = null;
+  private shown: { docId: number | null; language: SyntaxLanguage; csvWidths: number[] } | null = null;
 
   constructor() {
     afterNextRender(() => {
       this.view = new EditorView({ parent: this.host.nativeElement, state: this.createState() });
     });
     effect(() => {
-      const state = this.createState();
-      this.view?.setState(state);
+      const text = this.text();
+      const setup = { docId: this.docId(), language: this.language(), csvWidths: this.csvWidths() };
+      const view = this.view;
+      if (!view) return;
+      const same =
+        this.shown?.docId === setup.docId &&
+        this.shown.language === setup.language &&
+        this.shown.csvWidths === setup.csvWidths;
+      if (same) {
+        // Revealing secrets changes a few spans: rebuilding would reset the
+        // gutter, folds and scroll, which shows as a flicker.
+        const change = diffRange(view.state.doc.toString(), text);
+        if (change) view.dispatch({ changes: change });
+      } else {
+        view.setState(this.createState());
+      }
     });
     inject(DestroyRef).onDestroy(() => this.view?.destroy());
   }
 
   private createState(): EditorState {
     const language = this.language();
+    const csvWidths = this.csvWidths();
+    this.shown = { docId: this.docId(), language, csvWidths };
     return EditorState.create({
       doc: this.text(),
       extensions: [
@@ -159,9 +178,25 @@ export class ResponseText {
         foldGutter({ openText: '▾', closedText: '▸' }),
         keymap.of(foldKeymap),
         ...folding(language),
-        tokenColours(language, this.csvWidths()),
+        tokenColours(language, csvWidths),
         theme,
       ],
     });
   }
+}
+
+/** The one span that turns `before` into `after`, between their shared start and end. */
+function diffRange(before: string, after: string): { from: number; to: number; insert: string } | null {
+  if (before === after) return null;
+  let start = 0;
+  const max = Math.min(before.length, after.length);
+  while (start < max && before.charCodeAt(start) === after.charCodeAt(start)) start++;
+  let end = 0;
+  while (
+    end < max - start &&
+    before.charCodeAt(before.length - 1 - end) === after.charCodeAt(after.length - 1 - end)
+  ) {
+    end++;
+  }
+  return { from: start, to: before.length - end, insert: after.slice(start, after.length - end) };
 }
