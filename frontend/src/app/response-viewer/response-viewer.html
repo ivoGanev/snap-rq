@@ -155,7 +155,7 @@
         @if (!resp.body) {
           <pre class="response-text">No body</pre>
         } @else if (bodyText()) {
-          <app-response-text [text]="bodyText()" [language]="bodyLanguage()" [csvWidths]="bodyColumnWidths()" />
+          <app-response-text [text]="bodyText()" [docId]="resp.id" [language]="bodyLanguage()" [csvWidths]="bodyColumnWidths()" />
         }
       }
     </section>
