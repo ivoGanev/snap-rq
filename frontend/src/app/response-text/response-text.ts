@@ -67,17 +67,18 @@ const theme = EditorView.theme({
     fontSize: '0.8125rem',
   },
   '&.cm-focused': { outline: 'none' },
-  // The response panel scrolls; the editor is as tall as its text.
+  // The response panel scrolls both ways; the editor is as big as its text.
   '.cm-scroller': {
     fontFamily: 'var(--font-mono)',
     lineHeight: '1.5',
-    overflowX: 'auto',
-    overflowY: 'visible',
+    overflow: 'visible',
   },
   '.cm-content': { padding: '0' },
   '.cm-line': { padding: '0 var(--s-2)' },
+  // Sticks to the panel's padding edge; solid so text scrolls under it unseen.
   '.cm-gutters': {
-    backgroundColor: 'transparent',
+    left: 'var(--s-3)',
+    background: 'linear-gradient(var(--input-bg), var(--input-bg)), var(--surface-solid)',
     color: 'var(--muted)',
     border: 'none',
   },
