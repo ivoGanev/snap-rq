@@ -7,34 +7,20 @@
   min-height: 0;
 }
 
-// The panel is the only scroller, so its one horizontal scrollbar sits on
-// the visible bottom edge instead of under each wide block.
+// The top rows stay put; only the body (and capped small sections) scroll,
+// so the body's scrollbars sit on the panel's bottom edge.
 .response-detail {
-  container-type: inline-size;
   flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   padding: var(--s-2) var(--s-3) var(--s-4);
   background: var(--input-bg);
   font-family: var(--font-mono);
   font-size: 0.8125rem;
   line-height: 1.5;
   color: var(--text);
-}
-
-.response-content {
-  width: max-content;
-  min-width: 100%;
-}
-
-// The controls stay in view while wide text scrolls sideways under them.
-.response-status,
-.response-url,
-.section-head {
-  position: sticky;
-  left: var(--s-3);
-  box-sizing: border-box;
-  width: 100cqw;
 }
 
 .response-status {
@@ -192,8 +178,32 @@
   color: var(--text);
 }
 
+.response-status,
+.response-url,
+.response-section {
+  flex: 0 0 auto;
+}
+
 .response-section {
   margin-top: var(--s-2);
+}
+
+.response-body-section:not(.is-folded) {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 80px;
+}
+
+.response-body-section app-response-text {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.response-headers,
+.section-scroll {
+  max-height: 160px;
+  overflow: auto;
 }
 
 .section-head {

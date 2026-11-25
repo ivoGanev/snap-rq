@@ -32,99 +32,101 @@
 } @else if (state.selectedResponse()) {
   @let resp = state.selectedResponse()!;
   <div class="response-detail">
-    <div class="response-content">
-      <div class="response-status">
-        <span class="status-line" [attr.data-status]="statusClass(resp.status_code)">
-          <span class="status-code">{{ resp.status_code }}</span>
-          @if (statusText(resp.status_code)) {
-            <span class="status-text">{{ statusText(resp.status_code) }}</span>
-          }
-        </span>
-        <span class="status-actions">
-          <span class="response-duration">{{ resp.duration_ms }} ms</span>
-          @if (showPrettifyToggle) {
-            <button
-              class="prettify-toggle"
-              type="button"
-              [class.is-active]="prettifyEnabled()"
-              (click)="togglePrettify()"
-              title="Toggle response prettifying"
-            >
-              <span>{{ prettifyEnabled() ? 'Pretty On' : 'Pretty Off' }}</span>
-            </button>
-          }
+    <div class="response-status">
+      <span class="status-line" [attr.data-status]="statusClass(resp.status_code)">
+        <span class="status-code">{{ resp.status_code }}</span>
+        @if (statusText(resp.status_code)) {
+          <span class="status-text">{{ statusText(resp.status_code) }}</span>
+        }
+      </span>
+      <span class="status-actions">
+        <span class="response-duration">{{ resp.duration_ms }} ms</span>
+        @if (showPrettifyToggle) {
           <button
-            class="icon-button"
+            class="prettify-toggle"
             type="button"
-            (click)="copy('all')"
-            [title]="copied() === 'all' ? 'Copied' : 'Copy the whole response'"
-            aria-label="Copy the whole response"
+            [class.is-active]="prettifyEnabled()"
+            (click)="togglePrettify()"
+            title="Toggle response prettifying"
           >
-            @if (copied() === 'all') {
-              <span class="copied-mark">✓</span>
-            } @else {
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="8" y="8" width="12" height="12" rx="2" />
-                <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
-              </svg>
-            }
+            <span>{{ prettifyEnabled() ? 'Pretty On' : 'Pretty Off' }}</span>
           </button>
-          <button
-            class="icon-button"
-            type="button"
-            (click)="downloadResponse()"
-            title="Download response body"
-            aria-label="Download response body"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round" aria-hidden="true">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <path d="m7 10 5 5 5-5" />
-              <path d="M12 15V3" />
+        }
+        <button
+          class="icon-button"
+          type="button"
+          (click)="copy('all')"
+          [title]="copied() === 'all' ? 'Copied' : 'Copy the whole response'"
+          aria-label="Copy the whole response"
+        >
+          @if (copied() === 'all') {
+            <span class="copied-mark">✓</span>
+          } @else {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="8" y="8" width="12" height="12" rx="2" />
+              <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
             </svg>
-          </button>
-        </span>
-      </div>
-
-      @if (resp.url) {
-        <div class="response-url">
-          <span class="response-url-text"><span class="response-method">{{ resp.method }}</span> {{ shownUrl() }}</span>
-          @if (urlMasked()) {
-            <span class="section-actions">
-              <ng-container *ngTemplateOutlet="revealButton; context: { $implicit: revealUrl, label: 'the URL' }" />
-            </span>
           }
-        </div>
-      }
+        </button>
+        <button
+          class="icon-button"
+          type="button"
+          (click)="downloadResponse()"
+          title="Download response body"
+          aria-label="Download response body"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <path d="m7 10 5 5 5-5" />
+            <path d="M12 15V3" />
+          </svg>
+        </button>
+      </span>
+    </div>
 
-      @if (resp.script_log?.length) {
-        <section class="response-section">
-          <ng-container *ngTemplateOutlet="sectionHead; context: { $implicit: 'scripts', title: 'Script log' }" />
-          @if (!isFolded('scripts')) {
-            <app-script-log [runs]="resp.script_log!" />
-          }
-        </section>
-      }
-
-      <section class="response-section">
-        <div class="section-head">
-          <ng-container *ngTemplateOutlet="foldToggle; context: { $implicit: 'headers', title: 'Headers' }" />
+    @if (resp.url) {
+      <div class="response-url">
+        <span class="response-url-text"><span class="response-method">{{ resp.method }}</span> {{ shownUrl() }}</span>
+        @if (urlMasked()) {
           <span class="section-actions">
-            @if (headersMasked()) {
-              <ng-container *ngTemplateOutlet="revealButton; context: { $implicit: revealHeaders, label: 'the headers' }" />
-            }
-            <ng-container *ngTemplateOutlet="copyButton; context: { $implicit: 'headers', label: 'the headers' }" />
+            <ng-container *ngTemplateOutlet="revealButton; context: { $implicit: revealUrl, label: 'the URL' }" />
           </span>
-        </div>
-        @if (!isFolded('headers')) {
-          <pre class="response-text response-headers">{{ resp.headers ? shownHeaders() : 'No headers' }}</pre>
+        }
+      </div>
+    }
+
+    @if (resp.script_log?.length) {
+      <section class="response-section">
+        <ng-container *ngTemplateOutlet="sectionHead; context: { $implicit: 'scripts', title: 'Script log' }" />
+        @if (!isFolded('scripts')) {
+          <div class="section-scroll">
+            <app-script-log [runs]="resp.script_log!" />
+          </div>
         }
       </section>
+    }
 
-      @if (responseCookies().length > 0) {
-        <section class="response-section">
-          <ng-container *ngTemplateOutlet="sectionHead; context: { $implicit: 'cookies', title: 'Cookies (' + responseCookies().length + ')' }" />
-          @if (!isFolded('cookies')) {
+    <section class="response-section">
+      <div class="section-head">
+        <ng-container *ngTemplateOutlet="foldToggle; context: { $implicit: 'headers', title: 'Headers' }" />
+        <span class="section-actions">
+          @if (headersMasked()) {
+            <ng-container *ngTemplateOutlet="revealButton; context: { $implicit: revealHeaders, label: 'the headers' }" />
+          }
+          <ng-container *ngTemplateOutlet="copyButton; context: { $implicit: 'headers', label: 'the headers' }" />
+        </span>
+      </div>
+      @if (!isFolded('headers')) {
+        <pre class="response-text response-headers">{{ resp.headers ? shownHeaders() : 'No headers' }}</pre>
+      }
+    </section>
+
+    @if (responseCookies().length > 0) {
+      <section class="response-section">
+        <ng-container *ngTemplateOutlet="sectionHead; context: { $implicit: 'cookies', title: 'Cookies (' + responseCookies().length + ')' }" />
+        @if (!isFolded('cookies')) {
+          <div class="section-scroll">
             <table class="response-cookies">
               @for (c of responseCookies(); track $index) {
                 <tr>
@@ -134,29 +136,29 @@
                 </tr>
               }
             </table>
-          }
-        </section>
-      }
-
-      <section class="response-section">
-        <div class="section-head">
-          <ng-container *ngTemplateOutlet="foldToggle; context: { $implicit: 'body', title: 'Body' }" />
-          <span class="section-actions">
-            @if (bodyMasked()) {
-              <ng-container *ngTemplateOutlet="revealButton; context: { $implicit: revealBody, label: 'the body' }" />
-            }
-            <ng-container *ngTemplateOutlet="copyButton; context: { $implicit: 'body', label: 'the body' }" />
-          </span>
-        </div>
-        @if (!isFolded('body')) {
-          @if (!resp.body) {
-            <pre class="response-text">No body</pre>
-          } @else if (bodyText()) {
-            <app-response-text [text]="bodyText()" [language]="bodyLanguage()" [csvWidths]="bodyColumnWidths()" />
-          }
+          </div>
         }
       </section>
-    </div>
+    }
+
+    <section class="response-section response-body-section" [class.is-folded]="isFolded('body')">
+      <div class="section-head">
+        <ng-container *ngTemplateOutlet="foldToggle; context: { $implicit: 'body', title: 'Body' }" />
+        <span class="section-actions">
+          @if (bodyMasked()) {
+            <ng-container *ngTemplateOutlet="revealButton; context: { $implicit: revealBody, label: 'the body' }" />
+          }
+          <ng-container *ngTemplateOutlet="copyButton; context: { $implicit: 'body', label: 'the body' }" />
+        </span>
+      </div>
+      @if (!isFolded('body')) {
+        @if (!resp.body) {
+          <pre class="response-text">No body</pre>
+        } @else if (bodyText()) {
+          <app-response-text [text]="bodyText()" [language]="bodyLanguage()" [csvWidths]="bodyColumnWidths()" />
+        }
+      }
+    </section>
   </div>
 }
 }
