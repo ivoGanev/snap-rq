@@ -39,7 +39,7 @@ func TestASecretReachesTheServerEverywhereItIsUsed(t *testing.T) {
 func TestASecretNeverShowsInWhatIsSaved(t *testing.T) {
 	h := newHarness(t)
 	env := h.environment(map[string]string{"PLAIN": "visible"}, map[string]string{"TOKEN": secret})
-	id := h.create(models.HttpRequest{Method: "GET", URL: h.url("/x"), RequestHeaders: "Authorization: {{TOKEN}}"})
+	id := h.create(models.HttpRequest{Method: "GET", URL: h.url("/x?key={{TOKEN}}"), RequestHeaders: "Authorization: {{TOKEN}}"})
 	h.attach(id, "leaky", `function beforeRequest(req, ctx) {
   console.log("header", req.headers.get("Authorization"));
   console.log("env", ctx.env.get("TOKEN"));
@@ -58,6 +58,9 @@ function afterResponse(res, ctx) {
 		if !strings.Contains(string(log), "•••••") {
 			t.Errorf("the script log has no mask where the secret was: %s", log)
 		}
+		if saved.URL != h.url("/x?key=•••••") {
+			t.Errorf("the saved URL is %q, want the secret masked", saved.URL)
+		}
 	}
 	if got := h.last().Header.Get("Authorization"); got != secret {
 		t.Errorf("the server got %q, want the real value", got)
@@ -73,6 +76,9 @@ func TestASecretInAFailedOrStoppedSendIsMasked(t *testing.T) {
 	if res.StatusCode != 0 || strings.Contains(res.Body, secret) {
 		t.Errorf("failed send body = %q, want an error without the secret", res.Body)
 	}
+	if res.URL != "http://127.0.0.1:1/?key=•••••" {
+		t.Errorf("failed send URL = %q, want the secret masked", res.URL)
+	}
 
 	stopped := h.create(models.HttpRequest{Method: "GET", URL: h.url("/x")})
 	h.attach(stopped, "stop", `function beforeRequest(req, ctx) {
@@ -87,7 +93,7 @@ func TestASecretInAFailedOrStoppedSendIsMasked(t *testing.T) {
 func TestTheDatabaseFileNeverHoldsASecret(t *testing.T) {
 	h := newHarness(t)
 	env := h.environment(nil, map[string]string{"TOKEN": secret})
-	id := h.create(models.HttpRequest{Method: "GET", URL: h.url("/x"), RequestHeaders: "Authorization: {{TOKEN}}"})
+	id := h.create(models.HttpRequest{Method: "GET", URL: h.url("/x?key={{TOKEN}}"), RequestHeaders: "Authorization: {{TOKEN}}"})
 	h.attach(id, "print", `function afterResponse(res, ctx) { console.log(ctx.env.get("TOKEN")); }`)
 	h.mustSend(id, sendOptions{environmentID: env})
 

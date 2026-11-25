@@ -23,6 +23,6 @@ test('a failed request shows its error, not status 0', async ({ page }) => {
   await expect(inspector.locator('.history-current-status')).toHaveText('Error');
 
   // None of the response layout.
-  await expect(inspector.locator('.status-badge')).toHaveCount(0);
+  await expect(inspector.locator('.status-line')).toHaveCount(0);
   await expect(inspector.getByText('No headers')).toHaveCount(0);
 });

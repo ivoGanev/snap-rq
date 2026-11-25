@@ -76,6 +76,9 @@ func (h *harness) routes() http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"ok":true,"method":"` + r.Method + `"}`))
 	})
+	mux.HandleFunc("/moved", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/landed?from=moved", http.StatusFound)
+	})
 	mux.HandleFunc("/status/", func(w http.ResponseWriter, r *http.Request) {
 		code, _ := strconv.Atoi(r.URL.Path[len("/status/"):])
 		w.WriteHeader(code)
