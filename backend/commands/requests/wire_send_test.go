@@ -22,7 +22,7 @@ func TestTheRequestGoesOutAsTyped(t *testing.T) {
 	id := h.create(models.HttpRequest{
 		Method: "patch", URL: h.url("/items/{{ID}}?q=a%20b&tag={{TAG}}&tag=two"),
 		BodyType: "json", Body: `{"name":"{{NAME}}"}`,
-		RequestHeaders: "X-One: 1\n  X-Two :  two words  \nnot a header\nX-Var: {{TAG}}\nX-Unknown: {{NOPE}}",
+		RequestHeaders: "X-One: 1\n  X-Two :  two words  \nX-Var: {{TAG}}\nX-Unknown: {{NOPE}}",
 	})
 
 	h.mustSend(id, sendOptions{plain: map[string]string{"ID": "42", "TAG": "red", "NAME": "Ada"}})

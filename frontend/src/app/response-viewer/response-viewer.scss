@@ -334,6 +334,26 @@
   color: var(--text);
 }
 
+.request-error-details {
+  max-width: 100%;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: left;
+}
+
+.request-error-details summary {
+  cursor: pointer;
+  text-align: center;
+}
+
+.request-error-details pre {
+  margin: var(--s-1) 0 0;
+  font-family: var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
 .request-error-duration {
   font-size: 0.8125rem;
   color: var(--muted);

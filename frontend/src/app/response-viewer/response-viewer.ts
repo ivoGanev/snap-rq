@@ -25,6 +25,9 @@ import { ResponseText } from '../response-text/response-text';
 const SHOW_AFTER_MS = 200;
 const SHOW_AT_LEAST_MS = 500;
 
+/** Where the backend's friendly text of a failed send ends and the raw error begins. */
+const DETAILS_MARKER = '\n\nDetails: ';
+
 /** How a hidden cookie value is shown, as the backend shows other secrets. */
 const HIDDEN = '•••••';
 
@@ -58,10 +61,19 @@ export class ResponseViewer {
     return response && isRequestError(response.status_code) ? response : null;
   });
 
-  /** A failed request's message, without the backend's "request failed: " (the title says it). */
-  protected readonly errorMessage = computed(() =>
-    (this.failedResponse()?.body ?? '').replace(/^request failed:\s*/, ''),
-  );
+  /** A failed request's message: the backend's friendly text, else its raw error. */
+  protected readonly errorMessage = computed(() => {
+    const [message] = this.errorParts();
+    // The title already says the request failed.
+    return message.replace(/^request failed:\s*/, '');
+  });
+  /** The raw error behind a friendly message; null when there is none. */
+  protected readonly errorDetails = computed(() => this.errorParts()[1] ?? null);
+  private readonly errorParts = computed(() => {
+    const body = this.failedResponse()?.body ?? '';
+    const at = body.indexOf(DETAILS_MARKER);
+    return at < 0 ? [body] : [body.slice(0, at), body.slice(at + DETAILS_MARKER.length)];
+  });
 
   /** The selected response with its secrets hidden; null until the backend has masked it. */
   private readonly masked = signal<{ id: number; view: MaskedResponse } | null>(null);

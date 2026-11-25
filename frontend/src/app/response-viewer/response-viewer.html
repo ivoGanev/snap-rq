@@ -24,6 +24,12 @@
     </svg>
     <h3 class="request-error-title">Couldn't send the request</h3>
     <pre class="request-error-message">{{ errorMessage() }}</pre>
+    @if (errorDetails(); as details) {
+      <details class="request-error-details">
+        <summary>Details</summary>
+        <pre>{{ details }}</pre>
+      </details>
+    }
     <span class="request-error-duration">Failed after {{ failed.duration_ms }} ms</span>
     @if (failed.script_log?.length) {
       <app-script-log class="request-error-scripts" [runs]="failed.script_log!" />

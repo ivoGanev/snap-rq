@@ -392,6 +392,11 @@ func writeFilePart(writer *multipart.Writer, entry formEntry) error {
 		return fmt.Errorf("creating file part %s: %w", entry.Key, err)
 	}
 	file, err := os.Open(entry.FilePath)
+	if errors.Is(err, os.ErrNotExist) {
+		return errors.New(withDetails(
+			fmt.Sprintf("The file %s for the form field %s can't be found.", filename, entry.Key),
+			fmt.Sprintf("opening file %s: %v", entry.FilePath, err)))
+	}
 	if err != nil {
 		return fmt.Errorf("opening file %s: %w", entry.FilePath, err)
 	}
@@ -411,18 +416,6 @@ func ensureScheme(u string) string {
 	return "http://" + u
 }
 
-// headerHas reports whether a request's header block already contains the
-// given header name, so auto-generated headers never clobber the user's.
-func headerHas(headers, name string) bool {
-	for _, line := range strings.Split(headers, "\n") {
-		key, _, found := strings.Cut(line, ":")
-		if found && strings.EqualFold(strings.TrimSpace(key), name) {
-			return true
-		}
-	}
-	return false
-}
-
 // doHTTP runs the request and returns a response; network and build errors
 // become a status-0 response body instead of a Go error.
 func (c Send) doHTTP(ctx context.Context, req models.HttpRequest, values map[string]string) models.HttpResponse {
@@ -433,6 +426,11 @@ func (c Send) doHTTP(ctx context.Context, req models.HttpRequest, values map[str
 	req.URL = ensureScheme(req.URL)
 	fail := func(body string) models.HttpResponse {
 		return models.HttpResponse{RequestID: req.ID, StatusCode: 0, Body: body, Method: method, URL: req.URL}
+	}
+
+	headers, err := parseHeaders(req.RequestHeaders)
+	if err != nil {
+		return fail(err.Error())
 	}
 
 	var bodyReader io.Reader
@@ -455,20 +453,10 @@ func (c Send) doHTTP(ctx context.Context, req models.HttpRequest, values map[str
 	if err != nil {
 		return fail(fmt.Sprintf("building request: %v", err))
 	}
-	if contentType != "" && !headerHas(req.RequestHeaders, "Content-Type") {
+	if contentType != "" && headers.Get("Content-Type") == "" {
 		httpReq.Header.Set("Content-Type", contentType)
 	}
-	for _, line := range strings.Split(req.RequestHeaders, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		key, value, found := strings.Cut(line, ":")
-		if !found {
-			continue
-		}
-		httpReq.Header.Set(strings.TrimSpace(key), strings.TrimSpace(value))
-	}
+	maps.Copy(httpReq.Header, headers)
 
 	client, err := c.httpClient(req.ProjectID)
 	if err != nil {
@@ -476,7 +464,7 @@ func (c Send) doHTTP(ctx context.Context, req models.HttpRequest, values map[str
 	}
 	httpResp, err := client.Do(httpReq)
 	if err != nil {
-		return fail(fmt.Sprintf("request failed: %v", err))
+		return fail(withDetails(explainSendError(err, httpReq, client.Timeout), fmt.Sprintf("request failed: %v", err)))
 	}
 	defer httpResp.Body.Close()
 
