@@ -74,7 +74,7 @@ func (c Delete) Snapshot(input json.RawMessage) (any, error) {
 		}
 
 		rows, err := c.tx.Query(
-			`SELECT id, request_id, COALESCE(headers, ''), status_code, COALESCE(body, ''), created_at, duration_ms, script_log
+			`SELECT id, request_id, COALESCE(headers, ''), status_code, COALESCE(body, ''), created_at, duration_ms, script_log, method, url
 			 FROM responses WHERE request_id = ? ORDER BY id`, id)
 		if err != nil {
 			return nil, fmt.Errorf("loading responses: %w", err)
@@ -83,7 +83,7 @@ func (c Delete) Snapshot(input json.RawMessage) (any, error) {
 			var resp models.HttpResponse
 			var scriptLog string
 			if err := rows.Scan(&resp.ID, &resp.RequestID, &resp.Headers, &resp.StatusCode,
-				&resp.Body, &resp.CreatedAt, &resp.DurationMs, &scriptLog); err != nil {
+				&resp.Body, &resp.CreatedAt, &resp.DurationMs, &scriptLog, &resp.Method, &resp.URL); err != nil {
 				rows.Close()
 				return nil, err
 			}
@@ -198,7 +198,7 @@ func (c Delete) writeBinRow(id int64) error {
 
 	// responses are part of the trash snapshot too
 	rows, err = c.tx.Query(`
-		SELECT id, COALESCE(headers, ''), status_code, COALESCE(body, ''), created_at, duration_ms, script_log
+		SELECT id, COALESCE(headers, ''), status_code, COALESCE(body, ''), created_at, duration_ms, script_log, method, url
 		FROM responses WHERE request_id = ? ORDER BY id`, id)
 	if err != nil {
 		return fmt.Errorf("loading responses: %w", err)
@@ -206,7 +206,7 @@ func (c Delete) writeBinRow(id int64) error {
 	for rows.Next() {
 		var resp models.BinnedResponseSnapshot
 		if err := rows.Scan(&resp.ID, &resp.Headers, &resp.StatusCode, &resp.Body,
-			&resp.CreatedAt, &resp.DurationMs, &resp.ScriptLog); err != nil {
+			&resp.CreatedAt, &resp.DurationMs, &resp.ScriptLog, &resp.Method, &resp.URL); err != nil {
 			rows.Close()
 			return err
 		}
@@ -259,10 +259,10 @@ func (c Delete) Undo(snapshot, _ json.RawMessage) error {
 		}
 		for _, resp := range one.Responses {
 			if _, err := c.tx.Exec(`
-				INSERT INTO responses (id, request_id, headers, status_code, body, created_at, duration_ms, script_log)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				INSERT INTO responses (id, request_id, headers, status_code, body, created_at, duration_ms, script_log, method, url)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				resp.ID, resp.RequestID, resp.Headers, resp.StatusCode, resp.Body,
-				resp.CreatedAt, resp.DurationMs, models.FormatScriptLog(resp.ScriptLog),
+				resp.CreatedAt, resp.DurationMs, models.FormatScriptLog(resp.ScriptLog), resp.Method, resp.URL,
 			); err != nil {
 				return err
 			}

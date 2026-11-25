@@ -156,6 +156,7 @@ func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 	sent := time.Now()
 	result := c.doHTTP(ctx, req, values)
 	result.DurationMs = time.Since(sent).Milliseconds()
+	result.URL = mask(result.URL)
 	if result.StatusCode == 0 {
 		// A local failure (bad host, timeout…): Go's message quotes the URL,
 		// and the message is saved as the response body.
@@ -425,15 +426,14 @@ func headerHas(headers, name string) bool {
 // doHTTP runs the request and returns a response; network and build errors
 // become a status-0 response body instead of a Go error.
 func (c Send) doHTTP(ctx context.Context, req models.HttpRequest, values map[string]string) models.HttpResponse {
-	fail := func(body string) models.HttpResponse {
-		return models.HttpResponse{RequestID: req.ID, StatusCode: 0, Body: body}
-	}
-
 	method := strings.ToUpper(strings.TrimSpace(req.Method))
 	if method == "" {
 		method = http.MethodGet
 	}
 	req.URL = ensureScheme(req.URL)
+	fail := func(body string) models.HttpResponse {
+		return models.HttpResponse{RequestID: req.ID, StatusCode: 0, Body: body, Method: method, URL: req.URL}
+	}
 
 	var bodyReader io.Reader
 	var contentType string
@@ -496,6 +496,8 @@ func (c Send) doHTTP(ctx context.Context, req models.HttpRequest, values map[str
 		StatusCode: httpResp.StatusCode,
 		Headers:    strings.TrimSpace(respHeaders.String()),
 		Body:       string(respBody),
+		Method:     httpResp.Request.Method,
+		URL:        httpResp.Request.URL.String(),
 	}
 }
 

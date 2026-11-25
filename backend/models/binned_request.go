@@ -45,6 +45,8 @@ type BinnedResponseSnapshot struct {
 	CreatedAt  string `json:"created_at"`
 	DurationMs int64  `json:"duration_ms"`
 	ScriptLog  string `json:"script_log,omitempty"`
+	Method     string `json:"method,omitempty"`
+	URL        string `json:"url,omitempty"`
 }
 
 // BinnedScriptSnapshot stores both the script id and name so we can try to match by

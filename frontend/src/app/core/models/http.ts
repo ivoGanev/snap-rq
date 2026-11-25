@@ -59,6 +59,9 @@ export interface HttpResponse {
   body: string;
   created_at: string;
   duration_ms: number;
+  /** What was sent, secrets hidden; empty on older rows that never stored it. */
+  method: string;
+  url: string;
   /** What the request's scripts did in this send, in run order (null when none ran). */
   script_log: ScriptRun[] | null;
 }

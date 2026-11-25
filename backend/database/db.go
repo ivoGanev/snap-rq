@@ -166,6 +166,10 @@ func OpenWith(dbPath string, beforeMigrate func(*sql.DB)) (*sql.DB, error) {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
+	if err := addResponseRequestColumns(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
 	if err := addUsageScoreColumn(db); err != nil {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
@@ -974,6 +978,18 @@ func addScriptRunColumns(db *sql.DB) error {
 	if !columnExists(db, "responses", "script_log") {
 		if _, err := db.Exec(`ALTER TABLE responses ADD COLUMN script_log TEXT NOT NULL DEFAULT ''`); err != nil {
 			return fmt.Errorf("adding script_log to responses: %w", err)
+		}
+	}
+	return nil
+}
+
+func addResponseRequestColumns(db *sql.DB) error {
+	for _, col := range []string{"method", "url"} {
+		if columnExists(db, "responses", col) {
+			continue
+		}
+		if _, err := db.Exec(`ALTER TABLE responses ADD COLUMN ` + col + ` TEXT NOT NULL DEFAULT ''`); err != nil {
+			return fmt.Errorf("adding %s to responses: %w", col, err)
 		}
 	}
 	return nil
