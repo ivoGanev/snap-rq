@@ -76,34 +76,28 @@
   margin: 0 var(--s-3);
   border-radius: var(--radius);
   cursor: pointer;
-  transition: box-shadow 0.2s ease;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.2s ease;
   --wails-draggable: no-drag;
 }
 
 .group-list-item:hover {
+  background: var(--hover-highlight);
   box-shadow: none;
 }
 
-// Hover and selection grow the row's contents from their bottom-left
-// corner. The row itself keeps its size, so its hover area never spills onto
-// the next row (which would hand the hover back and forth) and no other row moves.
 .group-list-item-body {
   flex: 1 1 auto;
   display: flex;
   align-items: center;
   gap: var(--s-2);
   min-width: 0;
-  transform-origin: left bottom;
-  transition: transform 0.15s ease;
-}
-
-.group-list-item:hover .group-list-item-body,
-.group-list-item.is-selected .group-list-item-body {
-  transform: scale(1.12);
 }
 
 .group-list-item.is-selected {
   font-weight: 600;
+  background: var(--selected-bg);
   box-shadow: none;
 }
 
@@ -139,7 +133,7 @@
 }
 
 .item-indicator:hover {
-  transform: scale(1.05);
+  transform: scale(1.25);
 }
 
 .item-indicator img {
