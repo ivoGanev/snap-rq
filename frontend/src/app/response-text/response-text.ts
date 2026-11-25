@@ -65,19 +65,19 @@ const theme = EditorView.theme({
     color: 'var(--text)',
     backgroundColor: 'transparent',
     fontSize: '0.8125rem',
+    flex: '1 1 auto',
+    minHeight: '0',
   },
   '&.cm-focused': { outline: 'none' },
-  // The response panel scrolls both ways; the editor is as big as its text.
   '.cm-scroller': {
     fontFamily: 'var(--font-mono)',
     lineHeight: '1.5',
-    overflow: 'visible',
+    overflow: 'auto',
   },
   '.cm-content': { padding: '0' },
   '.cm-line': { padding: '0 var(--s-2)' },
-  // Sticks to the panel's padding edge; solid so text scrolls under it unseen.
+  // Solid, so text scrolled sideways passes under it unseen.
   '.cm-gutters': {
-    left: 'var(--s-3)',
     background: 'linear-gradient(var(--input-bg), var(--input-bg)), var(--surface-solid)',
     color: 'var(--muted)',
     border: 'none',
@@ -125,7 +125,7 @@ function folding(language: SyntaxLanguage): Extension[] {
 @Component({
   selector: 'app-response-text',
   template: '',
-  styles: ':host { display: block; min-width: 0; }',
+  styles: ':host { display: flex; flex-direction: column; min-width: 0; }',
 })
 export class ResponseText {
   readonly text = input.required<string>();
