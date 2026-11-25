@@ -65,7 +65,7 @@ Each comes with a way to check the same thing by hand. The steps use `https://ht
 16. **Only the body scrolls, and revealing a secret keeps its place**
    `response-layout.e2e.ts` and `response-layout-webkit.e2e.ts`, in Chromium and WebKit, against the stub's `/long`: a JSON list of 300 items, one with a very long note, and an `access_token` near item 200. Send it and open the response. Scroll the body down and to the right: the status line, URL and section headings don't move, the headers don't scroll sideways, and the body's horizontal scrollbar sits at the bottom of the panel. Scroll down to the hidden `access_token` and reveal the body: the token appears in place, and the body stays scrolled where it was, with the same line numbers.
 17. **The variables dropdown opens under the caret**
-   `variable-dropdown.e2e.ts` and `variable-dropdown-webkit.e2e.ts`, in Chromium and WebKit. Select an environment with a variable and open a request. Click at the end of the URL in the bar above the list and press Ctrl+Space: the list of variables opens just under the caret, not shifted down or to the right. Do the same in the drawer's Headers tab. Esc closes it.
+   `variable-dropdown.e2e.ts` and `variable-dropdown-webkit.e2e.ts`, in Chromium and WebKit. Select an environment with a variable and open a request. Click at the end of the URL in the bar above the list and press Ctrl+Space: the list of variables opens just under the caret, not shifted down or to the right. Do the same in the drawer's Headers tab. Esc closes it, and so does focus leaving the editor: a click anywhere else, even on a sidebar entry or a row, or switching to another window. Clicking a variable in the list still inserts it.
 
 ## Tests worth writing
 

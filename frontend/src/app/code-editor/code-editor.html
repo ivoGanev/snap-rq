@@ -9,8 +9,10 @@
       [cdkConnectedOverlayOpen]="dropdownOpen()"
       [cdkConnectedOverlayPositions]="dropdownPositions"
       [cdkConnectedOverlayViewportMargin]="8"
+      (overlayOutsideClick)="closeDropdown()"
     >
-      <div class="variable-dropdown">
+      <!-- Keeps the editor focused while picking, or its blur would close the list first. -->
+      <div class="variable-dropdown" (mousedown)="$event.preventDefault()">
         @if (variables().length > 0) {
           @for (variable of variables(); track variable.key; let i = $index) {
             <button
