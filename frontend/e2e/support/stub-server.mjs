@@ -6,6 +6,7 @@
 //   /status/404     that status code
 //   /echo           200 {"headers": the request's headers}
 //   /secrets        200 a login response: secrets in the body, a token and a session cookie in the headers
+//   /long           200 a long JSON list with one very wide line and a secret far down
 import { createServer } from 'node:http';
 
 const port = Number(process.argv[2] ?? 9872);
@@ -37,6 +38,14 @@ createServer((req, res) => {
         expires_in: 3600,
       }),
     );
+    return;
+  }
+  if (url.pathname === '/long') {
+    const items = Array.from({ length: 300 }, (_, id) => ({ id, note: `item ${id}` }));
+    items[5].note = 'wide '.repeat(200);
+    items[200] = { id: 200, access_token: 'tok-deep-7' };
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ items }));
     return;
   }
   if (url.pathname === '/slow') {

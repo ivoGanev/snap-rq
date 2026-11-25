@@ -51,7 +51,7 @@ Each comes with a way to check the same thing by hand. The steps use `https://ht
    `last-used-paw.e2e.ts` and `last-used-paw-webkit.e2e.ts`, in Chromium and WebKit. In a new collection, create three requests and send the first two. Under Collections, only that collection has the paw, at its right end. Open it: only the request sent last has the paw, at the right end of its row. Send another request: both paws move to it straight away, without a reload.
 
 13. **Secrets in a response stay hidden until revealed**
-   `response-secrets.e2e.ts` and `response-secrets-webkit.e2e.ts`, in Chromium and WebKit, against the stub's `/secrets` (the mock server's `/mock/secrets` for manual runs). Send a request whose response has a password and tokens in the body, and an auth token and session cookie in the headers. The body, headers and Cookies table show `•••••` for them, and ordinary fields as sent. Each section's eye reveals only that section; opening another response hides everything again. A response with nothing secret shows a copy button but no eye. Copy takes what is shown: `•••••` while hidden, the real value once revealed. What counts as secret is the MCP masking list plus the names added in Settings → MCP (`backend/mcp/display_test.go`).
+   `response-secrets.e2e.ts` and `response-secrets-webkit.e2e.ts`, in Chromium and WebKit, against the stub's `/secrets` (the mock server's `/mock/secrets` for manual runs). Send a request with `?api_key=key-url-6` in its URL, whose response has a password and tokens in the body, and an auth token and session cookie in the headers. The URL line, body, headers and Cookies table show `•••••` for them, and ordinary fields as sent. Each eye reveals only its own line or section; opening another response hides everything again. A response with nothing secret shows a copy button but no eye. Copy takes what is shown: `•••••` while hidden, the real value once revealed. What counts as secret is the MCP masking list plus the names added in Settings → MCP (`backend/mcp/display_test.go`).
 
 14. **The trash bin asks before deleting and restores to the right place**
    `trash-bin.e2e.ts`, in Chromium. Move a few requests to the bin and open Trash bin.
@@ -62,6 +62,9 @@ Each comes with a way to check the same thing by hand. The steps use `https://ht
 15. **Clearing a request's history asks first and keeps its usage**
    `clear-history.e2e.ts`, in Chromium, with `backend/commands/responses/clear_test.go`. Send a request to a failing address twice and open it from Failing. The bin at the right of the History bar asks first ("All 2 saved responses"), and Cancel keeps them. Confirming shows "No responses for this request." and drops the request from Failing; its status resets, while its usage (Recent, the usage meter, the paw) stays. Clicking the bin doesn't fold or unfold the timeline, and Zen mode's History bar has no bin.
 
+16. **Only the body scrolls, and revealing a secret keeps its place**
+   `response-layout.e2e.ts` and `response-layout-webkit.e2e.ts`, in Chromium and WebKit, against the stub's `/long`: a JSON list of 300 items, one with a very long note, and an `access_token` near item 200. Send it and open the response. Scroll the body down and to the right: the status line, URL and section headings don't move, the headers don't scroll sideways, and the body's horizontal scrollbar sits at the bottom of the panel. Scroll down to the hidden `access_token` and reveal the body: the token appears in place, and the body stays scrolled where it was, with the same line numbers.
+
 ## Tests worth writing
 
 Add a line when you find something a test should cover: what should happen, and why it matters. Remove it once the test exists, and add the test above if it's end-to-end.
@@ -70,6 +73,6 @@ Add a line when you find something a test should cover: what should happen, and 
 2. **The in-flight view's Cancel button.** The view appears after 200 ms, the clock ticks, and Cancel returns to the previous response with nothing saved. Go tests cover cancelling, but not the button or the view.
 3. **Undo and redo from the keyboard.** Ctrl+Z after deleting a request brings it back in the list, and Ctrl+Y removes it again.
 4. **Importing a cURL command or an OpenAPI file through the UI.** The parsers have Go tests; the import dialogs have none.
-5. **Rendering in WebKit.** Only the top bar's, the variable chips', the last-used paw's and the response secrets' tests run in WebKit; the rest use Chromium, but macOS and Linux show the app in WebKit (see the SVG sizing rule in AGENTS.md).
+5. **Rendering in WebKit.** Only the top bar's, the variable chips', the last-used paw's, the response secrets' and the response layout's tests run in WebKit; the rest use Chromium, but macOS and Linux show the app in WebKit (see the SVG sizing rule in AGENTS.md).
 6. **Restoring a locked vault with the recovery key.** After the key is lost, secrets show as locked, and entering the recovery key unlocks them.
 7. **The MCP server with a real client.** A client connects, lists the tools, and needs approval before running a command that writes.

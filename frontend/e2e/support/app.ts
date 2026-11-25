@@ -11,6 +11,8 @@ declare global {
   }
 }
 
+import { STUB_URL } from './env';
+
 /** The stub server's base URL (see playwright.config.ts). */
 export { STUB_URL as STUB } from './env';
 
@@ -43,6 +45,27 @@ export async function createRequest(page: Page, url: string, headers = ''): Prom
     });
     return created.id;
   }, { url, headers });
+}
+
+/**
+ * Sends a new request to the stub's `endpoint` once, then opens its response
+ * in the inspector. `query` is added to the URL as sent.
+ */
+export async function openResponse(page: Page, endpoint: string, query = ''): Promise<void> {
+  // Other tests' rows share the endpoint, so the row is found by a unique query.
+  const path = `${endpoint}?run=${Date.now()}${query ? `&${query}` : ''}`;
+  const id = await createRequest(page, `${STUB_URL}${path}`);
+  await page.evaluate(async (id) => {
+    const { requests } = window.snaprq;
+    await requests.send(await requests.getFull(id), [], null);
+  }, id);
+  await page.reload();
+  await page.waitForFunction(() => window.snaprq !== undefined);
+  await page
+    .locator('.spreadsheet-row', { hasText: path })
+    .first()
+    .locator('.spreadsheet-cell--url')
+    .click();
 }
 
 /** Opens the request in the workspace, as clicking its row does. */

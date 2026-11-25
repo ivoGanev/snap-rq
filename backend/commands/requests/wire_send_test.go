@@ -42,6 +42,20 @@ func TestTheRequestGoesOutAsTyped(t *testing.T) {
 	}
 }
 
+func TestTheResponseKeepsWhatWasSentAfterRedirects(t *testing.T) {
+	h := newHarness(t)
+	id := h.create(models.HttpRequest{Method: "get", URL: h.url("/{{PATH}}")})
+
+	res := h.mustSend(id, sendOptions{plain: map[string]string{"PATH": "moved"}})
+
+	want := h.url("/landed?from=moved")
+	for _, saved := range []models.HttpResponse{res, h.history(id)[0]} {
+		if saved.Method != "GET" || saved.URL != want {
+			t.Errorf("saved %s %s, want GET %s", saved.Method, saved.URL, want)
+		}
+	}
+}
+
 func TestAURLWithoutASchemeIsSentOverHTTP(t *testing.T) {
 	h := newHarness(t)
 	id := h.create(models.HttpRequest{Method: "GET", URL: strings.TrimPrefix(h.url("/bare"), "http://")})

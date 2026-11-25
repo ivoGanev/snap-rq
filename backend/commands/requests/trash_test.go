@@ -49,6 +49,9 @@ func checkComplete(h *harness, id int64) {
 		h.t.Fatalf("history = %d responses, want 2", len(history))
 	}
 	for _, res := range history {
+		if res.Method != "POST" || res.URL != h.url("/x") {
+			h.t.Errorf("response %d was sent as %q %q, want POST %s", res.ID, res.Method, res.URL, h.url("/x"))
+		}
 		if len(res.ScriptLog) != 1 || res.ScriptLog[0].Console[0].Text != "logged" {
 			h.t.Errorf("response %d lost its script log: %+v", res.ID, res.ScriptLog)
 		}
