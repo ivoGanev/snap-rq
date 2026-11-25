@@ -57,7 +57,7 @@ export async function openResponse(page: Page, endpoint: string, query = ''): Pr
   const id = await createRequest(page, `${STUB_URL}${path}`);
   await page.evaluate(async (id) => {
     const { requests } = window.snaprq;
-    await requests.send(await requests.getFull(id), [], null);
+    await requests.send(await requests.getFull(id), null);
   }, id);
   await page.reload();
   await page.waitForFunction(() => window.snaprq !== undefined);

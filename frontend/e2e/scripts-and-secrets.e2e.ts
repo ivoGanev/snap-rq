@@ -34,7 +34,7 @@ test("a script's results show in the inspector, with the secret masked", async (
   await openRequest(page, id);
   await page.evaluate(async ({ id, environmentId }) => {
     const { requests } = window.snaprq;
-    await requests.send(await requests.getFull(id), [], environmentId);
+    await requests.send(await requests.getFull(id), environmentId);
   }, { id, environmentId });
   await expectSettled(page, id);
 

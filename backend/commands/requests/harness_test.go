@@ -173,17 +173,17 @@ type sendOptions struct {
 	ctx           context.Context
 }
 
-// send sends a stored request as the frontend does: the request as loaded,
-// the environment's plain values, and the environment for the secrets.
+// send sends a stored request as the frontend does: the request as loaded
+// and the environment's id. Plain values without an environment get one.
 func (h *harness) send(requestID int64, opts sendOptions) (models.HttpResponse, error) {
 	h.t.Helper()
 	var req models.HttpRequest
 	h.run("request.get", map[string]any{"id": requestID}, &req)
-	vars := []map[string]string{}
-	for key, value := range opts.plain {
-		vars = append(vars, map[string]string{"key": key, "value": value})
+	environmentID := opts.environmentID
+	if environmentID == 0 && len(opts.plain) > 0 {
+		environmentID = h.environment(opts.plain, nil)
 	}
-	raw, _ := json.Marshal(map[string]any{"request": req, "variables": vars, "environment_id": opts.environmentID})
+	raw, _ := json.Marshal(map[string]any{"request": req, "environment_id": environmentID})
 	ctx := opts.ctx
 	if ctx == nil {
 		ctx = context.Background()

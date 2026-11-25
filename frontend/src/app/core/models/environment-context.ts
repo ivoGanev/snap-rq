@@ -40,13 +40,12 @@ export function quotedVariablePlaceholderRegex(): RegExp {
 /**
  * An environment resolved into an interpolation context.
  *
- * This is the single implementation of `{{variable}}` interpolation in the
- * app: the frontend owns the environment's variables in memory (loaded on
- * environment selection and kept in sync by the variables editor), so display
- * and request execution both resolve through this entity.
+ * For display only (the request list's URL column), which can't wait for a
+ * backend round trip. What a request sends is filled in by the backend
+ * (backend/environment).
  *
  * Secret variables are skipped: the frontend never has their values, so
- * `{{key}}` stays visible, and the backend fills them in when sending.
+ * `{{key}}` stays visible.
  */
 export class EnvironmentContext {
   private readonly values: ReadonlyMap<string, string>;
@@ -76,21 +75,5 @@ export class EnvironmentContext {
       const value = this.values.get(key);
       return value === undefined ? match : value;
     });
-  }
-
-  /**
-   * Returns a copy of a request with its URL, headers and body interpolated.
-   * The original (raw) object is left untouched so callers can persist it
-   * without writing resolved values back to the database.
-   */
-  interpolateRequest<T extends { url: string; body: string; request_headers: string }>(
-    request: T,
-  ): T {
-    return {
-      ...request,
-      url: this.interpolate(request.url),
-      body: this.interpolate(request.body),
-      request_headers: this.interpolate(request.request_headers),
-    };
   }
 }
