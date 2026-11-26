@@ -123,3 +123,21 @@ func load(tx *sql.Tx, id int64) (models.EnvironmentVariable, error) {
 	}
 	return v, err
 }
+
+// nameTaken refuses a name another variable of the environment already has:
+// two variables with one name would make {{name}} ambiguous. A new row is
+// unnamed until typed into, so empty names are exempt.
+func nameTaken(tx *sql.Tx, environmentID int64, key string, exceptID int64) error {
+	if key == "" {
+		return nil
+	}
+	var n int
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM environment_variables
+		WHERE environment_id = ? AND key = ? AND id != ?`, environmentID, key, exceptID).Scan(&n); err != nil {
+		return err
+	}
+	if n > 0 {
+		return fmt.Errorf("A variable named %s already exists in this environment.", key)
+	}
+	return nil
+}

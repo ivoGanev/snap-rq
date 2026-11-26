@@ -63,7 +63,7 @@ export class VariablesEditor {
   protected readonly recoveryKeyOpen = signal(false);
   protected readonly recoveryInput = signal('');
   protected readonly unlockError = signal('');
-  /** Names typed that break the rule, by variable id. They stay in the input but aren't saved. */
+  /** Names typed that can't be saved (they break the rule, or are taken), by variable id. They stay in the input. */
   private readonly invalidKeys = signal<ReadonlyMap<number, string>>(new Map());
   protected readonly variableNameError = variableNameError();
 
@@ -222,13 +222,22 @@ export class VariablesEditor {
     }
   }
 
-  protected keyIsInvalid(variable: EnvironmentVariable): boolean {
-    const key = this.invalidKeys().get(variable.id) ?? variable.key;
-    return key !== '' && !isValidVariableName(key);
+  /** Why the variable's name can't stand, or null. Names already shared are flagged on every copy. */
+  protected keyError(variable: EnvironmentVariable): string | null {
+    return this.nameError(variable.id, this.invalidKeys().get(variable.id) ?? variable.key);
+  }
+
+  private nameError(id: number, key: string): string | null {
+    if (key === '') return null;
+    if (!isValidVariableName(key)) return this.variableNameError;
+    if (this.variables().some((v) => v.id !== id && v.key === key)) {
+      return `A variable named ${key} already exists in this environment.`;
+    }
+    return null;
   }
 
   async updateKey(variable: EnvironmentVariable, key: string): Promise<void> {
-    if (key !== '' && !isValidVariableName(key)) {
+    if (this.nameError(variable.id, key)) {
       this.invalidKeys.update((m) => new Map(m).set(variable.id, key));
       return;
     }

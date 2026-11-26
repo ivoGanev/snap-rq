@@ -44,6 +44,9 @@ func (c Create) Run(input json.RawMessage) (any, error) {
 	if in.Key != "" && !models.ValidVariableName(in.Key) {
 		return nil, errors.New(models.VariableNameError)
 	}
+	if err := nameTaken(c.tx, in.EnvironmentID, in.Key, 0); err != nil {
+		return nil, err
+	}
 
 	if in.Secret && in.Value != "" {
 		return nil, errors.New("create a secret empty, then set its value with variable.update")

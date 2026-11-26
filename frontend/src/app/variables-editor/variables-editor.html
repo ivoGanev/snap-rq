@@ -144,15 +144,15 @@
                 <td class="variables-cell variables-cell--key">
                   <input
                     class="variables-input"
-                    [class.is-invalid]="keyIsInvalid(variable)"
+                    [class.is-invalid]="keyError(variable)"
                     type="text"
                     placeholder="KEY"
-                    [attr.aria-invalid]="keyIsInvalid(variable)"
+                    [attr.aria-invalid]="!!keyError(variable)"
                     [ngModel]="variable.key"
                     (ngModelChange)="updateKey(variable, $event)"
                   />
-                  @if (keyIsInvalid(variable)) {
-                    <div class="variables-key-error" role="alert">{{ variableNameError }}</div>
+                  @if (keyError(variable); as error) {
+                    <div class="variables-key-error" role="alert">{{ error }}</div>
                   }
                 </td>
                 <td class="variables-cell variables-cell--value">
