@@ -483,45 +483,77 @@
   color: var(--muted);
 }
 
-.project-menu-row--delete {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 4px;
-  padding-top: 4px;
-  padding-bottom: 6px;
+// The tick's column, kept on rows with a field so the field starts where
+// names do; the delete row shows its note here.
+.project-menu-lead {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  margin: 0 var(--s-1);
+  color: var(--muted);
 }
 
-.project-delete-confirm {
+.project-menu-info {
+  cursor: help;
+}
+
+.project-menu-info svg {
+  width: 14px;
+  height: 14px;
+}
+
+.project-menu-info:hover,
+.project-menu-info:focus-visible {
+  color: var(--text);
+  outline: none;
+}
+
+.project-menu-field {
+  position: relative;
+  flex: 1 1 auto;
   display: flex;
-  gap: var(--s-1);
+  min-width: 0;
 }
 
-.project-delete-confirm .project-menu-input:focus {
+.project-menu-input--delete {
+  padding-right: 64px;
+}
+
+.project-menu-input--delete:focus {
   border-color: var(--danger-solid);
 }
 
-.project-delete-confirm-button {
-  flex: 0 0 auto;
-  padding: 0 var(--s-2);
+// The Enter key, inside the field: it does what pressing Enter does.
+.project-menu-enter {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 5px;
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   color: var(--on-accent);
   background: var(--danger-solid);
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
+  transform: translateY(-50%);
   cursor: pointer;
 }
 
-.project-delete-confirm-button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+.project-menu-enter svg {
+  width: 11px;
+  height: 11px;
 }
 
-.project-delete-hint {
-  margin: 0;
-  font-size: 0.75rem;
+.project-menu-enter:disabled {
   color: var(--muted);
+  background: var(--hover-highlight);
+  cursor: default;
 }
 
 @media (max-width: 900px) {

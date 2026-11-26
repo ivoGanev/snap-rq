@@ -74,6 +74,7 @@
         }
         @if (projectAdding()) {
           <li class="project-menu-row project-menu-row--field">
+            <span class="project-menu-lead" aria-hidden="true"></span>
             <input
               class="project-menu-input"
               type="text"
@@ -89,6 +90,7 @@
         @for (project of projects(); track project.id) {
           @if (projectRenaming()?.id === project.id) {
             <li class="project-menu-row project-menu-row--field">
+              <span class="project-menu-lead" aria-hidden="true"></span>
               <input
                 class="project-menu-input"
                 type="text"
@@ -101,10 +103,22 @@
               />
             </li>
           } @else if (projectPendingDelete()?.id === project.id) {
-            <li class="project-menu-row project-menu-row--field project-menu-row--delete">
-              <div class="project-delete-confirm">
+            <li class="project-menu-row project-menu-row--field">
+              <span
+                class="project-menu-lead project-menu-info"
+                tabindex="0"
+                [title]="'Deletes ' + project.name + ' with its collections, requests and history. A backup is taken first.'"
+                [attr.aria-label]="'Deletes ' + project.name + ' with its collections, requests and history. A backup is taken first.'"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 11v5M12 7.5v.01" />
+                </svg>
+              </span>
+              <div class="project-menu-field">
                 <input
-                  class="project-menu-input"
+                  class="project-menu-input project-menu-input--delete"
                   type="text"
                   selectOnFocus
                   placeholder="Type ok to delete"
@@ -115,15 +129,21 @@
                   (keydown.escape)="cancelDeleteProject(); $event.stopPropagation()"
                 />
                 <button
-                  class="project-delete-confirm-button"
+                  class="project-menu-enter"
                   type="button"
                   [disabled]="!deleteConfirmMatches()"
+                  [attr.aria-label]="'Delete ' + project.name"
+                  title="Delete (Enter)"
                   (click)="deleteProject()"
                 >
-                  Delete
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                    stroke-linejoin="round" aria-hidden="true">
+                    <path d="M20 5v7a3 3 0 0 1-3 3H5" />
+                    <path d="m9 11-4 4 4 4" />
+                  </svg>
+                  <span>Enter</span>
                 </button>
               </div>
-              <p class="project-delete-hint">Deletes {{ project.name }} with its collections, requests and history. A backup is taken first.</p>
             </li>
           } @else {
             <li class="project-menu-row" [class.is-selected]="state.selectedProject()?.id === project.id">
