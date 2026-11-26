@@ -181,7 +181,6 @@ export class App implements OnInit, AfterViewInit {
   }
 
   async ngOnInit(): Promise<void> {
-    void this.updates.start();
     await this.cleanupDanglingIcons();
     await Promise.all([this.loadProjects(), this.settingsApi.load()]);
     void this.announceNewRecoveryKey();
