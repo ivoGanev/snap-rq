@@ -1,6 +1,7 @@
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { Browser, Events, Updater } from '@wailsio/runtime';
-import { UpdaterService, type UpdateInfo } from '../../../bindings/snap-rq';
+import { UpdaterService } from '../../../bindings/snap-rq';
+import type { Release } from '../../../bindings/snap-rq/backend/selfupdate';
 import { UpdateCheckService } from '../core/services/update-check.service';
 
 type Phase = 'idle' | 'checking' | 'upToDate' | 'available' | 'blocked' | 'working' | 'ready' | 'error';
@@ -89,7 +90,7 @@ export class SettingsUpdates implements OnInit {
     }
   }
 
-  private show(info: UpdateInfo): void {
+  private show(info: Release): void {
     this.newVersion.set(info.version);
     this.releaseUrl.set(info.release_url);
     // This install can't replace itself: say why, instead of a button that would fail.

@@ -46,6 +46,8 @@ var currentVersion = "0.0.0-dev"
 
 func init() {
 	application.RegisterEvent[string]("time")
+	// The newer release found, or null once up to date (see UpdaterService).
+	application.RegisterEvent[*selfupdate.Release]("update:available")
 }
 
 func main() {
@@ -177,6 +179,7 @@ func main() {
 	if err := configureUpdater(app); err != nil {
 		log.Fatalf("configuring updater: %v", err)
 	}
+	updaterService.watch()
 
 	win = app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title: "SnapRQ",
@@ -269,35 +272,61 @@ func (VariablesService) NameRule() models.VariableNameRule {
 // WebView2 mouse-input bug on Windows (a dismissed dropdown leaves the web UI
 // stuck with the left button held).
 type UpdaterService struct {
-	app *application.App
+	app     *application.App
+	watcher *selfupdate.Watcher
 }
 
-// UpdateInfo describes a newer release.
-type UpdateInfo struct {
-	Version string `json:"version"`
-	// ReleaseURL is the release's page, to download it by hand.
-	ReleaseURL string `json:"release_url"`
-	// Blocked explains why this install can't update itself; empty when it can.
-	Blocked string `json:"blocked,omitempty"`
+// devVersion is what local builds report; they always see the latest release
+// as newer, so they never check on their own.
+const devVersion = "0.0.0-dev"
+
+const (
+	firstUpdateCheck = 10 * time.Second
+	updateCheckEvery = 6 * time.Hour
+)
+
+// watch keeps the newest release: checked soon after startup and every six
+// hours, and whenever Settings asks. The window hears of each change through
+// "update:available".
+func (s *UpdaterService) watch() {
+	s.watcher = &selfupdate.Watcher{
+		Check: s.checkGitHub,
+		Changed: func(release *selfupdate.Release) {
+			s.app.Event.Emit("update:available", release)
+		},
+		Failed: func(err error) { log.Printf("checking for updates: %v", err) },
+	}
+	if currentVersion != devVersion {
+		go s.watcher.Run(context.Background(), firstUpdateCheck, updateCheckEvery)
+	}
 }
 
 // CurrentVersion is the version this build reports to the updater.
 func (s *UpdaterService) CurrentVersion() string { return currentVersion }
 
-// Check asks GitHub Releases for a newer version. It returns nil when SnapRQ
-// is up to date. Nothing is downloaded until Install is called.
-func (s *UpdaterService) Check() (*UpdateInfo, error) {
-	if s.app == nil {
+// Available is the newer release found so far, or nil.
+func (s *UpdaterService) Available() *selfupdate.Release {
+	if s.watcher == nil {
+		return nil
+	}
+	return s.watcher.Latest()
+}
+
+// Check asks GitHub Releases for a newer version now. It returns nil when
+// SnapRQ is up to date. Nothing is downloaded until Install is called.
+func (s *UpdaterService) Check() (*selfupdate.Release, error) {
+	if s.watcher == nil {
 		return nil, errors.New("the app is not ready yet")
 	}
+	return s.watcher.CheckNow()
+}
+
+func (s *UpdaterService) checkGitHub() (*selfupdate.Release, error) {
 	release, err := s.app.Updater.Check(context.Background())
-	if err != nil {
+	if err != nil || release == nil {
 		return nil, err
 	}
-	if release == nil {
-		return nil, nil
-	}
-	return &UpdateInfo{
+	return &selfupdate.Release{
 		Version:    release.Version,
 		ReleaseURL: "https://github.com/" + identity.UpdaterRepository + "/releases/tag/v" + release.Version,
 		Blocked:    selfupdate.RunningBlocked(runtime.GOOS),
