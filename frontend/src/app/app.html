@@ -132,6 +132,21 @@
       />
     </svg>
   </button>
+  @if (updates.available(); as update) {
+    <button
+      class="top-bar-icon top-bar-update"
+      type="button"
+      [attr.aria-label]="'Version ' + update.version + ' is available'"
+      [title]="'Version ' + update.version + ' is available'"
+      (click)="openSettings('updates')"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7.5v8M8.5 12.5 12 16l3.5-3.5" />
+      </svg>
+    </button>
+  }
   @if (isWindows) {
     <app-window-controls />
   }

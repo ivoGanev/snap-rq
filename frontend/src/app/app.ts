@@ -30,6 +30,7 @@ import { ThemeService, type Theme } from './core/services/theme.service';
 import { SettingsApiService } from './core/services/settings.service';
 import { IconManifestService } from './core/services/icon-manifest.service';
 import { IconApiService } from './core/services/icon-api.service';
+import { UpdateCheckService } from './core/services/update-check.service';
 import { CommandApiService } from './core/services/command.service';
 import { RequestGroups } from './request-groups/request-groups';
 import { RequestsMainList } from './requests-main-list/requests-main-list';
@@ -167,6 +168,7 @@ export class App implements OnInit, AfterViewInit {
   readonly newRecoveryKeyOpen = signal(false);
   private readonly secretsApi = inject(SecretsApiService);
   private readonly backupApi = inject(BackupApiService);
+  protected readonly updates = inject(UpdateCheckService);
 
   private resizeStartX = 0;
   private resizeStartWidth = 0;
@@ -179,6 +181,7 @@ export class App implements OnInit, AfterViewInit {
   }
 
   async ngOnInit(): Promise<void> {
+    void this.updates.start();
     await this.cleanupDanglingIcons();
     await Promise.all([this.loadProjects(), this.settingsApi.load()]);
     void this.announceNewRecoveryKey();
