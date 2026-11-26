@@ -17,7 +17,7 @@ func TestExposedToolNames(t *testing.T) {
 		"list_responses", "list_script_requests", "list_scripts", "list_trash", "list_variables", "move_requests",
 		"remove_from_favourite", "rename_collection", "rename_favourite", "rename_script",
 		"reorder_favourite_requests", "reorder_requests", "reorder_script_requests",
-		"restore_from_trash", "set_favourite_request_colors", "set_script_request_colors",
+		"restore_from_trash", "select_environment", "set_favourite_request_colors", "set_script_request_colors",
 	}
 	var got []string
 	for _, m := range Catalog {

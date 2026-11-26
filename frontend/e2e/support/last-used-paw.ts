@@ -4,7 +4,7 @@ import { openApp, STUB } from './app';
 function send(page: Page, id: number): Promise<void> {
   return page.evaluate(async (id) => {
     const { requests } = window.snaprq;
-    await requests.send(await requests.getFull(id), [], null);
+    await requests.send(await requests.getFull(id));
   }, id);
 }
 
