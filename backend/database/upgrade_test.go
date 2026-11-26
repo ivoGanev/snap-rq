@@ -235,11 +235,9 @@ func writeFixtureData(t *testing.T, r fixtureRunner, db *sql.DB) {
 		"favourite_collection_id": favourite.ID, "request_ids": []int64{jsonReq.ID}, "color": "secondary",
 	}, nil)
 
-	sent := r.request(jsonReq.ID)
-	result, err := r.send(map[string]any{
-		"request": sent, "environment_id": env.ID,
-		"variables": []map[string]string{{"key": "BASE", "value": server.URL}},
-	})
+	// Sending uses the environment the project has selected.
+	r.run("environment.select", map[string]any{"project_id": projectID, "environment_id": env.ID}, nil)
+	result, err := r.send(map[string]any{"request": r.request(jsonReq.ID)})
 	if err != nil {
 		t.Fatalf("sending: %v", err)
 	}
