@@ -1,10 +1,9 @@
-import { computed, effect, Injectable, inject, signal } from '@angular/core';
+import { computed, effect, Injectable, inject, signal, untracked } from '@angular/core';
 import { RequestApiService, type HttpRequest, type HttpResponse } from './request.service';
 import { FavouriteApiService, type FavouriteCollection } from './favourite.service';
 import { BinApiService, type HttpBinnedRequestSummary } from './bin.service';
 import { EnvironmentVariableApiService } from './environment-variable.service';
 import { EnvironmentApiService } from './environment.service';
-import { ProjectApiService } from './project.service';
 import { ChangeBus } from './change-bus.service';
 import { EnvironmentContext } from '../models/environment-context';
 import { AllRequestsView, isSmartView, type SmartView, type WorkspaceView } from '../workspace/workspace-view';
@@ -28,7 +27,6 @@ export class WorkspaceStateService {
   private readonly binApi = inject(BinApiService);
   private readonly envVarApi = inject(EnvironmentVariableApiService);
   private readonly environmentApi = inject(EnvironmentApiService);
-  private readonly projectApi = inject(ProjectApiService);
   private readonly changeBus = inject(ChangeBus);
 
   readonly loading = signal(false);
@@ -97,18 +95,6 @@ export class WorkspaceStateService {
   );
 
   constructor() {
-    // The choice is stored on the project: sending, Copy as cURL and MCP read it there.
-    effect(() => {
-      const env = this.selectedEnvironment();
-      if (!env) return;
-      const project = this.projectApi.projects().find((p) => p.id === env.project_id);
-      if (project?.selected_environment_id === env.id) return;
-      this.projectApi.projects.update((list) =>
-        list.map((p) => (p.id === env.project_id ? { ...p, selected_environment_id: env.id } : p)),
-      );
-      void this.environmentApi.select(env.project_id, env.id).catch((err) => console.error(err));
-    });
-
     // Variables follow the selected environment.
     effect(() => {
       const env = this.selectedEnvironment();
@@ -127,7 +113,7 @@ export class WorkspaceStateService {
       if (selected && environments.some((env) => env.id === selected.id)) {
         return;
       }
-      this.selectedEnvironment.set(environments[0] ?? null);
+      untracked(() => void this.selectEnvironment(environments[0] ?? null));
     });
 
     // When a command touches the open request, reload its full row (the
@@ -203,6 +189,21 @@ export class WorkspaceStateService {
   async loadBinnedRequests(projectId: number): Promise<void> {
     try {
       await this.binApi.loadForProject(projectId);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  /**
+   * Chooses the environment the open project uses. It is stored on the
+   * project, where sending, Copy as cURL and MCP read it.
+   */
+  async selectEnvironment(env: Environment | null): Promise<void> {
+    this.selectedEnvironment.set(env);
+    const projectId = env?.project_id ?? this.selectedProject()?.id;
+    if (projectId === undefined) return;
+    try {
+      await this.environmentApi.select(projectId, env?.id ?? 0);
     } catch (err) {
       console.error(err);
     }

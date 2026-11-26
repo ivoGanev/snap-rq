@@ -48,3 +48,7 @@ func (c Select) Run(input json.RawMessage) (any, error) {
 	}
 	return nil, nil
 }
+
+func (Select) Changes(input, _ json.RawMessage) []commands.RowChange {
+	return []commands.RowChange{{Component: "project", IDs: commands.IDsOf(input, "project_id")}}
+}
