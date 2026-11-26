@@ -47,6 +47,11 @@ func (c Update) Run(input json.RawMessage) (any, error) {
 	if in.Key != v.Key && in.Key != "" && !models.ValidVariableName(in.Key) {
 		return nil, errors.New(models.VariableNameError)
 	}
+	if in.Key != v.Key {
+		if err := nameTaken(c.tx, v.EnvironmentID, in.Key, v.ID); err != nil {
+			return nil, err
+		}
+	}
 	v.Key = in.Key
 	if in.Value != nil {
 		if v.Value, err = storedValue(c.tx, v.Secret, *in.Value); err != nil {

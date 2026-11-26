@@ -3,10 +3,15 @@ import { openApp, STUB } from './app';
 
 const NAME = 'fleet-management.v2';
 
-/** Creates an environment holding NAME and a request using it in its URL, a header and the body. */
+/**
+ * Creates an environment of its own holding NAME, and a request using it in
+ * its URL, a header and the body; selects the environment.
+ */
 async function seed(page: Page): Promise<void> {
+  // Tests share the app's data, so each gets an environment no other test touches.
+  const envName = `chips ${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
   await page.evaluate(
-    async ({ url, name }) => {
+    async ({ url, name, envName }) => {
       const { commands, requests } = window.snaprq;
       const [project] = await commands.execute<{ id: number }[]>('project.list', {});
       const [collection] = await commands.execute<{ id: number }[]>('collection.list', {
@@ -14,7 +19,7 @@ async function seed(page: Page): Promise<void> {
       });
       const env = await commands.execute<{ id: number }>('environment.create', {
         project_id: project.id,
-        name: 'chips',
+        name: envName,
       });
       await commands.execute('variable.create', { environment_id: env.id, key: name, value: 'fm' });
       await requests.create({
@@ -31,18 +36,18 @@ async function seed(page: Page): Promise<void> {
         response_id: 0,
       });
     },
-    { url: STUB, name: NAME },
+    { url: STUB, name: NAME, envName },
   );
   await page.reload();
   await page.waitForFunction(() => window.snaprq !== undefined);
-  await page.evaluate(async () => {
+  await page.evaluate(async (envName) => {
     const { commands, workspace } = window.snaprq;
     const [project] = await commands.execute<{ id: number }[]>('project.list', {});
     const envs = await commands.execute<{ id: number; name: string }[]>('environment.list', {
       project_id: project.id,
     });
-    workspace.selectedEnvironment.set(envs.find((e) => e.name === 'chips') as never);
-  });
+    workspace.selectedEnvironment.set(envs.find((e) => e.name === envName) as never);
+  }, envName);
 }
 
 export function variableChipTests(): void {
@@ -83,4 +88,32 @@ export function variableChipTests(): void {
     await expect(page.locator('.variables-cell--key input.is-invalid')).toHaveCount(0);
     await expect(page.locator('.variables-key-error')).toHaveCount(0);
   });
+
+  test('the variables editor refuses a name the environment already has', async ({ page }) => {
+    await openApp(page);
+    await seed(page);
+    await page.getByRole('button', { name: 'Edit environment variables' }).click();
+    await page.locator('.variable-add-button').click();
+    const named = (key: string) =>
+      page.evaluate(async (key) => {
+        const { commands, workspace } = window.snaprq;
+        const vars = await commands.execute<{ key: string }[]>('variable.list', {
+          environment_id: workspace.selectedEnvironment()!.id,
+        });
+        return vars.filter((v) => v.key === key).length;
+      }, key);
+
+    await page.locator('.variables-cell--key input:placeholder-shown').fill(NAME);
+    await expect(page.locator('.variables-cell--key input.is-invalid')).toHaveValue(NAME);
+    await expect(page.locator('.variables-key-error')).toHaveText(
+      `A variable named ${NAME} already exists in this environment.`,
+    );
+    expect(await named(NAME)).toBe(1);
+
+    const free = `free.${Date.now()}`;
+    await page.locator('.variables-cell--key input.is-invalid').fill(free);
+    await expect(page.locator('.variables-key-error')).toHaveCount(0);
+    await expect.poll(() => named(free)).toBe(1);
+  });
+
 }
