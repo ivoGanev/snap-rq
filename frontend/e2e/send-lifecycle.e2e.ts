@@ -23,7 +23,7 @@ test('fast failures never stay in flight', async ({ page }) => {
     requests.finished$.subscribe((res) => {
       if (res.request_id === id) finished++;
     });
-    await Promise.all(Array.from({ length: 50 }, () => requests.send(req, null)));
+    await Promise.all(Array.from({ length: 50 }, () => requests.send(req, [], null)));
     // Give stragglers a moment, so the count is the same for any send() design.
     await new Promise((r) => setTimeout(r, 500));
     return finished;
@@ -42,7 +42,7 @@ test('a long run reports progress, finishes once, and nothing comes after', asyn
     let updates = 0;
     const result = await commands.run<{ status_code: number }>(
       'request.send',
-      { request: req, environment_id: 0 },
+      { request: req, variables: [], environment_id: 0 },
       () => updates++,
     );
     const updatesAtFinish = updates;
@@ -65,7 +65,7 @@ test('HTTP error statuses finish like any response', async ({ page }) => {
       const sub = requests.finished$.subscribe((res) => {
         if (res.request_id === id) code = res.status_code;
       });
-      await requests.send(req, null);
+      await requests.send(req, [], null);
       sub.unsubscribe();
       return code;
     }, id);
@@ -82,8 +82,8 @@ test('a request stays in flight until its last send finishes', async ({ page }) 
     const { requests } = window.snaprq;
     const req = await requests.getFull(id);
     // Same request, sent twice: once slow, once failing at once.
-    void requests.send(req, null);
-    await requests.send({ ...req, url: 'http://%zz' }, null);
+    void requests.send(req, [], null);
+    await requests.send({ ...req, url: 'http://%zz' }, [], null);
   }, id);
 
   expect(await inFlight(page, id), 'the slow send is still running').toBe(true);

@@ -8,7 +8,7 @@ async function failingRequest(page: Page, name: string): Promise<number> {
     async ({ id, name }) => {
       const { commands, requests } = window.snaprq;
       await commands.execute('request.bulk_set', { ids: [id], field: 'name', value: name });
-      for (let i = 0; i < 2; i++) await requests.send(await requests.getFull(id), null);
+      for (let i = 0; i < 2; i++) await requests.send(await requests.getFull(id), [], null);
     },
     { id, name },
   );

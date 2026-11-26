@@ -6,11 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 
 	"snap-rq/backend/commands"
-	"snap-rq/backend/environment"
 	"snap-rq/backend/models"
 	"snap-rq/backend/scripting"
+	"snap-rq/backend/secrets"
 )
 
 // try_script.go — try one script's hook against a request, without sending
@@ -78,7 +79,7 @@ func (c TryScript) Run(input json.RawMessage) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	env, err := environment.Load(c.tx, in.EnvironmentID)
+	env, err := loadTryEnv(c.tx, in.EnvironmentID)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +99,7 @@ func (c TryScript) Run(input json.RawMessage) (any, error) {
 	default:
 		return nil, fmt.Errorf("unknown phase %q", in.Phase)
 	}
-	result.Log = session.Log(func(text string) string { return hideSecrets(text, env.Revealed()) })
+	result.Log = session.Log(func(text string) string { return hideSecrets(text, env.revealed) })
 	if result.Log == nil {
 		result.Log = []models.ScriptRun{}
 	}
@@ -108,10 +109,10 @@ func (c TryScript) Run(input json.RawMessage) (any, error) {
 // tryBefore fills in variables, runs beforeRequest and fills in the
 // placeholders it wrote, as sending does; secret values are masked for
 // display.
-func (c TryScript) tryBefore(result *TryResult, session *scripting.Session, env *environment.Variables, req models.HttpRequest) {
-	mask := func(text string) string { return hideSecrets(text, env.Revealed()) }
-	// A locked secret stays a {{placeholder}} here: trying shows the request as it stands.
-	req, _ = env.FillRequest(req)
+func (c TryScript) tryBefore(result *TryResult, session *scripting.Session, env *tryEnv, req models.HttpRequest) {
+	values := env.all() // secrets decrypted here, as sending does
+	mask := func(text string) string { return hideSecrets(text, env.revealed) }
+	req = fillIn(req, values)
 
 	scripted := scripting.Request{
 		Method: req.Method, URL: req.URL, Body: req.Body,
@@ -133,7 +134,7 @@ func (c TryScript) tryBefore(result *TryResult, session *scripting.Session, env 
 	if scripted.Headers.Changed() {
 		req.RequestHeaders = scripted.Headers.String()
 	}
-	req, _ = env.FillRequest(req)
+	req = fillIn(req, values)
 
 	body := req.Body
 	if normalizeBodyType(req.BodyType) == "form-data" {
@@ -180,4 +181,70 @@ func (c TryScript) tryAfter(result *TryResult, session *scripting.Session, req m
 		Body: res.Body, DurationMs: res.DurationMs,
 	})
 	return nil
+}
+
+// tryEnv is ctx.env while trying: the environment's variables from the
+// database, secret ones decrypted when used (and remembered for masking).
+type tryEnv struct {
+	tx       *sql.Tx
+	plain    map[string]string
+	secret   map[string]string // key → stored (encrypted) value
+	revealed map[string]string
+}
+
+func loadTryEnv(tx *sql.Tx, environmentID int64) (*tryEnv, error) {
+	env := &tryEnv{tx: tx, plain: map[string]string{}, secret: map[string]string{}, revealed: map[string]string{}}
+	if environmentID == 0 {
+		return env, nil
+	}
+	rows, err := tx.Query(`SELECT key, value, secret FROM environment_variables WHERE environment_id = ?`, environmentID)
+	if err != nil {
+		return nil, fmt.Errorf("loading variables: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var key, value string
+		var secret bool
+		if err := rows.Scan(&key, &value, &secret); err != nil {
+			return nil, err
+		}
+		if secret {
+			if value != "" {
+				env.secret[key] = value
+			}
+		} else {
+			env.plain[key] = value
+		}
+	}
+	return env, rows.Err()
+}
+
+func (e *tryEnv) Get(key string) (string, bool) {
+	if v, ok := e.plain[key]; ok {
+		return v, true
+	}
+	if v, ok := e.revealed[key]; ok {
+		return v, true
+	}
+	encrypted, ok := e.secret[key]
+	if !ok {
+		return "", false
+	}
+	value, err := secrets.Default().Decrypt(e.tx, encrypted)
+	if err != nil {
+		return "", false // locked or damaged: as if unset
+	}
+	e.revealed[key] = value
+	return value, true
+}
+
+// all is every variable for filling in {{placeholders}}, secrets decrypted.
+func (e *tryEnv) all() map[string]string {
+	for key := range e.secret {
+		e.Get(key)
+	}
+	values := make(map[string]string, len(e.plain)+len(e.revealed))
+	maps.Copy(values, e.plain)
+	maps.Copy(values, e.revealed)
+	return values
 }

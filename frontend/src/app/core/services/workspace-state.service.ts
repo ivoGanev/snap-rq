@@ -197,7 +197,9 @@ export class WorkspaceStateService {
   async sendRequest(req: HttpRequest, event: Event): Promise<void> {
     event.stopPropagation();
     try {
-      await this.requestApi.send(req, this.selectedEnvironment()?.id ?? null);
+      // Secrets are left out: the backend fills them in from the environment.
+      const plain = this.environmentVariables().filter((v) => !v.secret);
+      await this.requestApi.send(req, plain, this.selectedEnvironment()?.id ?? null);
     } catch (err) {
       console.error(err);
     }
