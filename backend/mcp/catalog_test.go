@@ -112,3 +112,19 @@ func TestValidateRejects(t *testing.T) {
 		}
 	}
 }
+
+// Copying as cURL fills in real secret values, so no tool may call it.
+func TestNoToolCopiesAsCurl(t *testing.T) {
+	for _, m := range Catalog {
+		if strings.HasPrefix(m.Command, "curl.") {
+			t.Errorf("tool %s calls %s, whose output can hold real secret values", m.Name, m.Command)
+		}
+	}
+}
+
+func TestSelectingAnEnvironmentIsAnOrganizingTool(t *testing.T) {
+	m, ok := metaFor("select_environment")
+	if !ok || m.Command != "environment.select" || m.Risk != RiskOrganize {
+		t.Errorf("select_environment = %+v (%v), want an organize tool calling environment.select", m, ok)
+	}
+}
