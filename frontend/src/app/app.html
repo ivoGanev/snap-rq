@@ -33,13 +33,109 @@
     </button>
   </div>
 
-  <button class="top-bar-project" type="button" title="Change project" (click)="openProjectEditor()">
+  <button
+    class="top-bar-project"
+    type="button"
+    title="Change project"
+    cdkOverlayOrigin
+    #projectTrigger="cdkOverlayOrigin"
+    [attr.aria-expanded]="projectMenuOpen()"
+    (click)="toggleProjectMenu()"
+  >
     <span class="top-bar-project-name">{{ state.selectedProject()?.name ?? 'No project' }}</span>
     <svg class="top-bar-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M6 9l6 6 6-6" />
     </svg>
   </button>
+  <ng-template
+    cdkConnectedOverlay
+    [cdkConnectedOverlayOrigin]="projectTrigger"
+    [cdkConnectedOverlayOpen]="projectMenuOpen()"
+    [cdkConnectedOverlayPositions]="projectMenuPositions"
+    cdkConnectedOverlayHasBackdrop
+    cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop"
+    (backdropClick)="closeProjectMenu()"
+    (detach)="closeProjectMenu()"
+  >
+    <div class="project-menu" role="dialog" aria-label="Projects">
+      <div class="project-menu-head">
+        <span class="project-menu-title">Projects</span>
+        <button class="project-menu-add" type="button" aria-label="New project" title="New project" (click)="startAddProject()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
+      </div>
+
+      <ul class="project-menu-list">
+        @if (projectAdding()) {
+          <li class="project-menu-row">
+            <input
+              class="project-menu-input"
+              type="text"
+              placeholder="New project name"
+              autoFocus
+              [value]="newProjectName()"
+              (input)="newProjectName.set($any($event.target).value)"
+              (keydown.enter)="addProject()"
+              (keydown.escape)="cancelAddProject(); $event.stopPropagation()"
+            />
+          </li>
+        }
+        @for (project of projects(); track project.id) {
+          @if (projectPendingDelete()?.id === project.id) {
+            <li class="project-menu-row project-menu-row--delete">
+              <div class="project-delete-confirm">
+                <input
+                  class="project-menu-input"
+                  type="text"
+                  autoFocus
+                  [placeholder]="'Type ' + project.name + ' to delete'"
+                  [attr.aria-label]="'Type ' + project.name + ' to delete it'"
+                  [value]="deleteConfirmName()"
+                  (input)="deleteConfirmName.set($any($event.target).value)"
+                  (keydown.enter)="deleteProject()"
+                  (keydown.escape)="cancelDeleteProject(); $event.stopPropagation()"
+                />
+                <button
+                  class="project-delete-confirm-button"
+                  type="button"
+                  [disabled]="!deleteConfirmMatches()"
+                  (click)="deleteProject()"
+                >
+                  Delete
+                </button>
+              </div>
+              <p class="project-delete-hint">Deletes its collections, requests and history. A backup is taken first.</p>
+            </li>
+          } @else {
+            <li class="project-menu-row" [class.is-selected]="state.selectedProject()?.id === project.id">
+              <button class="project-menu-pick" type="button" (click)="onSelectProject(project)">
+                <svg class="project-menu-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M5 12.5l4.5 4.5L19 7.5" />
+                </svg>
+                <span class="project-menu-name">{{ project.name }}</span>
+              </button>
+              <button
+                class="project-menu-delete"
+                type="button"
+                [attr.aria-label]="'Delete project ' + project.name"
+                title="Delete project"
+                (click)="promptDeleteProject(project)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" aria-hidden="true">
+                  <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+                </svg>
+              </button>
+            </li>
+          }
+        }
+      </ul>
+    </div>
+  </ng-template>
 
   <app-select
     class="environment-select"
@@ -205,79 +301,6 @@
 
 @if (variablesOverlayOpen()) {
   <app-variables-editor (close)="closeVariablesOverlay()"></app-variables-editor>
-}
-
-@if (projectEditorOpen()) {
-  <div class="overlay-backdrop" (click)="closeProjectEditor()">
-    <div class="overlay-panel project-editor-popup" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Projects</h3>
-        <button class="overlay-close" type="button" (click)="closeProjectEditor()">Close</button>
-      </div>
-
-      <div class="overlay-body">
-        @if (projects().length === 0) {
-          <div class="state-message">No projects.</div>
-        }
-
-        <ul class="project-list">
-          @for (project of projects(); track project.id) {
-            <li
-              class="project-row"
-              [class.is-selected]="state.selectedProject()?.id === project.id"
-              (click)="onSelectProject(project)"
-            >
-              <span class="project-row-name">{{ project.name }}</span>
-              <button
-                class="project-delete-button"
-                type="button"
-                (click)="promptDeleteProject(project, $event)"
-                aria-label="Delete project"
-              >
-                Delete
-              </button>
-            </li>
-          }
-        </ul>
-      </div>
-
-      <div class="overlay-footer project-editor-footer">
-        <input
-          class="variable-input project-name-input"
-          type="text"
-          placeholder="New project name"
-          [ngModel]="newProjectName()"
-          (ngModelChange)="newProjectName.set($event)"
-          (keydown.enter)="addProject()"
-        />
-        <button class="variable-add" type="button" (click)="addProject()">Add project</button>
-      </div>
-    </div>
-  </div>
-}
-
-@if (projectDeleteConfirmOpen()) {
-  <div class="overlay-backdrop" (click)="cancelDeleteProject()">
-    <div class="overlay-panel project-delete-popup" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Delete project?</h3>
-        <button class="overlay-close" type="button" (click)="cancelDeleteProject()">Cancel</button>
-      </div>
-
-      <div class="overlay-body">
-        <p class="delete-confirm-message">
-          This will permanently delete <strong>{{ projectPendingDelete()?.name }}</strong> and all
-          of its collections, requests, responses, and favourites.
-        </p>
-      </div>
-
-      <div class="overlay-footer">
-        <button class="overlay-delete" type="button" (click)="deleteProject()">
-          Delete project
-        </button>
-      </div>
-    </div>
-  </div>
 }
 
 <!-- Outside the top bar: its backdrop-filter would make it the containing

@@ -14,6 +14,8 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { CdkConnectedOverlay, CdkOverlayOrigin, type ConnectedPosition } from '@angular/cdk/overlay';
+import { AutoFocus } from './core/directives/auto-focus.directive';
 import { Select } from './select/select';
 import { WindowControls } from './window-controls/window-controls';
 import { WML } from '@wailsio/runtime';
@@ -58,6 +60,9 @@ import { UndoPanel } from './undo-panel/undo-panel';
   selector: 'app-root',
   imports: [
     FormsModule,
+    CdkConnectedOverlay,
+    CdkOverlayOrigin,
+    AutoFocus,
     Select,
     WindowControls,
     RequestGroups,
@@ -155,10 +160,18 @@ export class App implements OnInit, AfterViewInit {
     this.state.selectedResponse();
     void this.cookieApi.loadForProject(projectId);
   });
-  readonly projectEditorOpen = signal(false);
+  readonly projectMenuOpen = signal(false);
+  readonly projectAdding = signal(false);
   readonly newProjectName = signal('');
-  readonly projectDeleteConfirmOpen = signal(false);
   readonly projectPendingDelete = signal<Project | null>(null);
+  /** What's typed to confirm a delete; it must be the project's name. */
+  readonly deleteConfirmName = signal('');
+  protected readonly deleteConfirmMatches = computed(
+    () => this.deleteConfirmName() === this.projectPendingDelete()?.name,
+  );
+  protected readonly projectMenuPositions: ConnectedPosition[] = [
+    { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 6 },
+  ];
 
   readonly themeSelectorOpen = signal(false);
   readonly settingsOpen = signal(false);
@@ -227,12 +240,8 @@ export class App implements OnInit, AfterViewInit {
       this.closeVariablesOverlay();
       return;
     }
-    if (this.projectDeleteConfirmOpen()) {
-      this.cancelDeleteProject();
-      return;
-    }
-    if (this.projectEditorOpen()) {
-      this.closeProjectEditor();
+    if (this.projectMenuOpen()) {
+      this.closeProjectMenu();
       return;
     }
     if (this.settingsOpen()) {
@@ -474,29 +483,41 @@ export class App implements OnInit, AfterViewInit {
     this.state.sidebarExpanded.update((expanded) => !expanded);
   }
 
-  openProjectEditor(): void {
-    this.newProjectName.set('');
-    this.projectEditorOpen.set(true);
-    this.projectPendingDelete.set(null);
-    this.projectDeleteConfirmOpen.set(false);
+  toggleProjectMenu(): void {
+    if (this.projectMenuOpen()) {
+      this.closeProjectMenu();
+    } else {
+      this.projectMenuOpen.set(true);
+    }
   }
 
-  closeProjectEditor(): void {
-    this.projectEditorOpen.set(false);
-    this.projectPendingDelete.set(null);
-    this.projectDeleteConfirmOpen.set(false);
+  closeProjectMenu(): void {
+    this.projectMenuOpen.set(false);
+    this.cancelAddProject();
+    this.cancelDeleteProject();
+  }
+
+  startAddProject(): void {
+    this.cancelDeleteProject();
+    this.newProjectName.set('');
+    this.projectAdding.set(true);
+  }
+
+  cancelAddProject(): void {
+    this.projectAdding.set(false);
+    this.newProjectName.set('');
   }
 
   async onSelectProject(project: Project): Promise<void> {
     if (this.state.selectedProject()?.id === project.id) {
-      this.closeProjectEditor();
+      this.closeProjectMenu();
       return;
     }
 
     this.state.loading.set(true);
     try {
       await this.selectProject(project);
-      this.closeProjectEditor();
+      this.closeProjectMenu();
     } catch (err) {
       console.error(err);
     } finally {
@@ -518,7 +539,7 @@ export class App implements OnInit, AfterViewInit {
         name,
       });
       await this.selectProject(created);
-      this.newProjectName.set('');
+      this.closeProjectMenu();
     } catch (err) {
       console.error(err);
     } finally {
@@ -526,20 +547,20 @@ export class App implements OnInit, AfterViewInit {
     }
   }
 
-  promptDeleteProject(project: Project, event: MouseEvent): void {
-    event.stopPropagation();
+  promptDeleteProject(project: Project): void {
+    this.cancelAddProject();
+    this.deleteConfirmName.set('');
     this.projectPendingDelete.set(project);
-    this.projectDeleteConfirmOpen.set(true);
   }
 
   cancelDeleteProject(): void {
     this.projectPendingDelete.set(null);
-    this.projectDeleteConfirmOpen.set(false);
+    this.deleteConfirmName.set('');
   }
 
   async deleteProject(): Promise<void> {
     const project = this.projectPendingDelete();
-    if (!project) return;
+    if (!project || !this.deleteConfirmMatches()) return;
 
     this.state.loading.set(true);
     try {
@@ -565,8 +586,7 @@ export class App implements OnInit, AfterViewInit {
         }
       }
 
-      this.projectPendingDelete.set(null);
-      this.projectDeleteConfirmOpen.set(false);
+      this.cancelDeleteProject();
     } catch (err) {
       console.error(err);
     } finally {

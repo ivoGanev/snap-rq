@@ -1,5 +1,3 @@
-@use '../styles/buttons' as btn;
-
 :host {
   display: flex;
   flex-direction: column;
@@ -327,89 +325,187 @@
   white-space: nowrap;
 }
 
-.project-editor-popup,
-.project-delete-popup {
-  width: min(420px, calc(100vw - 2 * var(--s-4)));
-}
-
-.project-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-}
-
-.project-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-2);
-  padding: var(--s-2) var(--s-3);
-  background: var(--input-bg);
+.project-menu {
+  width: 280px;
+  max-height: min(420px, 70vh);
+  overflow-y: auto;
+  padding: var(--s-1) 0;
+  background: var(--surface-solid);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease;
+  box-shadow: 0 16px 40px var(--shadow);
   --wails-draggable: no-drag;
 }
 
-.project-row:hover {
-  background: var(--hover-bg);
+.project-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s-1) var(--s-2) var(--s-1) var(--s-3);
 }
 
-.project-row.is-selected {
-  background: var(--selected-bg);
-  border-color: var(--selected-border);
+.project-menu-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
-.project-row-name {
-  flex: 1 1 auto;
-  font-size: 0.9375rem;
+.project-menu-add,
+.project-menu-delete {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.project-menu-add svg,
+.project-menu-delete svg {
+  width: 15px;
+  height: 15px;
+}
+
+.project-menu-add:hover {
   color: var(--text);
-  white-space: nowrap;
+  background: var(--hover-highlight);
+}
+
+.project-menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.project-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px var(--s-2);
+}
+
+.project-menu-pick {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-width: 0;
+  padding: 6px var(--s-1);
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--text);
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.project-menu-row:hover .project-menu-pick {
+  background: var(--hover-highlight);
+}
+
+.project-menu-check {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  visibility: hidden;
+}
+
+.project-menu-row.is-selected .project-menu-pick {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.project-menu-row.is-selected .project-menu-check {
+  visibility: visible;
+}
+
+.project-menu-name {
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.project-delete-button {
+// The bin shows on the row being pointed at, or reached with the keyboard.
+.project-menu-delete {
+  opacity: 0;
+}
+
+.project-menu-row:hover .project-menu-delete,
+.project-menu-delete:focus-visible {
+  opacity: 1;
+}
+
+.project-menu-delete:hover {
+  color: var(--danger-text);
+  background: var(--danger-bg);
+}
+
+.project-menu-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px var(--s-2);
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  outline: none;
+}
+
+.project-menu-input:focus {
+  border-color: var(--focus-border);
+}
+
+.project-menu-row--delete {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding-top: 4px;
+  padding-bottom: 6px;
+}
+
+.project-delete-confirm {
+  display: flex;
+  gap: var(--s-1);
+}
+
+.project-delete-confirm .project-menu-input:focus {
+  border-color: var(--danger-solid);
+}
+
+.project-delete-confirm-button {
   flex: 0 0 auto;
-  padding: var(--btn-pad-sm);
-  font-size: 0.75rem;
+  padding: 0 var(--s-2);
+  font: inherit;
+  font-size: 0.8125rem;
   font-weight: 700;
   color: var(--on-accent);
   background: var(--danger-solid);
   border: none;
-  border-radius: var(--radius);
+  border-radius: 6px;
   cursor: pointer;
-  transition: filter 0.15s ease;
-  --wails-draggable: no-drag;
-  @include btn.btn-danger;
 }
 
-.project-editor-footer {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: var(--s-2);
-  align-items: center;
+.project-delete-confirm-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-.project-name-input {
-  width: 100%;
-}
-
-.delete-confirm-message {
+.project-delete-hint {
   margin: 0;
-  font-size: 0.9375rem;
-  line-height: 1.5;
-  color: var(--text);
-}
-
-.delete-confirm-message strong {
-  color: var(--danger-text);
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
 @media (max-width: 900px) {
