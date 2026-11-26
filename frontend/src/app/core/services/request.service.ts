@@ -1,7 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Subject } from 'rxjs';
 import type { HttpRequest, HttpRequestSummary, HttpResponse, RequestUsage } from '../models/http';
-import type { EnvironmentVariableValue } from '../models/environment-context';
 import { CommandApiService } from './command.service';
 import { ChangeBus } from './change-bus.service';
 import { ToastService } from './toast.service';
@@ -162,6 +161,23 @@ export class RequestApiService {
     return result ?? [];
   }
 
+  // Saves of one request run one after another, each on the request as last
+  // saved, so they land in the order they were made and never undo each other.
+  private readonly saveQueues = new Map<number, Promise<unknown>>();
+
+  /** Changes some fields of a saved request. */
+  saveFields(id: number, changes: Partial<HttpRequest>): Promise<HttpRequest> {
+    const save = async () => this.update({ ...(await this.getFull(id)), ...changes });
+    const saved = (this.saveQueues.get(id) ?? Promise.resolve()).then(save, save);
+    this.saveQueues.set(id, saved.catch(() => undefined));
+    return saved;
+  }
+
+  /** Resolves once every save of the request made so far has landed. */
+  async whenSaved(id: number): Promise<void> {
+    await this.saveQueues.get(id);
+  }
+
   async update(req: HttpRequest): Promise<HttpRequest> {
     const updated = await this.commands.execute<HttpRequest>('request.update', req);
     this.patch(updated.id, {
@@ -247,16 +263,16 @@ export class RequestApiService {
   // -----------------------------------------------------------------------
 
   /**
-   * Sends a request and resolves once its response is saved; secret
-   * variables are filled in by the backend from `environmentId`. The request
-   * is in flight until its run finishes, whatever the outcome.
+   * Sends a request and resolves once its response is saved; the backend
+   * fills in the variables of the project's environment. The request is in
+   * flight until its run finishes, whatever the outcome.
    */
-  async send(req: HttpRequest, variables: EnvironmentVariableValue[], environmentId: number | null): Promise<void> {
+  async send(req: HttpRequest): Promise<void> {
     const sending = this.startSending(req.id);
     try {
       const result = await this.commands.run<HttpResponse>(
         'request.send',
-        { request: req, variables, environment_id: environmentId ?? 0 },
+        { request: req },
         undefined,
         sending.signal,
       );
@@ -333,8 +349,9 @@ export class RequestApiService {
   // Curl helpers
   // -----------------------------------------------------------------------
 
-  async requestToCurl(req: HttpRequest): Promise<string> {
-    return this.commands.execute('curl.render', req);
+  /** The saved request as a curl command, with its project's environment filled in, secrets included. */
+  async createCurl(requestId: number): Promise<string> {
+    return this.commands.execute('curl.create', { request_id: requestId });
   }
 
   async curlToRequest(collectionId: number, curl: string): Promise<HttpRequest> {

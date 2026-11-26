@@ -50,8 +50,7 @@ protected override async saveFor(requests: HttpRequest[], value: BodyValue): Pro
   // A single edit is a normal request update: not undoable
   // Only a real multi-selection edit is a bulk operation worth an undo step.
   if (requests.length === 1) {
-    await this.requestApi.update({
-      ...requests[0],
+    await this.requestApi.saveFields(requests[0].id, {
       body: value.body,
       body_type: value.bodyType,
       body_form: value.bodyForm,

@@ -105,15 +105,15 @@ export class WorkspaceStateService {
       }
     });
 
-    // If the selected environment disappears (deleted, or its project
-    // changed), fall back to the first one available.
-    effect(() => {
-      const environments = this.environmentApi.environments();
+    this.changeBus.changesFor('environment').subscribe(async () => {
+      const project = this.selectedProject();
+      if (!project) return;
+      await this.environmentApi.loadForProject(project.id);
       const selected = this.selectedEnvironment();
-      if (selected && environments.some((env) => env.id === selected.id)) {
-        return;
+      if (selected && !this.environmentApi.environments().some((e) => e.id === selected.id)) {
+        // The database already cleared it (ON DELETE SET NULL).
+        this.selectedEnvironment.set(null);
       }
-      this.selectedEnvironment.set(environments[0] ?? null);
     });
 
     // When a command touches the open request, reload its full row (the
@@ -194,12 +194,27 @@ export class WorkspaceStateService {
     }
   }
 
+  /**
+   * Chooses the environment the open project uses. It is stored on the
+   * project, where sending, Copy as cURL and MCP read it.
+   */
+  async selectEnvironment(env: Environment | null): Promise<void> {
+    this.selectedEnvironment.set(env);
+    const projectId = env?.project_id ?? this.selectedProject()?.id;
+    if (projectId === undefined) return;
+    try {
+      await this.environmentApi.select(projectId, env?.id ?? 0);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   async sendRequest(req: HttpRequest, event: Event): Promise<void> {
     event.stopPropagation();
     try {
-      // Secrets are left out: the backend fills them in from the environment.
-      const plain = this.environmentVariables().filter((v) => !v.secret);
-      await this.requestApi.send(req, plain, this.selectedEnvironment()?.id ?? null);
+      // Send the saved request, once the edits already made have landed.
+      await this.requestApi.whenSaved(req.id);
+      await this.requestApi.send(await this.requestApi.getFull(req.id));
     } catch (err) {
       console.error(err);
     }

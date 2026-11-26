@@ -89,7 +89,6 @@ export class ScriptPane {
         scriptName: script.name,
         requestId,
         phase,
-        environmentId: this.state.selectedEnvironment()?.id ?? null,
       });
       this.outcome.set({ kind: 'try', phase, result });
     });

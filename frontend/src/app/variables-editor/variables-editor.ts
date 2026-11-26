@@ -117,7 +117,7 @@ export class VariablesEditor {
   // ---------- Environment switching ----------
 
   selectEnvironment(env: Environment): void {
-    this.state.selectedEnvironment.set(env);
+    void this.state.selectEnvironment(env);
   }
 
   // ---------- New environment ----------
@@ -154,7 +154,7 @@ export class VariablesEditor {
         name,
         created_at: new Date().toISOString(),
       });
-      this.state.selectedEnvironment.set(created);
+      await this.state.selectEnvironment(created);
       this.closeNewEnvironmentInput();
     } catch (err) {
       console.error(err);
@@ -195,7 +195,7 @@ export class VariablesEditor {
       // If the deleted environment was active, pick another one.
       if (this.state.selectedEnvironment()?.id === env.id) {
         const remaining = this.environments();
-        this.state.selectedEnvironment.set(remaining.length > 0 ? remaining[0] : null);
+        await this.state.selectEnvironment(remaining.length > 0 ? remaining[0] : null);
       }
     } catch (err) {
       console.error(err);

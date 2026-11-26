@@ -66,6 +66,13 @@ Each comes with a way to check the same thing by hand. The steps use `https://ht
    `response-layout.e2e.ts` and `response-layout-webkit.e2e.ts`, in Chromium and WebKit, against the stub's `/long`: a JSON list of 300 items, one with a very long note, and an `access_token` near item 200. Send it and open the response. Scroll the body down and to the right: the status line, URL and section headings don't move, the headers don't scroll sideways, and the body's horizontal scrollbar sits at the bottom of the panel. Scroll down to the hidden `access_token` and reveal the body: the token appears in place, and the body stays scrolled where it was, with the same line numbers.
 17. **The variables dropdown opens under the caret**
    `variable-dropdown.e2e.ts` and `variable-dropdown-webkit.e2e.ts`, in Chromium and WebKit. Select an environment with a variable and open a request. Click at the end of the URL in the bar above the list and press Ctrl+Space: the list of variables opens just under the caret, not shifted down or to the right. Do the same in the drawer's Headers tab. Esc closes it, and so does focus leaving the editor: a click anywhere else, even on a sidebar entry or a row, or switching to another window. Clicking a variable in the list still inserts it.
+18. **The chosen environment is remembered and used, and what was just typed goes out**
+   `environment-use.e2e.ts` and `environment-use-webkit.e2e.ts`, in Chromium and WebKit, with `backend/commands/requests/environment_use_test.go` and `backend/repository/repository_test.go`.
+   - Create two environments with different values for a variable a request's header uses. Pick the second in the Environment dropdown and reload: it's still selected, and sending the request to the stub's `/echo` sends its value.
+   - Give an environment a plain and a secret variable, use both in a request's URL and headers, and choose Copy cURL from its row's menu: the copied command has both filled in, the secret as its real value.
+   - Type a new URL in the bar above the list and press Enter straight away: the new URL is sent. Type a header in the Headers tab and press Send straight away: the header arrives. Change the URL again and Copy cURL straight away: the copy has the new URL.
+   - Type in a script's editor: the text is saved within a moment, without waiting for typing to stop.
+   - Select a new environment, then undo its creation: no environment is selected, and sending leaves its `{{variable}}` unfilled.
 
 ## Tests worth writing
 
@@ -75,6 +82,6 @@ Add a line when you find something a test should cover: what should happen, and 
 2. **The in-flight view's Cancel button.** The view appears after 200 ms, the clock ticks, and Cancel returns to the previous response with nothing saved. Go tests cover cancelling, but not the button or the view.
 3. **Undo and redo from the keyboard.** Ctrl+Z after deleting a request brings it back in the list, and Ctrl+Y removes it again.
 4. **Importing a cURL command or an OpenAPI file through the UI.** The parsers have Go tests; the import dialogs have none.
-5. **Rendering in WebKit.** Only the top bar's, the variable chips', the last-used paw's, the response secrets', the response layout's and the variables dropdown's tests run in WebKit; the rest use Chromium, but macOS and Linux show the app in WebKit (see the SVG sizing rule in AGENTS.md).
+5. **Rendering in WebKit.** Only the top bar's, the variable chips', the last-used paw's, the response secrets', the response layout's, the variables dropdown's and the environment-use tests run in WebKit; the rest use Chromium, but macOS and Linux show the app in WebKit (see the SVG sizing rule in AGENTS.md).
 6. **Restoring a locked vault with the recovery key.** After the key is lost, secrets show as locked, and entering the recovery key unlocks them.
 7. **The MCP server with a real client.** A client connects, lists the tools, and needs approval before running a command that writes.

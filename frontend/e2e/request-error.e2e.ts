@@ -12,7 +12,7 @@ test('a failed request shows its error, not status 0', async ({ page }) => {
 
   await page.evaluate(async (id) => {
     const { requests } = window.snaprq;
-    await requests.send(await requests.getFull(id), [], null);
+    await requests.send(await requests.getFull(id));
   }, id);
 
   const inspector = page.getByLabel('Inspector');
@@ -37,7 +37,7 @@ test('a failed send explains what went wrong and keeps the raw error under Detai
 
   await page.evaluate(async (id) => {
     const { requests } = window.snaprq;
-    await requests.send(await requests.getFull(id), [], null);
+    await requests.send(await requests.getFull(id));
   }, id);
 
   const error = page.getByLabel('Inspector').getByRole('alert');

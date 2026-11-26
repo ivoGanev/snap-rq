@@ -17,7 +17,7 @@ func TestExposedToolNames(t *testing.T) {
 		"list_responses", "list_script_requests", "list_scripts", "list_trash", "list_variables", "move_requests",
 		"remove_from_favourite", "rename_collection", "rename_favourite", "rename_script",
 		"reorder_favourite_requests", "reorder_requests", "reorder_script_requests",
-		"restore_from_trash", "set_favourite_request_colors", "set_script_request_colors",
+		"restore_from_trash", "select_environment", "set_favourite_request_colors", "set_script_request_colors",
 	}
 	var got []string
 	for _, m := range Catalog {
@@ -110,5 +110,21 @@ func TestValidateRejects(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 			t.Errorf("%s: got %v, want error containing %q", name, err, tc.wantErr)
 		}
+	}
+}
+
+// Copying as cURL fills in real secret values, so no tool may call it.
+func TestNoToolCopiesAsCurl(t *testing.T) {
+	for _, m := range Catalog {
+		if strings.HasPrefix(m.Command, "curl.") {
+			t.Errorf("tool %s calls %s, whose output can hold real secret values", m.Name, m.Command)
+		}
+	}
+}
+
+func TestSelectingAnEnvironmentIsAnOrganizingTool(t *testing.T) {
+	m, ok := metaFor("select_environment")
+	if !ok || m.Command != "environment.select" || m.Risk != RiskOrganize {
+		t.Errorf("select_environment = %+v (%v), want an organize tool calling environment.select", m, ok)
 	}
 }

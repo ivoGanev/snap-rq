@@ -9,6 +9,11 @@ type environmentInput struct {
 	EnvironmentID int64 `json:"environment_id" jsonschema:"id of the environment"`
 }
 
+type selectEnvironmentInput struct {
+	ProjectID     int64 `json:"project_id" jsonschema:"id of the project"`
+	EnvironmentID int64 `json:"environment_id" jsonschema:"id of the environment to use, or 0 for none"`
+}
+
 // VariableName is all a client learns about a variable.
 type VariableName struct {
 	ID   int64  `json:"id"`
@@ -19,6 +24,7 @@ func init() {
 	bindings = append(bindings,
 		binding{"list_environments", addTool[projectInput]},
 		binding{"list_variables", customTool(listVariables)},
+		binding{"select_environment", addTool[selectEnvironmentInput]},
 	)
 }
 

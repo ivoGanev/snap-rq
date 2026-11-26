@@ -4,7 +4,7 @@
 //   /ok             200 {"ok":true}
 //   /slow?ms=1500   200 after the given delay
 //   /status/404     that status code
-//   /echo           200 {"headers": the request's headers}
+//   /echo           200 {"headers": the request's headers, "url": its path and query}
 //   /secrets        200 a login response: secrets in the body, a token and a session cookie in the headers
 //   /long           200 a long JSON list with one very wide line and a secret far down
 import { createServer } from 'node:http';
@@ -21,7 +21,7 @@ createServer((req, res) => {
   if (url.pathname === '/ok') return reply(200);
   if (url.pathname === '/echo') {
     res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ headers: req.headers }));
+    res.end(JSON.stringify({ headers: req.headers, url: req.url }));
     return;
   }
   if (url.pathname === '/secrets') {

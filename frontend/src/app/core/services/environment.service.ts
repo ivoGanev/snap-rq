@@ -1,6 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { CommandApiService } from './command.service';
-import { ChangeBus } from './change-bus.service';
 
 export interface Environment {
   id: number;
@@ -15,19 +14,10 @@ export interface Environment {
 @Injectable({ providedIn: 'root' })
 export class EnvironmentApiService {
   private readonly commands = inject(CommandApiService);
-  private readonly bus = inject(ChangeBus);
-  private projectId: number | null = null;
-  
+
   readonly environments = signal<Environment[]>([]);
 
-  constructor() {
-    this.bus.changesFor('environment').subscribe(() => {
-      if (this.projectId) void this.loadForProject(this.projectId);
-    });
-  }
-
   async loadForProject(projectId: number): Promise<void> {
-    this.projectId = projectId;
     const all = await this.commands.execute<Environment[]>('environment.list', { project_id: projectId });
     this.environments.set(all ?? []);
   }
@@ -48,4 +38,9 @@ export class EnvironmentApiService {
     await this.commands.execute('environment.delete', { id });
   }
 
+
+  /** Stores the environment a project uses; sending and Copy as cURL read it. */
+  async select(projectId: number, environmentId: number): Promise<void> {
+    await this.commands.execute('environment.select', { project_id: projectId, environment_id: environmentId });
+  }
 }

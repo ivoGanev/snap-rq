@@ -6,6 +6,8 @@ export interface Project {
   id: number;
   profile_id: number;
   name: string;
+  /** The environment the project uses; 0 is none. */
+  selected_environment_id: number;
 }
 
 /**
@@ -27,7 +29,7 @@ export class ProjectApiService {
     this.projects.set(all ?? []);
   }
 
-  async create(project: Omit<Project, 'id'>): Promise<Project> {
+  async create(project: Pick<Project, 'profile_id' | 'name'>): Promise<Project> {
     const created = await this.commands.execute<Project>('project.create', project);
     await this.loadAll();
     return created;

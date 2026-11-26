@@ -515,19 +515,14 @@ export class RequestsMainList {
     source: () => this.headerRequest()?.id ?? null,
     computation: () => untracked(() => this.headerRequest()?.url ?? ''),
   });
-  private urlSaveTimer: ReturnType<typeof setTimeout> | undefined;
 
   protected onUrlChange(url: string): void {
     this.urlDraft.set(url);
-    clearTimeout(this.urlSaveTimer);
     const req = this.headerRequest();
-    if (req) this.urlSaveTimer = setTimeout(() => void this.saveUrl(req, url), 400);
+    if (req) void this.saveUrl(req, url);
   }
 
   protected async sendFromUrl(): Promise<void> {
-    clearTimeout(this.urlSaveTimer);
-    const req = this.headerRequest();
-    if (req) await this.saveUrl(req, this.urlDraft());
     await this.sendSelectedRequest(new Event('submit'));
   }
 
@@ -1653,8 +1648,9 @@ export class RequestsMainList {
     if (!req) return;
 
     try {
-      const full = await this.requestApi.getFull(req.id);
-      const curl = await this.requestApi.requestToCurl(full);
+      // The copy is the saved request: let the edits already made land first.
+      await this.requestApi.whenSaved(req.id);
+      const curl = await this.requestApi.createCurl(req.id);
       await Clipboard.SetText(curl);
     } catch (err) {
       console.error(err);
@@ -2080,9 +2076,7 @@ export class RequestsMainList {
   ): Promise<void> {
     this.state.loading.set(true);
     try {
-      const full = await this.requestApi.getFull(req.id);
-      const updated = { ...full, [field]: value } as HttpRequest;
-      const saved = await this.requestApi.update(updated);
+      const saved = await this.requestApi.saveFields(req.id, { [field]: value } as Partial<HttpRequest>);
       this.patchRequestInLists(saved.id, saved);
 
       const selected = this.state.selectedRequest();

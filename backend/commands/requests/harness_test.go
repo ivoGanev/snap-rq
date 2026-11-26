@@ -167,23 +167,31 @@ func (h *harness) environment(plain, secret map[string]string) int64 {
 	return env.ID
 }
 
+// selectEnvironment makes the project use the environment (0 for none).
+func (h *harness) selectEnvironment(environmentID int64) {
+	h.t.Helper()
+	h.run("environment.select", map[string]any{"project_id": h.projectID, "environment_id": environmentID}, nil)
+}
+
 type sendOptions struct {
 	environmentID int64
 	plain         map[string]string
 	ctx           context.Context
 }
 
-// send sends a stored request as the frontend does: the request as loaded,
-// the environment's plain values, and the environment for the secrets.
+// send sends a stored request as the frontend does: the request as loaded.
+// The project uses opts.environmentID; plain values without one get an
+// environment of their own.
 func (h *harness) send(requestID int64, opts sendOptions) (models.HttpResponse, error) {
 	h.t.Helper()
+	environmentID := opts.environmentID
+	if environmentID == 0 && len(opts.plain) > 0 {
+		environmentID = h.environment(opts.plain, nil)
+	}
+	h.selectEnvironment(environmentID)
 	var req models.HttpRequest
 	h.run("request.get", map[string]any{"id": requestID}, &req)
-	vars := []map[string]string{}
-	for key, value := range opts.plain {
-		vars = append(vars, map[string]string{"key": key, "value": value})
-	}
-	raw, _ := json.Marshal(map[string]any{"request": req, "variables": vars, "environment_id": opts.environmentID})
+	raw, _ := json.Marshal(map[string]any{"request": req})
 	ctx := opts.ctx
 	if ctx == nil {
 		ctx = context.Background()

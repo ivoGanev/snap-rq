@@ -104,6 +104,7 @@ var All = []commands.Factory{
 	environments.NewCreate,
 	environments.NewUpdate,
 	environments.NewDelete,
+	environments.NewSelect,
 	variables.NewList,
 	variables.NewCreate,
 	variables.NewUpdate,
@@ -136,6 +137,7 @@ var All = []commands.Factory{
 	// curl helpers
 	curl.NewParse,
 	curl.NewRender,
+	curl.NewCreate,
 
 	// openapi import/export
 	openapi.NewPreview,

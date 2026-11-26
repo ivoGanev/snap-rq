@@ -69,10 +69,7 @@ export class RequestEditor {
     this.draftRequest.set(updated);
 
     try {
-      const saved = await this.requestApi.update({
-        ...updated,
-        collection_id: draft.collection_id,
-      });
+      const saved = await this.requestApi.saveFields(draft.id, { [field]: value } as Partial<HttpRequest>);
       this.state.selectedRequest.set(saved);
 
       const favList = this.favouriteApi.requests();

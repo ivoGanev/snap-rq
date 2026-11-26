@@ -12,4 +12,6 @@ type EnvironmentVariable struct {
 	Value         string `json:"value"`
 	Secret        bool   `json:"secret"`
 	HasValue      bool   `json:"has_value"`
+	// Locked is a secret loaded for use that the vault couldn't open.
+	Locked bool `json:"-"`
 }

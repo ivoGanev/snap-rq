@@ -429,17 +429,23 @@ export class App implements OnInit, AfterViewInit {
           created_at: new Date().toISOString(),
         });
         all = this.environments();
-        this.state.selectedEnvironment.set(created);
+        await this.state.selectEnvironment(created);
         return;
       }
-      this.state.selectedEnvironment.set(all[0]);
+      const stored = this.projects().find((p) => p.id === projectId)?.selected_environment_id;
+      const storedEnvironment = all.find((e) => e.id === stored);
+      if (storedEnvironment) {
+        this.state.selectedEnvironment.set(storedEnvironment);
+      } else {
+        await this.state.selectEnvironment(all[0]);
+      }
     } catch (err) {
       console.error(err);
     }
   }
 
   selectEnvironment(environment: Environment): void {
-    this.state.selectedEnvironment.set(environment);
+    void this.state.selectEnvironment(environment);
   }
 
   onEnvironmentChange(environmentId: number): void {
