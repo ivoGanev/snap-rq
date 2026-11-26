@@ -212,7 +212,9 @@ export class WorkspaceStateService {
   async sendRequest(req: HttpRequest, event: Event): Promise<void> {
     event.stopPropagation();
     try {
-      await this.requestApi.send(req);
+      // Send the saved request, once the edits already made have landed.
+      await this.requestApi.whenSaved(req.id);
+      await this.requestApi.send(await this.requestApi.getFull(req.id));
     } catch (err) {
       console.error(err);
     }

@@ -36,8 +36,8 @@ export class RequestHeadersTab extends RequestCodeTabBase<string> {
 
   protected override async saveFor(requests: HttpRequest[], value: string): Promise<void> {
     if (requests.length === 1) {
-      await this.requestApi.update({ ...requests[0], request_headers: value, })
-      return
+      await this.requestApi.saveFields(requests[0].id, { request_headers: value });
+      return;
     }
     const ids = requests.map((req) => req.id);
     await this.requestApi.bulkUpdateHeaders(ids, value);

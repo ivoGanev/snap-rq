@@ -1648,6 +1648,8 @@ export class RequestsMainList {
     if (!req) return;
 
     try {
+      // The copy is the saved request: let the edits already made land first.
+      await this.requestApi.whenSaved(req.id);
       const curl = await this.requestApi.createCurl(req.id);
       await Clipboard.SetText(curl);
     } catch (err) {
@@ -2074,9 +2076,7 @@ export class RequestsMainList {
   ): Promise<void> {
     this.state.loading.set(true);
     try {
-      const full = await this.requestApi.getFull(req.id);
-      const updated = { ...full, [field]: value } as HttpRequest;
-      const saved = await this.requestApi.update(updated);
+      const saved = await this.requestApi.saveFields(req.id, { [field]: value } as Partial<HttpRequest>);
       this.patchRequestInLists(saved.id, saved);
 
       const selected = this.state.selectedRequest();

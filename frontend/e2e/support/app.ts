@@ -85,3 +85,29 @@ export function inFlight(page: Page, id: number): Promise<boolean> {
 export async function expectSettled(page: Page, id: number, timeout = 5_000): Promise<void> {
   await expect.poll(() => inFlight(page, id), { timeout, message: `request ${id} is stuck in flight` }).toBe(false);
 }
+
+/** The body of the request's newest saved response, once there is one. */
+export async function latestResponseBody(page: Page, requestId: number): Promise<string> {
+  let body = '';
+  await expect
+    .poll(async () => {
+      body = await page.evaluate(async (id) => {
+        const list = await window.snaprq.commands.execute<{ body: string }[]>('response.list_for_request', {
+          request_id: id,
+        });
+        return list?.[0]?.body ?? '';
+      }, requestId);
+      return body;
+    })
+    .not.toBe('');
+  return body;
+}
+
+/** Runs `action` and returns the text the page handed to the system clipboard. */
+export async function clipboardAfter(page: Page, action: () => Promise<void>): Promise<string> {
+  const call = page.waitForRequest(
+    (r) => r.url().endsWith('/wails/runtime') && (r.postData() ?? '').startsWith('{"object":1,'),
+  );
+  await action();
+  return JSON.parse((await call).postData()!).args.text as string;
+}

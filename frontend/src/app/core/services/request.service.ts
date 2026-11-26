@@ -161,6 +161,23 @@ export class RequestApiService {
     return result ?? [];
   }
 
+  // Saves of one request run one after another, each on the request as last
+  // saved, so they land in the order they were made and never undo each other.
+  private readonly saveQueues = new Map<number, Promise<unknown>>();
+
+  /** Changes some fields of a saved request. */
+  saveFields(id: number, changes: Partial<HttpRequest>): Promise<HttpRequest> {
+    const save = async () => this.update({ ...(await this.getFull(id)), ...changes });
+    const saved = (this.saveQueues.get(id) ?? Promise.resolve()).then(save, save);
+    this.saveQueues.set(id, saved.catch(() => undefined));
+    return saved;
+  }
+
+  /** Resolves once every save of the request made so far has landed. */
+  async whenSaved(id: number): Promise<void> {
+    await this.saveQueues.get(id);
+  }
+
   async update(req: HttpRequest): Promise<HttpRequest> {
     const updated = await this.commands.execute<HttpRequest>('request.update', req);
     this.patch(updated.id, {
