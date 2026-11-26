@@ -1,6 +1,7 @@
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { Browser, Events, Updater } from '@wailsio/runtime';
-import { UpdaterService } from '../../../bindings/snap-rq';
+import { UpdaterService, type UpdateInfo } from '../../../bindings/snap-rq';
+import { UpdateCheckService } from '../core/services/update-check.service';
 
 type Phase = 'idle' | 'checking' | 'upToDate' | 'available' | 'blocked' | 'working' | 'ready' | 'error';
 
@@ -14,6 +15,7 @@ type Phase = 'idle' | 'checking' | 'upToDate' | 'available' | 'blocked' | 'worki
   styleUrl: './settings-updates.scss',
 })
 export class SettingsUpdates implements OnInit {
+  private readonly updates = inject(UpdateCheckService);
   protected readonly phase = signal<Phase>('idle');
   protected readonly currentVersion = signal('');
   protected readonly newVersion = signal('');
@@ -46,23 +48,18 @@ export class SettingsUpdates implements OnInit {
     UpdaterService.CurrentVersion()
       .then((version) => this.currentVersion.set(version))
       .catch(() => undefined);
+    // Opened from the top bar's update icon: the newer version is already known.
+    const known = this.updates.available();
+    if (known) this.show(known);
   }
 
   protected async check(): Promise<void> {
     this.phase.set('checking');
     this.message.set('');
     try {
-      const info = await UpdaterService.Check();
+      const info = await this.updates.check();
       if (info) {
-        this.newVersion.set(info.version);
-        this.releaseUrl.set(info.release_url);
-        // This install can't replace itself: say why, instead of a button that would fail.
-        if (info.blocked) {
-          this.message.set(info.blocked);
-          this.phase.set('blocked');
-        } else {
-          this.phase.set('available');
-        }
+        this.show(info);
       } else {
         this.phase.set('upToDate');
       }
@@ -89,6 +86,18 @@ export class SettingsUpdates implements OnInit {
       await UpdaterService.Restart();
     } catch (err) {
       this.fail(err);
+    }
+  }
+
+  private show(info: UpdateInfo): void {
+    this.newVersion.set(info.version);
+    this.releaseUrl.set(info.release_url);
+    // This install can't replace itself: say why, instead of a button that would fail.
+    if (info.blocked) {
+      this.message.set(info.blocked);
+      this.phase.set('blocked');
+    } else {
+      this.phase.set('available');
     }
   }
 

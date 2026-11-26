@@ -136,6 +136,12 @@
   background: var(--hover-highlight);
 }
 
+// Shown only while a newer version is out, so it stands out from the grey icons.
+.top-bar-update,
+.top-bar-update:hover:not(:disabled) {
+  color: var(--accent);
+}
+
 .top-bar-icon:disabled {
   opacity: 0.4;
   cursor: not-allowed;
