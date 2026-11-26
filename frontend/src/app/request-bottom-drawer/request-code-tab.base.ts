@@ -5,7 +5,7 @@ import { RequestDrawerTabBase } from './request-drawer-tab.base';
 /**
  * Shared behaviour for drawer tabs backed by the code editor.
  *
- * Adds draft/baseline tracking, debounced autosave for a single selection,
+ * Adds draft/baseline tracking, saving as you type for a single selection,
  * bulk apply, a mismatch clear-all flow, and environment variable loading on
  * top of {@link RequestDrawerTabBase}.
  */
@@ -24,24 +24,14 @@ export abstract class RequestCodeTabBase<T> extends RequestDrawerTabBase<T> {
 
   readonly environmentVariables = this.state.environmentVariables;
 
-  private saveTimer: number | null = null;
-
   /** The value used when clearing all selected requests. */
   protected abstract emptyValue(): T;
 
-  /** Replaces the draft and schedules autosave for a single selection. */
+  /** Replaces the draft; a single selection saves it straight away. */
   protected updateDraft(value: T): void {
     this.draftValue.set(value);
     if (this.editCount() === 1) {
-      this.scheduleAutosave();
-    }
-  }
-
-  protected override beforeReload(): void {
-    this.clearSaveTimer();
-    const draft = this.draftValue();
-    if (this.requests().length === 1 && draft !== null && this.dirty()) {
-      void this.flush(draft);
+      void this.commitDraft();
     }
   }
 
@@ -50,9 +40,8 @@ export abstract class RequestCodeTabBase<T> extends RequestDrawerTabBase<T> {
     this.draftValue.set(value);
   }
 
-  /** Flushes pending autosave and applies the draft (multi-selection). */
+  /** Applies the draft to every selected request (multi-selection). */
   protected async applyDraft(): Promise<void> {
-    this.clearSaveTimer();
     await this.commitDraft();
   }
 
@@ -78,21 +67,6 @@ export abstract class RequestCodeTabBase<T> extends RequestDrawerTabBase<T> {
     this.baselineValue.set(value);
     this.draftValue.set(value);
     this.closeWipeConfirm();
-  }
-
-  private scheduleAutosave(): void {
-    this.clearSaveTimer();
-    this.saveTimer = window.setTimeout(() => {
-      this.saveTimer = null;
-      void this.commitDraft();
-    }, 400);
-  }
-
-  private clearSaveTimer(): void {
-    if (this.saveTimer !== null) {
-      window.clearTimeout(this.saveTimer);
-      this.saveTimer = null;
-    }
   }
 
   private async commitDraft(): Promise<void> {

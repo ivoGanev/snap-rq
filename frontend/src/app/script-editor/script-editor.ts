@@ -1,11 +1,8 @@
-import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { CodeEditor } from '../code-editor/code-editor';
 import { ScriptTabs } from '../script-tabs/script-tabs';
 import { ScriptApiService } from '../core/services/script.service';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
-
-/** How long typing must pause before the script is saved. */
-const SAVE_DELAY_MS = 500;
 
 /**
  * The middle column of a script view: the open script's code in a
@@ -47,29 +44,22 @@ export class ScriptEditor {
   protected readonly loaded = signal(false);
   protected readonly saveError = signal(false);
 
-  private pending: { id: number; text: string } | null = null;
-  private timer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     effect(() => {
       const id = this.scriptId();
       untracked(() => void this.load(id));
     });
-    inject(DestroyRef).onDestroy(() => void this.flush());
   }
 
   protected onTextChange(text: string): void {
     const id = this.scriptId();
     if (id === null) return;
     this.scriptApi.editing.set({ id, text });
-    this.pending = { id, text };
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => void this.flush(), SAVE_DELAY_MS);
+    void this.save(id, text);
   }
 
   private async load(id: number | null): Promise<void> {
-    // Save what was typed into the previous script before switching.
-    await this.flush();
     this.loaded.set(false);
     if (id === null) return;
     try {
@@ -83,16 +73,9 @@ export class ScriptEditor {
     }
   }
 
-  private async flush(): Promise<void> {
-    if (this.timer) {
-      clearTimeout(this.timer);
-      this.timer = null;
-    }
-    const pending = this.pending;
-    if (!pending) return;
-    this.pending = null;
+  private async save(id: number, text: string): Promise<void> {
     try {
-      await this.scriptApi.setContent(pending.id, pending.text);
+      await this.scriptApi.setContent(id, text);
       this.saveError.set(false);
     } catch (err) {
       console.error('saving script failed', err);

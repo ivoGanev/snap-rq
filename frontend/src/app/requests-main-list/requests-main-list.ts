@@ -515,19 +515,14 @@ export class RequestsMainList {
     source: () => this.headerRequest()?.id ?? null,
     computation: () => untracked(() => this.headerRequest()?.url ?? ''),
   });
-  private urlSaveTimer: ReturnType<typeof setTimeout> | undefined;
 
   protected onUrlChange(url: string): void {
     this.urlDraft.set(url);
-    clearTimeout(this.urlSaveTimer);
     const req = this.headerRequest();
-    if (req) this.urlSaveTimer = setTimeout(() => void this.saveUrl(req, url), 400);
+    if (req) void this.saveUrl(req, url);
   }
 
   protected async sendFromUrl(): Promise<void> {
-    clearTimeout(this.urlSaveTimer);
-    const req = this.headerRequest();
-    if (req) await this.saveUrl(req, this.urlDraft());
     await this.sendSelectedRequest(new Event('submit'));
   }
 
@@ -1653,12 +1648,6 @@ export class RequestsMainList {
     if (!req) return;
 
     try {
-      // The copy is built from the saved request: save a URL still being typed, as Send does.
-      const header = this.headerRequest();
-      if (header?.id === req.id) {
-        clearTimeout(this.urlSaveTimer);
-        await this.saveUrl(header, this.urlDraft());
-      }
       const curl = await this.requestApi.createCurl(req.id, this.state.selectedEnvironment()?.id ?? null);
       await Clipboard.SetText(curl);
     } catch (err) {

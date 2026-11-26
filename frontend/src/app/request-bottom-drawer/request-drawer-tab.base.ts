@@ -87,9 +87,6 @@ export abstract class RequestDrawerTabBase<T> {
   /** Persists `value` onto every given request. */
   protected abstract saveFor(requests: HttpRequest[], value: T): Promise<void>;
 
-  /** Called right before a (re)load, e.g. to flush pending autosaves. */
-  protected beforeReload(): void {}
-
   /** Called after a successful load; `value` is null when the selection mismatches. */
   protected onLoaded(_requests: HttpRequest[], _value: T | null): void {}
 
@@ -107,8 +104,6 @@ export abstract class RequestDrawerTabBase<T> {
 
   protected async load(ids: Set<number>): Promise<void> {
     const version = ++this.loadVersion;
-
-    this.beforeReload();
 
     if (ids.size === 0) {
       this.requests.set([]);
@@ -152,21 +147,6 @@ export abstract class RequestDrawerTabBase<T> {
       return [];
     } finally {
       this.saving.set(false);
-    }
-  }
-
-  /**
-   * Persists a value for the *current* requests without touching the tab's
-   * local request list. Used by {@link beforeReload} so a pending save cannot
-   * race the incoming selection.
-   */
-  protected async flush(value: T): Promise<void> {
-    const requests = this.requests();
-    if (requests.length === 0) return;
-    try {
-      await this.saveFor(requests, value);
-    } catch (err) {
-      console.error(err);
     }
   }
 
