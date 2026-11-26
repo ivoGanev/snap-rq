@@ -1,4 +1,4 @@
-import { computed, effect, Injectable, inject, signal, untracked } from '@angular/core';
+import { computed, effect, Injectable, inject, signal } from '@angular/core';
 import { RequestApiService, type HttpRequest, type HttpResponse } from './request.service';
 import { FavouriteApiService, type FavouriteCollection } from './favourite.service';
 import { BinApiService, type HttpBinnedRequestSummary } from './bin.service';
@@ -105,15 +105,15 @@ export class WorkspaceStateService {
       }
     });
 
-    // If the selected environment disappears (deleted, or its project
-    // changed), fall back to the first one available.
-    effect(() => {
-      const environments = this.environmentApi.environments();
+    this.changeBus.changesFor('environment').subscribe(async () => {
+      const project = this.selectedProject();
+      if (!project) return;
+      await this.environmentApi.loadForProject(project.id);
       const selected = this.selectedEnvironment();
-      if (selected && environments.some((env) => env.id === selected.id)) {
-        return;
+      if (selected && !this.environmentApi.environments().some((e) => e.id === selected.id)) {
+        // The database already cleared it (ON DELETE SET NULL).
+        this.selectedEnvironment.set(null);
       }
-      untracked(() => void this.selectEnvironment(environments[0] ?? null));
     });
 
     // When a command touches the open request, reload its full row (the

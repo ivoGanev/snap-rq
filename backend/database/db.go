@@ -1000,12 +1000,13 @@ func addResponseRequestColumns(db *sql.DB) error {
 }
 
 // addSelectedEnvironmentColumn stores the environment each project uses;
-// NULL is none.
+// NULL is none. Deleting the environment, however it happens, clears it.
 func addSelectedEnvironmentColumn(db *sql.DB) error {
 	if columnExists(db, "projects", "selected_environment_id") {
 		return nil
 	}
-	if _, err := db.Exec(`ALTER TABLE projects ADD COLUMN selected_environment_id INTEGER`); err != nil {
+	if _, err := db.Exec(`ALTER TABLE projects ADD COLUMN selected_environment_id INTEGER
+		REFERENCES environments(id) ON DELETE SET NULL`); err != nil {
 		return fmt.Errorf("adding selected_environment_id to projects: %w", err)
 	}
 	return nil
