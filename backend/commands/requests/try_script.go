@@ -7,9 +7,9 @@ import (
 	"errors"
 	"fmt"
 
-	"snap-rq/backend/builder"
 	"snap-rq/backend/commands"
 	"snap-rq/backend/models"
+	"snap-rq/backend/protocol/httpreq"
 	"snap-rq/backend/repository"
 	"snap-rq/backend/scripting"
 )
@@ -111,9 +111,8 @@ func (c TryScript) Run(input json.RawMessage) (any, error) {
 // display.
 func (c TryScript) tryBefore(result *TryResult, session *scripting.Session, env models.Environment, req models.HttpRequest) {
 	mask := func(text string) string { return hideSecrets(text, env.SecretValues()) }
-	b := builder.New(env)
 	// A locked secret stays a {{placeholder}}: trying shows the request as it stands.
-	req, _ = b.Resolve(req)
+	req, _ = httpreq.Resolve(req, env)
 
 	scripted := scripting.Request{
 		Method: req.Method, URL: req.URL, Body: req.Body,
@@ -135,20 +134,20 @@ func (c TryScript) tryBefore(result *TryResult, session *scripting.Session, env 
 	if scripted.Headers.Changed() {
 		req.RequestHeaders = scripted.Headers.String()
 	}
-	req, _ = b.Resolve(req)
+	req, _ = httpreq.Resolve(req, env)
 
-	built, err := builder.Build(req)
+	out, err := httpreq.Build(req)
 	if err != nil {
 		result.Stopped = mask(err.Error())
 		return
 	}
-	body := built.Body
-	if built.FormData {
+	body := out.Body
+	if out.FormData {
 		body = "(form data, filled in when sent)"
 	}
 	result.Request = &TriedRequest{
-		Method:  built.Method,
-		URL:     mask(built.URL),
+		Method:  out.Method,
+		URL:     mask(out.URL),
 		Headers: mask(req.RequestHeaders),
 		Body:    mask(body),
 	}

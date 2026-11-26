@@ -3,12 +3,9 @@ package curl
 import (
 	"database/sql"
 	"encoding/json"
-	"slices"
-	"strings"
 
-	"snap-rq/backend/builder"
 	"snap-rq/backend/commands"
-	"snap-rq/backend/models"
+	"snap-rq/backend/protocol/httpreq"
 	"snap-rq/backend/repository"
 )
 
@@ -41,31 +38,10 @@ func (c Create) Run(input json.RawMessage) (any, error) {
 		return nil, err
 	}
 	// A locked secret stays a {{placeholder}}: the copy still works.
-	req, _ = builder.New(env).Resolve(req)
-	built, err := builder.Build(req)
+	req, _ = httpreq.Resolve(req, env)
+	out, err := httpreq.Build(req)
 	if err != nil {
 		return nil, err
 	}
-	return FromBuilt(built), nil
-}
-
-// FromBuilt writes the curl command for a request as it goes out.
-func FromBuilt(b builder.Built) string {
-	names := make([]string, 0, len(b.Header))
-	for name := range b.Header {
-		names = append(names, name)
-	}
-	slices.Sort(names)
-	var lines []string
-	for _, name := range names {
-		for _, value := range b.Header[name] {
-			lines = append(lines, name+": "+value)
-		}
-	}
-	req := models.HttpRequest{Method: b.Method, URL: b.URL, RequestHeaders: strings.Join(lines, "\n"), Body: b.Body}
-	if b.FormData {
-		form, _ := json.Marshal(b.Form)
-		req.BodyType, req.BodyForm = "form-data", string(form)
-	}
-	return RequestToCurl(req)
+	return out.Curl(), nil
 }

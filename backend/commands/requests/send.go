@@ -13,11 +13,11 @@ import (
 	"sync"
 	"time"
 
-	"snap-rq/backend/builder"
 	"snap-rq/backend/commands"
 	"snap-rq/backend/commands/responses"
 	"snap-rq/backend/cookies"
 	"snap-rq/backend/models"
+	"snap-rq/backend/protocol/httpreq"
 	"snap-rq/backend/repository"
 	"snap-rq/backend/scripting"
 )
@@ -76,8 +76,7 @@ func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 		obs.Finish(nil, err)
 		return
 	}
-	b := builder.New(env)
-	if req, err = resolve(b, req); err != nil {
+	if req, err = resolve(req, env); err != nil {
 		obs.Finish(nil, err)
 		return
 	}
@@ -122,7 +121,7 @@ func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 			return
 		}
 
-		if req, err = resolve(b, req); err != nil {
+		if req, err = resolve(req, env); err != nil {
 			obs.Finish(nil, err)
 			return
 		}
@@ -155,8 +154,8 @@ func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 
 // resolve fills in the request's variables. A secret it uses that the vault
 // can't open is an error naming it, rather than sending "{{KEY}}".
-func resolve(b builder.Builder, req models.HttpRequest) (models.HttpRequest, error) {
-	resolved, locked := b.Resolve(req)
+func resolve(req models.HttpRequest, env models.Environment) (models.HttpRequest, error) {
+	resolved, locked := httpreq.Resolve(req, env)
 	if len(locked) > 0 {
 		return req, fmt.Errorf("the secret variable %s is locked: restore your recovery key or enter its value again", locked[0])
 	}
@@ -216,14 +215,14 @@ func hideSecrets(text string, values []string) string {
 // doHTTP runs the request and returns a response; network and build errors
 // become a status-0 response body instead of a Go error.
 func (c Send) doHTTP(ctx context.Context, req models.HttpRequest) models.HttpResponse {
-	built, err := builder.Build(req)
+	out, err := httpreq.Build(req)
 	fail := func(body string) models.HttpResponse {
-		return models.HttpResponse{RequestID: req.ID, StatusCode: 0, Body: body, Method: built.Method, URL: built.URL}
+		return models.HttpResponse{RequestID: req.ID, StatusCode: 0, Body: body, Method: out.Method, URL: out.URL}
 	}
 	if err != nil {
 		return fail(err.Error())
 	}
-	httpReq, err := built.HTTPRequest(ctx)
+	httpReq, err := out.HTTPRequest(ctx)
 	if err != nil {
 		return fail(err.Error())
 	}
@@ -234,7 +233,7 @@ func (c Send) doHTTP(ctx context.Context, req models.HttpRequest) models.HttpRes
 	}
 	httpResp, err := client.Do(httpReq)
 	if err != nil {
-		return fail(builder.WithDetails(explainSendError(err, httpReq, client.Timeout), fmt.Sprintf("request failed: %v", err)))
+		return fail(httpreq.WithDetails(explainSendError(err, httpReq, client.Timeout), fmt.Sprintf("request failed: %v", err)))
 	}
 	defer httpResp.Body.Close()
 
