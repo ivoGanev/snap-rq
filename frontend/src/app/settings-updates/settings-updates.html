@@ -32,6 +32,15 @@
         </button>
       </div>
     }
+    @case ('blocked') {
+      <p class="settings-option-label">Version {{ newVersion() }} is available.</p>
+      <p class="settings-option-help updates-error">{{ message() }}</p>
+      <div class="updates-actions">
+        <button class="settings-updates-button" type="button" (click)="openRelease()">
+          Open the release page
+        </button>
+      </div>
+    }
     @case ('working') {
       <p class="settings-option-label">{{ stage() }} version {{ newVersion() }}…</p>
       <progress class="updates-progress" max="100" [value]="percent()"></progress>
@@ -55,6 +64,11 @@
       <p class="settings-option-help updates-error">{{ message() }}</p>
       <div class="updates-actions">
         <button class="settings-updates-button" type="button" (click)="check()">Try again</button>
+        @if (releaseUrl()) {
+          <button class="settings-updates-button" type="button" (click)="openRelease()">
+            Open the release page
+          </button>
+        }
       </div>
     }
   }

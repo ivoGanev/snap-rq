@@ -272,9 +272,13 @@ type UpdaterService struct {
 	app *application.App
 }
 
-// UpdateInfo describes a release that can be installed.
+// UpdateInfo describes a newer release.
 type UpdateInfo struct {
 	Version string `json:"version"`
+	// ReleaseURL is the release's page, to download it by hand.
+	ReleaseURL string `json:"release_url"`
+	// Blocked explains why this install can't update itself; empty when it can.
+	Blocked string `json:"blocked,omitempty"`
 }
 
 // CurrentVersion is the version this build reports to the updater.
@@ -293,7 +297,11 @@ func (s *UpdaterService) Check() (*UpdateInfo, error) {
 	if release == nil {
 		return nil, nil
 	}
-	return &UpdateInfo{Version: release.Version}, nil
+	return &UpdateInfo{
+		Version:    release.Version,
+		ReleaseURL: "https://github.com/" + identity.UpdaterRepository + "/releases/tag/v" + release.Version,
+		Blocked:    selfupdate.RunningBlocked(runtime.GOOS),
+	}, nil
 }
 
 // Install downloads, verifies and stages the release that Check found. The
@@ -302,6 +310,9 @@ func (s *UpdaterService) Install() error {
 	if s.app == nil {
 		return errors.New("the app is not ready yet")
 	}
+	if blocked := selfupdate.RunningBlocked(runtime.GOOS); blocked != "" {
+		return errors.New(blocked)
+	}
 	return s.app.Updater.DownloadAndInstall(context.Background())
 }
 
@@ -309,6 +320,11 @@ func (s *UpdaterService) Install() error {
 func (s *UpdaterService) Restart() error {
 	if s.app == nil {
 		return errors.New("the app is not ready yet")
+	}
+	// The app quits before the update is swapped in: refuse rather than
+	// close it for an update that can't be applied.
+	if blocked := selfupdate.RunningBlocked(runtime.GOOS); blocked != "" {
+		return errors.New(blocked)
 	}
 	return s.app.Updater.Restart(context.Background())
 }

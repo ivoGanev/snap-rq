@@ -1,8 +1,8 @@
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
-import { Events, Updater } from '@wailsio/runtime';
+import { Browser, Events, Updater } from '@wailsio/runtime';
 import { UpdaterService } from '../../../bindings/snap-rq';
 
-type Phase = 'idle' | 'checking' | 'upToDate' | 'available' | 'working' | 'ready' | 'error';
+type Phase = 'idle' | 'checking' | 'upToDate' | 'available' | 'blocked' | 'working' | 'ready' | 'error';
 
 /**
  * Checks GitHub Releases for a newer SnapRQ and installs it, all inside the
@@ -17,6 +17,7 @@ export class SettingsUpdates implements OnInit {
   protected readonly phase = signal<Phase>('idle');
   protected readonly currentVersion = signal('');
   protected readonly newVersion = signal('');
+  protected readonly releaseUrl = signal('');
   protected readonly stage = signal('Downloading');
   protected readonly written = signal(0);
   protected readonly total = signal(0);
@@ -54,7 +55,14 @@ export class SettingsUpdates implements OnInit {
       const info = await UpdaterService.Check();
       if (info) {
         this.newVersion.set(info.version);
-        this.phase.set('available');
+        this.releaseUrl.set(info.release_url);
+        // This install can't replace itself: say why, instead of a button that would fail.
+        if (info.blocked) {
+          this.message.set(info.blocked);
+          this.phase.set('blocked');
+        } else {
+          this.phase.set('available');
+        }
       } else {
         this.phase.set('upToDate');
       }
@@ -82,6 +90,10 @@ export class SettingsUpdates implements OnInit {
     } catch (err) {
       this.fail(err);
     }
+  }
+
+  protected openRelease(): void {
+    void Browser.OpenURL(this.releaseUrl()).catch((err) => console.error(err));
   }
 
   private fail(err: unknown): void {
