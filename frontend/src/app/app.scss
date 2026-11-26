@@ -401,6 +401,7 @@
   padding: 6px var(--s-1);
   font: inherit;
   font-size: 0.875rem;
+  line-height: 1.4;
   color: var(--text);
   text-align: left;
   background: transparent;
@@ -455,12 +456,16 @@
   background: var(--danger-bg);
 }
 
+// The field's text sits where the name's did: the border and padding go
+// outside it (-7px), and 5px plus the 1px border keeps the row's height.
 .project-menu-input {
   flex: 1 1 auto;
   min-width: 0;
-  padding: 6px var(--s-2);
+  margin-left: -7px;
+  padding: 5px 6px;
   font: inherit;
   font-size: 0.875rem;
+  line-height: 1.4;
   color: var(--text);
   background: var(--input-bg);
   border: 1px solid var(--glass-border);
@@ -477,6 +482,11 @@
   padding-right: calc(var(--s-2) + 2 * 26px + 2 * 2px);
 }
 
+// The Enter key takes the pencil and bin's column.
+.project-menu-row--confirm {
+  padding-right: var(--s-2);
+}
+
 .project-menu-empty {
   padding: 6px var(--s-3);
   font-size: 0.875rem;
@@ -491,7 +501,8 @@
   align-items: center;
   justify-content: center;
   width: 14px;
-  margin: 0 var(--s-1);
+  // Less the row's 2px gap, so the field starts where names do.
+  margin: 0 calc(var(--s-1) - 2px) 0 var(--s-1);
   color: var(--muted);
 }
 
@@ -510,38 +521,26 @@
   outline: none;
 }
 
-.project-menu-field {
-  position: relative;
-  flex: 1 1 auto;
-  display: flex;
-  min-width: 0;
-}
-
-.project-menu-input--delete {
-  padding-right: 64px;
-}
-
 .project-menu-input--delete:focus {
   border-color: var(--danger-solid);
 }
 
-// The Enter key, inside the field: it does what pressing Enter does.
+// The Enter key does what pressing Enter does, in the pencil and bin's column.
 .project-menu-enter {
-  position: absolute;
-  top: 50%;
-  right: 4px;
+  flex: 0 0 calc(2 * 26px + 2px);
+  align-self: stretch;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 3px;
-  padding: 1px 5px;
+  padding: 0;
   font: inherit;
   font-size: 0.6875rem;
   font-weight: 700;
   color: var(--on-accent);
   background: var(--danger-solid);
   border: none;
-  border-radius: 4px;
-  transform: translateY(-50%);
+  border-radius: 6px;
   cursor: pointer;
 }
 
