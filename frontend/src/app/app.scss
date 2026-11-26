@@ -353,7 +353,7 @@
 }
 
 .project-menu-add,
-.project-menu-delete {
+.project-menu-icon {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -369,7 +369,7 @@
 }
 
 .project-menu-add svg,
-.project-menu-delete svg {
+.project-menu-icon svg {
   width: 15px;
   height: 15px;
 }
@@ -435,14 +435,19 @@
   white-space: nowrap;
 }
 
-// The bin shows on the row being pointed at, or reached with the keyboard.
-.project-menu-delete {
+// The pencil and bin show on the row being pointed at, or reached with the keyboard.
+.project-menu-icon {
   opacity: 0;
 }
 
-.project-menu-row:hover .project-menu-delete,
-.project-menu-delete:focus-visible {
+.project-menu-row:hover .project-menu-icon,
+.project-menu-icon:focus-visible {
   opacity: 1;
+}
+
+.project-menu-icon:hover {
+  color: var(--text);
+  background: var(--hover-highlight);
 }
 
 .project-menu-delete:hover {
@@ -465,6 +470,17 @@
 
 .project-menu-input:focus {
   border-color: var(--focus-border);
+}
+
+// Fields end where the highlight does: the pencil and bin's column stays free.
+.project-menu-row--field {
+  padding-right: calc(var(--s-2) + 2 * 26px + 2 * 2px);
+}
+
+.project-menu-empty {
+  padding: 6px var(--s-3);
+  font-size: 0.875rem;
+  color: var(--muted);
 }
 
 .project-menu-row--delete {
@@ -536,4 +552,31 @@
   .brand {
     margin-bottom: 0;
   }
+}
+
+.empty-workspace {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-width: 0;
+  color: var(--muted);
+}
+
+.empty-workspace-text {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.empty-workspace-button {
+  padding: 6px var(--s-3);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--on-accent);
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
 }

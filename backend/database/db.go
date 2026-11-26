@@ -1099,10 +1099,13 @@ func dropCollectionColumnIfExists(db *sql.DB, column string) error {
 	return nil
 }
 
+// ensureDefaultCollection gives a brand-new install somewhere to start: a
+// profile, a project, a collection and a favourites group. Only when there
+// is no profile yet: a workspace the user emptied stays empty.
 func ensureDefaultCollection(db *sql.DB) error {
 	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM collections").Scan(&count); err != nil {
-		return fmt.Errorf("counting collections: %w", err)
+	if err := db.QueryRow("SELECT COUNT(*) FROM profiles").Scan(&count); err != nil {
+		return fmt.Errorf("counting profiles: %w", err)
 	}
 	if count > 0 {
 		return nil

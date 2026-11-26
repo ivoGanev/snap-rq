@@ -15,7 +15,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CdkConnectedOverlay, CdkOverlayOrigin, type ConnectedPosition } from '@angular/cdk/overlay';
-import { AutoFocus } from './core/directives/auto-focus.directive';
+import { SelectOnFocusDirective } from './core/directives/select-on-focus.directive';
 import { Select } from './select/select';
 import { WindowControls } from './window-controls/window-controls';
 import { WML } from '@wailsio/runtime';
@@ -62,7 +62,7 @@ import { UndoPanel } from './undo-panel/undo-panel';
     FormsModule,
     CdkConnectedOverlay,
     CdkOverlayOrigin,
-    AutoFocus,
+    SelectOnFocusDirective,
     Select,
     WindowControls,
     RequestGroups,
@@ -164,11 +164,11 @@ export class App implements OnInit, AfterViewInit {
   readonly projectAdding = signal(false);
   readonly newProjectName = signal('');
   readonly projectPendingDelete = signal<Project | null>(null);
-  /** What's typed to confirm a delete; it must be the project's name. */
+  /** What's typed to confirm a delete: "ok", in any case. */
   readonly deleteConfirmName = signal('');
-  protected readonly deleteConfirmMatches = computed(
-    () => this.deleteConfirmName() === this.projectPendingDelete()?.name,
-  );
+  protected readonly deleteConfirmMatches = computed(() => this.deleteConfirmName().trim().toLowerCase() === 'ok');
+  readonly projectRenaming = signal<Project | null>(null);
+  readonly renameProjectValue = signal('');
   protected readonly projectMenuPositions: ConnectedPosition[] = [
     { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 6 },
   ];
@@ -495,10 +495,18 @@ export class App implements OnInit, AfterViewInit {
     this.projectMenuOpen.set(false);
     this.cancelAddProject();
     this.cancelDeleteProject();
+    this.cancelRenameProject();
+  }
+
+  /** From the empty workspace: the dropdown, ready to name a project. */
+  openNewProject(): void {
+    this.projectMenuOpen.set(true);
+    this.startAddProject();
   }
 
   startAddProject(): void {
     this.cancelDeleteProject();
+    this.cancelRenameProject();
     this.newProjectName.set('');
     this.projectAdding.set(true);
   }
@@ -526,18 +534,15 @@ export class App implements OnInit, AfterViewInit {
   }
 
   async addProject(): Promise<void> {
-    const profile = this.state.selectedProject();
-    if (!profile) return;
-
     const name = this.newProjectName().trim();
     if (!name) return;
 
     this.state.loading.set(true);
     try {
-      const created = await this.projectApi.create({
-        profile_id: profile.profile_id,
-        name,
-      });
+      // With no project open, the profile is looked up rather than borrowed from one.
+      const profileId = this.state.selectedProject()?.profile_id ?? (await this.projectApi.profileId());
+      if (profileId === null) return;
+      const created = await this.projectApi.create({ profile_id: profileId, name });
       await this.selectProject(created);
       this.closeProjectMenu();
     } catch (err) {
@@ -547,8 +552,40 @@ export class App implements OnInit, AfterViewInit {
     }
   }
 
+  startRenameProject(project: Project): void {
+    this.cancelAddProject();
+    this.cancelDeleteProject();
+    this.renameProjectValue.set(project.name);
+    this.projectRenaming.set(project);
+  }
+
+  cancelRenameProject(): void {
+    this.projectRenaming.set(null);
+    this.renameProjectValue.set('');
+  }
+
+  async saveRenameProject(): Promise<void> {
+    const project = this.projectRenaming();
+    const name = this.renameProjectValue().trim();
+    if (!project || !name) return;
+    if (name === project.name) {
+      this.cancelRenameProject();
+      return;
+    }
+    try {
+      await this.projectApi.rename(project, name);
+      if (this.state.selectedProject()?.id === project.id) {
+        this.state.selectedProject.set({ ...project, name });
+      }
+      this.cancelRenameProject();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   promptDeleteProject(project: Project): void {
     this.cancelAddProject();
+    this.cancelRenameProject();
     this.deleteConfirmName.set('');
     this.projectPendingDelete.set(project);
   }

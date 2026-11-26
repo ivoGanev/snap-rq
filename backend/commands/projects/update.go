@@ -3,7 +3,9 @@ package projects
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 
 	"snap-rq/backend/commands"
 	"snap-rq/backend/models"
@@ -40,6 +42,10 @@ func (c Update) Run(input json.RawMessage) (any, error) {
 	}
 	if in.ID == 0 {
 		return nil, fmt.Errorf("project id is required")
+	}
+	in.Name = strings.TrimSpace(in.Name)
+	if in.Name == "" {
+		return nil, errors.New("a project needs a name")
 	}
 	if _, err := c.tx.Exec(
 		`UPDATE projects SET profile_id = ?, name = ? WHERE id = ?`,
