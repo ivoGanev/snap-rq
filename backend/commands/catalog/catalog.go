@@ -136,6 +136,7 @@ var All = []commands.Factory{
 	// curl helpers
 	curl.NewParse,
 	curl.NewRender,
+	curl.NewCreate,
 
 	// openapi import/export
 	openapi.NewPreview,

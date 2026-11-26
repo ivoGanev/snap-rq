@@ -1653,8 +1653,13 @@ export class RequestsMainList {
     if (!req) return;
 
     try {
-      const full = await this.requestApi.getFull(req.id);
-      const curl = await this.requestApi.requestToCurl(full);
+      // The copy is built from the saved request: save a URL still being typed, as Send does.
+      const header = this.headerRequest();
+      if (header?.id === req.id) {
+        clearTimeout(this.urlSaveTimer);
+        await this.saveUrl(header, this.urlDraft());
+      }
+      const curl = await this.requestApi.createCurl(req.id, this.state.selectedEnvironment()?.id ?? null);
       await Clipboard.SetText(curl);
     } catch (err) {
       console.error(err);

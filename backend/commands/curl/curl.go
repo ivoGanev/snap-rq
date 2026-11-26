@@ -58,20 +58,10 @@ func RequestToCurl(req models.HttpRequest) string {
 	return strings.Join(parts, " ")
 }
 
-// formRow is one multipart form entry, shared between curl render and parse.
-type formRow struct {
-	Key      string `json:"key"`
-	Type     string `json:"type"` // "text" | "file"
-	Value    string `json:"value"`
-	FilePath string `json:"file_path"`
-	FileName string `json:"file_name"`
-	Enabled  bool   `json:"enabled"`
-}
-
 // curlFormParts renders the stored form rows as curl -F arguments. Files use
 // the key=@path form; text uses key=value.
 func curlFormParts(raw string) []string {
-	var entries []formRow
+	var entries []models.FormField
 	if json.Unmarshal([]byte(raw), &entries) != nil {
 		return nil
 	}
@@ -91,8 +81,8 @@ func curlFormParts(raw string) []string {
 
 // curlFormRow parses one -F argument into a form row. "key=@file" becomes a
 // file row, everything else a text row.
-func curlFormRow(arg string) formRow {
-	row := formRow{Enabled: true}
+func curlFormRow(arg string) models.FormField {
+	row := models.FormField{Enabled: true}
 	if name, value, found := strings.Cut(arg, "="); found {
 		row.Key = name
 		if strings.HasPrefix(value, "@") {
@@ -228,7 +218,7 @@ func CurlToRequest(collectionID int64, curl string) (models.HttpRequest, error) 
 	}
 
 	if len(formParts) > 0 {
-		rows := make([]formRow, 0, len(formParts))
+		rows := make([]models.FormField, 0, len(formParts))
 		for _, arg := range formParts {
 			rows = append(rows, curlFormRow(arg))
 		}

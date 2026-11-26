@@ -1,7 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Subject } from 'rxjs';
 import type { HttpRequest, HttpRequestSummary, HttpResponse, RequestUsage } from '../models/http';
-import type { EnvironmentVariableValue } from '../models/environment-context';
 import { CommandApiService } from './command.service';
 import { ChangeBus } from './change-bus.service';
 import { ToastService } from './toast.service';
@@ -247,16 +246,16 @@ export class RequestApiService {
   // -----------------------------------------------------------------------
 
   /**
-   * Sends a request and resolves once its response is saved; secret
-   * variables are filled in by the backend from `environmentId`. The request
-   * is in flight until its run finishes, whatever the outcome.
+   * Sends a request and resolves once its response is saved; the backend
+   * fills in the variables of `environmentId`. The request is in flight until
+   * its run finishes, whatever the outcome.
    */
-  async send(req: HttpRequest, variables: EnvironmentVariableValue[], environmentId: number | null): Promise<void> {
+  async send(req: HttpRequest, environmentId: number | null): Promise<void> {
     const sending = this.startSending(req.id);
     try {
       const result = await this.commands.run<HttpResponse>(
         'request.send',
-        { request: req, variables, environment_id: environmentId ?? 0 },
+        { request: req, environment_id: environmentId ?? 0 },
         undefined,
         sending.signal,
       );
@@ -333,8 +332,9 @@ export class RequestApiService {
   // Curl helpers
   // -----------------------------------------------------------------------
 
-  async requestToCurl(req: HttpRequest): Promise<string> {
-    return this.commands.execute('curl.render', req);
+  /** The saved request as a curl command, with the environment's variables filled in, secrets included. */
+  async createCurl(requestId: number, environmentId: number | null): Promise<string> {
+    return this.commands.execute('curl.create', { request_id: requestId, environment_id: environmentId ?? 0 });
   }
 
   async curlToRequest(collectionId: number, curl: string): Promise<HttpRequest> {
