@@ -166,6 +166,10 @@ func OpenWith(dbPath string, beforeMigrate func(*sql.DB)) (*sql.DB, error) {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
+	if err := addSelectedEnvironmentColumn(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
 	if err := addResponseRequestColumns(db); err != nil {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
@@ -991,6 +995,18 @@ func addResponseRequestColumns(db *sql.DB) error {
 		if _, err := db.Exec(`ALTER TABLE responses ADD COLUMN ` + col + ` TEXT NOT NULL DEFAULT ''`); err != nil {
 			return fmt.Errorf("adding %s to responses: %w", col, err)
 		}
+	}
+	return nil
+}
+
+// addSelectedEnvironmentColumn stores the environment each project uses;
+// NULL is none.
+func addSelectedEnvironmentColumn(db *sql.DB) error {
+	if columnExists(db, "projects", "selected_environment_id") {
+		return nil
+	}
+	if _, err := db.Exec(`ALTER TABLE projects ADD COLUMN selected_environment_id INTEGER`); err != nil {
+		return fmt.Errorf("adding selected_environment_id to projects: %w", err)
 	}
 	return nil
 }

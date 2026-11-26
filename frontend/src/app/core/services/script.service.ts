@@ -79,14 +79,12 @@ export class ScriptApiService {
     scriptName: string;
     requestId: number;
     phase: TryPhase;
-    environmentId: number | null;
   }): Promise<ScriptTryResult> {
     return this.commands.execute<ScriptTryResult>('script.try', {
       content: input.content,
       script_name: input.scriptName,
       request_id: input.requestId,
       phase: input.phase,
-      environment_id: input.environmentId ?? 0,
     });
   }
 

@@ -432,7 +432,8 @@ export class App implements OnInit, AfterViewInit {
         this.state.selectedEnvironment.set(created);
         return;
       }
-      this.state.selectedEnvironment.set(all[0]);
+      const stored = this.projects().find((p) => p.id === projectId)?.selected_environment_id;
+      this.state.selectedEnvironment.set(all.find((e) => e.id === stored) ?? all[0]);
     } catch (err) {
       console.error(err);
     }

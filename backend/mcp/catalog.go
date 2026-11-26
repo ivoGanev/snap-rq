@@ -64,6 +64,7 @@ var Catalog = []ToolMeta{
 	{"list_trash", "List the requests in a project's trash.", RiskRead, "bin.list"},
 	{"list_environments", "List the environments of a project.", RiskRead, "environment.list"},
 	{"list_variables", "List the variable NAMES of an environment. Values are never returned; refer to a variable as {{name}}.", RiskRead, "variable.list"},
+	{"select_environment", "Choose the environment a project uses (the one the app shows selected); environment_id 0 selects none.", RiskOrganize, "environment.select"},
 
 	// collections
 	{"create_collection", "Create a collection in a project.", RiskOrganize, "collection.create"},

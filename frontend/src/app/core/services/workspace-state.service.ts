@@ -4,6 +4,7 @@ import { FavouriteApiService, type FavouriteCollection } from './favourite.servi
 import { BinApiService, type HttpBinnedRequestSummary } from './bin.service';
 import { EnvironmentVariableApiService } from './environment-variable.service';
 import { EnvironmentApiService } from './environment.service';
+import { ProjectApiService } from './project.service';
 import { ChangeBus } from './change-bus.service';
 import { EnvironmentContext } from '../models/environment-context';
 import { AllRequestsView, isSmartView, type SmartView, type WorkspaceView } from '../workspace/workspace-view';
@@ -27,6 +28,7 @@ export class WorkspaceStateService {
   private readonly binApi = inject(BinApiService);
   private readonly envVarApi = inject(EnvironmentVariableApiService);
   private readonly environmentApi = inject(EnvironmentApiService);
+  private readonly projectApi = inject(ProjectApiService);
   private readonly changeBus = inject(ChangeBus);
 
   readonly loading = signal(false);
@@ -95,6 +97,18 @@ export class WorkspaceStateService {
   );
 
   constructor() {
+    // The choice is stored on the project: sending, Copy as cURL and MCP read it there.
+    effect(() => {
+      const env = this.selectedEnvironment();
+      if (!env) return;
+      const project = this.projectApi.projects().find((p) => p.id === env.project_id);
+      if (project?.selected_environment_id === env.id) return;
+      this.projectApi.projects.update((list) =>
+        list.map((p) => (p.id === env.project_id ? { ...p, selected_environment_id: env.id } : p)),
+      );
+      void this.environmentApi.select(env.project_id, env.id).catch((err) => console.error(err));
+    });
+
     // Variables follow the selected environment.
     effect(() => {
       const env = this.selectedEnvironment();
@@ -197,7 +211,7 @@ export class WorkspaceStateService {
   async sendRequest(req: HttpRequest, event: Event): Promise<void> {
     event.stopPropagation();
     try {
-      await this.requestApi.send(req, this.selectedEnvironment()?.id ?? null);
+      await this.requestApi.send(req);
     } catch (err) {
       console.error(err);
     }

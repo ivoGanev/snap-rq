@@ -31,11 +31,10 @@ func (TryScript) Info() commands.Info {
 
 type tryScriptInput struct {
 	// Content is the code to try: the editor's text, saved or not.
-	Content       string `json:"content"`
-	ScriptName    string `json:"script_name"`
-	RequestID     int64  `json:"request_id"`
-	Phase         string `json:"phase"` // "beforeRequest" | "afterResponse"
-	EnvironmentID int64  `json:"environment_id"`
+	Content    string `json:"content"`
+	ScriptName string `json:"script_name"`
+	RequestID  int64  `json:"request_id"`
+	Phase      string `json:"phase"` // "beforeRequest" | "afterResponse"
 }
 
 // TryResult is what trying a hook did. Problems means the code doesn't
@@ -79,7 +78,7 @@ func (c TryScript) Run(input json.RawMessage) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	env, err := repository.NewEnvironments(c.tx).Get(in.EnvironmentID,
+	env, err := repository.NewEnvironments(c.tx).Current(req.ProjectID,
 		repository.Load{Variables: true, Secrets: repository.Decrypt})
 	if err != nil {
 		return nil, err

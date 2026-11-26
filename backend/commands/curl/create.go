@@ -12,8 +12,8 @@ import (
 	"snap-rq/backend/repository"
 )
 
-// create.go — "Copy as cURL": a stored request as it would be sent, with an
-// environment's variables filled in, secrets included. Not an MCP tool: its
+// create.go — "Copy as cURL": a stored request as it would be sent, with its
+// project's environment filled in, secrets included. Not an MCP tool: its
 // output holds real secret values.
 
 type Create struct{ tx *sql.Tx }
@@ -26,8 +26,7 @@ func (Create) Info() commands.Info {
 
 func (c Create) Run(input json.RawMessage) (any, error) {
 	var in struct {
-		RequestID     int64 `json:"request_id"`
-		EnvironmentID int64 `json:"environment_id"`
+		RequestID int64 `json:"request_id"`
 	}
 	if err := json.Unmarshal(input, &in); err != nil {
 		return nil, err
@@ -36,7 +35,7 @@ func (c Create) Run(input json.RawMessage) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	env, err := repository.NewEnvironments(c.tx).Get(in.EnvironmentID,
+	env, err := repository.NewEnvironments(c.tx).Current(req.ProjectID,
 		repository.Load{Variables: true, Secrets: repository.Decrypt})
 	if err != nil {
 		return nil, err

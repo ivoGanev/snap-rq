@@ -20,7 +20,7 @@ func (List) Info() commands.Info {
 }
 
 func (c List) Run(_ json.RawMessage) (any, error) {
-	rows, err := c.tx.Query(`SELECT id, profile_id, name FROM projects ORDER BY name`)
+	rows, err := c.tx.Query(`SELECT id, profile_id, name, COALESCE(selected_environment_id, 0) FROM projects ORDER BY name`)
 	if err != nil {
 		return nil, fmt.Errorf("listing projects: %w", err)
 	}
@@ -29,7 +29,7 @@ func (c List) Run(_ json.RawMessage) (any, error) {
 	var projects []models.Project
 	for rows.Next() {
 		var p models.Project
-		if err := rows.Scan(&p.ID, &p.ProfileID, &p.Name); err != nil {
+		if err := rows.Scan(&p.ID, &p.ProfileID, &p.Name, &p.SelectedEnvironmentID); err != nil {
 			return nil, err
 		}
 		projects = append(projects, p)

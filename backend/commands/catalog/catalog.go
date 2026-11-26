@@ -104,6 +104,7 @@ var All = []commands.Factory{
 	environments.NewCreate,
 	environments.NewUpdate,
 	environments.NewDelete,
+	environments.NewSelect,
 	variables.NewList,
 	variables.NewCreate,
 	variables.NewUpdate,

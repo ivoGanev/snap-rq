@@ -83,6 +83,10 @@ func (c Delete) Run(input json.RawMessage) (any, error) {
 	if strings.EqualFold(name, "Default") {
 		return nil, errors.New("cannot delete the default environment")
 	}
+	if _, err := c.tx.Exec(`UPDATE projects SET selected_environment_id = NULL
+		WHERE selected_environment_id = ?`, in.ID); err != nil {
+		return nil, err
+	}
 	_, err := c.tx.Exec(`DELETE FROM environments WHERE id = ?`, in.ID)
 	return nil, err
 }

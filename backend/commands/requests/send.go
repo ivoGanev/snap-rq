@@ -43,8 +43,6 @@ var errCancelled = errors.New("request cancelled")
 func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 	var in struct {
 		Request models.HttpRequest `json:"request"`
-		// EnvironmentID names the environment whose variables are filled in.
-		EnvironmentID int64 `json:"environment_id"`
 	}
 	if err := json.Unmarshal(input, &in); err != nil {
 		obs.Finish(nil, err)
@@ -72,7 +70,7 @@ func (c Send) Run(input json.RawMessage, obs commands.Observer) {
 	// Variables are filled in before the scripts, so they see the request as
 	// it will go out, and again after them, for placeholders a script wrote
 	// (e.g. 'Bearer {{TOKEN}}').
-	env, err := repository.NewEnvironments(c.db).Get(in.EnvironmentID,
+	env, err := repository.NewEnvironments(c.db).Current(req.ProjectID,
 		repository.Load{Variables: true, Secrets: repository.Decrypt})
 	if err != nil {
 		obs.Finish(nil, err)

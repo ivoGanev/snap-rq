@@ -1648,7 +1648,7 @@ export class RequestsMainList {
     if (!req) return;
 
     try {
-      const curl = await this.requestApi.createCurl(req.id, this.state.selectedEnvironment()?.id ?? null);
+      const curl = await this.requestApi.createCurl(req.id);
       await Clipboard.SetText(curl);
     } catch (err) {
       console.error(err);

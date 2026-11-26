@@ -54,6 +54,17 @@ func (r Environments) Get(id int64, opts Load) (models.Environment, error) {
 	return envs[0], nil
 }
 
+// Current loads the environment the project uses (see environment.select);
+// none is an empty environment.
+func (r Environments) Current(projectID int64, opts Load) (models.Environment, error) {
+	var id int64
+	err := r.q.QueryRow(`SELECT COALESCE(selected_environment_id, 0) FROM projects WHERE id = ?`, projectID).Scan(&id)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return models.Environment{}, fmt.Errorf("loading the project's environment: %w", err)
+	}
+	return r.Get(id, opts)
+}
+
 // GetMany loads the environments with the given ids, in id order.
 func (r Environments) GetMany(ids []int64, opts Load) ([]models.Environment, error) {
 	if len(ids) == 0 {

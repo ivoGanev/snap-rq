@@ -48,4 +48,9 @@ export class EnvironmentApiService {
     await this.commands.execute('environment.delete', { id });
   }
 
+
+  /** Stores the environment a project uses; sending and Copy as cURL read it. */
+  async select(projectId: number, environmentId: number): Promise<void> {
+    await this.commands.execute('environment.select', { project_id: projectId, environment_id: environmentId });
+  }
 }

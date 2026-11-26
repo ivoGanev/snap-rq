@@ -247,15 +247,15 @@ export class RequestApiService {
 
   /**
    * Sends a request and resolves once its response is saved; the backend
-   * fills in the variables of `environmentId`. The request is in flight until
-   * its run finishes, whatever the outcome.
+   * fills in the variables of the project's environment. The request is in
+   * flight until its run finishes, whatever the outcome.
    */
-  async send(req: HttpRequest, environmentId: number | null): Promise<void> {
+  async send(req: HttpRequest): Promise<void> {
     const sending = this.startSending(req.id);
     try {
       const result = await this.commands.run<HttpResponse>(
         'request.send',
-        { request: req, environment_id: environmentId ?? 0 },
+        { request: req },
         undefined,
         sending.signal,
       );
@@ -332,9 +332,9 @@ export class RequestApiService {
   // Curl helpers
   // -----------------------------------------------------------------------
 
-  /** The saved request as a curl command, with the environment's variables filled in, secrets included. */
-  async createCurl(requestId: number, environmentId: number | null): Promise<string> {
-    return this.commands.execute('curl.create', { request_id: requestId, environment_id: environmentId ?? 0 });
+  /** The saved request as a curl command, with its project's environment filled in, secrets included. */
+  async createCurl(requestId: number): Promise<string> {
+    return this.commands.execute('curl.create', { request_id: requestId });
   }
 
   async curlToRequest(collectionId: number, curl: string): Promise<HttpRequest> {
