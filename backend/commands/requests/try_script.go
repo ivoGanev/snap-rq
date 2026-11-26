@@ -7,9 +7,9 @@ import (
 	"errors"
 	"fmt"
 
-	"snap-rq/backend/builder"
 	"snap-rq/backend/commands"
 	"snap-rq/backend/models"
+	"snap-rq/backend/protocol/httpreq"
 	"snap-rq/backend/repository"
 	"snap-rq/backend/scripting"
 )
@@ -111,7 +111,7 @@ func (c TryScript) Run(input json.RawMessage) (any, error) {
 // display.
 func (c TryScript) tryBefore(result *TryResult, session *scripting.Session, env models.Environment, req models.HttpRequest) {
 	mask := func(text string) string { return hideSecrets(text, env.SecretValues()) }
-	b := builder.New(env)
+	b := httpreq.New(env)
 	// A locked secret stays a {{placeholder}}: trying shows the request as it stands.
 	req, _ = b.Resolve(req)
 
@@ -137,7 +137,7 @@ func (c TryScript) tryBefore(result *TryResult, session *scripting.Session, env 
 	}
 	req, _ = b.Resolve(req)
 
-	built, err := builder.Build(req)
+	built, err := httpreq.Build(req)
 	if err != nil {
 		result.Stopped = mask(err.Error())
 		return

@@ -6,9 +6,9 @@ import (
 	"slices"
 	"strings"
 
-	"snap-rq/backend/builder"
 	"snap-rq/backend/commands"
 	"snap-rq/backend/models"
+	"snap-rq/backend/protocol/httpreq"
 	"snap-rq/backend/repository"
 )
 
@@ -41,16 +41,16 @@ func (c Create) Run(input json.RawMessage) (any, error) {
 		return nil, err
 	}
 	// A locked secret stays a {{placeholder}}: the copy still works.
-	req, _ = builder.New(env).Resolve(req)
-	built, err := builder.Build(req)
+	req, _ = httpreq.New(env).Resolve(req)
+	built, err := httpreq.Build(req)
 	if err != nil {
 		return nil, err
 	}
-	return FromBuilt(built), nil
+	return FromOutgoing(built), nil
 }
 
-// FromBuilt writes the curl command for a request as it goes out.
-func FromBuilt(b builder.Built) string {
+// FromOutgoing writes the curl command for a request as it goes out.
+func FromOutgoing(b httpreq.Outgoing) string {
 	names := make([]string, 0, len(b.Header))
 	for name := range b.Header {
 		names = append(names, name)

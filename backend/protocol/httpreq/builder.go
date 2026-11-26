@@ -1,11 +1,11 @@
-// Package builder turns a stored request into the request that goes out. It
+// Package httpreq turns a stored HTTP request into the request that goes out. It
 // is the backend's one place for this: sending, trying a script and copying
 // as cURL all build through it, so they agree on what is sent.
 //
 // Building is two steps because scripts sit between them: Resolve fills in
 // {{variables}}, a beforeRequest script may edit the result (and write new
 // placeholders, so Resolve runs again), then Build makes it ready to send.
-package builder
+package httpreq
 
 import (
 	"bytes"
@@ -67,8 +67,8 @@ func (b Builder) Resolve(req models.HttpRequest) (models.HttpRequest, []string) 
 	return req, locked
 }
 
-// Built is a request as it goes out.
-type Built struct {
+// Outgoing is a request as it goes out.
+type Outgoing struct {
 	Method string
 	URL    string
 	Header http.Header
@@ -81,8 +81,8 @@ type Built struct {
 // Build makes a resolved request ready to send: the method, a scheme for
 // the URL, checked header lines, and the body with its Content-Type. On an
 // error, Method and URL are still set, so a failed send is saved with them.
-func Build(req models.HttpRequest) (Built, error) {
-	built := Built{Method: strings.ToUpper(strings.TrimSpace(req.Method)), URL: withScheme(req.URL)}
+func Build(req models.HttpRequest) (Outgoing, error) {
+	built := Outgoing{Method: strings.ToUpper(strings.TrimSpace(req.Method)), URL: withScheme(req.URL)}
 	if built.Method == "" {
 		built.Method = http.MethodGet
 	}
@@ -120,7 +120,7 @@ func Build(req models.HttpRequest) (Built, error) {
 
 // HTTPRequest is the request for the HTTP client. A form-data body is
 // encoded here, so files are read only when actually sending.
-func (b Built) HTTPRequest(ctx context.Context) (*http.Request, error) {
+func (b Outgoing) HTTPRequest(ctx context.Context) (*http.Request, error) {
 	var body io.Reader
 	header := b.Header.Clone()
 	if b.FormData {
