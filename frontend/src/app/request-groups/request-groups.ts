@@ -1,4 +1,4 @@
-import { Component, effect, TemplateRef, ViewChild, computed, inject, isDevMode, signal } from '@angular/core';
+import { Component, TemplateRef, ViewChild, computed, inject, isDevMode, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Dialogs } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
@@ -29,7 +29,7 @@ import {
   type SidebarFolder,
   type SidebarItem,
 } from '../request-group-list/request-group-list';
-import { SidebarRail } from '../sidebar-rail/sidebar-rail';
+import { SmartViewList } from '../smart-view-list/smart-view-list';
 import {
   AllRequestsView,
   CollectionView,
@@ -43,10 +43,10 @@ import {
   type SmartView,
 } from '../core/workspace/workspace-view';
 import {
-  SIDEBAR_VIEWS,
-  type SidebarView,
-  type SidebarViewId,
-} from '../sidebar-rail/sidebar-views';
+  SIDEBAR_TABS,
+  type SidebarTabId,
+  type SmartViewId,
+} from './sidebar-views';
 
 type SidebarItemOfKind<K extends SidebarItem['kind']> = Extract<SidebarItem, { kind: K }>;
 
@@ -74,14 +74,9 @@ type RemoveHandlerMap = {
 
 const COLOR_PALETTE: string[] = ['#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
 
-/**
- * Left navigation shell. Collapsed mode renders an icon-only rail with an
- * explicit expand control; expanded mode renders the labelled nav plus the
- * active folder's group list. Mode changes are always user-driven.
- */
 @Component({
   selector: 'app-request-groups',
-  imports: [FormsModule, RequestGroupList, SidebarRail],
+  imports: [FormsModule, RequestGroupList, SmartViewList],
   templateUrl: './request-groups.html',
   styleUrl: './request-groups.scss',
   host: {
@@ -109,7 +104,7 @@ export class RequestGroups {
   private readonly toast = inject(ToastService);
 
 
-  /** Development builds only: the rail shows an undo-history debug button. */
+  /** Development builds only: the toolbar shows an undo-history debug button. */
   protected readonly devUndoVisible = isDevMode();
 
   openUndoPanel(): void {
@@ -196,51 +191,41 @@ export class RequestGroups {
   protected readonly favouriteCollections = this.favouriteApi.collections;
   protected readonly allScripts = this.scriptApi.allScripts;
 
-  // Which folder panel is open in the second column.
-  protected readonly folderFilter = signal<SidebarFolder | null>(null);
+  protected readonly sidebarTab = signal<SidebarTabId>('collections');
+  protected readonly sidebarTabs = SIDEBAR_TABS;
 
-  protected readonly sidebarViews = SIDEBAR_VIEWS;
+  protected readonly folderFilter = computed<SidebarFolder | null>(() => {
+    const tab = this.sidebarTab();
+    return tab === 'smart' || tab === 'trash' ? null : tab;
+  });
 
-  private readonly viewSelectHandlers: Record<SidebarViewId, () => void> = {
+  private readonly smartViewFactories: Record<SmartViewId, () => void> = {
     all: () => this.selectAll(),
-    collections: () => this.selectCollections(),
-    favourites: () => this.selectFavourites(),
-    scripts: () => this.selectScripts(),
     recent: () => this.selectSmartView(new RecentView()),
     usage: () => this.selectSmartView(new MostUsedView()),
     failing: () => this.selectSmartView(new FailingView()),
     unused: () => this.selectSmartView(new UnusedView()),
-    trash: () => this.selectTrashBin(),
   };
 
-  private readonly viewActiveHandlers: Record<SidebarViewId, () => boolean> = {
-    all: () => this.state.showingAllRequests(),
-    collections: () => this.folderFilter() === 'collections',
-    favourites: () => this.folderFilter() === 'favourites',
-    scripts: () => this.folderFilter() === 'scripts',
-    recent: () => this.state.smartView()?.kind === 'recent',
-    usage: () => this.state.smartView()?.kind === 'usage',
-    failing: () => this.state.smartView()?.kind === 'failing',
-    unused: () => this.state.smartView()?.kind === 'unused',
-    trash: () => this.state.showingBin(),
-  };
-
-  /** Active entry, used by the collapsed rail to keep its highlight in sync. */
-  protected readonly activeView = computed<SidebarViewId>(() => {
-    const folder = this.folderFilter();
-    if (folder) return folder;
-    if (this.state.showingBin()) return 'trash';
-    const smart = this.state.smartView();
-    if (smart) return smart.kind;
-    return 'all';
+  protected readonly activeSmartView = computed<SmartViewId | null>(() => {
+    if (this.state.showingAllRequests()) return 'all';
+    return this.state.smartView()?.kind ?? null;
   });
 
-  selectView(id: SidebarViewId): void {
-    this.viewSelectHandlers[id]();
+  selectSmartViewById(id: SmartViewId): void {
+    this.smartViewFactories[id]();
   }
 
-  isViewActive(view: SidebarView): boolean {
-    return this.viewActiveHandlers[view.id]();
+  selectTab(id: SidebarTabId): void {
+    if (id === 'trash') {
+      this.selectTrashBin();
+      return;
+    }
+    if (id !== 'smart') {
+      this.openFolder(id);
+      return;
+    }
+    this.sidebarTab.set(id);
   }
 
   // Creation popups
@@ -369,12 +354,6 @@ export class RequestGroups {
     this.drag.setOverEmptyCollections(false);
   }
 
-  constructor() {
-    effect(() => {
-      this.state.sidebarListOpen.set(this.folderFilter() !== null);
-    });
-  }
-
   onEscapePressed(): void {
     if (this.contextMenu.isOpen()) {
       this.contextMenu.close();
@@ -415,57 +394,34 @@ export class RequestGroups {
 
   selectAll(): void {
     this.state.selectView(new AllRequestsView());
-    this.folderFilter.set(null);
   }
 
-  /** Opens a smart view (Recent, Failing, Not used lately); it has no list in the drawer. */
+  /** Opens a smart view (Recent, Failing, Not used lately). */
   selectSmartView(view: SmartView): void {
     this.state.selectView(view);
-    this.folderFilter.set(null);
   }
 
   selectTrashBin(): void {
     const project = this.state.selectedProject();
     if (!project) return;
     this.state.selectView(new TrashView());
-    this.folderFilter.set(null);
+    this.sidebarTab.set('trash');
     void this.state.loadBinnedRequests(project.id);
   }
 
-  selectCollections(): void {
-    this.toggleFolderFilter('collections');
-  }
-
-  selectFavourites(): void {
-    this.toggleFolderFilter('favourites');
-  }
-
-  selectScripts(): void {
-    this.toggleFolderFilter('scripts');
-  }
-
-  private toggleFolderFilter(filter: SidebarFolder): void {
-    const current = this.folderFilter();
-    const next = current === filter ? null : filter;
-
+  private openFolder(folder: SidebarFolder): void {
     // The trash bin always closes. Opening a folder also closes "all" and
     // "recent"; an open collection, favourite or script stays open.
     const view = this.state.view()?.kind;
-    if (view === 'bin' || (next !== null && (view === 'all' || view === 'recent'))) {
+    if (view === 'bin' || view === 'all' || view === 'recent') {
       this.state.selectView(null);
     }
-
-    if (next !== null) {
-      // Opening a folder must reveal its list, even from the collapsed rail.
-      this.state.sidebarExpanded.set(true);
-    }
-
-    this.folderFilter.set(next);
+    this.sidebarTab.set(folder);
   }
 
   selectSidebarItem(item: SidebarItem): void {
     this.selectItem(item);
-    this.folderFilter.set(FOLDER_FOR_KIND[item.kind]);
+    this.sidebarTab.set(FOLDER_FOR_KIND[item.kind]);
   }
 
   // ---------- Add ----------

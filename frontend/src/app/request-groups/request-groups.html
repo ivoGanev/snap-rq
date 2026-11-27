@@ -1,63 +1,78 @@
 <div class="request-groups-shell">
-  @if (state.sidebarExpanded()) {
-    <nav class="request-groups-nav">
-      @for (view of sidebarViews; track view.id) {
-        @if (view.dividerBefore) {
-          <div class="sidebar-divider"></div>
-        }
-        @if (view.sectionBefore) {
-          <div class="nav-section-label">{{ view.sectionBefore }}</div>
-        }
-        <button
-          class="nav-button"
-          [class.is-active]="isViewActive(view)"
-          [class.nav-button--trash]="view.id === 'trash'"
-          type="button"
+  <div class="sidebar-panel">
+    @switch (sidebarTab()) {
+      @case ('smart') {
+        <app-smart-view-list
+          class="sidebar-list"
+          [activeView]="activeSmartView()"
           [disabled]="!state.selectedProject()"
-          (click)="selectView(view.id)"
-        >
-          <span class="nav-button__icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path [attr.d]="view.iconPath" />
-            </svg>
-          </span>
-          <span class="nav-button__label">{{ view.label }}</span>
-        </button>
+          (viewSelect)="selectSmartViewById($event)"
+        />
       }
-    </nav>
-
-    @if (folderFilter()) {
-      <app-request-group-list
-        class="request-group-list"
-        [folderFilter]="folderFilter()!"
-        [items]="filteredItems()"
-        [renamingItem]="renamingItem()"
-        [renameValue]="renameValue()"
-        [selectedKey]="selectedKey()"
-        [dropTargetKey]="dropTargetKey()"
-        [dropZoneActive]="dropZoneActive()"
-        [showMoreMenu]="folderFilter() === 'collections'"
-        (addMenuOpen)="openCollectionsMenu(collectionsAddMenu, $event)"
-        (moreMenuOpen)="openCollectionsMenu(collectionsMoreMenu, $event)"
-        (addClick)="createAndRename()"
-        (itemSelect)="selectSidebarItem($event)"
-        (itemContextMenu)="openItemContextMenu($event.item, $event.event, itemContextMenu)"
-        (appearanceClick)="openAppearanceMenu($event.item, $event.event, appearanceMenu)"
-        (renameStart)="startRename($event)"
-        (renameValueChange)="renameValue.set($event)"
-        (renameSubmit)="saveRename()"
-        (renameCancel)="cancelRename()"
-      />
+      @case ('trash') {
+        <div class="column-header trash-header">
+          <span class="trash-title">Trash bin</span>
+        </div>
+      }
+      @default {
+        <app-request-group-list
+          class="request-group-list sidebar-list"
+          [folderFilter]="folderFilter()!"
+          [items]="filteredItems()"
+          [renamingItem]="renamingItem()"
+          [renameValue]="renameValue()"
+          [selectedKey]="selectedKey()"
+          [dropTargetKey]="dropTargetKey()"
+          [dropZoneActive]="dropZoneActive()"
+          [showMoreMenu]="folderFilter() === 'collections'"
+          (addMenuOpen)="openCollectionsMenu(collectionsAddMenu, $event)"
+          (moreMenuOpen)="openCollectionsMenu(collectionsMoreMenu, $event)"
+          (addClick)="createAndRename()"
+          (itemSelect)="selectSidebarItem($event)"
+          (itemContextMenu)="openItemContextMenu($event.item, $event.event, itemContextMenu)"
+          (appearanceClick)="openAppearanceMenu($event.item, $event.event, appearanceMenu)"
+          (renameStart)="startRename($event)"
+          (renameValueChange)="renameValue.set($event)"
+          (renameSubmit)="saveRename()"
+          (renameCancel)="cancelRename()"
+        />
+      }
     }
-  } @else {
-    <app-sidebar-rail
-      [activeView]="activeView()"
-      [disabled]="!state.selectedProject()"
-      [showDevUndo]="devUndoVisible"
-      (viewSelect)="selectView($event)"
-      (undoPanelOpen)="openUndoPanel()"
-    />
-  }
+  </div>
+
+  <nav class="sidebar-toolbar" aria-label="Sidebar lists">
+    @for (tab of sidebarTabs; track tab.id) {
+      <button
+        class="toolbar-button"
+        [class.is-active]="sidebarTab() === tab.id"
+        type="button"
+        [disabled]="!state.selectedProject()"
+        [attr.aria-label]="tab.label"
+        [attr.aria-pressed]="sidebarTab() === tab.id"
+        [title]="tab.label"
+        (click)="selectTab(tab.id)"
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path [attr.d]="tab.iconPath" />
+        </svg>
+      </button>
+    }
+    @if (devUndoVisible) {
+      <button
+        class="toolbar-button"
+        type="button"
+        aria-label="Undo history (dev)"
+        title="Undo history (dev)"
+        (click)="openUndoPanel()"
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path
+            d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"
+          />
+        </svg>
+      </button>
+    }
+  </nav>
 </div>
 
 <!-- Add: Collection -->

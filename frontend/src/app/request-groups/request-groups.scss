@@ -6,160 +6,110 @@
 
 .request-groups-shell {
   display: flex;
-  flex-direction: row;
-  height: 100%;
-  overflow: hidden;
-}
-
-.request-groups-nav {
-  flex: 0 0 auto;
-  display: flex;
   flex-direction: column;
-  gap: var(--s-1);
-  width: max-content;
-  min-width: 160px;
   height: 100%;
-  padding: var(--s-2) 0;
   overflow: hidden;
 }
 
-app-sidebar-rail {
+.sidebar-panel {
   flex: 1 1 auto;
-  min-width: 0;
-  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
-.request-group-list {
-  flex: 1 1 0;
+.sidebar-list {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   min-width: 0;
-  height: 100%;
-  border-left: 1px solid var(--glass-border);
-  background: var(--surface);
+  min-height: 0;
 }
 
-.nav-button {
+.trash-header {
+  flex: 0 0 auto;
+  padding: 0 var(--s-3);
+}
+
+.trash-title {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sidebar-toolbar {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: var(--s-2);
-  height: 40px;
-  margin: 0 var(--s-2);
-  padding: 0 var(--s-2) 0 var(--s-1);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  text-align: left;
-  color: var(--text);
-  white-space: nowrap;
+  justify-content: space-around;
+  gap: var(--s-1);
+  padding: var(--s-1) var(--s-2);
+  border-top: 1px solid var(--glass-border);
+}
+
+.toolbar-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: color-mix(in srgb, var(--accent-3, var(--accent)) 70%, transparent);
   background: transparent;
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease;
+  transition: color 0.15s ease;
   --wails-draggable: no-drag;
-  @include btn.btn-secondary;
-}
-
-.nav-button:hover:not(:disabled) {
-  background: transparent;
-  box-shadow: none;
-}
-
-.nav-button.is-active {
-  background: transparent;
-  box-shadow: none;
-}
-
-.nav-button.is-active:hover:not(:disabled) {
-  background: transparent;
-  box-shadow: none;
-}
-
-// Mouse clicks must not draw a ring; keyboard focus shows the hover bar.
-.nav-button,
-.nav-button:focus,
-.nav-button:focus-visible,
-.nav-button:active {
-  outline: none !important;
   -webkit-tap-highlight-color: transparent;
 }
 
-.nav-button:active:not(:disabled) {
-  transform: none;
-  border: none;
+.toolbar-button svg {
+  width: 18px;
+  height: 18px;
 }
 
-.nav-button:focus-visible {
-  box-shadow: none;
+.toolbar-button:hover:not(:disabled),
+.toolbar-button.is-active {
+  color: var(--accent-3, var(--accent));
 }
 
-.nav-button:disabled {
+.toolbar-button:focus {
+  outline: none;
+}
+
+// Straight bar under the icon (a real element, so the rounded corners don't curve it).
+.toolbar-button::after {
+  content: '';
+  position: absolute;
+  left: 25%;
+  right: 25%;
+  bottom: 2px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent-3, var(--accent));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.toolbar-button:hover:not(:disabled)::after,
+.toolbar-button:focus-visible::after {
+  opacity: 0.45;
+}
+
+.toolbar-button.is-active::after {
+  opacity: 1;
+}
+
+.toolbar-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.nav-button__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  color: color-mix(in srgb, var(--accent-3, var(--accent)) 80%, transparent);
-  flex: 0 0 auto;
-}
-
-.nav-button__icon svg {
-  width: 18px;
-  height: 18px;
-}
-
-.nav-button:hover:not(:disabled) .nav-button__icon {
-  color: var(--accent-3, var(--accent));
-}
-
-.nav-button.is-active .nav-button__icon {
-  color: var(--accent-3, var(--accent));
-}
-
-.nav-button__label {
-  flex: 1 1 auto;
-  white-space: nowrap;
-}
-
-.nav-button--trash.is-active {
-  background: transparent;
-}
-
-.nav-button--trash.is-active:hover:not(:disabled) {
-  background: transparent;
-}
-
-.nav-button--trash.is-active .nav-button__icon {
-  color: var(--accent-3, var(--accent));
-}
-
-.sidebar-divider {
-  flex: 0 0 auto;
-  height: 1px;
-  margin: var(--s-2) var(--s-2);
-  background: var(--glass-border);
-}
-
-// A group heading in the open drawer ("Smart views"), lined up with the
-// buttons' labels.
-.nav-section-label {
-  flex: 0 0 auto;
-  margin: calc(var(--s-1) * -0.5) var(--s-2) 0;
-  padding: 0 var(--s-1);
-  font-family: var(--font-display);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
 }
 
 .overlay-backdrop {
@@ -439,33 +389,4 @@ app-sidebar-rail {
 
 .new-collection-popup .overlay-body {
   gap: var(--s-3);
-}
-
-// Straight gold bar (a real element, so it is not curved by the rounded corners).
-.nav-button {
-  position: relative;
-}
-
-.nav-button::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 22%;
-  bottom: 22%;
-  width: 3px;
-  border-radius: 2px;
-  background: var(--accent-3, var(--accent));
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease;
-}
-
-.nav-button:hover:not(:disabled)::before,
-.nav-button:focus-visible::before {
-  opacity: 0.45;
-}
-
-.nav-button.is-active::before,
-.nav-button.is-active:hover:not(:disabled)::before {
-  opacity: 1;
 }
