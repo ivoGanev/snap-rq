@@ -63,9 +63,9 @@
 
 .top-bar-project {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 6px;
-  max-width: 220px;
   padding: 5px 8px;
   font-size: 0.875rem;
   font-weight: 600;
@@ -81,7 +81,10 @@
   background: var(--hover-highlight);
 }
 
+// Room for 18 characters, whatever the name: the top bar never changes size.
 .top-bar-project-name {
+  width: 18ch;
+  text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -527,7 +530,9 @@
 
 // The Enter key does what pressing Enter does, in the pencil and bin's column.
 .project-menu-enter {
-  flex: 0 0 calc(2 * 26px + 2px);
+  // Narrower by its margin, so the field still ends where the highlight does.
+  flex: 0 0 calc(2 * 26px + 2px - 6px);
+  margin-left: 6px;
   align-self: stretch;
   display: inline-flex;
   align-items: center;
@@ -610,4 +615,20 @@
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
+}
+
+// Fixed to the window, so the dropdown's scrolling list doesn't clip it.
+.project-menu-hint {
+  position: fixed;
+  z-index: 1;
+  max-width: 240px;
+  padding: 6px var(--s-2);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--surface-solid);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px var(--shadow);
+  pointer-events: none;
 }

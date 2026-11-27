@@ -104,11 +104,15 @@
             </li>
           } @else if (projectPendingDelete()?.id === project.id) {
             <li class="project-menu-row project-menu-row--field project-menu-row--confirm">
+              @let deleteNote = 'Deletes ' + project.name + ' with its collections, requests and history. A backup is taken first.';
               <span
                 class="project-menu-lead project-menu-info"
                 tabindex="0"
-                [title]="'Deletes ' + project.name + ' with its collections, requests and history. A backup is taken first.'"
-                [attr.aria-label]="'Deletes ' + project.name + ' with its collections, requests and history. A backup is taken first.'"
+                [attr.aria-label]="deleteNote"
+                (mouseenter)="showProjectHint($event, deleteNote)"
+                (focus)="showProjectHint($event, deleteNote)"
+                (mouseleave)="projectHint.set(null)"
+                (blur)="projectHint.set(null)"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                   stroke-linejoin="round" aria-hidden="true">
@@ -181,6 +185,11 @@
           }
         }
       </ul>
+      @if (projectHint(); as hint) {
+        <div class="project-menu-hint" role="tooltip" [style.left.px]="hint.left" [style.top.px]="hint.top">
+          {{ hint.text }}
+        </div>
+      }
     </div>
   </ng-template>
 
