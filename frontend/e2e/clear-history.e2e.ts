@@ -28,6 +28,7 @@ test('clearing the history asks first, then empties it and the request status', 
   const name = `clear me ${Date.now()}`;
   const id = await failingRequest(page, name);
 
+  await page.locator('.sidebar-toolbar').getByRole('button', { name: 'Smart views', exact: true }).click();
   await page.getByRole('button', { name: /^Failing/ }).click();
   await row(page, name).locator('.spreadsheet-cell--url').click();
   await expect(pane(page).locator('.history-bar')).toBeVisible();
