@@ -28,7 +28,7 @@
 
 .trash-header {
   flex: 0 0 auto;
-  padding: 0 var(--s-3);
+  padding: 0 var(--s-2);
 }
 
 .trash-title {
@@ -44,9 +44,8 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  justify-content: space-around;
-  gap: var(--s-1);
-  padding: var(--s-1) var(--s-2);
+  gap: 2px;
+  padding: var(--s-1);
   border-top: 1px solid var(--glass-border);
 }
 
@@ -56,8 +55,8 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 36px;
-  height: 36px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   color: color-mix(in srgb, var(--accent-3, var(--accent)) 70%, transparent);
   background: transparent;
@@ -70,8 +69,8 @@
 }
 
 .toolbar-button svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
 .toolbar-button:hover:not(:disabled),
@@ -89,8 +88,8 @@
   position: absolute;
   left: 25%;
   right: 25%;
-  bottom: 2px;
-  height: 3px;
+  bottom: 0;
+  height: 2px;
   border-radius: 2px;
   background: var(--accent-3, var(--accent));
   opacity: 0;

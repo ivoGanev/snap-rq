@@ -38,15 +38,15 @@ import {
   MostUsedView,
   RecentView,
   ScriptView,
-  TrashView,
   UnusedView,
   type SmartView,
 } from '../core/workspace/workspace-view';
+import { SIDEBAR_TABS } from './sidebar-views';
 import {
-  SIDEBAR_TABS,
+  SidebarMemoryService,
   type SidebarTabId,
   type SmartViewId,
-} from './sidebar-views';
+} from '../core/services/sidebar-memory.service';
 
 type SidebarItemOfKind<K extends SidebarItem['kind']> = Extract<SidebarItem, { kind: K }>;
 
@@ -102,6 +102,7 @@ export class RequestGroups {
   private readonly openapiApi = inject(OpenApiApiService);
   private readonly importPrompt = inject(OpenApiImportPrompt);
   private readonly toast = inject(ToastService);
+  private readonly memory = inject(SidebarMemoryService);
 
 
   /** Development builds only: the toolbar shows an undo-history debug button. */
@@ -191,7 +192,7 @@ export class RequestGroups {
   protected readonly favouriteCollections = this.favouriteApi.collections;
   protected readonly allScripts = this.scriptApi.allScripts;
 
-  protected readonly sidebarTab = signal<SidebarTabId>('collections');
+  protected readonly sidebarTab = this.memory.tab;
   protected readonly sidebarTabs = SIDEBAR_TABS;
 
   protected readonly folderFilter = computed<SidebarFolder | null>(() => {
@@ -217,15 +218,7 @@ export class RequestGroups {
   }
 
   selectTab(id: SidebarTabId): void {
-    if (id === 'trash') {
-      this.selectTrashBin();
-      return;
-    }
-    if (id !== 'smart') {
-      this.openFolder(id);
-      return;
-    }
-    this.sidebarTab.set(id);
+    this.memory.openTab(id);
   }
 
   // Creation popups
@@ -401,27 +394,8 @@ export class RequestGroups {
     this.state.selectView(view);
   }
 
-  selectTrashBin(): void {
-    const project = this.state.selectedProject();
-    if (!project) return;
-    this.state.selectView(new TrashView());
-    this.sidebarTab.set('trash');
-    void this.state.loadBinnedRequests(project.id);
-  }
-
-  private openFolder(folder: SidebarFolder): void {
-    // The trash bin always closes. Opening a folder also closes "all" and
-    // "recent"; an open collection, favourite or script stays open.
-    const view = this.state.view()?.kind;
-    if (view === 'bin' || view === 'all' || view === 'recent') {
-      this.state.selectView(null);
-    }
-    this.sidebarTab.set(folder);
-  }
-
   selectSidebarItem(item: SidebarItem): void {
     this.selectItem(item);
-    this.sidebarTab.set(FOLDER_FOR_KIND[item.kind]);
   }
 
   // ---------- Add ----------
