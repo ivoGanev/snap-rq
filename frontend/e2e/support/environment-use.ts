@@ -149,9 +149,7 @@ export function environmentUseTests(): void {
       { name, requestId },
     );
     await reload(page);
-    const expand = page.getByRole('button', { name: 'Expand sidebar' });
-    if (await expand.isVisible()) await expand.click();
-    await page.locator('.nav-button', { hasText: 'Scripts' }).click();
+    await page.locator('.sidebar-toolbar').getByRole('button', { name: 'Scripts', exact: true }).click();
     // In the test window the request list overlaps the sidebar's list, so
     // the row gets its click directly; what's tested is the saving.
     await page.locator(`[data-item-name="${name}"]`).dispatchEvent('click');
