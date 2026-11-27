@@ -14,6 +14,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ProjectMenu } from './project-menu/project-menu';
 import { Select } from './select/select';
 import { WindowControls } from './window-controls/window-controls';
 import { WML } from '@wailsio/runtime';
@@ -58,6 +59,7 @@ import { UndoPanel } from './undo-panel/undo-panel';
   selector: 'app-root',
   imports: [
     FormsModule,
+    ProjectMenu,
     Select,
     WindowControls,
     RequestGroups,
@@ -155,11 +157,6 @@ export class App implements OnInit, AfterViewInit {
     this.state.selectedResponse();
     void this.cookieApi.loadForProject(projectId);
   });
-  readonly projectEditorOpen = signal(false);
-  readonly newProjectName = signal('');
-  readonly projectDeleteConfirmOpen = signal(false);
-  readonly projectPendingDelete = signal<Project | null>(null);
-
   readonly themeSelectorOpen = signal(false);
   readonly settingsOpen = signal(false);
   /** The Settings page to open on (a backup toast's "Show" opens Backups). */
@@ -225,14 +222,6 @@ export class App implements OnInit, AfterViewInit {
     }
     if (this.variablesOverlayOpen()) {
       this.closeVariablesOverlay();
-      return;
-    }
-    if (this.projectDeleteConfirmOpen()) {
-      this.cancelDeleteProject();
-      return;
-    }
-    if (this.projectEditorOpen()) {
-      this.closeProjectEditor();
       return;
     }
     if (this.settingsOpen()) {
@@ -474,29 +463,11 @@ export class App implements OnInit, AfterViewInit {
     this.state.sidebarExpanded.update((expanded) => !expanded);
   }
 
-  openProjectEditor(): void {
-    this.newProjectName.set('');
-    this.projectEditorOpen.set(true);
-    this.projectPendingDelete.set(null);
-    this.projectDeleteConfirmOpen.set(false);
-  }
-
-  closeProjectEditor(): void {
-    this.projectEditorOpen.set(false);
-    this.projectPendingDelete.set(null);
-    this.projectDeleteConfirmOpen.set(false);
-  }
-
-  async onSelectProject(project: Project): Promise<void> {
-    if (this.state.selectedProject()?.id === project.id) {
-      this.closeProjectEditor();
-      return;
-    }
-
+  /** Opens a project from the project menu: picked there, or just created. */
+  async openProject(project: Project): Promise<void> {
     this.state.loading.set(true);
     try {
       await this.selectProject(project);
-      this.closeProjectEditor();
     } catch (err) {
       console.error(err);
     } finally {
@@ -504,73 +475,24 @@ export class App implements OnInit, AfterViewInit {
     }
   }
 
-  async addProject(): Promise<void> {
-    const profile = this.state.selectedProject();
-    if (!profile) return;
-
-    const name = this.newProjectName().trim();
-    if (!name) return;
-
-    this.state.loading.set(true);
-    try {
-      const created = await this.projectApi.create({
-        profile_id: profile.profile_id,
-        name,
-      });
-      await this.selectProject(created);
-      this.newProjectName.set('');
-    } catch (err) {
-      console.error(err);
-    } finally {
-      this.state.loading.set(false);
+  /** After the project menu deleted a project: if it was open, open another or clear the workspace. */
+  async projectDeleted(project: Project): Promise<void> {
+    if (this.state.selectedProject()?.id !== project.id) return;
+    const remaining = this.projects();
+    if (remaining.length > 0) {
+      await this.openProject(remaining[0]);
+      return;
     }
-  }
-
-  promptDeleteProject(project: Project, event: MouseEvent): void {
-    event.stopPropagation();
-    this.projectPendingDelete.set(project);
-    this.projectDeleteConfirmOpen.set(true);
-  }
-
-  cancelDeleteProject(): void {
-    this.projectPendingDelete.set(null);
-    this.projectDeleteConfirmOpen.set(false);
-  }
-
-  async deleteProject(): Promise<void> {
-    const project = this.projectPendingDelete();
-    if (!project) return;
-
-    this.state.loading.set(true);
-    try {
-      await this.projectApi.delete(project.id);
-      await this.projectApi.loadAll();
-
-      if (this.state.selectedProject()?.id === project.id) {
-        const remaining = this.projects();
-        if (remaining.length > 0) {
-          await this.selectProject(remaining[0]);
-        } else {
-          this.state.selectedProject.set(null);
-          this.state.selectedEnvironment.set(null);
-          this.state.selectView(null);
-          this.state.selectedRequest.set(null);
-          this.state.selectedResponse.set(null);
-          this.collectionApi.collections.set([]);
-          this.requestApi.allRequests.set({});
-          this.favouriteApi.collections.set([]);
-          this.favouriteApi.requests.set([]);
-          this.scriptApi.allScripts.set([]);
-          this.environmentApi.environments.set([]);
-        }
-      }
-
-      this.projectPendingDelete.set(null);
-      this.projectDeleteConfirmOpen.set(false);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      this.state.loading.set(false);
-    }
+    this.state.selectedProject.set(null);
+    this.state.selectedEnvironment.set(null);
+    this.state.selectView(null);
+    this.state.selectedRequest.set(null);
+    this.state.selectedResponse.set(null);
+    this.collectionApi.collections.set([]);
+    this.requestApi.allRequests.set({});
+    this.favouriteApi.collections.set([]);
+    this.favouriteApi.requests.set([]);
+    this.scriptApi.allScripts.set([]);
+    this.environmentApi.environments.set([]);
   }
 }

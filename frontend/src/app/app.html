@@ -33,13 +33,7 @@
     </button>
   </div>
 
-  <button class="top-bar-project" type="button" title="Change project" (click)="openProjectEditor()">
-    <span class="top-bar-project-name">{{ state.selectedProject()?.name ?? 'No project' }}</span>
-    <svg class="top-bar-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
-      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-  </button>
+  <app-project-menu #projectMenu (select)="openProject($event)" (deleted)="projectDeleted($event)" />
 
   <app-select
     class="environment-select"
@@ -155,12 +149,19 @@
 <div class="app-shell" (window:keydown.escape)="onEscapePressed()">
   <app-request-groups [style.width]="leftSidebarWidth()"></app-request-groups>
 
-  @switch (state.view()?.main ?? 'requests') {
-    @case ('script') {
-      <app-script-editor />
-    }
-    @default {
-      <app-requests-main-list />
+  @if (projects().length === 0 && !state.loading()) {
+    <div class="empty-workspace">
+      <p class="empty-workspace-text">Create a project to get started.</p>
+      <button class="empty-workspace-button" type="button" (click)="projectMenu.openNew()">New project</button>
+    </div>
+  } @else {
+    @switch (state.view()?.main ?? 'requests') {
+      @case ('script') {
+        <app-script-editor />
+      }
+      @default {
+        <app-requests-main-list />
+      }
     }
   }
 
@@ -205,79 +206,6 @@
 
 @if (variablesOverlayOpen()) {
   <app-variables-editor (close)="closeVariablesOverlay()"></app-variables-editor>
-}
-
-@if (projectEditorOpen()) {
-  <div class="overlay-backdrop" (click)="closeProjectEditor()">
-    <div class="overlay-panel project-editor-popup" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Projects</h3>
-        <button class="overlay-close" type="button" (click)="closeProjectEditor()">Close</button>
-      </div>
-
-      <div class="overlay-body">
-        @if (projects().length === 0) {
-          <div class="state-message">No projects.</div>
-        }
-
-        <ul class="project-list">
-          @for (project of projects(); track project.id) {
-            <li
-              class="project-row"
-              [class.is-selected]="state.selectedProject()?.id === project.id"
-              (click)="onSelectProject(project)"
-            >
-              <span class="project-row-name">{{ project.name }}</span>
-              <button
-                class="project-delete-button"
-                type="button"
-                (click)="promptDeleteProject(project, $event)"
-                aria-label="Delete project"
-              >
-                Delete
-              </button>
-            </li>
-          }
-        </ul>
-      </div>
-
-      <div class="overlay-footer project-editor-footer">
-        <input
-          class="variable-input project-name-input"
-          type="text"
-          placeholder="New project name"
-          [ngModel]="newProjectName()"
-          (ngModelChange)="newProjectName.set($event)"
-          (keydown.enter)="addProject()"
-        />
-        <button class="variable-add" type="button" (click)="addProject()">Add project</button>
-      </div>
-    </div>
-  </div>
-}
-
-@if (projectDeleteConfirmOpen()) {
-  <div class="overlay-backdrop" (click)="cancelDeleteProject()">
-    <div class="overlay-panel project-delete-popup" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Delete project?</h3>
-        <button class="overlay-close" type="button" (click)="cancelDeleteProject()">Cancel</button>
-      </div>
-
-      <div class="overlay-body">
-        <p class="delete-confirm-message">
-          This will permanently delete <strong>{{ projectPendingDelete()?.name }}</strong> and all
-          of its collections, requests, responses, and favourites.
-        </p>
-      </div>
-
-      <div class="overlay-footer">
-        <button class="overlay-delete" type="button" (click)="deleteProject()">
-          Delete project
-        </button>
-      </div>
-    </div>
-  </div>
 }
 
 <!-- Outside the top bar: its backdrop-filter would make it the containing

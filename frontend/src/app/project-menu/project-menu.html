@@ -1,0 +1,164 @@
+<button
+  class="top-bar-project"
+  type="button"
+  title="Change project"
+  cdkOverlayOrigin
+  #projectTrigger="cdkOverlayOrigin"
+  [attr.aria-expanded]="open()"
+  (click)="toggle()"
+>
+  <span class="top-bar-project-name">{{ state.selectedProject()?.name ?? 'No project' }}</span>
+  <svg class="top-bar-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+</button>
+<ng-template
+  cdkConnectedOverlay
+  [cdkConnectedOverlayOrigin]="projectTrigger"
+  [cdkConnectedOverlayOpen]="open()"
+  [cdkConnectedOverlayPositions]="menuPositions"
+  cdkConnectedOverlayHasBackdrop
+  cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop"
+  (backdropClick)="close()"
+  (detach)="close()"
+  (overlayKeydown)="onKeydown($event)"
+>
+  <div class="project-menu" role="dialog" aria-label="Projects">
+    <div class="project-menu-head">
+      <span class="project-menu-title">Projects</span>
+      <button class="project-menu-add" type="button" aria-label="New project" title="New project" (click)="startAdd()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      </button>
+    </div>
+
+    <ul class="project-menu-list">
+      @if (projects().length === 0 && !adding()) {
+        <li class="project-menu-empty">No projects yet.</li>
+      }
+      @if (adding()) {
+        <li class="project-menu-row project-menu-row--field">
+          <span class="project-menu-lead" aria-hidden="true"></span>
+          <input
+            class="project-menu-input"
+            type="text"
+            placeholder="New project name"
+            selectOnFocus
+            [value]="newName()"
+            (input)="newName.set($any($event.target).value)"
+            (keydown.enter)="add()"
+            (keydown.escape)="cancelAdd(); $event.stopPropagation()"
+          />
+        </li>
+      }
+      @for (project of projects(); track project.id) {
+        @if (renaming()?.id === project.id) {
+          <li class="project-menu-row project-menu-row--field">
+            <span class="project-menu-lead" aria-hidden="true"></span>
+            <input
+              class="project-menu-input"
+              type="text"
+              selectOnFocus
+              [attr.aria-label]="'New name for ' + project.name"
+              [value]="renameValue()"
+              (input)="renameValue.set($any($event.target).value)"
+              (keydown.enter)="saveRename()"
+              (keydown.escape)="cancelRename(); $event.stopPropagation()"
+            />
+          </li>
+        } @else if (pendingDelete()?.id === project.id) {
+          <li class="project-menu-row project-menu-row--field project-menu-row--confirm">
+            @let deleteNote = 'Deletes ' + project.name + ' with its collections, requests and history. A backup is taken first.';
+            <span
+              class="project-menu-lead project-menu-info"
+              tabindex="0"
+              cdkOverlayOrigin
+              #deleteInfo="cdkOverlayOrigin"
+              [attr.aria-label]="deleteNote"
+              (mouseenter)="hintOpen.set(true)"
+              (focus)="hintOpen.set(true)"
+              (mouseleave)="hintOpen.set(false)"
+              (blur)="hintOpen.set(false)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 11v5M12 7.5v.01" />
+              </svg>
+            </span>
+            <ng-template
+              cdkConnectedOverlay
+              [cdkConnectedOverlayOrigin]="deleteInfo"
+              [cdkConnectedOverlayOpen]="hintOpen()"
+              [cdkConnectedOverlayPositions]="hintPositions"
+            >
+              <div class="project-menu-hint" role="tooltip">{{ deleteNote }}</div>
+            </ng-template>
+            <input
+              class="project-menu-input project-menu-input--delete"
+              type="text"
+              selectOnFocus
+              placeholder="Type ok to delete"
+              [attr.aria-label]="'Type ok to delete ' + project.name"
+              [value]="confirmText()"
+              (input)="confirmText.set($any($event.target).value)"
+              (keydown.enter)="delete()"
+              (keydown.escape)="cancelDelete(); $event.stopPropagation()"
+            />
+            <button
+              class="project-menu-enter"
+              type="button"
+              [disabled]="!confirmed()"
+              [attr.aria-label]="'Delete ' + project.name"
+              title="Delete (Enter)"
+              (click)="delete()"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 5v7a3 3 0 0 1-3 3H5" />
+                <path d="m9 11-4 4 4 4" />
+              </svg>
+            </button>
+          </li>
+        } @else {
+          <li class="project-menu-row" [class.is-selected]="state.selectedProject()?.id === project.id">
+            <button class="project-menu-pick" type="button" (click)="pick(project)">
+              <svg class="project-menu-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M5 12.5l4.5 4.5L19 7.5" />
+              </svg>
+              <span class="project-menu-name">{{ project.name }}</span>
+            </button>
+            <button
+              class="project-menu-icon"
+              type="button"
+              [attr.aria-label]="'Rename project ' + project.name"
+              title="Rename"
+              (click)="startRename(project)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" aria-hidden="true">
+                <path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z" />
+                <path d="m15 5 4 4" />
+              </svg>
+            </button>
+            <button
+              class="project-menu-icon project-menu-delete"
+              type="button"
+              [attr.aria-label]="'Delete project ' + project.name"
+              title="Delete project"
+              (click)="askDelete(project)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+              </svg>
+            </button>
+          </li>
+        }
+      }
+    </ul>
+  </div>
+</ng-template>
