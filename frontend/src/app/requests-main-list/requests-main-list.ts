@@ -131,10 +131,6 @@ export class RequestsMainList {
   readonly selectedCell = signal<SelectedCell | null>(null);
   readonly highlightedCell = signal<SelectedCell | null>(null);
   readonly lastClickedRowId = signal<number | null>(null);
-  readonly isDragging = signal(false);
-  readonly dragStartRowId = signal<number | null>(null);
-  readonly dragStartClientY = signal(0);
-  readonly dragHasMoved = signal(false);
   readonly ignoreNextClick = signal(false);
 
   readonly sortColumn = signal<ColumnKey | null>(null);
@@ -190,14 +186,14 @@ export class RequestsMainList {
     return id === null ? null : (this.groupApi.groups().find((g) => g.id === id) ?? null);
   });
 
-  /** The open collection's groups, by name. */
+  /** The open collection's groups, in the user's order. */
   protected readonly collectionGroups = computed<RequestGroupRecord[]>(() => {
     const collection = this.state.selectedCollection();
     if (!collection) return [];
     return this.groupApi
       .groups()
       .filter((g) => g.collection_id === collection.id)
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
   });
 
   /** Whether the colour picker is available: a picked group, or a selection in a favourite or script. */
@@ -952,7 +948,7 @@ export class RequestsMainList {
   onWindowKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       // Cancelling an in-progress reorder takes precedence: no order changes.
-      if (this.cancelReorder()) return;
+      if (this.cancelGroupDrag() || this.cancelReorder()) return;
       this.onEscapePressed();
       return;
     }
@@ -1157,14 +1153,6 @@ export class RequestsMainList {
       return;
     }
 
-    if (this.isDragging()) {
-      // During drag selection only clear the workspace detail; load the full
-      // request once the drag ends to avoid one IPC call per row crossed.
-      this.state.selectedRequest.set(null);
-      this.state.selectedResponse.set(null);
-      return;
-    }
-
     this.state.selectedRequest.set(null);
     this.state.selectedResponse.set(null);
 
@@ -1199,8 +1187,12 @@ export class RequestsMainList {
     this.rememberSelection(req.id);
   }
 
-  // ---------- Drag selection ----------
+  // ---------- Row drag ----------
 
+  /**
+   * Pressing on a row arms a drag; it starts once the pointer moves past the
+   * threshold, so a press and release without moving stays a click.
+   */
   onRowMouseDown(req: HttpRequestSummary | HttpBinnedRequestSummary, event: MouseEvent): void {
     if (event.button !== 0) return;
     // A new mousedown always starts a new gesture: clear any stale
@@ -1209,11 +1201,23 @@ export class RequestsMainList {
     // after a drag would be swallowed (requiring two clicks to select).
     this.ignoreNextClick.set(false);
     if (event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (!this.canDragOut() || isEditableTarget(event.target)) return;
+    // Stops the press from starting a text selection across rows.
+    event.preventDefault();
 
-    this.dragStartRowId.set(req.id);
-    this.dragStartClientY.set(event.clientY);
-    this.dragHasMoved.set(false);
-    this.isDragging.set(false);
+    const request = req as HttpRequestSummary;
+    const selected = this.selectedRowIds();
+    const sectionDrop = this.activeViewKind() === 'collection';
+    // Outside collections only the pressed row moves: reordering several at once is ambiguous.
+    const ids = sectionDrop && selected.size > 1 && selected.has(req.id) ? [...selected] : [req.id];
+    this.reorderPending.set({
+      requestId: req.id,
+      startY: event.clientY,
+      externalOnly: !this.canReorderRows(),
+      request,
+      ids,
+      sectionDrop,
+    });
   }
 
   onWindowMouseMove(event: MouseEvent): void {
@@ -1231,86 +1235,24 @@ export class RequestsMainList {
       return;
     }
 
+    if (this.groupDragPending) {
+      this.handleGroupDragMove(event);
+      return;
+    }
+
     if (this.reorderPending() !== null || this.reorderDrag() !== null) {
       this.handleReorderMouseMove(event);
       return;
     }
 
-    if (this.dragStartRowId() === null) return;
-
-    if (!this.isDragging()) {
-      const delta = Math.abs(event.clientY - this.dragStartClientY());
-      if (delta > DRAG_THRESHOLD_PX) {
-        this.isDragging.set(true);
-        this.dragHasMoved.set(true);
-        const startReq = this.activeRequests().find((r) => r.id === this.dragStartRowId());
-        if (startReq) {
-          this.state.selectedIds.set(new Set([startReq.id]));
-          this.selectedCell.set({ requestId: startReq.id, column: 'name' });
-          this.lastClickedRowId.set(startReq.id);
-          this.syncWorkspaceSelection(startReq);
-        }
-      }
-    }
-  }
-
-  /**
-   * Extends an in-progress drag selection to the row under the cursor.
-   *
-   * Why not per-row `mouseenter` (the old approach): with virtual scrolling
-   * only the ~15-20 visible rows exist in the DOM. Rows scrolled out of view
-   * have no element and would never fire events, and fast drags would skip
-   * rendered rows entirely. So we locate the target row arithmetically:
-   *
-   *   relativeY     = mouse Y inside the visible viewport (px from its top edge)
-   *   scrollOffset  = how far the list is currently scrolled down (px)
-   *   relativeY + scrollOffset = mouse Y within the *entire* virtual content
-   *
-   * Dividing that by the fixed row height (must match the viewport's
-   * `itemSize`) yields the index of the row under the cursor, which is then
-   * clamped to the list bounds. Finally we select every row between the drag
-   * start row and the row under the cursor.
-   */
-  onViewportMouseMove(event: MouseEvent): void {
-    if (!this.isDragging() || this.dragStartRowId() === null) return;
-
-    const viewport = this.viewport.elementRef.nativeElement;
-    const rect = viewport.getBoundingClientRect();
-    const relativeY = event.clientY - rect.top;
-    const scrollOffset = this.viewport.measureScrollOffset('top');
-    const rowHeight = this.rowHeight;
-    // Clamp so dragging above the first row or below the last row (or past the
-    // bottom edge of the content) keeps the selection within the list.
-    const rows = this.displayRows();
-    const rowIndex = Math.max(
-      0,
-      Math.min(Math.floor((scrollOffset + relativeY) / rowHeight), rows.length - 1),
-    );
-    // A heading row stands for the first request below it.
-    const row = rows[rowIndex]?.kind === 'group' ? rows[rowIndex + 1] : rows[rowIndex];
-    if (row?.kind !== 'request') return;
-
-    const requests = this.filteredActiveRequests();
-    const currentReq = row.req;
-    const index = requests.findIndex((r) => r.id === currentReq.id);
-    if (index === -1) return;
-
-    const startIndex = requests.findIndex(r => r.id === this.dragStartRowId());
-    if (startIndex === -1) return;
-
-    // Select the whole span between the drag anchor and the current row.
-    const rangeStart = Math.min(startIndex, index);
-    const rangeEnd = Math.max(startIndex, index);
-    const next = new Set<number>();
-    for (let i = rangeStart; i <= rangeEnd; i++) {
-      next.add(requests[i].id);
-    }
-
-    this.state.selectedIds.set(next);
-    this.selectedCell.set({ requestId: currentReq.id, column: 'name' });
   }
 
   onWindowMouseUp(): void {
+    if (this.groupDragPending) {
+      this.finishGroupDrag();
+      return;
+    }
+
     if (this.reorderPending() !== null || this.reorderDrag() !== null) {
       const drag = this.reorderDrag();
       const consumedBySidebar = drag ? this.dragSession.tryDrop() : false;
@@ -1347,52 +1289,9 @@ export class RequestsMainList {
       return;
     }
 
-    if (this.dragStartRowId() === null) return;
-
-    const wasDragging = this.isDragging() || this.dragHasMoved();
-    if (wasDragging) {
-      this.ignoreNextClick.set(true);
-    }
-
-    this.dragStartRowId.set(null);
-    this.dragStartClientY.set(0);
-    this.isDragging.set(false);
-    this.dragHasMoved.set(false);
-
-    if (wasDragging) {
-      const req = this.activeRequests().find(r => this.selectedRowIds().has(r.id)) ?? null;
-      if (req) {
-        this.syncWorkspaceSelection(req);
-      }
-    }
   }
 
   // ---------- Row reorder drag ----------
-
-  onReorderHandleMouseDown(req: HttpRequestSummary, event: MouseEvent): void {
-    if (event.button !== 0) return;
-    // Keep the gesture away from row clicks, the multi-select drag and text
-    // selection: the handle owns this mousedown.
-    event.preventDefault();
-    event.stopPropagation();
-    const selected = this.selectedRowIds();
-    const ofSelection = selected.size > 1 && selected.has(req.id);
-    const sectionDrop = this.activeViewKind() === 'collection';
-    // Outside collections a selected row hides its handle: reordering one
-    // member of a multi-selection is ambiguous.
-    if (ofSelection && !sectionDrop) return;
-    const ids = ofSelection ? [...selected] : [req.id];
-
-    this.dragSession.start({ requestIds: ids, request: req });
-    this.reorderPending.set({
-      requestId: req.id,
-      startY: event.clientY,
-      externalOnly: !this.canReorderRows(),
-      request: req,
-      ids,
-      sectionDrop,
-    });
-  }
 
   /**
    * Reorder drag powered by the same arithmetic-index technique as drag
@@ -1412,6 +1311,11 @@ export class RequestsMainList {
     if (pending) {
       if (Math.abs(event.clientY - pending.startY) <= DRAG_THRESHOLD_PX) return;
       this.reorderPending.set(null);
+      this.dragSession.start({ requestIds: pending.ids, request: pending.request });
+      if (!this.selectedRowIds().has(pending.requestId)) {
+        this.selectCell(pending.request, 'name', false);
+        this.lastClickedRowId.set(pending.requestId);
+      }
 
       if (pending.externalOnly) {
         this.reorderLastX = event.clientX;
@@ -1430,7 +1334,10 @@ export class RequestsMainList {
 
       const requests = this.filteredActiveRequests();
       const fromIndex = requests.findIndex(r => r.id === pending.requestId);
-      if (fromIndex === -1 || !this.canReorderRows()) return;
+      if (fromIndex === -1 || !this.canReorderRows()) {
+        this.dragSession.end();
+        return;
+      }
       this.reorderLastX = event.clientX;
       this.reorderLastY = event.clientY;
       this.reorderInsertIndex = fromIndex;
@@ -1812,11 +1719,18 @@ export class RequestsMainList {
     return this.filteredActiveRequests().some((r) => selected.has(r.id) && r.group_id != null);
   });
 
+  /** A click anywhere on a heading folds or unfolds it, and picks a collection's group for the colour picker. */
   onGroupClick(entry: GroupEntry): void {
-    if (entry.groupId === null) {
-      this.toggleFold(entry);
+    if (this.suppressHeadingClick) {
+      this.suppressHeadingClick = false;
       return;
     }
+    this.toggleFold(entry);
+    this.pickGroup(entry);
+  }
+
+  private pickGroup(entry: GroupEntry): void {
+    if (entry.groupId === null) return;
     this.clearSelection();
     this.selectedGroupId.set(entry.groupId);
   }
@@ -1825,8 +1739,117 @@ export class RequestsMainList {
     event.preventDefault();
     event.stopPropagation();
     if (entry.groupId === null) return;
-    this.onGroupClick(entry);
+    this.pickGroup(entry);
     this.contextMenu.open(template, entry, event.clientX, event.clientY);
+  }
+
+  // ---------- Group drag ----------
+
+  private groupDragPending: { groupId: number; label: string; startY: number } | null = null;
+  readonly groupDrag = signal<{ groupId: number; label: string } | null>(null);
+  /** Where the dragged group would land, as an index into the group order. */
+  private groupDropSlot = 0;
+  private groupDragFrame: number | null = null;
+  /** The click that ends a heading drag must not also fold the heading. */
+  private suppressHeadingClick = false;
+  private readonly groupGhost = viewChild<ElementRef<HTMLElement>>('groupGhost');
+  private readonly groupDropLine = viewChild<ElementRef<HTMLElement>>('groupDropLine');
+
+  onGroupMouseDown(entry: GroupEntry, event: MouseEvent): void {
+    this.suppressHeadingClick = false;
+    if (event.button !== 0 || entry.groupId === null || this.editingGroupId() === entry.groupId) return;
+    event.preventDefault();
+    this.groupDragPending = { groupId: entry.groupId, label: entry.label, startY: event.clientY };
+  }
+
+  private handleGroupDragMove(event: MouseEvent): void {
+    this.reorderLastX = event.clientX;
+    this.reorderLastY = event.clientY;
+    const pending = this.groupDragPending;
+    if (!pending || this.groupDrag()) return;
+    if (Math.abs(event.clientY - pending.startY) <= DRAG_THRESHOLD_PX) return;
+    this.groupDrag.set({ groupId: pending.groupId, label: pending.label });
+    document.body.classList.add('reorder-dragging');
+    const loop = () => {
+      this.groupDragFrame = null;
+      if (!this.groupDrag()) return;
+      this.renderGroupDragFrame();
+      this.groupDragFrame = requestAnimationFrame(loop);
+    };
+    this.groupDragFrame = requestAnimationFrame(loop);
+  }
+
+  /** Drop slots sit only between groups: above a heading's top half, or below the rest of a group. */
+  private renderGroupDragFrame(): void {
+    const ghost = this.groupGhost()?.nativeElement;
+    const line = this.groupDropLine()?.nativeElement;
+    if (!ghost || !line || !this.viewport) return;
+
+    const rect = this.viewport.elementRef.nativeElement.getBoundingClientRect();
+    this.autoScrollReorder(rect);
+    const offset = this.viewport.measureScrollOffset('top');
+    const y = offset + this.reorderLastY - rect.top;
+    const rows = this.displayRows();
+    const order = this.collectionGroups().map((g) => g.id);
+    const headingRow = new Map<number, number>();
+    rows.forEach((row, i) => {
+      if (row.kind === 'group' && row.groupId !== null) headingRow.set(row.groupId, i);
+    });
+
+    const row = rows[Math.floor(y / this.rowHeight)];
+    let slot = order.length;
+    if (y < 0) {
+      slot = 0;
+    } else if (row) {
+      const key = row.kind === 'group' ? row.key : row.section;
+      const position = key.startsWith('group:') ? order.indexOf(Number(key.slice('group:'.length))) : -1;
+      if (position === -1) {
+        slot = 0;
+      } else {
+        const topHalf = row.kind === 'group' && y % this.rowHeight < this.rowHeight / 2;
+        slot = topHalf ? position : position + 1;
+      }
+    }
+    this.groupDropSlot = slot;
+
+    const lineRow = slot < order.length ? (headingRow.get(order[slot]) ?? rows.length) : rows.length;
+    line.style.top = `${rect.top + lineRow * this.rowHeight - offset}px`;
+    line.style.left = `${rect.left + 4}px`;
+    line.style.width = `${Math.max(0, rect.width - 8)}px`;
+    line.style.visibility = 'visible';
+    ghost.style.left = `${this.reorderLastX}px`;
+    ghost.style.top = `${this.reorderLastY}px`;
+    ghost.style.visibility = 'visible';
+  }
+
+  private endGroupDrag(): { groupId: number; label: string } | null {
+    const drag = this.groupDrag();
+    this.groupDragPending = null;
+    if (!drag) return null;
+    this.groupDrag.set(null);
+    if (this.groupDragFrame !== null) cancelAnimationFrame(this.groupDragFrame);
+    this.groupDragFrame = null;
+    document.body.classList.remove('reorder-dragging');
+    this.suppressHeadingClick = true;
+    return drag;
+  }
+
+  private cancelGroupDrag(): boolean {
+    return this.groupDragPending !== null && this.endGroupDrag() !== null;
+  }
+
+  private finishGroupDrag(): void {
+    const drag = this.endGroupDrag();
+    const collection = this.state.selectedCollection();
+    if (!drag || !collection) return;
+    const order = this.collectionGroups().map((g) => g.id);
+    const from = order.indexOf(drag.groupId);
+    if (from === -1) return;
+    const to = this.groupDropSlot > from ? this.groupDropSlot - 1 : this.groupDropSlot;
+    if (to === from) return;
+    order.splice(from, 1);
+    order.splice(to, 0, drag.groupId);
+    this.groupApi.reorder(collection.id, order).catch((err) => console.error('reordering groups failed', err));
   }
 
   /** Puts the selected requests in a new group and starts renaming it. */

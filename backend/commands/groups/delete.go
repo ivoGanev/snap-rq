@@ -82,8 +82,7 @@ func (c Delete) Undo(snapshot, _ json.RawMessage) error {
 		return err
 	}
 	g := before.Group
-	if _, err := c.tx.Exec(`INSERT INTO request_groups (id, collection_id, name, color) VALUES (?, ?, ?, ?)`,
-		g.ID, g.CollectionID, g.Name, g.Color); err != nil {
+	if err := reinsertGroups(c.tx, []models.RequestGroup{g}); err != nil {
 		return err
 	}
 	return assign(c.tx, &g.ID, before.Members)

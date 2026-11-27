@@ -53,8 +53,14 @@ func (c Create) Run(input json.RawMessage) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	result, err := c.tx.Exec(`INSERT INTO request_groups (collection_id, name) VALUES (?, ?)`,
-		in.CollectionID, in.Name)
+	var order int
+	if err := c.tx.QueryRow(
+		`SELECT COALESCE(MAX(sort_order), -1) + 1 FROM request_groups WHERE collection_id = ?`, in.CollectionID,
+	).Scan(&order); err != nil {
+		return nil, err
+	}
+	result, err := c.tx.Exec(`INSERT INTO request_groups (collection_id, name, sort_order) VALUES (?, ?, ?)`,
+		in.CollectionID, in.Name, order)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +73,7 @@ func (c Create) Run(input json.RawMessage) (any, error) {
 		return nil, err
 	}
 	return createResult{
-		RequestGroup:    models.RequestGroup{ID: id, CollectionID: in.CollectionID, Name: in.Name},
+		RequestGroup:    models.RequestGroup{ID: id, CollectionID: in.CollectionID, Name: in.Name, SortOrder: order},
 		RemovedGroups:   removed,
 		RemovedGroupIDs: groupIDs(removed),
 	}, nil

@@ -67,6 +67,7 @@ var All = []commands.Factory{
 	groups.NewUpdate,
 	groups.NewSetRequests,
 	groups.NewDelete,
+	groups.NewReorder,
 
 	// projects and profiles
 	projects.NewList,

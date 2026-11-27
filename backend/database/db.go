@@ -1018,6 +1018,18 @@ func createRequestGroups(db *sql.DB) error {
 	`); err != nil {
 		return fmt.Errorf("creating request_groups: %w", err)
 	}
+	if !columnExists(db, "request_groups", "sort_order") {
+		if _, err := db.Exec(`ALTER TABLE request_groups ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`); err != nil {
+			return fmt.Errorf("adding sort_order to request_groups: %w", err)
+		}
+		// Groups were listed by name until they had an order of their own.
+		if _, err := db.Exec(`UPDATE request_groups SET sort_order = (
+			SELECT COUNT(*) FROM request_groups g
+			WHERE g.collection_id = request_groups.collection_id
+			  AND (g.name < request_groups.name OR (g.name = request_groups.name AND g.id < request_groups.id)))`); err != nil {
+			return fmt.Errorf("numbering request groups: %w", err)
+		}
+	}
 	if columnExists(db, "http_requests", "group_id") {
 		return nil
 	}

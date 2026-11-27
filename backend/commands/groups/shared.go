@@ -11,8 +11,8 @@ import (
 
 func queryGroup(tx *sql.Tx, id int64) (models.RequestGroup, error) {
 	var g models.RequestGroup
-	err := tx.QueryRow(`SELECT id, collection_id, name, color FROM request_groups WHERE id = ?`, id).
-		Scan(&g.ID, &g.CollectionID, &g.Name, &g.Color)
+	err := tx.QueryRow(`SELECT id, collection_id, name, color, sort_order FROM request_groups WHERE id = ?`, id).
+		Scan(&g.ID, &g.CollectionID, &g.Name, &g.Color, &g.SortOrder)
 	if err != nil {
 		return g, fmt.Errorf("loading group %d: %w", id, err)
 	}
@@ -101,8 +101,8 @@ func dropEmptied(tx *sql.Tx, before []membership) ([]models.RequestGroup, error)
 
 func reinsertGroups(tx *sql.Tx, groups []models.RequestGroup) error {
 	for _, g := range groups {
-		if _, err := tx.Exec(`INSERT INTO request_groups (id, collection_id, name, color) VALUES (?, ?, ?, ?)`,
-			g.ID, g.CollectionID, g.Name, g.Color); err != nil {
+		if _, err := tx.Exec(`INSERT INTO request_groups (id, collection_id, name, color, sort_order) VALUES (?, ?, ?, ?, ?)`,
+			g.ID, g.CollectionID, g.Name, g.Color, g.SortOrder); err != nil {
 			return err
 		}
 	}

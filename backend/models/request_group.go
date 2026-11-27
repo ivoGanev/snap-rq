@@ -6,4 +6,5 @@ type RequestGroup struct {
 	CollectionID int64   `json:"collection_id"`
 	Name         string  `json:"name"`
 	Color        *string `json:"color"`
+	SortOrder    int     `json:"sort_order"`
 }

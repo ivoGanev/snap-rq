@@ -59,14 +59,12 @@
   <div class="state-message">No requests match your search.</div>
 }
 
-@if (activeGroupName() && filteredActiveRequests().length > 0) {
+@if (activeGroupName() && displayRows().length > 0) {
   <div
     class="spreadsheet-wrapper"
-    [class.is-dragging]="isDragging()"
     [class.is-resizing]="isResizingColumn()"
     [class.is-reordering]="reorderDrag() !== null"
     [class.is-multi-selecting]="selectedRowIds().size > 1"
-    [class.can-drag-selection]="activeViewKind() === 'collection'"
     [class.has-usage]="showUsage()"
     [style.--method-col-width]="methodColumnWidthCss()"
     [style.--name-col-width]="nameColumnWidthCss()"
@@ -156,7 +154,6 @@
       [minBufferPx]="virtualMinBufferPx"
       [maxBufferPx]="virtualMaxBufferPx"
       class="spreadsheet-viewport"
-      (mousemove)="onViewportMouseMove($event)"
     >
       <ng-container *cdkVirtualFor="let row of displayRows(); trackBy: trackRow">
       @if (row.kind === 'group') {
@@ -166,22 +163,17 @@
           [class.is-selected]="row.groupId !== null && selectedGroupId() === row.groupId"
           [class.has-color]="!!row.color"
           [class.is-drop-target]="dropSectionKey() === row.key"
+          [class.is-drag-source]="groupDrag()?.groupId === row.groupId"
           [style.--row-color]="row.color"
+          (mousedown)="onGroupMouseDown(row, $event)"
           (click)="onGroupClick(row)"
           (contextmenu)="onGroupContextMenu(row, $event, groupContextMenu)"
         >
-          <button
-            class="fold-toggle"
-            [class.is-collapsed]="row.collapsed"
-            type="button"
-            [attr.aria-expanded]="!row.collapsed"
-            [attr.aria-label]="(row.collapsed ? 'Expand ' : 'Collapse ') + row.label"
-            (click)="toggleFold(row, $event)"
-          >
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <span class="fold-toggle" [class.is-collapsed]="row.collapsed" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
             </svg>
-          </button>
+          </span>
           @if (row.groupId !== null && editingGroupId() === row.groupId) {
             <input
               class="inline-name-input group-name-input"
@@ -196,10 +188,6 @@
               (keydown.escape)="editingGroupId.set(null); $event.stopPropagation()"
               (blur)="commitGroupRename()"
             />
-          } @else if (row.groupId !== null) {
-            <span class="spreadsheet-heading-label" (dblclick)="startGroupRename(row.groupId, row.label)">{{
-              row.label
-            }}</span>
           } @else {
             <span class="spreadsheet-heading-label">{{ row.label }}</span>
           }
@@ -210,7 +198,6 @@
       <div
         class="spreadsheet-row"
         [class.is-selected]="rowState()[req.id]?.isSelected"
-        [class.is-active-drag-row]="dragStartRowId() === req.id"
         [class.is-reorder-source]="reorderDrag()?.request?.id === req.id"
         [class.is-dropped]="dropHighlightedId() === req.id"
         [class.has-color]="!!rowState()[req.id]?.colorVar"
@@ -223,21 +210,6 @@
         (contextmenu)="onRowContextMenu(req, $event, rowContextMenu)"
       >
         <div class="spreadsheet-cell spreadsheet-cell--action">
-          @if (canDragOut()) {
-            <button
-              class="drag-handle"
-              type="button"
-              title="Drag to reorder or move"
-              aria-label="Reorder or move request"
-              (mousedown)="onReorderHandleMouseDown(req, $event)"
-            >
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <circle cx="12" cy="5" r="1.7" />
-                <circle cx="12" cy="12" r="1.7" />
-                <circle cx="12" cy="19" r="1.7" />
-              </svg>
-            </button>
-          }
           @if (!state.showingBin() && selectedRowIds().size <= 1) {
             <button
               class="zen-mode-button"
@@ -335,6 +307,13 @@
         <span class="reorder-ghost-name">{{
           drag.ids.length > 1 ? drag.ids.length + ' requests' : drag.request.name
         }}</span>
+      </div>
+    }
+
+    @if (groupDrag(); as group) {
+      <div #groupDropLine class="reorder-drop-line" aria-hidden="true"></div>
+      <div #groupGhost class="reorder-ghost" aria-hidden="true">
+        <span class="reorder-ghost-name">{{ group.label }}</span>
       </div>
     }
 

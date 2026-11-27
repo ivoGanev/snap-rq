@@ -9,6 +9,7 @@ export interface RequestGroupRecord {
   name: string;
   /** A colour slot (see request-colors), or null. */
   color: string | null;
+  sort_order: number;
 }
 
 /** The project's request groups; every change runs as an undoable command. */
@@ -52,6 +53,15 @@ export class GroupApiService {
   /** Moves the requests into the group, or out of any group when `groupId` is null. */
   async setRequests(groupId: number | null, requestIds: number[]): Promise<void> {
     await this.commands.execute('group.set_requests', { group_id: groupId ?? 0, request_ids: requestIds });
+  }
+
+  /** Sets the order of a collection's groups; `orderedIds` lists them first to last. */
+  async reorder(collectionId: number, orderedIds: number[]): Promise<void> {
+    const position = new Map(orderedIds.map((id, index) => [id, index]));
+    this.groups.update((all) =>
+      all.map((g) => (position.has(g.id) ? { ...g, sort_order: position.get(g.id)! } : g)),
+    );
+    await this.commands.execute('group.reorder', { collection_id: collectionId, ordered_ids: orderedIds });
   }
 
   async delete(groupId: number): Promise<void> {

@@ -27,9 +27,9 @@ func (c List) Run(input json.RawMessage) (any, error) {
 		return nil, err
 	}
 	rows, err := c.tx.Query(`
-		SELECT g.id, g.collection_id, g.name, g.color
+		SELECT g.id, g.collection_id, g.name, g.color, g.sort_order
 		FROM request_groups g JOIN collections c ON c.id = g.collection_id
-		WHERE c.project_id = ? ORDER BY g.name`, in.ProjectID)
+		WHERE c.project_id = ? ORDER BY g.sort_order, g.name`, in.ProjectID)
 	if err != nil {
 		return nil, fmt.Errorf("listing groups: %w", err)
 	}
@@ -37,7 +37,7 @@ func (c List) Run(input json.RawMessage) (any, error) {
 	groups := []models.RequestGroup{}
 	for rows.Next() {
 		var g models.RequestGroup
-		if err := rows.Scan(&g.ID, &g.CollectionID, &g.Name, &g.Color); err != nil {
+		if err := rows.Scan(&g.ID, &g.CollectionID, &g.Name, &g.Color, &g.SortOrder); err != nil {
 			return nil, err
 		}
 		groups = append(groups, g)
