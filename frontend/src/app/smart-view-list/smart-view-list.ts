@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import { SMART_VIEWS, type SmartViewId } from '../request-groups/sidebar-views';
+import type { SmartViewId } from '../core/services/sidebar-memory.service';
+import { SMART_VIEWS } from '../request-groups/sidebar-views';
 
 @Component({
   selector: 'app-smart-view-list',

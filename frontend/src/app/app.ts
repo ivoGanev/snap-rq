@@ -19,6 +19,7 @@ import { Select } from './select/select';
 import { WindowControls } from './window-controls/window-controls';
 import { WML } from '@wailsio/runtime';
 import { WorkspaceStateService } from './core/services/workspace-state.service';
+import { SidebarMemoryService } from './core/services/sidebar-memory.service';
 import { ProjectApiService, type Project } from './core/services/project.service';
 import { EnvironmentApiService, type Environment } from './core/services/environment.service';
 
@@ -88,6 +89,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly commands = inject(CommandApiService);
   protected readonly importPrompt = inject(OpenApiImportPrompt);
   private readonly projectApi = inject(ProjectApiService);
+  private readonly sidebarMemory = inject(SidebarMemoryService);
   private readonly environmentApi = inject(EnvironmentApiService);
   private readonly requestApi = inject(RequestApiService);
   private readonly collectionApi = inject(CollectionApiService);
@@ -106,11 +108,12 @@ export class App implements OnInit, AfterViewInit {
     this.environments().map((env) => ({ value: env.id, label: env.name })),
   );
 
-  readonly leftColumnWidthExpanded = signal(22);
+  readonly leftColumnWidthExpanded = signal(13);
   readonly rightColumnWidth = signal(30);
   readonly resizingColumn = signal<'left' | 'right' | null>(null);
 
-  readonly leftSidebarWidth = computed(() => `${this.leftColumnWidthExpanded()}%`);
+  // The floor keeps the bottom toolbar's buttons on one row.
+  readonly leftSidebarWidth = computed(() => `max(176px, ${this.leftColumnWidthExpanded()}%)`);
 
   readonly variablesOverlayOpen = signal(false);
   readonly cookiesOverlayOpen = signal(false);
@@ -344,7 +347,7 @@ export class App implements OnInit, AfterViewInit {
     const deltaPercent = (delta / window.innerWidth) * 100;
     const width = Math.min(
       45,
-      Math.max(12, this.resizeStartWidth + (side === 'left' ? deltaPercent : -deltaPercent)),
+      Math.max(side === 'left' ? 9 : 12, this.resizeStartWidth + (side === 'left' ? deltaPercent : -deltaPercent)),
     );
 
     if (side === 'left') {
@@ -388,7 +391,7 @@ export class App implements OnInit, AfterViewInit {
 
   async selectProject(project: Project): Promise<void> {
     this.state.selectedProject.set(project);
-    this.state.selectViewForNewProject();
+    this.state.selectView(null);
     this.state.selectedRequest.set(null);
     this.state.selectedResponse.set(null);
     this.requestApi.allRequests.set({});
@@ -400,6 +403,7 @@ export class App implements OnInit, AfterViewInit {
     await this.collectionApi.loadForProject(project.id);
     await this.scriptApi.loadScriptsForProject(project.id);
     await this.requestApi.loadAll();
+    this.sidebarMemory.restore();
   }
 
   async loadEnvironments(projectId: number): Promise<void> {

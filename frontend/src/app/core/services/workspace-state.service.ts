@@ -6,7 +6,7 @@ import { EnvironmentVariableApiService } from './environment-variable.service';
 import { EnvironmentApiService } from './environment.service';
 import { ChangeBus } from './change-bus.service';
 import { EnvironmentContext } from '../models/environment-context';
-import { AllRequestsView, isSmartView, type SmartView, type WorkspaceView } from '../workspace/workspace-view';
+import { isSmartView, type SmartView, type WorkspaceView } from '../workspace/workspace-view';
 import type { Collection } from './collection.service';
 import type { Project } from './project.service';
 import type { Environment } from './environment.service';
@@ -173,16 +173,6 @@ export class WorkspaceStateService {
     } else if (leavingBin) {
       this.selectedBinnedRequest.set(null);
     }
-  }
-
-  /**
-   * After switching project: views that exist in every project (all, recent,
-   * trash) stay open; a view of one of the old project's groups falls back
-   * to all requests.
-   */
-  selectViewForNewProject(): void {
-    const current = this.openView();
-    this.selectView(current?.survivesProjectSwitch ? current : new AllRequestsView());
   }
 
   async loadBinnedRequests(projectId: number): Promise<void> {

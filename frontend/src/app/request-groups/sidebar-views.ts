@@ -1,6 +1,4 @@
-import type { SidebarFolder } from '../request-group-list/request-group-list';
-
-export type SmartViewId = 'all' | 'recent' | 'usage' | 'failing' | 'unused';
+import type { SidebarTabId, SmartViewId } from '../core/services/sidebar-memory.service';
 
 export interface SmartViewEntry {
   id: SmartViewId;
@@ -45,8 +43,6 @@ export const SMART_VIEWS: readonly SmartViewEntry[] = [
   },
 ];
 
-export type SidebarTabId = 'smart' | SidebarFolder | 'trash';
-
 export interface SidebarTab {
   id: SidebarTabId;
   label: string;
@@ -58,7 +54,7 @@ export const SIDEBAR_TABS: readonly SidebarTab[] = [
     id: 'smart',
     label: 'Smart views',
     iconPath:
-      'M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z',
+      'M4.25 5.61C6.27 8.2 10 13 10 13v6c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-6s3.72-4.8 5.74-7.39A.998.998 0 0 0 18.95 4H5.04c-.83 0-1.3.95-.79 1.61z',
   },
   {
     id: 'collections',
