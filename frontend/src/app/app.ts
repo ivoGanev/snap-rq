@@ -14,8 +14,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { CdkConnectedOverlay, CdkOverlayOrigin, type ConnectedPosition } from '@angular/cdk/overlay';
-import { SelectOnFocusDirective } from './core/directives/select-on-focus.directive';
+import { ProjectMenu } from './project-menu/project-menu';
 import { Select } from './select/select';
 import { WindowControls } from './window-controls/window-controls';
 import { WML } from '@wailsio/runtime';
@@ -60,9 +59,7 @@ import { UndoPanel } from './undo-panel/undo-panel';
   selector: 'app-root',
   imports: [
     FormsModule,
-    CdkConnectedOverlay,
-    CdkOverlayOrigin,
-    SelectOnFocusDirective,
+    ProjectMenu,
     Select,
     WindowControls,
     RequestGroups,
@@ -160,25 +157,6 @@ export class App implements OnInit, AfterViewInit {
     this.state.selectedResponse();
     void this.cookieApi.loadForProject(projectId);
   });
-  readonly projectMenuOpen = signal(false);
-  readonly projectAdding = signal(false);
-  readonly newProjectName = signal('');
-  readonly projectPendingDelete = signal<Project | null>(null);
-  /** What's typed to confirm a delete: "ok", in any case. */
-  readonly deleteConfirmName = signal('');
-  protected readonly deleteConfirmMatches = computed(() => this.deleteConfirmName().trim().toLowerCase() === 'ok');
-  readonly projectRenaming = signal<Project | null>(null);
-  /** The delete note, shown at once on the info icon; title tooltips wait a second. */
-  readonly projectHintOpen = signal(false);
-  protected readonly projectHintPositions: ConnectedPosition[] = [
-    { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 6 },
-    { originX: 'start', originY: 'top', overlayX: 'start', overlayY: 'bottom', offsetY: -6 },
-  ];
-  readonly renameProjectValue = signal('');
-  protected readonly projectMenuPositions: ConnectedPosition[] = [
-    { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 6 },
-  ];
-
   readonly themeSelectorOpen = signal(false);
   readonly settingsOpen = signal(false);
   /** The Settings page to open on (a backup toast's "Show" opens Backups). */
@@ -244,10 +222,6 @@ export class App implements OnInit, AfterViewInit {
     }
     if (this.variablesOverlayOpen()) {
       this.closeVariablesOverlay();
-      return;
-    }
-    if (this.projectMenuOpen()) {
-      this.closeProjectMenu();
       return;
     }
     if (this.settingsOpen()) {
@@ -489,49 +463,11 @@ export class App implements OnInit, AfterViewInit {
     this.state.sidebarExpanded.update((expanded) => !expanded);
   }
 
-  toggleProjectMenu(): void {
-    if (this.projectMenuOpen()) {
-      this.closeProjectMenu();
-    } else {
-      this.projectMenuOpen.set(true);
-    }
-  }
-
-  closeProjectMenu(): void {
-    this.projectMenuOpen.set(false);
-    this.cancelAddProject();
-    this.cancelDeleteProject();
-    this.cancelRenameProject();
-  }
-
-  /** From the empty workspace: the dropdown, ready to name a project. */
-  openNewProject(): void {
-    this.projectMenuOpen.set(true);
-    this.startAddProject();
-  }
-
-  startAddProject(): void {
-    this.cancelDeleteProject();
-    this.cancelRenameProject();
-    this.newProjectName.set('');
-    this.projectAdding.set(true);
-  }
-
-  cancelAddProject(): void {
-    this.projectAdding.set(false);
-    this.newProjectName.set('');
-  }
-
-  async onSelectProject(project: Project): Promise<void> {
-    if (this.state.selectedProject()?.id === project.id) {
-      this.closeProjectMenu();
-      return;
-    }
-
+  /** Opens a project from the project menu: picked there, or just created. */
+  async openProject(project: Project): Promise<void> {
     this.state.loading.set(true);
     try {
       await this.selectProject(project);
-      this.closeProjectMenu();
     } catch (err) {
       console.error(err);
     } finally {
@@ -539,102 +475,24 @@ export class App implements OnInit, AfterViewInit {
     }
   }
 
-  async addProject(): Promise<void> {
-    const name = this.newProjectName().trim();
-    if (!name) return;
-
-    this.state.loading.set(true);
-    try {
-      // With no project open, the profile is looked up rather than borrowed from one.
-      const profileId = this.state.selectedProject()?.profile_id ?? (await this.projectApi.profileId());
-      if (profileId === null) return;
-      const created = await this.projectApi.create({ profile_id: profileId, name });
-      await this.selectProject(created);
-      this.closeProjectMenu();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      this.state.loading.set(false);
-    }
-  }
-
-  startRenameProject(project: Project): void {
-    this.cancelAddProject();
-    this.cancelDeleteProject();
-    this.renameProjectValue.set(project.name);
-    this.projectRenaming.set(project);
-  }
-
-  cancelRenameProject(): void {
-    this.projectRenaming.set(null);
-    this.renameProjectValue.set('');
-  }
-
-  async saveRenameProject(): Promise<void> {
-    const project = this.projectRenaming();
-    const name = this.renameProjectValue().trim();
-    if (!project || !name) return;
-    if (name === project.name) {
-      this.cancelRenameProject();
+  /** After the project menu deleted a project: if it was open, open another or clear the workspace. */
+  async projectDeleted(project: Project): Promise<void> {
+    if (this.state.selectedProject()?.id !== project.id) return;
+    const remaining = this.projects();
+    if (remaining.length > 0) {
+      await this.openProject(remaining[0]);
       return;
     }
-    try {
-      await this.projectApi.rename(project, name);
-      if (this.state.selectedProject()?.id === project.id) {
-        this.state.selectedProject.set({ ...project, name });
-      }
-      this.cancelRenameProject();
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  promptDeleteProject(project: Project): void {
-    this.cancelAddProject();
-    this.cancelRenameProject();
-    this.deleteConfirmName.set('');
-    this.projectPendingDelete.set(project);
-  }
-
-  cancelDeleteProject(): void {
-    this.projectHintOpen.set(false);
-    this.projectPendingDelete.set(null);
-    this.deleteConfirmName.set('');
-  }
-
-  async deleteProject(): Promise<void> {
-    const project = this.projectPendingDelete();
-    if (!project || !this.deleteConfirmMatches()) return;
-
-    this.state.loading.set(true);
-    try {
-      await this.projectApi.delete(project.id);
-      await this.projectApi.loadAll();
-
-      if (this.state.selectedProject()?.id === project.id) {
-        const remaining = this.projects();
-        if (remaining.length > 0) {
-          await this.selectProject(remaining[0]);
-        } else {
-          this.state.selectedProject.set(null);
-          this.state.selectedEnvironment.set(null);
-          this.state.selectView(null);
-          this.state.selectedRequest.set(null);
-          this.state.selectedResponse.set(null);
-          this.collectionApi.collections.set([]);
-          this.requestApi.allRequests.set({});
-          this.favouriteApi.collections.set([]);
-          this.favouriteApi.requests.set([]);
-          this.scriptApi.allScripts.set([]);
-          this.environmentApi.environments.set([]);
-        }
-      }
-
-      this.cancelDeleteProject();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      this.state.loading.set(false);
-    }
+    this.state.selectedProject.set(null);
+    this.state.selectedEnvironment.set(null);
+    this.state.selectView(null);
+    this.state.selectedRequest.set(null);
+    this.state.selectedResponse.set(null);
+    this.collectionApi.collections.set([]);
+    this.requestApi.allRequests.set({});
+    this.favouriteApi.collections.set([]);
+    this.favouriteApi.requests.set([]);
+    this.scriptApi.allScripts.set([]);
+    this.environmentApi.environments.set([]);
   }
 }
