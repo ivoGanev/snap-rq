@@ -63,9 +63,9 @@
 
 .top-bar-project {
   display: flex;
-  flex: 0 0 auto;
   align-items: center;
   gap: 6px;
+  max-width: 220px;
   padding: 5px 8px;
   font-size: 0.875rem;
   font-weight: 600;
@@ -81,10 +81,7 @@
   background: var(--hover-highlight);
 }
 
-// Room for 18 characters, whatever the name: the top bar never changes size.
 .top-bar-project-name {
-  width: 18ch;
-  text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
