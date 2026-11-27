@@ -33,7 +33,7 @@ import { SelectOnFocusDirective } from '../core/directives/select-on-focus.direc
 import { requestColorInfo } from '../core/request-colors';
 import type { WorkspaceViewKind } from '../core/workspace/workspace-view';
 import type { RequestGroup } from '../core/workspace/presorted';
-import { toEntries, type GroupEntry, type ListEntry, type ListSection } from '../core/workspace/list-entries';
+import { toEntries, UNGROUPED, type GroupEntry, type ListEntry, type ListSection } from '../core/workspace/list-entries';
 import { GroupApiService, type RequestGroupRecord } from '../core/services/group.service';
 
 type ColumnKey = 'name' | 'url' | 'method' | 'scripts';
@@ -61,6 +61,10 @@ interface ReorderDrag {
   /** Snapshot of the dragged row shown in the ghost. */
   request: HttpRequestSummary;
   fromIndex: number;
+  /** Every request being dragged: the selection when a selected row's handle was grabbed. */
+  ids: number[];
+  /** Dropping on the list moves the requests into the group under the pointer (collections). */
+  sectionDrop: boolean;
 }
 
 const BOTTOM_TABS: BottomTab[] = [
@@ -226,7 +230,12 @@ export class RequestsMainList {
     startY: number;
     externalOnly: boolean;
     request: HttpRequestSummary;
+    ids: number[];
+    sectionDrop: boolean;
   } | null>(null);
+
+  /** The section a group drag would drop into: a group heading's key, or UNGROUPED. */
+  readonly dropSectionKey = signal<string | null>(null);
   /**
    * Structural drag state only (set once at start, cleared at end) so the
    * signal never changes per pixel. Per-cursor values live in plain fields
@@ -426,7 +435,9 @@ export class RequestsMainList {
       (list ?? ungrouped).push(req);
     }
 
-    const sections: ListSection[] = groups
+    // Ungrouped requests come first, so none of them sits under a group's heading.
+    const sections: ListSection[] = ungrouped.length ? [{ heading: null, requests: ungrouped.sort(compare) }] : [];
+    const grouped: ListSection[] = groups
       .map((g) => ({
         heading: {
           key: `group:${g.id}`,
@@ -437,8 +448,7 @@ export class RequestsMainList {
         requests: members.get(g.id)!.sort(compare),
       }))
       .filter((section) => !matching || section.requests.length > 0);
-    if (ungrouped.length) sections.push({ heading: null, requests: ungrouped.sort(compare) });
-    return sections;
+    return [...sections, ...grouped];
   });
 
   /** Headings folded by the user, saved across launches as `<list>|<heading>` keys. */
@@ -494,7 +504,9 @@ export class RequestsMainList {
   readonly displayRows = computed<DisplayRow[]>(() => {
     const sections = this.sections();
     if (!sections) {
-      return this.filteredActiveRequests().map((req): DisplayRow => ({ kind: 'request', req }));
+      return this.filteredActiveRequests().map(
+        (req): DisplayRow => ({ kind: 'request', req, depth: 0, section: UNGROUPED }),
+      );
     }
     return toEntries(sections, (key) => this.isCollapsed(key));
   });
@@ -1307,8 +1319,14 @@ export class RequestsMainList {
       this.stopReorderFrameLoop();
       document.body.classList.remove('reorder-dragging');
       this.dragSession.end();
+      const section = this.dropSectionKey();
+      this.dropSectionKey.set(null);
       if (drag) {
         this.ignoreNextClick.set(true);
+        if (drag.sectionDrop) {
+          if (!consumedBySidebar && section) void this.dropIntoSection(section, drag.ids);
+          return;
+        }
         if (!consumedBySidebar && drag.fromIndex >= 0 && this.canReorderRows()) {
           // The insertion slot counts the dragged row itself; adjust for its
           // removal to get the final insert position.
@@ -1357,17 +1375,22 @@ export class RequestsMainList {
     // selection: the handle owns this mousedown.
     event.preventDefault();
     event.stopPropagation();
-    // Defense in depth: the handle is hidden in multi-selection for selected
-    // rows, but re-check so a stale/hidden handle can never start a drag on
-    // one of the selected members.
-    if (this.selectedRowIds().size > 1 && this.selectedRowIds().has(req.id)) return;
+    const selected = this.selectedRowIds();
+    const ofSelection = selected.size > 1 && selected.has(req.id);
+    const sectionDrop = this.activeViewKind() === 'collection';
+    // Outside collections a selected row hides its handle: reordering one
+    // member of a multi-selection is ambiguous.
+    if (ofSelection && !sectionDrop) return;
+    const ids = ofSelection ? [...selected] : [req.id];
 
-    this.dragSession.start({ requestIds: [req.id], request: req });
+    this.dragSession.start({ requestIds: ids, request: req });
     this.reorderPending.set({
       requestId: req.id,
       startY: event.clientY,
       externalOnly: !this.canReorderRows(),
       request: req,
+      ids,
+      sectionDrop,
     });
   }
 
@@ -1394,7 +1417,12 @@ export class RequestsMainList {
         this.reorderLastX = event.clientX;
         this.reorderLastY = event.clientY;
         this.reorderInsertIndex = 0;
-        this.reorderDrag.set({ request: pending.request, fromIndex: -1 });
+        this.reorderDrag.set({
+          request: pending.request,
+          fromIndex: -1,
+          ids: pending.ids,
+          sectionDrop: pending.sectionDrop,
+        });
         this.startReorderFrameLoop();
         document.body.classList.add('reorder-dragging');
         return;
@@ -1406,7 +1434,7 @@ export class RequestsMainList {
       this.reorderLastX = event.clientX;
       this.reorderLastY = event.clientY;
       this.reorderInsertIndex = fromIndex;
-      this.reorderDrag.set({ request: requests[fromIndex], fromIndex });
+      this.reorderDrag.set({ request: requests[fromIndex], fromIndex, ids: [pending.requestId], sectionDrop: false });
       this.startReorderFrameLoop();
       // A body-level class (global CSS forces the grabbing cursor over every
       // element) — element-level cursor rules would otherwise win as the
@@ -1435,9 +1463,26 @@ export class RequestsMainList {
     const viewport = this.viewport.elementRef.nativeElement;
     const rect = viewport.getBoundingClientRect();
     const overSidebar =
-      drag.fromIndex < 0 ||
+      (drag.fromIndex < 0 && !drag.sectionDrop) ||
       this.dragSession.hovered() !== null ||
       this.dragSession.overEmptyCollections();
+
+    if (drag.sectionDrop) {
+      const inside =
+        !overSidebar &&
+        this.reorderLastX >= rect.left &&
+        this.reorderLastX <= rect.right &&
+        this.reorderLastY >= rect.top &&
+        this.reorderLastY <= rect.bottom;
+      if (inside) this.autoScrollReorder(rect);
+      const target = inside ? this.sectionAt(this.reorderLastY - rect.top) : null;
+      if (target !== this.dropSectionKey()) this.dropSectionKey.set(target);
+      line.style.visibility = 'hidden';
+      ghost.style.left = `${this.reorderLastX}px`;
+      ghost.style.top = `${this.reorderLastY}px`;
+      ghost.style.visibility = 'visible';
+      return;
+    }
 
     if (!overSidebar) {
       if (this.reorderLastY < rect.top + REORDER_EDGE_SCROLL_PX) {
@@ -1476,6 +1521,39 @@ export class RequestsMainList {
     // Hidden by CSS until first positioned, so the ghost never flashes at
     // its unpositioned coordinates.
     ghost.style.visibility = 'visible';
+  }
+
+  private autoScrollReorder(rect: DOMRect): void {
+    if (this.reorderLastY < rect.top + REORDER_EDGE_SCROLL_PX) {
+      this.viewport.scrollToOffset(
+        Math.max(0, this.viewport.measureScrollOffset('top') - REORDER_EDGE_SCROLL_STEP_PX),
+      );
+    } else if (this.reorderLastY > rect.bottom - REORDER_EDGE_SCROLL_PX) {
+      this.viewport.scrollToOffset(this.viewport.measureScrollOffset('top') + REORDER_EDGE_SCROLL_STEP_PX);
+    }
+  }
+
+  /** The section under a point of the viewport; below the last row counts as ungrouped. */
+  private sectionAt(yInViewport: number): string {
+    const offset = this.viewport.measureScrollOffset('top');
+    const row = this.displayRows()[Math.floor((offset + yInViewport) / this.rowHeight)];
+    if (!row) return UNGROUPED;
+    return row.kind === 'group' ? row.key : row.section;
+  }
+
+  /** Moves the dragged requests into the dropped-on group, or out of their groups. */
+  private async dropIntoSection(section: string, ids: number[]): Promise<void> {
+    const groupId = section.startsWith('group:') ? Number(section.slice('group:'.length)) : null;
+    const collection = this.state.selectedCollection();
+    if (!collection) return;
+    const current = new Map(this.requestApi.forCollection(collection.id).map((r) => [r.id, r.group_id ?? null]));
+    const moving = ids.filter((id) => current.has(id) && current.get(id) !== groupId);
+    if (moving.length === 0) return;
+    try {
+      await this.groupApi.setRequests(groupId, moving);
+    } catch (err) {
+      console.error('moving requests between groups failed', err);
+    }
   }
 
   private startReorderFrameLoop(): void {
@@ -1519,6 +1597,7 @@ export class RequestsMainList {
   /** Aborts an in-progress reorder gesture without changing any order. */
   private cancelReorder(): boolean {
     if (this.reorderPending() === null && this.reorderDrag() === null) return false;
+    this.dropSectionKey.set(null);
     this.reorderPending.set(null);
     this.reorderDrag.set(null);
     this.stopReorderFrameLoop();

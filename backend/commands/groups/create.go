@@ -9,8 +9,9 @@ import (
 	"snap-rq/backend/models"
 )
 
-// create.go — a new group around some requests of one collection. Undo puts
-// the requests back in their old groups and removes the new one.
+// create.go — a new group around some requests of one collection. A group
+// the requests leave empty is deleted. Undo removes the new group, brings
+// back the deleted ones and puts the requests back in their old groups.
 
 type Create struct{ tx *sql.Tx }
 
@@ -24,6 +25,12 @@ type createInput struct {
 	CollectionID int64   `json:"collection_id"`
 	Name         string  `json:"name"`
 	RequestIDs   []int64 `json:"request_ids"`
+}
+
+type createResult struct {
+	models.RequestGroup
+	RemovedGroups   []models.RequestGroup `json:"removed_groups"`
+	RemovedGroupIDs []int64               `json:"removed_group_ids"`
 }
 
 func (c Create) Snapshot(input json.RawMessage) (any, error) {
@@ -42,6 +49,10 @@ func (c Create) Run(input json.RawMessage) (any, error) {
 	if in.CollectionID == 0 {
 		return nil, errors.New("collection id is required")
 	}
+	before, err := readMemberships(c.tx, in.RequestIDs)
+	if err != nil {
+		return nil, err
+	}
 	result, err := c.tx.Exec(`INSERT INTO request_groups (collection_id, name) VALUES (?, ?)`,
 		in.CollectionID, in.Name)
 	if err != nil {
@@ -51,7 +62,15 @@ func (c Create) Run(input json.RawMessage) (any, error) {
 	if err := assign(c.tx, &id, in.RequestIDs); err != nil {
 		return nil, err
 	}
-	return models.RequestGroup{ID: id, CollectionID: in.CollectionID, Name: in.Name}, nil
+	removed, err := dropEmptied(c.tx, before)
+	if err != nil {
+		return nil, err
+	}
+	return createResult{
+		RequestGroup:    models.RequestGroup{ID: id, CollectionID: in.CollectionID, Name: in.Name},
+		RemovedGroups:   removed,
+		RemovedGroupIDs: groupIDs(removed),
+	}, nil
 }
 
 func (c Create) Undo(snapshot, result json.RawMessage) error {
@@ -59,11 +78,14 @@ func (c Create) Undo(snapshot, result json.RawMessage) error {
 	if err := json.Unmarshal(snapshot, &before); err != nil {
 		return err
 	}
-	var created models.RequestGroup
+	var created createResult
 	if err := json.Unmarshal(result, &created); err != nil {
 		return err
 	}
 	if _, err := c.tx.Exec(`DELETE FROM request_groups WHERE id = ?`, created.ID); err != nil {
+		return err
+	}
+	if err := reinsertGroups(c.tx, created.RemovedGroups); err != nil {
 		return err
 	}
 	return restoreMemberships(c.tx, before)
@@ -71,7 +93,7 @@ func (c Create) Undo(snapshot, result json.RawMessage) error {
 
 func (Create) Changes(input, result json.RawMessage) []commands.RowChange {
 	return []commands.RowChange{
-		{Component: "group", IDs: commands.IDsOf(result, "id")},
+		{Component: "group", IDs: commands.IDsOf(result, "id", "removed_group_ids")},
 		{Component: "request", IDs: commands.IDsOf(input, "request_ids")},
 	}
 }

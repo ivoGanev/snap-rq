@@ -69,6 +69,54 @@ func restoreMemberships(tx *sql.Tx, ms []membership) error {
 	return nil
 }
 
+// dropEmptied deletes those of the requests' previous groups that no
+// request is left in, and returns them so undo can put them back.
+func dropEmptied(tx *sql.Tx, before []membership) ([]models.RequestGroup, error) {
+	seen := map[int64]bool{}
+	removed := []models.RequestGroup{}
+	for _, m := range before {
+		if m.GroupID == nil || seen[*m.GroupID] {
+			continue
+		}
+		seen[*m.GroupID] = true
+		var left int
+		if err := tx.QueryRow(`SELECT COUNT(*) FROM http_requests WHERE group_id = ?`, *m.GroupID).
+			Scan(&left); err != nil {
+			return nil, err
+		}
+		if left > 0 {
+			continue
+		}
+		group, err := queryGroup(tx, *m.GroupID)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := tx.Exec(`DELETE FROM request_groups WHERE id = ?`, group.ID); err != nil {
+			return nil, err
+		}
+		removed = append(removed, group)
+	}
+	return removed, nil
+}
+
+func reinsertGroups(tx *sql.Tx, groups []models.RequestGroup) error {
+	for _, g := range groups {
+		if _, err := tx.Exec(`INSERT INTO request_groups (id, collection_id, name, color) VALUES (?, ?, ?, ?)`,
+			g.ID, g.CollectionID, g.Name, g.Color); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func groupIDs(groups []models.RequestGroup) []int64 {
+	ids := make([]int64, len(groups))
+	for i, g := range groups {
+		ids[i] = g.ID
+	}
+	return ids
+}
+
 // assign puts the requests in the group (nil = no group). Only requests of
 // the group's own collection can join it.
 func assign(tx *sql.Tx, groupID *int64, requestIDs []int64) error {

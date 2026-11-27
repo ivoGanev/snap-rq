@@ -66,6 +66,7 @@
     [class.is-resizing]="isResizingColumn()"
     [class.is-reordering]="reorderDrag() !== null"
     [class.is-multi-selecting]="selectedRowIds().size > 1"
+    [class.can-drag-selection]="activeViewKind() === 'collection'"
     [class.has-usage]="showUsage()"
     [style.--method-col-width]="methodColumnWidthCss()"
     [style.--name-col-width]="nameColumnWidthCss()"
@@ -164,6 +165,7 @@
           [class.is-group]="row.groupId !== null"
           [class.is-selected]="row.groupId !== null && selectedGroupId() === row.groupId"
           [class.has-color]="!!row.color"
+          [class.is-drop-target]="dropSectionKey() === row.key"
           [style.--row-color]="row.color"
           (click)="onGroupClick(row)"
           (contextmenu)="onGroupContextMenu(row, $event, groupContextMenu)"
@@ -212,6 +214,8 @@
         [class.is-reorder-source]="reorderDrag()?.request?.id === req.id"
         [class.is-dropped]="dropHighlightedId() === req.id"
         [class.has-color]="!!rowState()[req.id]?.colorVar"
+        [class.is-nested]="row.depth === 1"
+        [class.is-drop-target]="dropSectionKey() === row.section"
         [style.--row-color]="rowState()[req.id]?.colorVar"
         [style.--row-tint]="rowState()[req.id]?.colorTint"
         (mousedown)="onRowMouseDown(req, $event)"
@@ -328,7 +332,9 @@
         <span class="request-method" [attr.data-method]="drag.request.method">
           {{ drag.request.method }}
         </span>
-        <span class="reorder-ghost-name">{{ drag.request.name }}</span>
+        <span class="reorder-ghost-name">{{
+          drag.ids.length > 1 ? drag.ids.length + ' requests' : drag.request.name
+        }}</span>
       </div>
     }
 

@@ -306,6 +306,15 @@
   transform: rotate(-90deg);
 }
 
+.spreadsheet-row.is-nested .spreadsheet-cell--method {
+  padding-left: calc(var(--s-3) + 16px);
+}
+
+.spreadsheet-row.is-drop-target,
+.spreadsheet-heading.is-drop-target {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
 .group-name-input {
   flex: 0 1 240px;
   min-width: 0;
@@ -477,7 +486,7 @@
 // In multi-selection mode a selected row must not offer a drag handle
 // (reordering one member of a multi-selection is ambiguous), not even on
 // hover. Handles on unselected rows still work.
-.spreadsheet-wrapper.is-multi-selecting .spreadsheet-row.is-selected .drag-handle {
+.spreadsheet-wrapper.is-multi-selecting:not(.can-drag-selection) .spreadsheet-row.is-selected .drag-handle {
   opacity: 0;
 }
 

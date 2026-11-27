@@ -24,7 +24,13 @@ export interface GroupEntry {
 export interface RequestEntry {
   kind: 'request';
   req: HttpRequestSummary;
+  /** 1 inside a collection's group, else 0. */
+  depth: 0 | 1;
+  /** The heading key it is under, or UNGROUPED. */
+  section: string;
 }
+
+export const UNGROUPED = 'ungrouped';
 
 /** Some of a list's requests, with the heading drawn above them (none for the ungrouped rest). */
 export interface ListSection {
@@ -41,7 +47,9 @@ export function toEntries(sections: ListSection[], isCollapsed: (key: string) =>
       rows.push({ kind: 'group', ...section.heading, count: section.requests.length, collapsed });
     }
     if (collapsed) continue;
-    for (const req of section.requests) rows.push({ kind: 'request', req });
+    const depth = section.heading?.groupId != null ? 1 : 0;
+    const key = section.heading?.key ?? UNGROUPED;
+    for (const req of section.requests) rows.push({ kind: 'request', req, depth, section: key });
   }
   return rows;
 }
