@@ -18,7 +18,7 @@ func queryRequest(tx *sql.Tx, id int64) (models.HttpRequest, error) {
 
 // summaryColumns selects the lightweight projection the list views use.
 const summaryColumns = `hr.id, hr.collection_id, c.project_id, hr.name, hr.url, hr.method,
-	hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color, hr.last_used_at`
+	hr.status_code, hr.response_id, hr.user_sort_order, hr.user_color, hr.last_used_at, hr.group_id`
 
 // querySummaries runs a summary query with the standard FROM/JOIN prefix.
 func querySummaries(tx *sql.Tx, suffix string, args ...any) ([]models.HttpRequestSummary, error) {
@@ -35,7 +35,7 @@ func querySummaries(tx *sql.Tx, suffix string, args ...any) ([]models.HttpReques
 	for rows.Next() {
 		var s models.HttpRequestSummary
 		if err := rows.Scan(&s.ID, &s.CollectionID, &s.ProjectID, &s.Name, &s.URL, &s.Method,
-			&s.StatusCode, &s.ResponseID, &s.UserSortOrder, &s.UserColor, &s.LastUsedAt); err != nil {
+			&s.StatusCode, &s.ResponseID, &s.UserSortOrder, &s.UserColor, &s.LastUsedAt, &s.GroupID); err != nil {
 			return nil, fmt.Errorf("reading a request summary: %w", err)
 		}
 		summaries = append(summaries, s)

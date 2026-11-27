@@ -33,18 +33,13 @@ import { SelectOnFocusDirective } from '../core/directives/select-on-focus.direc
 import { requestColorInfo } from '../core/request-colors';
 import type { WorkspaceViewKind } from '../core/workspace/workspace-view';
 import type { RequestGroup } from '../core/workspace/presorted';
+import { toEntries, type GroupEntry, type ListEntry, type ListSection } from '../core/workspace/list-entries';
+import { GroupApiService, type RequestGroupRecord } from '../core/services/group.service';
 
 type ColumnKey = 'name' | 'url' | 'method' | 'scripts';
 type SortDirection = 'asc' | 'desc';
 
-/**
- * One drawn row of the list. Smart views draw their groups' headings as rows
- * too (same height, so virtual scrolling still works); the other views draw
- * request rows only.
- */
-type DisplayRow =
-  | { kind: 'heading'; key: string; label: string; count: number }
-  | { kind: 'request'; req: HttpRequestSummary };
+type DisplayRow = ListEntry;
 
 interface SelectedCell {
   requestId: number;
@@ -111,6 +106,7 @@ export class RequestsMainList {
   private readonly confirm = inject(ConfirmService);
   private readonly contextMenu = inject(ContextMenuService);
   private readonly dragSession = inject(DragSessionService);
+  private readonly groupApi = inject(GroupApiService);
 
   @ViewChild(CdkVirtualScrollViewport, { static: false })
   private readonly viewport!: CdkVirtualScrollViewport;
@@ -182,13 +178,33 @@ export class RequestsMainList {
     () => !this.state.showingBin() && !this.state.smartView() && this.activeViewKind() !== 'all',
   );
 
-  /** Whether the colour picker is available (selection in a colour-able view). */
-  readonly canColorSelection = computed(
-    () => (this.state.view()?.canColour ?? false) && this.selectedRowIds().size > 0,
-  );
+  /** The group picked by clicking its heading (collections only); the colour picker colours it. */
+  readonly selectedGroupId = signal<number | null>(null);
+
+  protected readonly selectedGroup = computed<RequestGroupRecord | null>(() => {
+    const id = this.selectedGroupId();
+    return id === null ? null : (this.groupApi.groups().find((g) => g.id === id) ?? null);
+  });
+
+  /** The open collection's groups, by name. */
+  protected readonly collectionGroups = computed<RequestGroupRecord[]>(() => {
+    const collection = this.state.selectedCollection();
+    if (!collection) return [];
+    return this.groupApi
+      .groups()
+      .filter((g) => g.collection_id === collection.id)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  /** Whether the colour picker is available: a picked group, or a selection in a favourite or script. */
+  readonly canColorSelection = computed(() => {
+    if (this.activeViewKind() === 'collection') return this.selectedGroup() !== null;
+    return (this.state.view()?.canColour ?? false) && this.selectedRowIds().size > 0;
+  });
 
   /** The colour shared by all selected rows in this view, or null when mixed/none. */
   readonly activeColor = computed<string | null>(() => {
+    if (this.activeViewKind() === 'collection') return this.selectedGroup()?.color ?? null;
     const selected = this.selectedRowIds();
     if (selected.size === 0) return null;
     let first: string | null | undefined;
@@ -371,26 +387,89 @@ export class RequestsMainList {
     return buildSearchIndex(this.activeRequests(), (id) => names.get(id));
   });
 
-  /** A smart view's groups narrowed by the search (keeping their order), or null. */
-  readonly filteredGroups = computed<RequestGroup[] | null>(() => {
-    const groups = this.smartGroups();
-    if (!groups) return null;
+  /**
+   * The list in sections under headings: a smart view's buckets, or a
+   * collection's groups (by name) and then its ungrouped requests. Null for
+   * the flat views. Searching keeps only matching requests and sections.
+   */
+  readonly sections = computed<ListSection[] | null>(() => {
     const words = this.searchWords();
-    if (!words.length) return groups;
-    const matching = new Set(filterRequests(this.searchIndex(), words).map((r) => r.id));
-    return groups
-      .map((g) => ({ ...g, requests: g.requests.filter((req) => matching.has(req.id)) }))
-      .filter((g) => g.requests.length > 0);
+    const matching = words.length
+      ? new Set(filterRequests(this.searchIndex(), words).map((r) => r.id))
+      : null;
+    const keep = (reqs: HttpRequestSummary[]) => (matching ? reqs.filter((r) => matching.has(r.id)) : reqs);
+
+    const smart = this.smartGroups();
+    if (smart) {
+      return smart
+        .map((g): ListSection => ({
+          heading: { key: `smart:${g.key}`, label: g.label, color: null, groupId: null },
+          requests: keep(g.requests),
+        }))
+        .filter((section) => section.requests.length > 0);
+    }
+
+    const collection = this.state.selectedCollection();
+    if (!collection) return null;
+
+    const column = this.sortColumn();
+    const compare = column
+      ? (a: HttpRequestSummary, b: HttpRequestSummary) =>
+          this.compareRequests(a, b, column) || a.name.localeCompare(b.name)
+      : (a: HttpRequestSummary, b: HttpRequestSummary) => a.name.localeCompare(b.name);
+
+    const groups = this.collectionGroups();
+    const members = new Map<number, HttpRequestSummary[]>(groups.map((g) => [g.id, []]));
+    const ungrouped: HttpRequestSummary[] = [];
+    for (const req of keep(this.requestApi.forCollection(collection.id))) {
+      const list = req.group_id != null ? members.get(req.group_id) : undefined;
+      (list ?? ungrouped).push(req);
+    }
+
+    const sections: ListSection[] = groups
+      .map((g) => ({
+        heading: {
+          key: `group:${g.id}`,
+          label: g.name,
+          color: requestColorInfo(g.color)?.cssVar ?? null,
+          groupId: g.id,
+        },
+        requests: members.get(g.id)!.sort(compare),
+      }))
+      .filter((section) => !matching || section.requests.length > 0);
+    if (ungrouped.length) sections.push({ heading: null, requests: ungrouped.sort(compare) });
+    return sections;
   });
+
+  /** Headings folded by the user, saved across launches as `<list>|<heading>` keys. */
+  private readonly foldedKeys = signal<Set<string>>(loadFoldedKeys());
+
+  protected isCollapsed(key: string): boolean {
+    if (this.searchWords().length) return false;
+    return this.foldedKeys().has(`${this.activeGroupKey()}|${key}`);
+  }
+
+  toggleFold(entry: GroupEntry, event?: Event): void {
+    event?.stopPropagation();
+    const key = `${this.activeGroupKey()}|${entry.key}`;
+    this.foldedKeys.update((keys) => {
+      const next = new Set(keys);
+      if (!next.delete(key)) next.add(key);
+      saveFoldedKeys(next);
+      return next;
+    });
+  }
 
   /**
    * The rows shown. Searching ranks them (best match, then recent usage), unless
    * a column sort is chosen: then it only filters and the column decides.
    */
   readonly filteredActiveRequests = computed<HttpRequestSummary[]>(() => {
-    const groups = this.filteredGroups();
-    if (groups) {
-      return groups.flatMap((g) => g.requests);
+    const sections = this.sections();
+    if (sections) {
+      return sections.flatMap((section) =>
+        section.heading && this.isCollapsed(section.heading.key) ? [] : section.requests,
+      );
     }
 
     const words = this.searchWords();
@@ -411,18 +490,13 @@ export class RequestsMainList {
     return result;
   });
 
-  /** What the list draws: request rows, plus a smart view's group headings. */
+  /** What the list draws: request rows, plus the headings of a sectioned list. */
   readonly displayRows = computed<DisplayRow[]>(() => {
-    const groups = this.filteredGroups();
-    if (!groups) {
+    const sections = this.sections();
+    if (!sections) {
       return this.filteredActiveRequests().map((req): DisplayRow => ({ kind: 'request', req }));
     }
-    const rows: DisplayRow[] = [];
-    for (const group of groups) {
-      rows.push({ kind: 'heading', key: group.key, label: group.label, count: group.requests.length });
-      for (const req of group.requests) rows.push({ kind: 'request', req });
-    }
-    return rows;
+    return toEntries(sections, (key) => this.isCollapsed(key));
   });
 
   /** The most recently sent of the drawn requests, if any was sent. */
@@ -448,7 +522,7 @@ export class RequestsMainList {
   });
 
   protected trackRow(_: number, row: DisplayRow): string | number {
-    return row.kind === 'heading' ? `heading:${row.key}` : row.req.id;
+    return row.kind === 'group' ? `group:${row.key}` : row.req.id;
   }
 
   /**
@@ -470,6 +544,9 @@ export class RequestsMainList {
     const cell = this.highlightedCell();
     const environment = this.state.environment();
     const result: Record<number, RowState> = {};
+    const groupColors = new Map(this.groupApi.groups().map((g) => [g.id, g.color]));
+    // Favourites and scripts still colour single requests; elsewhere a request shows its group's colour.
+    const ownColors = this.activeViewKind() === 'favourite' || this.activeViewKind() === 'script';
 
     for (const req of this.filteredActiveRequests()) {
       const isSelected = selectedIds.has(req.id);
@@ -484,13 +561,15 @@ export class RequestsMainList {
       if (isSelected && selectedIds.size <= 1 && cell !== null && cell.requestId === req.id) {
         isCellSelected[cell.column] = true;
       }
-      const colour = requestColorInfo(req.user_color);
+      const colour = requestColorInfo(
+        ownColors ? req.user_color : (groupColors.get(req.group_id ?? -1) ?? null),
+      );
       result[req.id] = {
         isSelected,
         isCellSelected,
         displayUrl: environment.interpolate(req.url),
         colorVar: colour?.cssVar ?? null,
-        colorTint: colour?.tint ?? null,
+        colorTint: ownColors ? (colour?.tint ?? null) : null,
       };
     }
     return result;
@@ -873,6 +952,13 @@ export class RequestsMainList {
       return;
     }
 
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'g') {
+      if (isEditableTarget(event.target) || this.activeViewKind() !== 'collection') return;
+      event.preventDefault();
+      void this.groupSelection();
+      return;
+    }
+
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
       event.preventDefault();
       if (this.state.showingBin()) return;
@@ -908,6 +994,10 @@ export class RequestsMainList {
   }
 
   onEscapePressed(): void {
+    if (this.editingGroupId() !== null) {
+      this.editingGroupId.set(null);
+      return;
+    }
     if (this.editingNameId() !== null) {
       this.cancelInlineNameEdit();
       return;
@@ -956,6 +1046,15 @@ export class RequestsMainList {
     }
     this.selectionState.setSelection(key, ids.has(primaryId) ? primaryId : [...ids][0], ids);
   }
+
+  private readonly dropPickedGroup = effect(() => {
+    if (this.selectedRowIds().size > 0) untracked(() => this.selectedGroupId.set(null));
+  });
+
+  private readonly dropPickedGroupOnViewChange = effect(() => {
+    this.state.view();
+    untracked(() => this.selectedGroupId.set(null));
+  });
 
   protected clearSelection(): void {
     this.state.selectedIds.set(new Set());
@@ -1175,8 +1274,8 @@ export class RequestsMainList {
       0,
       Math.min(Math.floor((scrollOffset + relativeY) / rowHeight), rows.length - 1),
     );
-    // A smart view's heading row stands for the first request below it.
-    const row = rows[rowIndex]?.kind === 'heading' ? rows[rowIndex + 1] : rows[rowIndex];
+    // A heading row stands for the first request below it.
+    const row = rows[rowIndex]?.kind === 'group' ? rows[rowIndex + 1] : rows[rowIndex];
     if (row?.kind !== 'request') return;
 
     const requests = this.filteredActiveRequests();
@@ -1528,17 +1627,17 @@ export class RequestsMainList {
    * on failure the view is reloaded.
    */
   async applyRequestColor(color: string | null): Promise<void> {
+    const group = this.selectedGroup();
+    if (this.activeViewKind() === 'collection') {
+      if (group) await this.groupApi.update({ ...group, color });
+      return;
+    }
     const ids = [...this.selectedRowIds()];
     if (ids.length === 0) return;
 
     const kind = this.activeViewKind();
     try {
-      if (kind === 'collection') {
-        const colors: Record<number, string | null> = {};
-        for (const id of ids) colors[id] = color;
-        this.requestApi.applyUserColors(colors);
-        await this.requestApi.bulkUpdateColor(ids, color);
-      } else if (kind === 'favourite') {
+      if (kind === 'favourite') {
         const favourite = this.state.selectedFavouriteCollection();
         if (!favourite) return;
         const idSet = new Set(ids);
@@ -1559,9 +1658,7 @@ export class RequestsMainList {
     } catch (err) {
       console.error('persisting request colour failed, reloading view', err);
       try {
-        if (kind === 'collection') {
-          await this.requestApi.loadAll();
-        } else if (kind === 'favourite') {
+        if (kind === 'favourite') {
           const favourite = this.state.selectedFavouriteCollection();
           if (favourite) await this.favouriteApi.loadRequestsForCollection(favourite.id);
         } else if (kind === 'script') {
@@ -1583,17 +1680,18 @@ export class RequestsMainList {
   async clearAllRequestColors(): Promise<void> {
     if (!this.state.view()?.canColour) return;
     const kind = this.activeViewKind();
+    if (kind === 'collection') {
+      for (const group of this.collectionGroups()) {
+        if (group.color) await this.groupApi.update({ ...group, color: null });
+      }
+      return;
+    }
 
     const ids = this.activeRequests().map(r => r.id);
     if (ids.length === 0) return;
 
     try {
-      if (kind === 'collection') {
-        const colors: Record<number, string | null> = {};
-        for (const id of ids) colors[id] = null;
-        this.requestApi.applyUserColors(colors);
-        await this.requestApi.bulkUpdateColor(ids, null);
-      } else if (kind === 'favourite') {
+      if (kind === 'favourite') {
         const favourite = this.state.selectedFavouriteCollection();
         if (!favourite) return;
         this.favouriteApi.requests.set(this.favouriteApi.requests().map(r => ({ ...r, user_color: null })));
@@ -1608,9 +1706,7 @@ export class RequestsMainList {
     } catch (err) {
       console.error('clearing all request colours failed, reloading view', err);
       try {
-        if (kind === 'collection') {
-          await this.requestApi.loadAll();
-        } else if (kind === 'favourite') {
+        if (kind === 'favourite') {
           const favourite = this.state.selectedFavouriteCollection();
           if (favourite) await this.favouriteApi.loadRequestsForCollection(favourite.id);
         } else if (kind === 'script') {
@@ -1623,6 +1719,93 @@ export class RequestsMainList {
       } catch (reloadErr) {
         console.error('reloading view after failed colour clear', reloadErr);
       }
+    }
+  }
+
+  // ---------- Groups ----------
+
+  readonly editingGroupId = signal<number | null>(null);
+  readonly editingGroupValue = signal('');
+
+  /** Whether any selected request is in a group (offers "Remove from group"). */
+  protected readonly selectionInGroup = computed(() => {
+    const selected = this.selectedRowIds();
+    return this.filteredActiveRequests().some((r) => selected.has(r.id) && r.group_id != null);
+  });
+
+  onGroupClick(entry: GroupEntry): void {
+    if (entry.groupId === null) {
+      this.toggleFold(entry);
+      return;
+    }
+    this.clearSelection();
+    this.selectedGroupId.set(entry.groupId);
+  }
+
+  onGroupContextMenu(entry: GroupEntry, event: MouseEvent, template: TemplateRef<{ $implicit: GroupEntry }>): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (entry.groupId === null) return;
+    this.onGroupClick(entry);
+    this.contextMenu.open(template, entry, event.clientX, event.clientY);
+  }
+
+  /** Puts the selected requests in a new group and starts renaming it. */
+  async groupSelection(): Promise<void> {
+    this.contextMenu.close();
+    const collection = this.state.selectedCollection();
+    const ids = [...this.selectedRowIds()];
+    if (!collection || ids.length === 0) return;
+    const name = freeGroupName(this.collectionGroups().map((g) => g.name));
+    try {
+      const group = await this.groupApi.create(collection.id, name, ids);
+      this.clearSelection();
+      this.selectedGroupId.set(group.id);
+      this.startGroupRename(group.id, group.name);
+    } catch (err) {
+      console.error('grouping requests failed', err);
+    }
+  }
+
+  async moveSelectionToGroup(groupId: number | null): Promise<void> {
+    this.contextMenu.close();
+    const ids = [...this.selectedRowIds()];
+    if (ids.length === 0) return;
+    try {
+      await this.groupApi.setRequests(groupId, ids);
+    } catch (err) {
+      console.error('moving requests to a group failed', err);
+    }
+  }
+
+  async ungroup(entry: GroupEntry): Promise<void> {
+    this.contextMenu.close();
+    if (entry.groupId === null) return;
+    if (this.selectedGroupId() === entry.groupId) this.selectedGroupId.set(null);
+    try {
+      await this.groupApi.delete(entry.groupId);
+    } catch (err) {
+      console.error('ungrouping failed', err);
+    }
+  }
+
+  startGroupRename(groupId: number, name: string): void {
+    this.contextMenu.close();
+    this.editingGroupValue.set(name);
+    this.editingGroupId.set(groupId);
+  }
+
+  async commitGroupRename(): Promise<void> {
+    const id = this.editingGroupId();
+    if (id === null) return;
+    this.editingGroupId.set(null);
+    const group = this.groupApi.groups().find((g) => g.id === id);
+    const name = this.editingGroupValue().trim();
+    if (!group || !name || name === group.name) return;
+    try {
+      await this.groupApi.update({ ...group, name });
+    } catch (err) {
+      console.error('renaming the group failed', err);
     }
   }
 
@@ -2104,4 +2287,31 @@ export class RequestsMainList {
     this.favouriteApi.requests.update(patch);
     this.scriptRequests.update(patch);
   }
+}
+
+const FOLDED_KEY = 'snaprq.folded';
+
+function loadFoldedKeys(): Set<string> {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(FOLDED_KEY) ?? '[]');
+    return new Set(Array.isArray(raw) ? raw.filter((k): k is string => typeof k === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveFoldedKeys(keys: Set<string>): void {
+  try {
+    localStorage.setItem(FOLDED_KEY, JSON.stringify([...keys]));
+  } catch {
+    // Storage can be full or disabled; folding still works for this session.
+  }
+}
+
+function freeGroupName(taken: string[]): string {
+  const names = new Set(taken);
+  if (!names.has('New group')) return 'New group';
+  let n = 2;
+  while (names.has(`New group ${n}`)) n++;
+  return `New group ${n}`;
 }

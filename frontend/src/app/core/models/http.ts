@@ -20,6 +20,8 @@ export interface HttpRequestSummary {
   user_sort_order: number;
   user_color: string | null;
   last_used_at: number;
+  /** The request group it is in (collections only); absent or null = none. */
+  group_id?: number | null;
 }
 
 /** How much a request is used lately (request.list_usage): a fading score and its level. */

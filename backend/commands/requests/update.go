@@ -59,6 +59,8 @@ func (c Update) Run(input json.RawMessage) (any, error) {
 			return nil, err
 		}
 		columns["user_sort_order"] = order
+		// groups belong to one collection
+		columns["group_id"] = nil
 	}
 
 	query, args, err := squirrel.Update("http_requests").SetMap(columns).

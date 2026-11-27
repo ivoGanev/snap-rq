@@ -11,6 +11,7 @@ import (
 	"snap-rq/backend/commands/curl"
 	"snap-rq/backend/commands/environments"
 	"snap-rq/backend/commands/favourites"
+	"snap-rq/backend/commands/groups"
 	"snap-rq/backend/commands/icons"
 	"snap-rq/backend/commands/openapi"
 	"snap-rq/backend/commands/profiles"
@@ -59,6 +60,13 @@ var All = []commands.Factory{
 	collections.NewUpdate,
 	collections.NewDelete,
 	collections.NewSetAppearance,
+
+	// request groups
+	groups.NewList,
+	groups.NewCreate,
+	groups.NewUpdate,
+	groups.NewSetRequests,
+	groups.NewDelete,
 
 	// projects and profiles
 	projects.NewList,

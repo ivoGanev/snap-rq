@@ -177,7 +177,8 @@ export class TrashView implements ViewBehaviour {
 export class CollectionView implements ViewBehaviour {
   readonly kind = 'collection';
   readonly main = 'requests';
-  readonly canReorder = true;
+  // Rows are ordered by name inside their groups.
+  readonly canReorder = false;
   readonly sortable = true;
   readonly canColour = true;
   readonly survivesProjectSwitch = false;

@@ -182,6 +182,10 @@ func OpenWith(dbPath string, beforeMigrate func(*sql.DB)) (*sql.DB, error) {
 		return nil, fmt.Errorf("migrating database: %w", err)
 	}
 
+	if err := createRequestGroups(db); err != nil {
+		return nil, fmt.Errorf("migrating database: %w", err)
+	}
+
 	if err := ensureDefaultCollection(db); err != nil {
 		return nil, fmt.Errorf("ensuring default collection: %w", err)
 	}
@@ -995,6 +999,31 @@ func addResponseRequestColumns(db *sql.DB) error {
 		if _, err := db.Exec(`ALTER TABLE responses ADD COLUMN ` + col + ` TEXT NOT NULL DEFAULT ''`); err != nil {
 			return fmt.Errorf("adding %s to responses: %w", col, err)
 		}
+	}
+	return nil
+}
+
+// createRequestGroups adds named groups of requests inside a collection. A
+// request is in at most one group; deleting the group keeps its requests.
+func createRequestGroups(db *sql.DB) error {
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS request_groups (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			collection_id INTEGER NOT NULL,
+			name TEXT NOT NULL,
+			color TEXT,
+			FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE
+		);
+		CREATE INDEX IF NOT EXISTS idx_request_groups_collection_id ON request_groups(collection_id);
+	`); err != nil {
+		return fmt.Errorf("creating request_groups: %w", err)
+	}
+	if columnExists(db, "http_requests", "group_id") {
+		return nil
+	}
+	if _, err := db.Exec(`ALTER TABLE http_requests ADD COLUMN group_id INTEGER
+		REFERENCES request_groups(id) ON DELETE SET NULL`); err != nil {
+		return fmt.Errorf("adding group_id to http_requests: %w", err)
 	}
 	return nil
 }

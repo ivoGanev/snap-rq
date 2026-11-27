@@ -20,6 +20,7 @@ import { WindowControls } from './window-controls/window-controls';
 import { WML } from '@wailsio/runtime';
 import { WorkspaceStateService } from './core/services/workspace-state.service';
 import { SidebarMemoryService } from './core/services/sidebar-memory.service';
+import { GroupApiService } from './core/services/group.service';
 import { ProjectApiService, type Project } from './core/services/project.service';
 import { EnvironmentApiService, type Environment } from './core/services/environment.service';
 
@@ -90,6 +91,7 @@ export class App implements OnInit, AfterViewInit {
   protected readonly importPrompt = inject(OpenApiImportPrompt);
   private readonly projectApi = inject(ProjectApiService);
   private readonly sidebarMemory = inject(SidebarMemoryService);
+  private readonly groupApi = inject(GroupApiService);
   private readonly environmentApi = inject(EnvironmentApiService);
   private readonly requestApi = inject(RequestApiService);
   private readonly collectionApi = inject(CollectionApiService);
@@ -402,6 +404,7 @@ export class App implements OnInit, AfterViewInit {
     await this.favouriteApi.loadCollectionsForProject(project.id);
     await this.collectionApi.loadForProject(project.id);
     await this.scriptApi.loadScriptsForProject(project.id);
+    await this.groupApi.loadForProject(project.id);
     await this.requestApi.loadAll();
     this.sidebarMemory.restore();
   }

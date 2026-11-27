@@ -263,6 +263,54 @@
   opacity: 0.7;
 }
 
+.spreadsheet-heading {
+  position: relative;
+  cursor: pointer;
+}
+
+.spreadsheet-heading.is-group .spreadsheet-heading-label {
+  color: var(--text);
+}
+
+.spreadsheet-heading.is-selected {
+  background: var(--selected-bg);
+}
+
+.fold-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.fold-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.fold-toggle:hover {
+  color: var(--text);
+}
+
+.fold-toggle.is-collapsed {
+  transform: rotate(-90deg);
+}
+
+.group-name-input {
+  flex: 0 1 240px;
+  min-width: 0;
+}
+
 .spreadsheet-header-cell--method .spreadsheet-header-button {
   padding: 0 var(--s-2);
 }
@@ -350,16 +398,17 @@
 }
 
 .spreadsheet-row.has-color {
-  background-color: var(--row-tint);
+  background-color: var(--row-tint, transparent);
 }
 
-.spreadsheet-row.has-color::before {
+.spreadsheet-row.has-color::before,
+.spreadsheet-heading.has-color::before {
   content: '';
   position: absolute;
   left: 0;
   top: 0;
   bottom: 0;
-  width: 3px;
+  width: 5px;
   background: var(--row-color);
   pointer-events: none;
 }

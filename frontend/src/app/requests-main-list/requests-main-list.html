@@ -158,9 +158,49 @@
       (mousemove)="onViewportMouseMove($event)"
     >
       <ng-container *cdkVirtualFor="let row of displayRows(); trackBy: trackRow">
-      @if (row.kind === 'heading') {
-        <div class="spreadsheet-heading">
-          <span class="spreadsheet-heading-label">{{ row.label }}</span>
+      @if (row.kind === 'group') {
+        <div
+          class="spreadsheet-heading"
+          [class.is-group]="row.groupId !== null"
+          [class.is-selected]="row.groupId !== null && selectedGroupId() === row.groupId"
+          [class.has-color]="!!row.color"
+          [style.--row-color]="row.color"
+          (click)="onGroupClick(row)"
+          (contextmenu)="onGroupContextMenu(row, $event, groupContextMenu)"
+        >
+          <button
+            class="fold-toggle"
+            [class.is-collapsed]="row.collapsed"
+            type="button"
+            [attr.aria-expanded]="!row.collapsed"
+            [attr.aria-label]="(row.collapsed ? 'Expand ' : 'Collapse ') + row.label"
+            (click)="toggleFold(row, $event)"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
+            </svg>
+          </button>
+          @if (row.groupId !== null && editingGroupId() === row.groupId) {
+            <input
+              class="inline-name-input group-name-input"
+              type="text"
+              selectOnFocus
+              [value]="editingGroupValue()"
+              (input)="editingGroupValue.set($any($event.target).value)"
+              (mousedown)="$event.stopPropagation()"
+              (click)="$event.stopPropagation()"
+              (dblclick)="$event.stopPropagation()"
+              (keydown.enter)="commitGroupRename()"
+              (keydown.escape)="editingGroupId.set(null); $event.stopPropagation()"
+              (blur)="commitGroupRename()"
+            />
+          } @else if (row.groupId !== null) {
+            <span class="spreadsheet-heading-label" (dblclick)="startGroupRename(row.groupId, row.label)">{{
+              row.label
+            }}</span>
+          } @else {
+            <span class="spreadsheet-heading-label">{{ row.label }}</span>
+          }
           <span class="spreadsheet-heading-count">{{ row.count }}</span>
         </div>
       } @else {
@@ -345,6 +385,23 @@
     <button class="context-menu-item" type="button" (click)="openFavouritePicker(selectedRequests())">
       Add to favourites…
     </button>
+    @if (activeViewKind() === 'collection') {
+      <div class="context-menu-divider" aria-hidden="true"></div>
+      <button class="context-menu-item context-menu-item--with-hint" type="button" (click)="groupSelection()">
+        <span>Group</span>
+        <kbd class="menu-kbd">Ctrl+G</kbd>
+      </button>
+      @for (group of collectionGroups(); track group.id) {
+        <button class="context-menu-item" type="button" (click)="moveSelectionToGroup(group.id)">
+          Move to “{{ group.name }}”
+        </button>
+      }
+      @if (selectionInGroup()) {
+        <button class="context-menu-item" type="button" (click)="moveSelectionToGroup(null)">
+          Remove from group
+        </button>
+      }
+    }
     <div class="context-menu-divider" aria-hidden="true"></div>
     <button class="context-menu-item" type="button" (click)="duplicateSelectedRequest()">
       Duplicate
@@ -358,6 +415,13 @@
       <kbd class="menu-kbd">Del</kbd>
     </button>
   }
+</ng-template>
+
+<ng-template #groupContextMenu let-entry>
+  <button class="context-menu-item" type="button" (click)="startGroupRename(entry.groupId, entry.label)">
+    Rename
+  </button>
+  <button class="context-menu-item" type="button" (click)="ungroup(entry)">Ungroup</button>
 </ng-template>
 
 @if (curlImportFor(); as collection) {
