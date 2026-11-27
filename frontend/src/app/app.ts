@@ -168,8 +168,12 @@ export class App implements OnInit, AfterViewInit {
   readonly deleteConfirmName = signal('');
   protected readonly deleteConfirmMatches = computed(() => this.deleteConfirmName().trim().toLowerCase() === 'ok');
   readonly projectRenaming = signal<Project | null>(null);
-  /** A hint shown at once beside what's pointed at; title tooltips wait a second. */
-  readonly projectHint = signal<{ text: string; left: number; top: number } | null>(null);
+  /** The delete note, shown at once on the info icon; title tooltips wait a second. */
+  readonly projectHintOpen = signal(false);
+  protected readonly projectHintPositions: ConnectedPosition[] = [
+    { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 6 },
+    { originX: 'start', originY: 'top', overlayX: 'start', overlayY: 'bottom', offsetY: -6 },
+  ];
   readonly renameProjectValue = signal('');
   protected readonly projectMenuPositions: ConnectedPosition[] = [
     { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 6 },
@@ -561,11 +565,6 @@ export class App implements OnInit, AfterViewInit {
     this.projectRenaming.set(project);
   }
 
-  showProjectHint(event: Event, text: string): void {
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    this.projectHint.set({ text, left: rect.left, top: rect.bottom + 6 });
-  }
-
   cancelRenameProject(): void {
     this.projectRenaming.set(null);
     this.renameProjectValue.set('');
@@ -598,7 +597,7 @@ export class App implements OnInit, AfterViewInit {
   }
 
   cancelDeleteProject(): void {
-    this.projectHint.set(null);
+    this.projectHintOpen.set(false);
     this.projectPendingDelete.set(null);
     this.deleteConfirmName.set('');
   }

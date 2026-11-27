@@ -614,10 +614,7 @@
   cursor: pointer;
 }
 
-// Fixed to the window, so the dropdown's scrolling list doesn't clip it.
 .project-menu-hint {
-  position: fixed;
-  z-index: 1;
   max-width: 240px;
   padding: 6px var(--s-2);
   font-size: 0.75rem;

@@ -108,11 +108,13 @@
               <span
                 class="project-menu-lead project-menu-info"
                 tabindex="0"
+                cdkOverlayOrigin
+                #deleteInfo="cdkOverlayOrigin"
                 [attr.aria-label]="deleteNote"
-                (mouseenter)="showProjectHint($event, deleteNote)"
-                (focus)="showProjectHint($event, deleteNote)"
-                (mouseleave)="projectHint.set(null)"
-                (blur)="projectHint.set(null)"
+                (mouseenter)="projectHintOpen.set(true)"
+                (focus)="projectHintOpen.set(true)"
+                (mouseleave)="projectHintOpen.set(false)"
+                (blur)="projectHintOpen.set(false)"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                   stroke-linejoin="round" aria-hidden="true">
@@ -120,6 +122,14 @@
                   <path d="M12 11v5M12 7.5v.01" />
                 </svg>
               </span>
+              <ng-template
+                cdkConnectedOverlay
+                [cdkConnectedOverlayOrigin]="deleteInfo"
+                [cdkConnectedOverlayOpen]="projectHintOpen()"
+                [cdkConnectedOverlayPositions]="projectHintPositions"
+              >
+                <div class="project-menu-hint" role="tooltip">{{ deleteNote }}</div>
+              </ng-template>
               <input
                 class="project-menu-input project-menu-input--delete"
                 type="text"
@@ -185,11 +195,6 @@
           }
         }
       </ul>
-      @if (projectHint(); as hint) {
-        <div class="project-menu-hint" role="tooltip" [style.left.px]="hint.left" [style.top.px]="hint.top">
-          {{ hint.text }}
-        </div>
-      }
     </div>
   </ng-template>
 
