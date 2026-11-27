@@ -1,0 +1,85 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.smart-view-header {
+  flex: 0 0 auto;
+  padding: 0 var(--s-3);
+}
+
+.smart-view-title {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.smart-view-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: var(--s-1) 0 var(--s-3);
+}
+
+.smart-view-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: calc(100% - 2 * var(--s-3));
+  margin: 0 var(--s-3);
+  padding: var(--s-1) var(--s-3);
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  --wails-draggable: no-drag;
+}
+
+.smart-view-item:hover:not(:disabled) {
+  background: var(--hover-highlight);
+}
+
+.smart-view-item.is-selected {
+  font-weight: 600;
+  background: var(--selected-bg);
+}
+
+.smart-view-item:focus {
+  outline: none;
+}
+
+.smart-view-item:focus-visible {
+  background: var(--hover-highlight);
+}
+
+.smart-view-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.smart-view-icon {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 2px;
+  color: var(--accent-3, var(--accent));
+}
+
+.smart-view-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

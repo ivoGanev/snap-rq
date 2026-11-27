@@ -1,0 +1,23 @@
+<div class="column-header smart-view-header">
+  <span class="smart-view-title">Smart views</span>
+</div>
+
+<ul class="smart-view-list">
+  @for (view of views; track view.id) {
+    <li>
+      <button
+        class="smart-view-item"
+        [class.is-selected]="activeView() === view.id"
+        type="button"
+        [disabled]="disabled()"
+        [title]="view.hint"
+        (click)="viewSelect.emit(view.id)"
+      >
+        <svg class="smart-view-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path [attr.d]="view.iconPath" />
+        </svg>
+        <span class="smart-view-label">{{ view.label }}</span>
+      </button>
+    </li>
+  }
+</ul>
