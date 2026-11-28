@@ -446,6 +446,11 @@
 
 .spreadsheet-heading.is-group {
   cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.spreadsheet-heading.is-group:hover {
+  background-color: var(--hover-bg);
 }
 
 .spreadsheet-heading.is-group .spreadsheet-heading-label {
