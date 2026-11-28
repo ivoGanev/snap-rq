@@ -9,7 +9,7 @@
         class="header-url-field"
         [style.--method-col-width]="methodColumnWidthCss()"
         [style.--name-col-width]="nameColumnWidthCss()"
-        [style.--action-col-width]="canDragOut() ? '64px' : '44px'"
+        [style.--action-col-width]="'16px'"
       >
       <app-select
         class="header-method-select"
@@ -158,7 +158,7 @@
     [class.has-usage]="showUsage()"
     [style.--method-col-width]="methodColumnWidthCss()"
     [style.--name-col-width]="nameColumnWidthCss()"
-    [style.--action-col-width]="canDragOut() ? '64px' : '44px'"
+    [style.--action-col-width]="'16px'"
   >
     <div class="spreadsheet-header">
       <div class="spreadsheet-header-cell spreadsheet-header-cell--action"></div>
@@ -290,32 +290,10 @@
         [style.--row-tint]="rowState()[req.id]?.colorTint"
         (mousedown)="onRowMouseDown(req, $event)"
         (click)="onRowClick(req, $event, 'name')"
+        (dblclick)="openZenMode(req, $event)"
         (contextmenu)="onRowContextMenu(req, $event, rowContextMenu)"
       >
-        <div class="spreadsheet-cell spreadsheet-cell--action">
-          @if (!state.showingBin() && selectedRowIds().size <= 1) {
-            <button
-              class="zen-mode-button"
-              type="button"
-              (click)="openZenMode(req, $event)"
-              aria-label="Open edit mode"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path
-                  d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
-                />
-              </svg>
-            </button>
-          }
-        </div>
+        <div class="spreadsheet-cell spreadsheet-cell--action"></div>
 
         <div
           class="spreadsheet-cell spreadsheet-cell--method"

@@ -2327,8 +2327,10 @@ export class RequestsMainList {
     }
   }
 
+  /** Double-click on a row: the request opens in zen mode. */
   openZenMode(req: HttpRequestSummary | HttpBinnedRequestSummary, event: MouseEvent): void {
-    event.stopPropagation();
+    // A quick Ctrl/Shift click pair is selecting, not asking for zen mode.
+    if (event.ctrlKey || event.metaKey || event.shiftKey) return;
     this.contextMenu.close();
     if (this.state.showingBin()) return;
     this.selectCell(req as HttpRequestSummary, 'name');

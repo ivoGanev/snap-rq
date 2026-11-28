@@ -676,8 +676,6 @@
   padding: 4px;
 }
 
-// Three-dot reorder handle; rendered on every row of user-orderable views
-// (collections / favourites / scripts) and revealed on row hover or selection.
 // The row being dragged stays in place but dims; the ghost follows the cursor.
 .spreadsheet-row.is-reorder-source {
   opacity: 0.45;
@@ -791,47 +789,6 @@
 .spreadsheet-cell--name:hover .cell-text,
 .spreadsheet-cell--url:hover .cell-text {
   text-decoration-color: color-mix(in srgb, var(--accent-3, var(--accent)) 70%, transparent);
-}
-
-.zen-mode-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  max-width: 36px;
-  height: 100%;
-  padding: 0;
-  color: var(--muted);
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateX(-4px);
-  transition:
-    opacity 0.15s ease,
-    transform 0.15s ease,
-    visibility 0.15s ease,
-    background 0.15s ease;
-  --wails-draggable: no-drag;
-  @include btn.btn-ghost;
-}
-
-.zen-mode-button svg {
-  width: 18px;
-  height: 18px;
-}
-
-.spreadsheet-row:hover .zen-mode-button,
-.spreadsheet-row.is-selected .zen-mode-button {
-  opacity: 1;
-  visibility: visible;
-  transform: translateX(0);
-}
-
-.zen-mode-button:hover {
-  background: var(--hover-highlight);
 }
 
 .request-method {
