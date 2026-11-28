@@ -107,7 +107,7 @@ const NAME_COLUMN_MIN_WIDTH = 120;
     'aria-label': 'Requests',
     '(window:keydown)': 'onWindowKeydown($event)',
     '(window:mousemove)': 'onWindowMouseMove($event)',
-    '(window:mouseup)': 'onWindowMouseUp()',
+    '(window:mouseup)': 'onWindowMouseUp($event)',
     '(window:resize)': 'onWindowResize()',
   },
 })
@@ -860,7 +860,7 @@ export class RequestsMainList {
       // Smart views arrange the project's requests (see smartGroups).
       if (smart && projectId !== null) {
         const requests = this.activeRequests();
-        const selectedId = this.restoreSelection(requests, groupKeyOfView);
+        const selectedId = this.restoreSelection(requests, groupKeyOfView, scroll);
         await this.scriptApi.loadScriptsForRequests(requests);
         if (version !== this.loadVersion) return;
         if (scroll) this.restoreScroll(selectedId, restoreOffset);
@@ -893,7 +893,7 @@ export class RequestsMainList {
       if (collectionId !== null) {
         if (version !== this.loadVersion) return;
         const requests = this.requestApi.forCollection(collectionId);
-        const selectedId = this.restoreSelection(requests, groupKeyOfView);
+        const selectedId = this.restoreSelection(requests, groupKeyOfView, scroll);
         await this.scriptApi.loadScriptsForRequests(requests);
         if (version !== this.loadVersion) return;
         if (scroll) this.restoreScroll(selectedId, restoreOffset);
@@ -903,7 +903,7 @@ export class RequestsMainList {
       if (showAll && projectId !== null) {
         if (version !== this.loadVersion) return;
         const requests = this.requestApi.forProject(projectId);
-        const selectedId = this.restoreSelection(requests, groupKeyOfView);
+        const selectedId = this.restoreSelection(requests, groupKeyOfView, scroll);
         await this.scriptApi.loadScriptsForRequests(requests);
         if (version !== this.loadVersion) return;
         if (scroll) this.restoreScroll(selectedId, restoreOffset);
@@ -923,12 +923,20 @@ export class RequestsMainList {
     scroll: boolean,
     restoreOffset: number | null,
   ): void {
-    const id = this.restoreSelection(requests, groupKeyOfView);
+    const id = this.restoreSelection(requests, groupKeyOfView, scroll);
     if (scroll) this.restoreScroll(id, restoreOffset);
   }
 
-  /** Selects the view's remembered rows, or its first request; returns the main row's id. */
-  private restoreSelection(requests: HttpRequestSummary[], groupKeyOfView: string | null): number | null {
+  /**
+   * Selects the view's remembered rows; returns the main row's id. With none
+   * remembered, a view being opened selects its first request, while a
+   * refresh after a command keeps an empty selection (a picked group, say).
+   */
+  private restoreSelection(
+    requests: HttpRequestSummary[],
+    groupKeyOfView: string | null,
+    opening: boolean,
+  ): number | null {
     const remembered =
       groupKeyOfView !== null ? this.selectionState.getSelection(groupKeyOfView) : null;
 
@@ -937,7 +945,7 @@ export class RequestsMainList {
     const present = new Set(requests.map((r) => r.id));
     const ids = remembered?.ids.filter((id) => present.has(id)) ?? [];
     if (!remembered || ids.length === 0) {
-      this.selectFirstRequest(groupKeyOfView);
+      if (opening) this.selectFirstRequest(groupKeyOfView);
       return null;
     }
     const rememberedId = present.has(remembered.primary) ? remembered.primary : ids[0];
@@ -1301,13 +1309,23 @@ export class RequestsMainList {
 
   }
 
-  onWindowMouseUp(): void {
+  onWindowMouseUp(event?: MouseEvent): void {
+    // Drop targets are worked out per animation frame; a quick release can
+    // come before the frame that saw the pointer's last move, so one more
+    // frame runs here at the release point.
+    if (event) {
+      this.reorderLastX = event.clientX;
+      this.reorderLastY = event.clientY;
+    }
+
     if (this.groupDragPending) {
+      if (this.groupDrag()) this.renderGroupDragFrame();
       this.finishGroupDrag();
       return;
     }
 
     if (this.reorderPending() !== null || this.reorderDrag() !== null) {
+      if (this.reorderDrag()) this.renderReorderFrame();
       const drag = this.reorderDrag();
       const consumedBySidebar = drag ? this.dragSession.tryDrop() : false;
       this.reorderPending.set(null);
@@ -1779,6 +1797,9 @@ export class RequestsMainList {
   private pickGroup(entry: GroupEntry): void {
     if (entry.groupId === null) return;
     this.clearSelection();
+    // Forgotten too, or the refresh after the next command would select those rows again.
+    const key = this.activeGroupKey();
+    if (key !== null) this.selectionState.clearSelection(key);
     this.selectedGroupId.set(entry.groupId);
   }
 
