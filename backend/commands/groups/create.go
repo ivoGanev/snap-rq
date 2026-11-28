@@ -49,13 +49,18 @@ func (c Create) Run(input json.RawMessage) (any, error) {
 	if in.CollectionID == 0 {
 		return nil, errors.New("collection id is required")
 	}
+	if len(in.RequestIDs) == 0 {
+		return nil, errors.New("a group needs at least one request")
+	}
 	before, err := readMemberships(c.tx, in.RequestIDs)
 	if err != nil {
 		return nil, err
 	}
+	// The group takes the place of the first of its requests.
 	var order int
 	if err := c.tx.QueryRow(
-		`SELECT COALESCE(MAX(sort_order), -1) + 1 FROM request_groups WHERE collection_id = ?`, in.CollectionID,
+		`SELECT COALESCE(MIN(user_sort_order), 0) FROM http_requests WHERE id IN (`+placeholders(len(in.RequestIDs))+`)`,
+		int64Args(in.RequestIDs)...,
 	).Scan(&order); err != nil {
 		return nil, err
 	}

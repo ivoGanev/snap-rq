@@ -47,9 +47,12 @@ func querySummaries(tx *sql.Tx, suffix string, args ...any) ([]models.HttpReques
 // end of a collection's custom order.
 func nextSortOrder(tx *sql.Tx, collectionID int64) (int, error) {
 	var next int
+	// Groups share the collection's order with its requests.
 	if err := tx.QueryRow(
-		`SELECT COALESCE(MAX(user_sort_order), -1) + 1 FROM http_requests WHERE collection_id = ?`,
-		collectionID,
+		`SELECT COALESCE(MAX(o), -1) + 1 FROM (
+			SELECT MAX(user_sort_order) AS o FROM http_requests WHERE collection_id = ?
+			UNION ALL SELECT MAX(sort_order) FROM request_groups WHERE collection_id = ?)`,
+		collectionID, collectionID,
 	).Scan(&next); err != nil {
 		return 0, fmt.Errorf("computing the next order: %w", err)
 	}

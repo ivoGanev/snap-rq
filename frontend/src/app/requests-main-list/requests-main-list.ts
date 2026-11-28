@@ -35,6 +35,17 @@ import type { WorkspaceViewKind } from '../core/workspace/workspace-view';
 import type { RequestGroup } from '../core/workspace/presorted';
 import { toEntries, UNGROUPED, type GroupEntry, type ListEntry, type ListSection } from '../core/workspace/list-entries';
 import { GroupApiService, type RequestGroupRecord } from '../core/services/group.service';
+import {
+  arrangeCollection,
+  flattenLayout,
+  groupDropTarget,
+  moveGroup,
+  moveRequests,
+  requestDropTarget,
+  sameLayout,
+  type DropTarget,
+  type LayoutItem,
+} from '../core/workspace/collection-layout';
 
 type ColumnKey = 'name' | 'url' | 'method' | 'scripts';
 type SortDirection = 'asc' | 'desc';
@@ -63,8 +74,8 @@ interface ReorderDrag {
   fromIndex: number;
   /** Every request being dragged: the selection when a selected row's handle was grabbed. */
   ids: number[];
-  /** Dropping on the list moves the requests into the group under the pointer (collections). */
-  sectionDrop: boolean;
+  /** Dropping on the list moves the requests to the line's place in the collection's layout. */
+  arrange: boolean;
 }
 
 const BOTTOM_TABS: BottomTab[] = [
@@ -77,6 +88,9 @@ const REORDER_EDGE_SCROLL_PX = 44;
 const REORDER_EDGE_SCROLL_STEP_PX = 10;
 const DROP_HIGHLIGHT_MS = 500;
 const METHOD_COLUMN_MIN_WIDTH = 60;
+// Right of this (from the list's left edge) a drop at a group's last row stays inside the group.
+const NEST_POINTER_PX = 120;
+const NEST_LINE_INDENT_PX = 36;
 const NAME_COLUMN_MIN_WIDTH = 120;
 
 /**
@@ -227,11 +241,13 @@ export class RequestsMainList {
     externalOnly: boolean;
     request: HttpRequestSummary;
     ids: number[];
-    sectionDrop: boolean;
+    arrange: boolean;
   } | null>(null);
 
-  /** The section a group drag would drop into: a group heading's key, or UNGROUPED. */
-  readonly dropSectionKey = signal<string | null>(null);
+  /** Where a drag in a collection would land; read on release. */
+  private dropTarget: DropTarget | null = null;
+  /** The group heading a request drag would drop into. */
+  readonly dropIntoGroupId = signal<number | null>(null);
   /**
    * Structural drag state only (set once at start, cleared at end) so the
    * signal never changes per pixel. Per-cursor values live in plain fields
@@ -418,34 +434,71 @@ export class RequestsMainList {
     if (!collection) return null;
 
     const column = this.sortColumn();
-    const compare = column
-      ? (a: HttpRequestSummary, b: HttpRequestSummary) =>
-          this.compareRequests(a, b, column) || a.name.localeCompare(b.name)
-      : (a: HttpRequestSummary, b: HttpRequestSummary) => a.name.localeCompare(b.name);
+    const top = arrangeCollection(this.collectionGroups(), this.requestApi.forCollection(collection.id));
+    const heading = (g: RequestGroupRecord) => ({
+      key: `group:${g.id}`,
+      label: g.name,
+      color: requestColorInfo(g.color)?.cssVar ?? null,
+      groupId: g.id,
+    });
 
-    const groups = this.collectionGroups();
-    const members = new Map<number, HttpRequestSummary[]>(groups.map((g) => [g.id, []]));
-    const ungrouped: HttpRequestSummary[] = [];
-    for (const req of keep(this.requestApi.forCollection(collection.id))) {
-      const list = req.group_id != null ? members.get(req.group_id) : undefined;
-      (list ?? ungrouped).push(req);
+    if (column) {
+      // A column sort orders the requests inside each group; groups keep their order, after the ungrouped requests.
+      const compare = (a: HttpRequestSummary, b: HttpRequestSummary) =>
+        this.compareRequests(a, b, column) || a.name.localeCompare(b.name);
+      const loose = [...keep(top.flatMap((it) => (it.kind === 'request' ? [it.req] : [])))].sort(compare);
+      const sorted: ListSection[] = loose.length ? [{ heading: null, requests: loose }] : [];
+      for (const it of top) {
+        if (it.kind !== 'group') continue;
+        const reqs = [...keep(it.members)].sort(compare);
+        if (!matching || reqs.length) sorted.push({ heading: heading(it.group), requests: reqs });
+      }
+      return sorted;
     }
 
-    // Ungrouped requests come first, so none of them sits under a group's heading.
-    const sections: ListSection[] = ungrouped.length ? [{ heading: null, requests: ungrouped.sort(compare) }] : [];
-    const grouped: ListSection[] = groups
-      .map((g) => ({
-        heading: {
-          key: `group:${g.id}`,
-          label: g.name,
-          color: requestColorInfo(g.color)?.cssVar ?? null,
-          groupId: g.id,
-        },
-        requests: members.get(g.id)!.sort(compare),
-      }))
-      .filter((section) => !matching || section.requests.length > 0);
-    return [...sections, ...grouped];
+    const sections: ListSection[] = [];
+    for (const it of top) {
+      if (it.kind === 'request') {
+        if (matching && !matching.has(it.req.id)) continue;
+        const last = sections[sections.length - 1];
+        if (last && last.heading === null) last.requests.push(it.req);
+        else sections.push({ heading: null, requests: [it.req] });
+        continue;
+      }
+      const reqs = keep(it.members);
+      if (matching && reqs.length === 0) continue;
+      sections.push({ heading: heading(it.group), requests: reqs });
+    }
+    return sections;
   });
+
+  /** Drags in a collection place items where they are dropped, which needs the user's order on screen. */
+  protected readonly canArrange = computed(
+    () => this.activeViewKind() === 'collection' && this.sortColumn() === null && this.searchWords().length === 0,
+  );
+
+  private collectionLayout(): LayoutItem[] {
+    const collection = this.state.selectedCollection();
+    if (!collection) return [];
+    return flattenLayout(arrangeCollection(this.collectionGroups(), this.requestApi.forCollection(collection.id)));
+  }
+
+  private applyLayout(next: LayoutItem[]): void {
+    const collection = this.state.selectedCollection();
+    if (!collection || sameLayout(next, this.collectionLayout())) return;
+    next.forEach((it, index) => {
+      if (it.kind === 'request') this.requestApi.patch(it.id, { user_sort_order: index, group_id: it.groupId });
+    });
+    this.groupApi.arrange(collection.id, next).catch((err) => console.error('moving requests failed', err));
+  }
+
+  private placeDropLine(line: HTMLElement, rect: DOMRect, row: number, offset: number, indent: boolean): void {
+    const inset = indent ? NEST_LINE_INDENT_PX : 0;
+    line.style.top = `${rect.top + row * this.rowHeight - offset}px`;
+    line.style.left = `${rect.left + 4 + inset}px`;
+    line.style.width = `${Math.max(0, rect.width - 8 - inset)}px`;
+    line.style.visibility = 'visible';
+  }
 
   /** Headings folded by the user, saved across launches as `<list>|<heading>` keys. */
   private readonly foldedKeys = signal<Set<string>>(loadFoldedKeys());
@@ -1207,16 +1260,17 @@ export class RequestsMainList {
 
     const request = req as HttpRequestSummary;
     const selected = this.selectedRowIds();
-    const sectionDrop = this.activeViewKind() === 'collection';
+    const arrange = this.canArrange();
     // Outside collections only the pressed row moves: reordering several at once is ambiguous.
-    const ids = sectionDrop && selected.size > 1 && selected.has(req.id) ? [...selected] : [req.id];
+    const many = this.activeViewKind() === 'collection' && selected.size > 1 && selected.has(req.id);
+    const ids = many ? [...selected] : [req.id];
     this.reorderPending.set({
       requestId: req.id,
       startY: event.clientY,
       externalOnly: !this.canReorderRows(),
       request,
       ids,
-      sectionDrop,
+      arrange,
     });
   }
 
@@ -1261,12 +1315,15 @@ export class RequestsMainList {
       this.stopReorderFrameLoop();
       document.body.classList.remove('reorder-dragging');
       this.dragSession.end();
-      const section = this.dropSectionKey();
-      this.dropSectionKey.set(null);
+      const target = this.dropTarget;
+      this.dropTarget = null;
+      this.dropIntoGroupId.set(null);
       if (drag) {
         this.ignoreNextClick.set(true);
-        if (drag.sectionDrop) {
-          if (!consumedBySidebar && section) void this.dropIntoSection(section, drag.ids);
+        if (drag.arrange) {
+          if (!consumedBySidebar && target) {
+            this.applyLayout(moveRequests(this.collectionLayout(), new Set(drag.ids), target));
+          }
           return;
         }
         if (!consumedBySidebar && drag.fromIndex >= 0 && this.canReorderRows()) {
@@ -1325,7 +1382,7 @@ export class RequestsMainList {
           request: pending.request,
           fromIndex: -1,
           ids: pending.ids,
-          sectionDrop: pending.sectionDrop,
+          arrange: pending.arrange,
         });
         this.startReorderFrameLoop();
         document.body.classList.add('reorder-dragging');
@@ -1341,7 +1398,7 @@ export class RequestsMainList {
       this.reorderLastX = event.clientX;
       this.reorderLastY = event.clientY;
       this.reorderInsertIndex = fromIndex;
-      this.reorderDrag.set({ request: requests[fromIndex], fromIndex, ids: [pending.requestId], sectionDrop: false });
+      this.reorderDrag.set({ request: requests[fromIndex], fromIndex, ids: [pending.requestId], arrange: false });
       this.startReorderFrameLoop();
       // A body-level class (global CSS forces the grabbing cursor over every
       // element) — element-level cursor rules would otherwise win as the
@@ -1370,21 +1427,33 @@ export class RequestsMainList {
     const viewport = this.viewport.elementRef.nativeElement;
     const rect = viewport.getBoundingClientRect();
     const overSidebar =
-      (drag.fromIndex < 0 && !drag.sectionDrop) ||
+      (drag.fromIndex < 0 && !drag.arrange) ||
       this.dragSession.hovered() !== null ||
       this.dragSession.overEmptyCollections();
 
-    if (drag.sectionDrop) {
-      const inside =
+    if (drag.arrange) {
+      const over =
         !overSidebar &&
         this.reorderLastX >= rect.left &&
         this.reorderLastX <= rect.right &&
         this.reorderLastY >= rect.top &&
         this.reorderLastY <= rect.bottom;
-      if (inside) this.autoScrollReorder(rect);
-      const target = inside ? this.sectionAt(this.reorderLastY - rect.top) : null;
-      if (target !== this.dropSectionKey()) this.dropSectionKey.set(target);
       line.style.visibility = 'hidden';
+      this.dropTarget = null;
+      if (over) {
+        this.autoScrollReorder(rect);
+        const offset = this.viewport.measureScrollOffset('top');
+        const target = requestDropTarget(
+          this.displayRows(),
+          offset + this.reorderLastY - rect.top,
+          this.rowHeight,
+          this.reorderLastX > rect.left + NEST_POINTER_PX,
+        );
+        this.dropTarget = target;
+        if (target.lineRow !== null) this.placeDropLine(line, rect, target.lineRow, offset, target.indent);
+      }
+      const into = this.dropTarget?.into ?? null;
+      if (into !== this.dropIntoGroupId()) this.dropIntoGroupId.set(into);
       ghost.style.left = `${this.reorderLastX}px`;
       ghost.style.top = `${this.reorderLastY}px`;
       ghost.style.visibility = 'visible';
@@ -1440,29 +1509,6 @@ export class RequestsMainList {
     }
   }
 
-  /** The section under a point of the viewport; below the last row counts as ungrouped. */
-  private sectionAt(yInViewport: number): string {
-    const offset = this.viewport.measureScrollOffset('top');
-    const row = this.displayRows()[Math.floor((offset + yInViewport) / this.rowHeight)];
-    if (!row) return UNGROUPED;
-    return row.kind === 'group' ? row.key : row.section;
-  }
-
-  /** Moves the dragged requests into the dropped-on group, or out of their groups. */
-  private async dropIntoSection(section: string, ids: number[]): Promise<void> {
-    const groupId = section.startsWith('group:') ? Number(section.slice('group:'.length)) : null;
-    const collection = this.state.selectedCollection();
-    if (!collection) return;
-    const current = new Map(this.requestApi.forCollection(collection.id).map((r) => [r.id, r.group_id ?? null]));
-    const moving = ids.filter((id) => current.has(id) && current.get(id) !== groupId);
-    if (moving.length === 0) return;
-    try {
-      await this.groupApi.setRequests(groupId, moving);
-    } catch (err) {
-      console.error('moving requests between groups failed', err);
-    }
-  }
-
   private startReorderFrameLoop(): void {
     if (this.reorderFrame !== null) return;
     const tick = (): void => {
@@ -1504,7 +1550,8 @@ export class RequestsMainList {
   /** Aborts an in-progress reorder gesture without changing any order. */
   private cancelReorder(): boolean {
     if (this.reorderPending() === null && this.reorderDrag() === null) return false;
-    this.dropSectionKey.set(null);
+    this.dropTarget = null;
+    this.dropIntoGroupId.set(null);
     this.reorderPending.set(null);
     this.reorderDrag.set(null);
     this.stopReorderFrameLoop();
@@ -1747,8 +1794,7 @@ export class RequestsMainList {
 
   private groupDragPending: { groupId: number; label: string; startY: number } | null = null;
   readonly groupDrag = signal<{ groupId: number; label: string } | null>(null);
-  /** Where the dragged group would land, as an index into the group order. */
-  private groupDropSlot = 0;
+  private groupTarget: DropTarget | null = null;
   private groupDragFrame: number | null = null;
   /** The click that ends a heading drag must not also fold the heading. */
   private suppressHeadingClick = false;
@@ -1758,6 +1804,7 @@ export class RequestsMainList {
   onGroupMouseDown(entry: GroupEntry, event: MouseEvent): void {
     this.suppressHeadingClick = false;
     if (event.button !== 0 || entry.groupId === null || this.editingGroupId() === entry.groupId) return;
+    if (!this.canArrange()) return;
     event.preventDefault();
     this.groupDragPending = { groupId: entry.groupId, label: entry.label, startY: event.clientY };
   }
@@ -1779,7 +1826,6 @@ export class RequestsMainList {
     this.groupDragFrame = requestAnimationFrame(loop);
   }
 
-  /** Drop slots sit only between groups: above a heading's top half, or below the rest of a group. */
   private renderGroupDragFrame(): void {
     const ghost = this.groupGhost()?.nativeElement;
     const line = this.groupDropLine()?.nativeElement;
@@ -1788,35 +1834,9 @@ export class RequestsMainList {
     const rect = this.viewport.elementRef.nativeElement.getBoundingClientRect();
     this.autoScrollReorder(rect);
     const offset = this.viewport.measureScrollOffset('top');
-    const y = offset + this.reorderLastY - rect.top;
-    const rows = this.displayRows();
-    const order = this.collectionGroups().map((g) => g.id);
-    const headingRow = new Map<number, number>();
-    rows.forEach((row, i) => {
-      if (row.kind === 'group' && row.groupId !== null) headingRow.set(row.groupId, i);
-    });
-
-    const row = rows[Math.floor(y / this.rowHeight)];
-    let slot = order.length;
-    if (y < 0) {
-      slot = 0;
-    } else if (row) {
-      const key = row.kind === 'group' ? row.key : row.section;
-      const position = key.startsWith('group:') ? order.indexOf(Number(key.slice('group:'.length))) : -1;
-      if (position === -1) {
-        slot = 0;
-      } else {
-        const topHalf = row.kind === 'group' && y % this.rowHeight < this.rowHeight / 2;
-        slot = topHalf ? position : position + 1;
-      }
-    }
-    this.groupDropSlot = slot;
-
-    const lineRow = slot < order.length ? (headingRow.get(order[slot]) ?? rows.length) : rows.length;
-    line.style.top = `${rect.top + lineRow * this.rowHeight - offset}px`;
-    line.style.left = `${rect.left + 4}px`;
-    line.style.width = `${Math.max(0, rect.width - 8)}px`;
-    line.style.visibility = 'visible';
+    const target = groupDropTarget(this.displayRows(), offset + this.reorderLastY - rect.top, this.rowHeight);
+    this.groupTarget = target;
+    this.placeDropLine(line, rect, target.lineRow ?? 0, offset, false);
     ghost.style.left = `${this.reorderLastX}px`;
     ghost.style.top = `${this.reorderLastY}px`;
     ghost.style.visibility = 'visible';
@@ -1840,16 +1860,10 @@ export class RequestsMainList {
 
   private finishGroupDrag(): void {
     const drag = this.endGroupDrag();
-    const collection = this.state.selectedCollection();
-    if (!drag || !collection) return;
-    const order = this.collectionGroups().map((g) => g.id);
-    const from = order.indexOf(drag.groupId);
-    if (from === -1) return;
-    const to = this.groupDropSlot > from ? this.groupDropSlot - 1 : this.groupDropSlot;
-    if (to === from) return;
-    order.splice(from, 1);
-    order.splice(to, 0, drag.groupId);
-    this.groupApi.reorder(collection.id, order).catch((err) => console.error('reordering groups failed', err));
+    const target = this.groupTarget;
+    this.groupTarget = null;
+    if (!drag || !target) return;
+    this.applyLayout(moveGroup(this.collectionLayout(), drag.groupId, target));
   }
 
   /** Puts the selected requests in a new group and starts renaming it. */

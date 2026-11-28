@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { CommandApiService } from './command.service';
 import { ChangeBus } from './change-bus.service';
+import type { LayoutItem } from '../workspace/collection-layout';
 
 /** A named group of requests inside one collection. */
 export interface RequestGroupRecord {
@@ -55,13 +56,21 @@ export class GroupApiService {
     await this.commands.execute('group.set_requests', { group_id: groupId ?? 0, request_ids: requestIds });
   }
 
-  /** Sets the order of a collection's groups; `orderedIds` lists them first to last. */
-  async reorder(collectionId: number, orderedIds: number[]): Promise<void> {
-    const position = new Map(orderedIds.map((id, index) => [id, index]));
+  /** Saves a collection's layout after a drag: every item's place and every request's group. */
+  async arrange(collectionId: number, items: LayoutItem[]): Promise<void> {
+    const position = new Map<number, number>();
+    items.forEach((it, index) => {
+      if (it.kind === 'group') position.set(it.id, index);
+    });
     this.groups.update((all) =>
       all.map((g) => (position.has(g.id) ? { ...g, sort_order: position.get(g.id)! } : g)),
     );
-    await this.commands.execute('group.reorder', { collection_id: collectionId, ordered_ids: orderedIds });
+    await this.commands.execute('group.arrange', {
+      collection_id: collectionId,
+      items: items.map((it) =>
+        it.kind === 'group' ? { kind: 'group', id: it.id } : { kind: 'request', id: it.id, group_id: it.groupId ?? 0 },
+      ),
+    });
   }
 
   async delete(groupId: number): Promise<void> {
