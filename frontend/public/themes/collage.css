@@ -263,7 +263,8 @@
 }
 
 /* Selection: a paper strip pasted over the row. */
-:root[data-theme='collage'] .spreadsheet-row.is-selected {
+:root[data-theme='collage'] .spreadsheet-row.is-selected,
+:root[data-theme='collage'] .spreadsheet-heading.is-group.is-selected {
   background: var(--paper) !important;
   box-shadow:
     inset 4px 0 0 #c8392b,

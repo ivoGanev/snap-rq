@@ -213,7 +213,8 @@
  * with an outline. !important: the request list merges neighbouring selected
  * rows with several outline rules that would otherwise win.
  */
-:root[data-theme='daylight'] .spreadsheet-row.is-selected {
+:root[data-theme='daylight'] .spreadsheet-row.is-selected,
+:root[data-theme='daylight'] .spreadsheet-heading.is-group.is-selected {
   background: linear-gradient(
     transparent 14%,
     rgba(255, 214, 92, 0.55) 14%,

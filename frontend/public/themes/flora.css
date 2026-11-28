@@ -215,7 +215,8 @@
  * merges neighbouring selected rows with several outline rules that would
  * otherwise win.
  */
-:root[data-theme='flora'] .spreadsheet-row.is-selected {
+:root[data-theme='flora'] .spreadsheet-row.is-selected,
+:root[data-theme='flora'] .spreadsheet-heading.is-group.is-selected {
   background: rgba(214, 51, 108, 0.16) !important;
   box-shadow: inset 4px 0 0 #d6336c !important;
 }
