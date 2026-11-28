@@ -7,7 +7,6 @@ import { ResponsePane } from './panes/response-pane/response-pane';
 import { BinnedRequestPane } from './panes/binned-request-pane/binned-request-pane';
 import { BinnedRequestsPane } from './panes/binned-requests-pane/binned-requests-pane';
 import { ScriptPane } from './panes/script-pane/script-pane';
-import { GroupPane } from './panes/group-pane/group-pane';
 import type { Script } from '../core/services/script.service';
 
 /**
@@ -28,9 +27,7 @@ export type InspectorContent =
   /** Several requests in the trash bin. */
   | { kind: 'binned-requests'; binIds: number[] }
   /** A script: try its hooks against a request, and a quick reference. */
-  | { kind: 'script'; script: Script }
-  /** A collection's group, picked by clicking its heading. */
-  | { kind: 'group'; groupId: number };
+  | { kind: 'script'; script: Script };
 
 /** The content member for one kind, e.g. `InspectorContentOf<'response'>`. */
 export type InspectorContentOf<K extends InspectorContent['kind']> = Extract<InspectorContent, { kind: K }>;
@@ -41,8 +38,10 @@ const PANES: { readonly [K in InspectorContent['kind']]: Type<unknown> } = {
   'binned-request': BinnedRequestPane,
   'binned-requests': BinnedRequestsPane,
   script: ScriptPane,
-  group: GroupPane,
 };
+
+/** A picked group has nothing to inspect. */
+const NOTHING: InspectorContent = { kind: 'message', text: '' };
 
 const MULTI_SELECTION: InspectorContent = { kind: 'message', text: 'You are in multi selection mode.' };
 
@@ -63,8 +62,7 @@ export class Inspector {
   private readonly state = inject(WorkspaceStateService);
 
   protected readonly content = computed<InspectorContent>(() => {
-    const groupId = this.state.selectedGroupId();
-    if (groupId !== null) return { kind: 'group', groupId };
+    if (this.state.selectedGroupId() !== null) return NOTHING;
     const view = this.state.view();
     if (this.state.multiSelectionActive() && !(view && 'inspectsMultiSelection' in view)) return MULTI_SELECTION;
 
