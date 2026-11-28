@@ -6,7 +6,8 @@
   justify-content: flex-start;
   align-items: stretch;
   gap: 0;
-  height: 52px;
+  height: var(--list-header-height);
+  container-type: inline-size;
   padding: 0;
   --header-control-height: 100%;
 }
@@ -166,9 +167,66 @@
 }
 
 // Fixed width, so the ✓ after copying doesn't move the URL.
+.selection-tools {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 8px;
+  overflow: hidden;
+}
+
+.selection-tool {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 8px;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+  --wails-draggable: no-drag;
+}
+
+.selection-tool svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+}
+
+.selection-tool:hover {
+  background-color: var(--hover-highlight);
+}
+
+.selection-tool:hover svg {
+  color: var(--text);
+}
+
+.selection-tool--danger:hover,
+.selection-tool--danger:hover svg {
+  color: var(--danger-text);
+}
+
+// Too narrow for every label: icons only, with the label in the tooltip.
+@container (max-width: 700px) {
+  .selection-tool-label {
+    display: none;
+  }
+}
+
 .selection-count {
   align-self: center;
-  padding: 0 var(--s-3);
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 0 12px 0 8px;
   font-family: var(--font-display);
   font-size: 0.75rem;
   font-weight: 700;

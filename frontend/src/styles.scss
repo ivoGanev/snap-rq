@@ -573,6 +573,11 @@ app-root {
   color: var(--error-text);
 }
 
+:root {
+  // The requests toolbar and the sidebar's list headers share it, so their edges line up.
+  --list-header-height: 52px;
+}
+
 .column-header {
   display: flex;
   align-items: center;

@@ -689,6 +689,13 @@ export class RequestsMainList {
   });
 
   /** What Delete does in the current view, shown in the context menu. */
+  /** The toolbar's label for deleting; the tooltip carries deleteLabel. */
+  protected readonly deleteShortLabel = computed(() => {
+    if (this.state.selectedFavouriteCollection()) return 'Remove';
+    if (this.state.selectedScript()) return 'Detach';
+    return 'Trash';
+  });
+
   readonly deleteLabel = computed(() => {
     if (this.state.selectedFavouriteCollection()) return 'Remove from favourites';
     if (this.state.selectedScript()) return 'Detach from script';
