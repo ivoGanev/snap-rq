@@ -176,10 +176,11 @@
     ></div>
   }
 
+  <!-- On the inspector's side of the border: the request list's scrollbar runs along its right edge. -->
   <div
     class="resizer resizer--right"
     (mousedown)="startColumnResize('right', $event)"
-    [style.right.%]="rightColumnWidth()"
+    [style.right]="'calc(' + rightColumnWidth() + '% - 6px)'"
     aria-hidden="true"
   ></div>
 </div>
