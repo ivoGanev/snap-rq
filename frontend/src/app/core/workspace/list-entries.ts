@@ -30,6 +30,8 @@ export interface RequestEntry {
   section: string;
   /** Zebra stripe, from the row's place in the list; CSS :nth-child would count only the rows drawn. */
   even: boolean;
+  /** The last shown request of its group, where the group's guide line ends. */
+  last: boolean;
 }
 
 export const UNGROUPED = 'ungrouped';
@@ -51,9 +53,10 @@ export function toEntries(sections: ListSection[], isCollapsed: (key: string) =>
     if (collapsed) continue;
     const depth = section.heading?.groupId != null ? 1 : 0;
     const key = section.heading?.key ?? UNGROUPED;
-    for (const req of section.requests) {
-      rows.push({ kind: 'request', req, depth, section: key, even: rows.length % 2 === 1 });
-    }
+    section.requests.forEach((req, i) => {
+      const last = depth === 1 && i === section.requests.length - 1;
+      rows.push({ kind: 'request', req, depth, section: key, even: rows.length % 2 === 1, last });
+    });
   }
   return rows;
 }

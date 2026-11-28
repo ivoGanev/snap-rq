@@ -558,7 +558,7 @@ export class RequestsMainList {
     const sections = this.sections();
     if (!sections) {
       return this.filteredActiveRequests().map(
-        (req, i): DisplayRow => ({ kind: 'request', req, depth: 0, section: UNGROUPED, even: i % 2 === 1 }),
+        (req, i): DisplayRow => ({ kind: 'request', req, depth: 0, section: UNGROUPED, even: i % 2 === 1, last: false }),
       );
     }
     return toEntries(sections, (key) => this.isCollapsed(key));

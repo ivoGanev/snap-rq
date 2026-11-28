@@ -418,7 +418,8 @@
   align-items: flex-end;
   gap: var(--s-1);
   height: 38px;
-  padding: 0 var(--s-3) 6px;
+  // The arrow sits at the start of the method column, where the group's guide line drops from.
+  padding: 0 var(--s-3) 6px var(--action-col-width, 44px);
   box-sizing: border-box;
   border-bottom: 1px solid var(--glass-border);
   user-select: none;
@@ -495,6 +496,50 @@
 
 .spreadsheet-row.is-nested .spreadsheet-cell--method {
   padding-left: calc(var(--s-3) + 16px);
+}
+
+// Tree guides: a line drops from a group's arrow and branches to each of its
+// requests; the last one gets a corner. Drawn on the rows, so they follow
+// scrolling and drags for free.
+.spreadsheet-heading,
+.spreadsheet-row {
+  --guide-x: calc(var(--action-col-width, 44px) + 10px);
+  --guide-color: var(--glass-border);
+}
+
+.spreadsheet-heading.has-color,
+.spreadsheet-row.has-color {
+  --guide-color: color-mix(in srgb, var(--row-color) 60%, transparent);
+}
+
+.spreadsheet-heading.has-guide::after {
+  content: '';
+  position: absolute;
+  left: var(--guide-x);
+  top: calc(100% - 8px);
+  bottom: -1px;
+  width: 1px;
+  background: var(--guide-color);
+  pointer-events: none;
+}
+
+.spreadsheet-row.is-nested::after {
+  content: '';
+  position: absolute;
+  left: var(--guide-x);
+  top: 0;
+  bottom: -1px;
+  width: calc(var(--s-3) + 16px - 10px - 6px);
+  background:
+    linear-gradient(var(--guide-color), var(--guide-color)) left top / 1px 100% no-repeat,
+    linear-gradient(var(--guide-color), var(--guide-color)) left 50% / 100% 1px no-repeat;
+  pointer-events: none;
+}
+
+.spreadsheet-row.is-nested.is-last-in-group::after {
+  background-size:
+    1px 50%,
+    100% 1px;
 }
 
 .spreadsheet-row.is-drop-target,
