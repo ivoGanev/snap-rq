@@ -1,5 +1,3 @@
-@use '../../styles/buttons' as btn;
-
 .column-header--requests {
   position: relative;
   z-index: 50;
@@ -103,15 +101,6 @@
 .group-tools .color-dot--clear svg {
   width: 9px;
   height: 9px;
-}
-
-.group-tools-button {
-  flex: 0 0 auto;
-  height: 30px;
-  padding: 0 var(--s-3);
-  font-size: 0.8125rem;
-  --wails-draggable: no-drag;
-  @include btn.btn-secondary;
 }
 
 // Method, URL and Send drawn as one bar.
