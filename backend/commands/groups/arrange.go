@@ -10,10 +10,11 @@ import (
 	"snap-rq/backend/models"
 )
 
-// arrange.go — save a collection's whole layout after a drag: the order of
-// its top-level requests and groups, and each request's group and place in
-// it. A group the drag leaves empty is deleted. Undo puts back every order,
-// every membership and the deleted groups.
+// arrange.go — save a collection's layout after a drag: the order of its
+// top-level requests and groups, and each request's group and place in it.
+// Only rows whose place changed are written and reported. A group the drag
+// leaves empty is deleted. Undo puts back the changed rows and the deleted
+// groups.
 
 type Arrange struct{ tx *sql.Tx }
 
@@ -34,12 +35,6 @@ type arrangeItem struct {
 type arrangeInput struct {
 	CollectionID int64         `json:"collection_id"`
 	Items        []arrangeItem `json:"items"`
-}
-
-type requestPlace struct {
-	ID        int64  `json:"id"`
-	GroupID   *int64 `json:"group_id"`
-	SortOrder int    `json:"user_sort_order"`
 }
 
 type arrangeSnapshot struct {
@@ -93,6 +88,10 @@ func (c Arrange) Snapshot(input json.RawMessage) (any, error) {
 	return c.read(in.CollectionID)
 }
 
+func sameGroup(a, b *int64) bool {
+	return (a == nil && b == nil) || (a != nil && b != nil && *a == *b)
+}
+
 func (c Arrange) Run(input json.RawMessage) (any, error) {
 	var in arrangeInput
 	if err := json.Unmarshal(input, &in); err != nil {
@@ -105,41 +104,69 @@ func (c Arrange) Run(input json.RawMessage) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	requestsBefore := make(map[int64]requestPlace, len(before.Requests))
+	for _, p := range before.Requests {
+		requestsBefore[p.ID] = p
+	}
+	groupsBefore := make(map[int64]models.RequestGroup, len(before.Groups))
+	for _, g := range before.Groups {
+		groupsBefore[g.ID] = g
+	}
 
-	result := arrangeResult{RequestIDs: []int64{}, GroupIDs: []int64{}}
+	// Items outside this collection are ignored, as are items already in place.
+	var moved []requestPlace
+	var left []membership
+	var movedGroups []models.RequestGroup
 	for index, item := range in.Items {
 		switch item.Kind {
 		case "group":
-			if _, err := c.tx.Exec(`UPDATE request_groups SET sort_order = ? WHERE id = ? AND collection_id = ?`,
-				index, item.ID, in.CollectionID); err != nil {
-				return nil, err
+			g, ok := groupsBefore[item.ID]
+			if !ok || g.SortOrder == index {
+				continue
 			}
-			result.GroupIDs = append(result.GroupIDs, item.ID)
+			g.SortOrder = index
+			movedGroups = append(movedGroups, g)
 		case "request":
+			old, ok := requestsBefore[item.ID]
+			if !ok {
+				continue
+			}
 			var group *int64
 			if item.GroupID != 0 {
 				group = &item.GroupID
 			}
-			if _, err := c.tx.Exec(`UPDATE http_requests SET user_sort_order = ?, group_id = ?
-				WHERE id = ? AND collection_id = ?`, index, group, item.ID, in.CollectionID); err != nil {
-				return nil, err
+			if old.SortOrder == index && sameGroup(old.GroupID, group) {
+				continue
 			}
-			result.RequestIDs = append(result.RequestIDs, item.ID)
+			moved = append(moved, requestPlace{ID: item.ID, GroupID: group, SortOrder: index})
+			if !sameGroup(old.GroupID, group) {
+				left = append(left, membership{ID: old.ID, GroupID: old.GroupID})
+			}
 		default:
 			return nil, fmt.Errorf("unknown item kind %q", item.Kind)
 		}
 	}
 
-	var memberships []membership
-	for _, p := range before.Requests {
-		memberships = append(memberships, membership{ID: p.ID, GroupID: p.GroupID})
+	if err := setPlaces(c.tx, moved); err != nil {
+		return nil, err
 	}
-	removed, err := dropEmptied(c.tx, memberships)
+	if err := setGroupOrders(c.tx, movedGroups); err != nil {
+		return nil, err
+	}
+	removed, err := dropEmptied(c.tx, left)
 	if err != nil {
 		return nil, err
 	}
-	result.RemovedGroups = removed
-	result.RemovedGroupIDs = groupIDs(removed)
+
+	result := arrangeResult{
+		RequestIDs:      make([]int64, len(moved)),
+		GroupIDs:        groupIDs(movedGroups),
+		RemovedGroups:   removed,
+		RemovedGroupIDs: groupIDs(removed),
+	}
+	for i, p := range moved {
+		result.RequestIDs[i] = p.ID
+	}
 	return result, nil
 }
 
@@ -155,18 +182,32 @@ func (c Arrange) Undo(snapshot, result json.RawMessage) error {
 	if err := reinsertGroups(c.tx, done.RemovedGroups); err != nil {
 		return err
 	}
+
+	movedGroups := map[int64]bool{}
+	for _, id := range done.GroupIDs {
+		movedGroups[id] = true
+	}
+	var groups []models.RequestGroup
 	for _, g := range before.Groups {
-		if _, err := c.tx.Exec(`UPDATE request_groups SET sort_order = ? WHERE id = ?`, g.SortOrder, g.ID); err != nil {
-			return err
+		if movedGroups[g.ID] {
+			groups = append(groups, g)
 		}
 	}
+	if err := setGroupOrders(c.tx, groups); err != nil {
+		return err
+	}
+
+	moved := map[int64]bool{}
+	for _, id := range done.RequestIDs {
+		moved[id] = true
+	}
+	var places []requestPlace
 	for _, p := range before.Requests {
-		if _, err := c.tx.Exec(`UPDATE http_requests SET user_sort_order = ?, group_id = ? WHERE id = ?`,
-			p.SortOrder, p.GroupID, p.ID); err != nil {
-			return err
+		if moved[p.ID] {
+			places = append(places, p)
 		}
 	}
-	return nil
+	return setPlaces(c.tx, places)
 }
 
 func (Arrange) Changes(_, result json.RawMessage) []commands.RowChange {

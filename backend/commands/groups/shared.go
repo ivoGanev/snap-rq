@@ -60,10 +60,92 @@ func readMemberships(tx *sql.Tx, requestIDs []int64) ([]membership, error) {
 	return out, rows.Err()
 }
 
+// batchSize keeps each batched statement well under SQLite's limit on
+// bound parameters.
+const batchSize = 500
+
+func chunks[T any](items []T) [][]T {
+	var out [][]T
+	for start := 0; start < len(items); start += batchSize {
+		out = append(out, items[start:min(start+batchSize, len(items))])
+	}
+	return out
+}
+
+// restoreMemberships puts requests back in their old groups, one statement
+// per group they came from.
 func restoreMemberships(tx *sql.Tx, ms []membership) error {
+	byGroup := map[int64][]int64{}
 	for _, m := range ms {
-		if _, err := tx.Exec(`UPDATE http_requests SET group_id = ? WHERE id = ?`, m.GroupID, m.ID); err != nil {
-			return err
+		var key int64
+		if m.GroupID != nil {
+			key = *m.GroupID
+		}
+		byGroup[key] = append(byGroup[key], m.ID)
+	}
+	for key, ids := range byGroup {
+		var group *int64
+		if key != 0 {
+			group = &key
+		}
+		for _, chunk := range chunks(ids) {
+			args := append([]any{group}, int64Args(chunk)...)
+			if _, err := tx.Exec(`UPDATE http_requests SET group_id = ? WHERE id IN (`+placeholders(len(chunk))+`)`,
+				args...); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// requestPlace is a request's order in its collection and its group.
+type requestPlace struct {
+	ID        int64  `json:"id"`
+	GroupID   *int64 `json:"group_id"`
+	SortOrder int    `json:"user_sort_order"`
+}
+
+// setPlaces writes order and group for many requests, one statement per batch.
+func setPlaces(tx *sql.Tx, places []requestPlace) error {
+	for _, chunk := range chunks(places) {
+		query := `UPDATE http_requests SET user_sort_order = CASE id`
+		args := make([]any, 0, len(chunk)*5)
+		for _, p := range chunk {
+			query += ` WHEN ? THEN ?`
+			args = append(args, p.ID, p.SortOrder)
+		}
+		query += ` END, group_id = CASE id`
+		ids := make([]int64, len(chunk))
+		for i, p := range chunk {
+			query += ` WHEN ? THEN ?`
+			args = append(args, p.ID, p.GroupID)
+			ids[i] = p.ID
+		}
+		query += ` END WHERE id IN (` + placeholders(len(chunk)) + `)`
+		args = append(args, int64Args(ids)...)
+		if _, err := tx.Exec(query, args...); err != nil {
+			return fmt.Errorf("moving requests: %w", err)
+		}
+	}
+	return nil
+}
+
+// setGroupOrders writes many groups' positions, one statement per batch.
+func setGroupOrders(tx *sql.Tx, groups []models.RequestGroup) error {
+	for _, chunk := range chunks(groups) {
+		query := `UPDATE request_groups SET sort_order = CASE id`
+		args := make([]any, 0, len(chunk)*3)
+		ids := make([]int64, len(chunk))
+		for i, g := range chunk {
+			query += ` WHEN ? THEN ?`
+			args = append(args, g.ID, g.SortOrder)
+			ids[i] = g.ID
+		}
+		query += ` END WHERE id IN (` + placeholders(len(chunk)) + `)`
+		args = append(args, int64Args(ids)...)
+		if _, err := tx.Exec(query, args...); err != nil {
+			return fmt.Errorf("moving groups: %w", err)
 		}
 	}
 	return nil

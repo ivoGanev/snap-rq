@@ -374,6 +374,29 @@ export class RequestApiService {
     });
   }
 
+  /** Adds or replaces the given requests in ONE signal write. */
+  upsertMany(reqs: HttpRequestSummary[]): void {
+    if (reqs.length === 0) return;
+    this.allRequests.update(map => {
+      const next = { ...map };
+      for (const req of reqs) next[req.id] = req;
+      return next;
+    });
+  }
+
+  /** Applies changes to several requests in ONE signal write; unknown ids are skipped. */
+  patchMany(changes: Map<number, Partial<HttpRequestSummary>>): void {
+    if (changes.size === 0) return;
+    this.allRequests.update(map => {
+      const next = { ...map };
+      for (const [id, change] of changes) {
+        const existing = next[id];
+        if (existing) next[id] = { ...existing, ...change };
+      }
+      return next;
+    });
+  }
+
   /** Drops the given requests in ONE signal write. */
   removeMany(ids: number[]): void {
     if (ids.length === 0) return;
@@ -436,9 +459,7 @@ export class RequestApiService {
     const summaries = await this.getSummariesByIds(change.ids);
     const present = new Set(summaries.map(s => s.id));
 
-    for (const s of summaries) {
-      this.addOrReplace(s);
-    }
+    this.upsertMany(summaries);
     const gone = change.ids.filter(id => !present.has(id));
     if (gone.length > 0) {
       this.removeMany(gone);

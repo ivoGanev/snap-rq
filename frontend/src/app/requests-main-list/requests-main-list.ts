@@ -488,9 +488,15 @@ export class RequestsMainList {
   private applyLayout(next: LayoutItem[]): void {
     const collection = this.state.selectedCollection();
     if (!collection || sameLayout(next, this.collectionLayout())) return;
+    const changes = new Map<number, Partial<HttpRequestSummary>>();
     next.forEach((it, index) => {
-      if (it.kind === 'request') this.requestApi.patch(it.id, { user_sort_order: index, group_id: it.groupId });
+      if (it.kind !== 'request') return;
+      const current = this.requestApi.get(it.id);
+      if (current?.user_sort_order !== index || (current.group_id ?? null) !== it.groupId) {
+        changes.set(it.id, { user_sort_order: index, group_id: it.groupId });
+      }
     });
+    this.requestApi.patchMany(changes);
     this.groupApi.arrange(collection.id, next).catch((err) => console.error('moving requests failed', err));
   }
 

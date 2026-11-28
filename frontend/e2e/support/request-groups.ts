@@ -173,6 +173,21 @@ export function requestGroupsTests(): void {
     expect(await layout(page)).toEqual(expected);
   });
 
+  test('undo after dragging a group empty brings the group and the order back', async ({ page }) => {
+    await openApp(page);
+    const name = await seedCollection(page);
+    await reopen(page, name);
+
+    await row(page, 'bravo').locator('.spreadsheet-cell--url').click();
+    await row(page, 'charlie').locator('.spreadsheet-cell--url').click({ modifiers: ['ControlOrMeta'] });
+    const top = (await row(page, 'alpha').boundingBox())!;
+    await drag(page, await middle(row(page, 'charlie')), { x: top.x + 60, y: top.y + 2 });
+    await expect.poll(() => layout(page)).not.toContain('# Auth');
+
+    await page.evaluate(() => window.snaprq.commands.undo());
+    await expect.poll(() => layout(page)).toEqual(START);
+  });
+
   test('a group dragged by its heading moves with its requests', async ({ page }) => {
     await openApp(page);
     const name = await seedCollection(page);
@@ -286,4 +301,67 @@ export function requestGroupsTests(): void {
     expect(withGroup).toBe(withRequest);
     expect(withNothing).toBe(withRequest);
   });
+
+  test('dragging a request out of a group stays quick in a large collection', async ({ page }) => {
+    await openApp(page);
+    const name = `large ${unique()}`;
+    const collectionId = await page.evaluate(
+      async ({ name, total, grouped }) => {
+        const { commands } = window.snaprq;
+        const [project] = await commands.execute<{ id: number }[]>('project.list', {});
+        const collection = await commands.execute<{ id: number }>('collection.create', { project_id: project.id, name });
+        const requests = Array.from({ length: total }, (_, i) => ({
+          collection_id: collection.id,
+          name: `req ${String(i).padStart(4, '0')}`,
+          url: `https://example.com/${i}`,
+          method: 'GET',
+        }));
+        const created = await commands.execute<{ id: number }[]>('request.create_many', { requests });
+        await commands.execute('group.create', {
+          collection_id: collection.id,
+          name: 'Big group',
+          request_ids: created.slice(0, grouped).map((r) => r.id),
+        });
+        return collection.id;
+      },
+      { name, total: 3000, grouped: 1000 },
+    );
+
+    try {
+      await page.reload();
+      await page.waitForFunction(() => window.snaprq?.workspace.view() != null);
+      await page.locator(`.group-list-item[data-item-kind="collection"][data-item-name="${name}"]`).dispatchEvent('click');
+      const first = row(page, 'req 0000');
+      await expect(first).toHaveClass(/is-nested/);
+
+      // The longest the page goes without drawing a frame is how long it freezes.
+      const longestFreeze = page.evaluate(
+        () =>
+          new Promise<number>((resolve) => {
+            let last = performance.now();
+            let longest = 0;
+            const end = last + 3000;
+            const tick = (now: number) => {
+              longest = Math.max(longest, now - last);
+              last = now;
+              if (now < end) requestAnimationFrame(tick);
+              else resolve(longest);
+            };
+            requestAnimationFrame(tick);
+          }),
+      );
+
+      // Above the group's heading: out of the group, at the top of the list.
+      const top = (await heading(page, 'Big group').boundingBox())!;
+      await press(page, await middle(first), { x: top.x + 60, y: top.y + 2 });
+      await page.mouse.up();
+      await expect(first).not.toHaveClass(/is-nested/, { timeout: 20_000 });
+      // Writing the request store once per row froze it for seconds at this size.
+      const freeze = await longestFreeze;
+      expect(freeze).toBeLessThan(500);
+    } finally {
+      await page.evaluate((id) => window.snaprq.commands.execute('collection.delete', { id }), collectionId);
+    }
+  });
 }
+

@@ -1030,12 +1030,16 @@ func createRequestGroups(db *sql.DB) error {
 			return fmt.Errorf("numbering request groups: %w", err)
 		}
 	}
-	if columnExists(db, "http_requests", "group_id") {
-		return nil
+	if !columnExists(db, "http_requests", "group_id") {
+		if _, err := db.Exec(`ALTER TABLE http_requests ADD COLUMN group_id INTEGER
+			REFERENCES request_groups(id) ON DELETE SET NULL`); err != nil {
+			return fmt.Errorf("adding group_id to http_requests: %w", err)
+		}
 	}
-	if _, err := db.Exec(`ALTER TABLE http_requests ADD COLUMN group_id INTEGER
-		REFERENCES request_groups(id) ON DELETE SET NULL`); err != nil {
-		return fmt.Errorf("adding group_id to http_requests: %w", err)
+	// Deleting a group clears its requests' group_id, and finding emptied
+	// groups counts by it; without an index both scan every request.
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_http_requests_group_id ON http_requests(group_id)`); err != nil {
+		return fmt.Errorf("indexing http_requests.group_id: %w", err)
 	}
 	return nil
 }
