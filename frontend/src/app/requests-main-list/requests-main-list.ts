@@ -1795,14 +1795,18 @@ export class RequestsMainList {
 
   private pickGroup(entry: GroupEntry): void {
     if (entry.groupId === null) return;
+    this.dropRequestSelection();
+    this.selectedGroupId.set(entry.groupId);
+  }
+
+  private dropRequestSelection(): void {
     this.clearSelection();
-    // Forgotten too, or the refresh after the next command would select those rows again.
+    // Forgotten too, or the list refresh after the next command would select those rows again.
     const key = this.activeGroupKey();
     if (key !== null) this.selectionState.clearSelection(key);
     // The inspector shows the group, not the request that was open.
     this.state.selectedRequest.set(null);
     this.state.selectedResponse.set(null);
-    this.selectedGroupId.set(entry.groupId);
   }
 
   onGroupContextMenu(entry: GroupEntry, event: MouseEvent, template: TemplateRef<{ $implicit: GroupEntry }>): void {
@@ -1906,8 +1910,9 @@ export class RequestsMainList {
     if (!collection || ids.length === 0) return;
     const name = freeGroupName(this.collectionGroups().map((g) => g.name));
     try {
+      // Before the command: its list refresh can land before it returns.
+      this.dropRequestSelection();
       const group = await this.groupApi.create(collection.id, name, ids);
-      this.clearSelection();
       this.selectedGroupId.set(group.id);
       this.nameToFocus.set({ kind: 'group', id: group.id });
     } catch (err) {

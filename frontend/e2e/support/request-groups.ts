@@ -5,14 +5,14 @@ import { openApp } from './app';
 // dragging, a group's requests sit indented under its heading, a heading
 // folds on click, and a group that a drag empties is removed.
 
-const unique = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+export const unique = () => `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const NAMES = ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot', 'golf', 'hotel'];
 
 /**
  * A collection laid out as:
  *   alpha, [Auth: bravo, charlie], delta, [Users: echo, foxtrot], golf, hotel
  */
-async function seedCollection(page: Page): Promise<string> {
+export async function seedCollection(page: Page): Promise<string> {
   const name = `groups ${unique()}`;
   await page.evaluate(
     async ({ name, names }) => {
@@ -44,19 +44,19 @@ async function seedCollection(page: Page): Promise<string> {
   return name;
 }
 
-async function openCollection(page: Page, name: string): Promise<void> {
+export async function openCollection(page: Page, name: string): Promise<void> {
   await page.waitForFunction(() => window.snaprq?.workspace.view() != null);
   await page.locator(`.group-list-item[data-item-kind="collection"][data-item-name="${name}"]`).dispatchEvent('click');
   await expect(row(page, 'alpha')).toBeVisible();
 }
 
-async function reopen(page: Page, name: string): Promise<void> {
+export async function reopen(page: Page, name: string): Promise<void> {
   await page.reload();
   await openCollection(page, name);
 }
 
 /** The list as drawn: "# Group" for a heading, "  name" for a request inside a group. */
-function layout(page: Page): Promise<string[]> {
+export function layout(page: Page): Promise<string[]> {
   return page.evaluate(() =>
     [...document.querySelectorAll('.spreadsheet-heading, .spreadsheet-row')].map((el) =>
       el.classList.contains('spreadsheet-heading')
@@ -66,31 +66,33 @@ function layout(page: Page): Promise<string[]> {
   );
 }
 
-const row = (page: Page, name: string) =>
-  page.locator('.spreadsheet-row').filter({ has: page.locator('.spreadsheet-cell--name', { hasText: new RegExp(`^${name}$`) }) });
-const heading = (page: Page, name: string) => page.locator('.spreadsheet-heading', { hasText: name });
+const exactly = (text: string) => new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
 
-const selectedNames = (page: Page) =>
+export const row = (page: Page, name: string) =>
+  page.locator('.spreadsheet-row').filter({ has: page.locator('.spreadsheet-cell--name', { hasText: exactly(name) }) });
+export const heading = (page: Page, name: string) => page.locator('.spreadsheet-heading', { hasText: name });
+
+export const selectedNames = (page: Page) =>
   page.evaluate(() =>
     [...document.querySelectorAll('.spreadsheet-row.is-selected .spreadsheet-cell--name')].map((e) => e.textContent?.trim()),
   );
 
-type Point = { x: number; y: number };
+export type Point = { x: number; y: number };
 
 /** The middle of an element; `dx` from its left edge. */
-async function middle(locator: Locator, dx = 300): Promise<Point> {
+export async function middle(locator: Locator, dx = 300): Promise<Point> {
   const box = (await locator.boundingBox())!;
   return { x: box.x + dx, y: box.y + box.height / 2 };
 }
 
 /** Just above an element's bottom edge, which is the boundary below it. */
-async function bottomEdge(locator: Locator, dx = 300): Promise<Point> {
+export async function bottomEdge(locator: Locator, dx = 300): Promise<Point> {
   const box = (await locator.boundingBox())!;
   return { x: box.x + dx, y: box.y + box.height - 2 };
 }
 
 /** Presses and moves in steps (as a hand does), keeping the button down. */
-async function press(page: Page, from: Point, to: Point): Promise<void> {
+export async function press(page: Page, from: Point, to: Point): Promise<void> {
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
   for (let i = 1; i <= 10; i++) {
@@ -98,17 +100,17 @@ async function press(page: Page, from: Point, to: Point): Promise<void> {
   }
 }
 
-async function drag(page: Page, from: Point, to: Point): Promise<void> {
+export async function drag(page: Page, from: Point, to: Point): Promise<void> {
   await press(page, from, to);
   await page.mouse.up();
 }
 
 /** The list's top edge: it must not move when the URL bar's contents change. */
-async function listTop(page: Page): Promise<number> {
+export async function listTop(page: Page): Promise<number> {
   return (await page.locator('.spreadsheet-wrapper').boundingBox())!.y;
 }
 
-const START = ['alpha', '# Auth', '  bravo', '  charlie', 'delta', '# Users', '  echo', '  foxtrot', 'golf', 'hotel'];
+export const START = ['alpha', '# Auth', '  bravo', '  charlie', 'delta', '# Users', '  echo', '  foxtrot', 'golf', 'hotel'];
 
 export function requestGroupsTests(): void {
   test.use({ viewport: { width: 1400, height: 900 } });
