@@ -259,11 +259,18 @@
           (click)="onGroupClick(row)"
           (contextmenu)="onGroupContextMenu(row, $event, groupContextMenu)"
         >
-          <span class="fold-toggle" [class.is-collapsed]="row.collapsed" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="currentColor">
+          <button
+            class="fold-toggle"
+            [class.is-collapsed]="row.collapsed"
+            type="button"
+            [attr.aria-expanded]="!row.collapsed"
+            [attr.aria-label]="(row.collapsed ? 'Expand ' : 'Collapse ') + row.label"
+            (click)="onFoldClick(row, $event)"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
             </svg>
-          </span>
+          </button>
           <span class="spreadsheet-heading-label">{{ row.label }}</span>
           <span class="spreadsheet-heading-count">{{ row.count }}</span>
         </div>

@@ -441,6 +441,9 @@
 
 .spreadsheet-heading {
   position: relative;
+}
+
+.spreadsheet-heading.is-group {
   cursor: pointer;
 }
 
@@ -461,13 +464,24 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   color: var(--muted);
   background: transparent;
   border: none;
-  transition: transform 0.15s ease;
+  border-radius: 4px;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    color 0.12s ease,
+    background-color 0.12s ease;
+  --wails-draggable: no-drag;
+}
+
+.fold-toggle:hover {
+  color: var(--text);
+  background-color: var(--hover-highlight);
 }
 
 .fold-toggle svg {

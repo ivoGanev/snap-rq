@@ -1464,12 +1464,8 @@ export class RequestsMainList {
         );
         const layout = this.collectionLayout();
         if (sameLayout(moveRequests(layout, new Set(drag.ids), target), layout)) {
-          // Dropping here changes nothing: the line stays at the dragged rows.
-          const rows = this.displayRows();
-          const at = rows.findIndex((row) => row.kind === 'request' && drag.ids.includes(row.req.id));
-          const first = rows[at];
+          // Dropping here changes nothing, so no line.
           this.dropTarget = null;
-          if (at >= 0) this.placeDropLine(line, rect, at, offset, first?.kind === 'request' && first.depth === 1);
         } else {
           this.dropTarget = target;
           if (target.lineRow !== null) this.placeDropLine(line, rect, target.lineRow, offset, target.indent);
@@ -1775,14 +1771,22 @@ export class RequestsMainList {
     return this.filteredActiveRequests().some((r) => selected.has(r.id) && r.group_id != null);
   });
 
-  /** A click anywhere on a heading folds or unfolds it, and picks a collection's group for the colour picker. */
+  /** A click on a heading picks a collection's group; only its arrow folds it. */
   onGroupClick(entry: GroupEntry): void {
     if (this.suppressHeadingClick) {
       this.suppressHeadingClick = false;
       return;
     }
-    this.toggleFold(entry);
     this.pickGroup(entry);
+  }
+
+  onFoldClick(entry: GroupEntry, event: Event): void {
+    event.stopPropagation();
+    if (this.suppressHeadingClick) {
+      this.suppressHeadingClick = false;
+      return;
+    }
+    this.toggleFold(entry);
   }
 
   private pickGroup(entry: GroupEntry): void {
@@ -1854,10 +1858,9 @@ export class RequestsMainList {
     const layout = this.collectionLayout();
     const groupId = this.groupDrag()?.groupId;
     if (groupId !== undefined && sameLayout(moveGroup(layout, groupId, target), layout)) {
-      // Dropping here changes nothing: the line stays at the group's own heading.
+      // Dropping here changes nothing, so no line.
       this.groupTarget = null;
-      const at = rows.findIndex((row) => row.kind === 'group' && row.groupId === groupId);
-      this.placeDropLine(line, rect, Math.max(0, at), offset, false);
+      line.style.visibility = 'hidden';
     } else {
       this.groupTarget = target;
       this.placeDropLine(line, rect, target.lineRow ?? 0, offset, false);
