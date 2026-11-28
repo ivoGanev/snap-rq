@@ -514,7 +514,18 @@
 
 .spreadsheet-heading.has-color,
 .spreadsheet-row.in-coloured-group {
-  --guide-color: color-mix(in srgb, var(--row-color) 60%, transparent);
+  --guide-color: var(--row-color);
+}
+
+// A coloured group is marked by its guide lines and this dot by its name.
+.group-dot {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  width: 8px;
+  height: 8px;
+  margin-bottom: 3px;
+  border-radius: 50%;
+  background: var(--row-color);
 }
 
 .spreadsheet-heading.has-guide::after {
@@ -651,38 +662,6 @@
   pointer-events: none;
 }
 
-// A coloured group is outlined by a dashed box, drawn a piece per row: the
-// heading closes the top, each request the sides, the last one the bottom.
-.spreadsheet-heading.has-color::before,
-.spreadsheet-row.in-coloured-group::before {
-  content: '';
-  position: absolute;
-  left: 2px;
-  right: 2px;
-  top: 0;
-  bottom: -1px;
-  border-left: 1px dashed var(--row-color);
-  border-right: 1px dashed var(--row-color);
-  pointer-events: none;
-}
-
-.spreadsheet-heading.has-color::before {
-  top: 2px;
-  border-top: 1px dashed var(--row-color);
-  border-radius: 6px 6px 0 0;
-}
-
-.spreadsheet-heading.has-color.is-closed::before {
-  bottom: 2px;
-  border-bottom: 1px dashed var(--row-color);
-  border-radius: 6px;
-}
-
-.spreadsheet-row.in-coloured-group.is-last-in-group::before {
-  bottom: 2px;
-  border-bottom: 1px dashed var(--row-color);
-  border-radius: 0 0 6px 6px;
-}
 
 .spreadsheet-cell {
   display: flex;

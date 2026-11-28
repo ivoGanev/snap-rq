@@ -252,7 +252,6 @@
           [class.is-group]="row.groupId !== null"
           [class.is-selected]="row.groupId !== null && selectedGroupId() === row.groupId"
           [class.has-color]="!!row.color"
-          [class.is-closed]="row.collapsed || row.count === 0"
           [class.has-guide]="row.groupId !== null && !row.collapsed && row.count > 0"
           [class.is-drop-target]="row.groupId !== null && dropIntoGroupId() === row.groupId"
           [class.is-drag-source]="groupDrag()?.groupId === row.groupId"
@@ -273,6 +272,9 @@
               <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
             </svg>
           </button>
+          @if (row.color) {
+            <span class="group-dot" aria-hidden="true"></span>
+          }
           <span class="spreadsheet-heading-label">{{ row.label }}</span>
           <span class="spreadsheet-heading-count">{{ row.count }}</span>
         </div>
