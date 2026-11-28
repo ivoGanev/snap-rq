@@ -17,7 +17,7 @@ type SetRequests struct{ tx *sql.Tx }
 func NewSetRequests(tx *sql.Tx) commands.Command { return &SetRequests{tx: tx} }
 
 func (SetRequests) Info() commands.Info {
-	return commands.Info{FunctionID: "group.set_requests", Label: "Move to Group"}
+	return commands.Info{FunctionID: "group.set_requests", Label: "Move to Group", Distinct: true}
 }
 
 type setRequestsInput struct {

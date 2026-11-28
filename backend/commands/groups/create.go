@@ -18,7 +18,7 @@ type Create struct{ tx *sql.Tx }
 func NewCreate(tx *sql.Tx) commands.Command { return &Create{tx: tx} }
 
 func (Create) Info() commands.Info {
-	return commands.Info{FunctionID: "group.create", Label: "Group Requests"}
+	return commands.Info{FunctionID: "group.create", Label: "Group Requests", Distinct: true}
 }
 
 type createInput struct {

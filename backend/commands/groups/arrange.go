@@ -21,7 +21,7 @@ type Arrange struct{ tx *sql.Tx }
 func NewArrange(tx *sql.Tx) commands.Command { return &Arrange{tx: tx} }
 
 func (Arrange) Info() commands.Info {
-	return commands.Info{FunctionID: "group.arrange", Label: "Move Requests"}
+	return commands.Info{FunctionID: "group.arrange", Label: "Move Requests", Distinct: true}
 }
 
 // arrangeItem is one row of the layout, in display order: a group, or a

@@ -64,6 +64,10 @@ type Info struct {
 	FunctionID string // "request.delete" — the reference key
 	Label      string // undo-menu text
 	ReadOnly   bool   // queries and sends: run without the writer lock
+	// Distinct runs are never merged into one undo step. A merged step keeps
+	// the oldest snapshot but only the newest result, which is wrong when
+	// undo needs what each run's result recorded (rows it deleted).
+	Distinct bool
 }
 
 // Factory builds a command wired to the transaction it runs in.

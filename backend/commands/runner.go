@@ -332,7 +332,7 @@ func (r *Runner) recordUndo(tx *sql.Tx, name, label, input, snapshot, result str
 	).Scan(&prevID, &prevCommand, &prevInput, &prevCreatedAt)
 	// merge only quick repeats of the same command on the same rows (the
 	// id or ids field of the input identifies the rows)
-	if err == nil && prevCommand == name && sameRows(prevInput, input) &&
+	if err == nil && !r.infos[name].Distinct && prevCommand == name && sameRows(prevInput, input) &&
 		time.Since(time.UnixMilli(prevCreatedAt)) < mergeWindow {
 		_, err = tx.Exec(
 			`UPDATE undo_log SET input = ?, result = ?, created_at = ? WHERE id = ?`,
@@ -614,7 +614,10 @@ func sameRows(a, b string) bool {
 		fmt.Sprint(aMap["ids"]) == fmt.Sprint(bMap["ids"]) &&
 		fmt.Sprint(aMap["request_id"]) == fmt.Sprint(bMap["request_id"]) &&
 		fmt.Sprint(aMap["collection_id"]) == fmt.Sprint(bMap["collection_id"]) &&
-		fmt.Sprint(aMap["field"]) == fmt.Sprint(bMap["field"])
+		fmt.Sprint(aMap["field"]) == fmt.Sprint(bMap["field"]) &&
+		fmt.Sprint(aMap["request_ids"]) == fmt.Sprint(bMap["request_ids"]) &&
+		fmt.Sprint(aMap["group_id"]) == fmt.Sprint(bMap["group_id"]) &&
+		fmt.Sprint(aMap["items"]) == fmt.Sprint(bMap["items"])
 }
 
 type undoRow struct {
