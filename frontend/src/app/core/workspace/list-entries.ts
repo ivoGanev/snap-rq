@@ -28,6 +28,8 @@ export interface RequestEntry {
   depth: 0 | 1;
   /** The heading key it is under, or UNGROUPED. */
   section: string;
+  /** Zebra stripe, from the row's place in the list; CSS :nth-child would count only the rows drawn. */
+  even: boolean;
 }
 
 export const UNGROUPED = 'ungrouped';
@@ -49,7 +51,9 @@ export function toEntries(sections: ListSection[], isCollapsed: (key: string) =>
     if (collapsed) continue;
     const depth = section.heading?.groupId != null ? 1 : 0;
     const key = section.heading?.key ?? UNGROUPED;
-    for (const req of section.requests) rows.push({ kind: 'request', req, depth, section: key });
+    for (const req of section.requests) {
+      rows.push({ kind: 'request', req, depth, section: key, even: rows.length % 2 === 1 });
+    }
   }
   return rows;
 }

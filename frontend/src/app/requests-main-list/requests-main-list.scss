@@ -438,13 +438,15 @@
 .spreadsheet-row {
   height: 38px;
   border-bottom: 1px solid var(--glass-border);
+  // Only the colour fades (hover, selection); the stripe is an image, so a
+  // row that changes stripe when rows above it fold swaps at once.
   transition:
-    background 0.15s ease,
+    background-color 0.15s ease,
     box-shadow 0.15s ease;
 }
 
-.spreadsheet-row:nth-child(even) {
-  background: var(--row-even-bg);
+.spreadsheet-row.is-even {
+  background-image: linear-gradient(var(--row-even-bg), var(--row-even-bg));
 }
 
 .spreadsheet-row:hover {

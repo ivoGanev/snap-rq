@@ -212,6 +212,39 @@ export function requestGroupsTests(): void {
     await expect.poll(() => layout(page)).toEqual(START);
   });
 
+  test('folding a group swaps the stripes below it at once, without a fade', async ({ page }) => {
+    await openApp(page);
+    const name = await seedCollection(page);
+    await reopen(page, name);
+    // A third request in Auth: folding it moves the rows below by an odd count, so their stripes swap.
+    await drag(page, await middle(row(page, 'delta')), await bottomEdge(row(page, 'charlie')));
+    await expect.poll(() => layout(page)).toContain('  delta');
+
+    const look = () =>
+      page.evaluate(() => {
+        const golf = [...document.querySelectorAll('.spreadsheet-row')].find((r) =>
+          r.querySelector('.spreadsheet-cell--name')?.textContent?.trim() === 'golf',
+        )!;
+        const style = getComputedStyle(golf);
+        return `${style.backgroundColor} ${style.backgroundImage}`;
+      });
+    await page.mouse.move(5, 5);
+    const before = await look();
+
+    await heading(page, 'Auth').click({ position: { x: 500, y: 15 } });
+    await page.mouse.move(5, 5);
+    const samples: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      samples.push(await look());
+      await page.waitForTimeout(20);
+    }
+    await page.waitForTimeout(300);
+    const after = await look();
+
+    expect(after).not.toBe(before);
+    expect(samples.every((s) => s === after)).toBe(true);
+  });
+
   test('dragging a group does not select a request', async ({ page }) => {
     await openApp(page);
     const name = await seedCollection(page);
