@@ -5,7 +5,12 @@
 @if (showHeader()) {
   <div class="column-header column-header--requests">
     @if (headerRequest(); as req) {
-      <div class="header-url-field">
+      <div
+        class="header-url-field"
+        [style.--method-col-width]="methodColumnWidthCss()"
+        [style.--name-col-width]="nameColumnWidthCss()"
+        [style.--action-col-width]="canDragOut() ? '64px' : '44px'"
+      >
       <app-select
         class="header-method-select"
         aria-label="Method"
@@ -13,6 +18,17 @@
         [options]="methodOptions"
         [value]="req.method"
         (valueChange)="chooseMethod(req, $event)"
+      />
+      <input
+        #requestNameField
+        class="header-name-field"
+        type="text"
+        aria-label="Request name"
+        placeholder="Name"
+        [value]="req.name"
+        (keydown.enter)="requestNameField.blur()"
+        (keydown.escape)="requestNameField.value = req.name; requestNameField.blur(); $event.stopPropagation()"
+        (blur)="renameRequestTo(req, requestNameField.value, requestNameField)"
       />
       <div class="header-url-box">
         <app-code-editor
@@ -248,23 +264,7 @@
               <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
             </svg>
           </span>
-          @if (row.groupId !== null && editingGroupId() === row.groupId) {
-            <input
-              class="inline-name-input group-name-input"
-              type="text"
-              selectOnFocus
-              [value]="editingGroupValue()"
-              (input)="editingGroupValue.set($any($event.target).value)"
-              (mousedown)="$event.stopPropagation()"
-              (click)="$event.stopPropagation()"
-              (dblclick)="$event.stopPropagation()"
-              (keydown.enter)="commitGroupRename()"
-              (keydown.escape)="editingGroupId.set(null); $event.stopPropagation()"
-              (blur)="commitGroupRename()"
-            />
-          } @else {
-            <span class="spreadsheet-heading-label">{{ row.label }}</span>
-          }
+          <span class="spreadsheet-heading-label">{{ row.label }}</span>
           <span class="spreadsheet-heading-count">{{ row.count }}</span>
         </div>
       } @else {
@@ -325,26 +325,7 @@
           (click)="onRowClick(req, $event, 'name')"
           [title]="req.name"
         >
-          @if (editingNameId() === req.id) {
-            <input
-              class="inline-name-input"
-              type="text"
-              selectOnFocus
-              [value]="editingNameValue()"
-              (input)="editingNameValue.set($any($event.target).value)"
-              (mousedown)="$event.stopPropagation()"
-              (click)="$event.stopPropagation()"
-              (dblclick)="$event.stopPropagation()"
-              (keydown.enter)="commitInlineNameEdit(req)"
-              (keydown.escape)="cancelInlineNameEdit(); $event.stopPropagation()"
-              (blur)="commitInlineNameEdit(req)"
-            />
-          } @else {
-            <span
-              class="cell-text"
-              (dblclick)="onCellDoubleClick(req, 'name')"
-            >{{ req.name }}</span>
-          }
+          <span class="cell-text">{{ req.name }}</span>
         </div>
 
         <div
@@ -353,10 +334,7 @@
           (click)="onRowClick(req, $event, 'url')"
           [title]="rowState()[req.id]?.displayUrl ?? req.url"
         >
-          <span
-            class="cell-text"
-            (dblclick)="onCellDoubleClick(req, 'url')"
-          >{{ rowState()[req.id]?.displayUrl ?? req.url }}</span>
+          <span class="cell-text">{{ rowState()[req.id]?.displayUrl ?? req.url }}</span>
           @if (req.id === lastUsedRequestId()) {
             <app-last-used-paw [hint]="pawHint()" />
           }
@@ -472,7 +450,7 @@
 </ng-template>
 
 <ng-template #groupContextMenu let-entry>
-  <button class="context-menu-item" type="button" (click)="startGroupRename(entry.groupId, entry.label)">
+  <button class="context-menu-item" type="button" (click)="focusGroupName(entry.groupId)">
     Rename
   </button>
   <button class="context-menu-item" type="button" (click)="ungroup(entry)">Ungroup</button>
@@ -484,50 +462,6 @@
     (imported)="revealAndRename($event)"
     (closed)="curlImportFor.set(null)"
   />
-}
-
-@if (editModalOpen()) {
-  <div class="overlay-backdrop" (click)="closeEditModal()">
-    <div class="overlay-panel edit-modal" (click)="$event.stopPropagation()">
-      <div class="overlay-header">
-        <h3 class="overlay-title">Edit {{ editModalColumn() }}</h3>
-        <button class="overlay-close" type="button" (click)="closeEditModal()">Cancel</button>
-      </div>
-
-      <div class="overlay-body">
-        @if (editModalColumn() === 'url') {
-          <app-code-editor
-            class="modal-url-editor"
-            language="text"
-            [singleLine]="true"
-            [text]="editModalValue()"
-            [variables]="state.environmentVariables()"
-            (textChange)="editModalValue.set($event)"
-            (submit)="saveEditModal()"
-          ></app-code-editor>
-        } @else if (editModalColumn() === 'name') {
-          <input
-            class="edit-input"
-            type="text"
-            [ngModel]="editModalValue()"
-            (ngModelChange)="editModalValue.set($event)"
-            (keydown.enter)="saveEditModal()"
-          />
-        } @else {
-          <textarea
-            class="edit-textarea edit-textarea--modal"
-            rows="12"
-            [ngModel]="editModalValue()"
-            (ngModelChange)="editModalValue.set($event)"
-          ></textarea>
-        }
-      </div>
-
-      <div class="overlay-footer">
-        <button class="variable-add" type="button" (click)="saveEditModal()">Save</button>
-      </div>
-    </div>
-  </div>
 }
 
 @if (scriptPickerFor(); as requests) {

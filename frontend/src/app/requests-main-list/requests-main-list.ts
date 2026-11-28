@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, OnDestroy, TemplateRef, ViewChild, afterNextRender, afterRenderEffect, computed, effect, inject, linkedSignal, signal, untracked, viewChild } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { CdkFixedSizeVirtualScroll, CdkVirtualForOf, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { Clipboard } from '@wailsio/runtime';
 import { WorkspaceStateService } from '../core/services/workspace-state.service';
@@ -29,7 +28,6 @@ import { ScriptTabs } from '../script-tabs/script-tabs';
 import { RequestHeadersTab } from '../request-headers-tab/request-headers-tab';
 import { CodeEditor } from '../code-editor/code-editor';
 import { Select, type SelectOption } from '../select/select';
-import { SelectOnFocusDirective } from '../core/directives/select-on-focus.directive';
 import { REQUEST_COLORS, requestColorInfo } from '../core/request-colors';
 import type { WorkspaceViewKind } from '../core/workspace/workspace-view';
 import type { RequestGroup } from '../core/workspace/presorted';
@@ -98,7 +96,7 @@ const NAME_COLUMN_MIN_WIDTH = 120;
  */
 @Component({
   selector: 'app-requests-main-list',
-  imports: [FormsModule, CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, Select, SelectOnFocusDirective, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog, CurlImportDialog, SendButton, UsageMeter, LastUsedPaw],
+  imports: [CdkVirtualScrollViewport, CdkVirtualForOf, CdkFixedSizeVirtualScroll, RequestBottomDrawer, CodeEditor, Select, ScriptTabs, ScriptPickerDialog, FavouritePickerDialog, RestoreToCollectionDialog, CurlImportDialog, SendButton, UsageMeter, LastUsedPaw],
   templateUrl: './requests-main-list.html',
   styleUrl: './requests-main-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -290,13 +288,11 @@ export class RequestsMainList {
   private readonly resizeTick = signal(0);
 
   // Single-cell edit modals
-  readonly editModalOpen = signal(false);
-  readonly editModalColumn = signal<ColumnKey | null>(null);
-  readonly editModalRequest = signal<HttpRequestSummary | null>(null);
-  readonly editModalValue = signal('');
 
-  readonly editingNameId = signal<number | null>(null);
-  readonly editingNameValue = signal('');
+  private readonly requestNameField = viewChild<ElementRef<HTMLInputElement>>('requestNameField');
+  private readonly groupNameField = viewChild<ElementRef<HTMLInputElement>>('groupNameField');
+  /** A just-created request or group whose name the toolbar should put the cursor in. */
+  private readonly nameToFocus = signal<{ kind: 'request' | 'group'; id: number } | null>(null);
   private readonly methodHeaderCell = viewChild<ElementRef<HTMLElement>>('methodHeaderCell');
   private readonly nameHeaderCell = viewChild<ElementRef<HTMLElement>>('nameHeaderCell');
 
@@ -1066,8 +1062,6 @@ export class RequestsMainList {
     return (
       this.confirm.active() !== null ||
       this.contextMenu.isOpen() ||
-      this.editingNameId() !== null ||
-      this.editModalOpen() ||
       this.scriptPickerFor() !== null ||
       this.favouritePickerFor() !== null ||
       this.moveCollectionModalOpen() ||
@@ -1077,20 +1071,8 @@ export class RequestsMainList {
   }
 
   onEscapePressed(): void {
-    if (this.editingGroupId() !== null) {
-      this.editingGroupId.set(null);
-      return;
-    }
-    if (this.editingNameId() !== null) {
-      this.cancelInlineNameEdit();
-      return;
-    }
     if (this.contextMenu.isOpen()) {
       this.contextMenu.close();
-      return;
-    }
-    if (this.editModalOpen()) {
-      this.closeEditModal();
       return;
     }
     if (this.moveCollectionModalOpen()) {
@@ -1143,7 +1125,6 @@ export class RequestsMainList {
     this.state.selectedIds.set(new Set());
     this.selectedCell.set(null);
     this.highlightedCell.set(null);
-    this.cancelInlineNameEdit();
   }
 
   trackById(_index: number, req: HttpRequestSummary): number {
@@ -1788,9 +1769,6 @@ export class RequestsMainList {
 
   // ---------- Groups ----------
 
-  readonly editingGroupId = signal<number | null>(null);
-  readonly editingGroupValue = signal('');
-
   /** Whether any selected request is in a group (offers "Remove from group"). */
   protected readonly selectionInGroup = computed(() => {
     const selected = this.selectedRowIds();
@@ -1840,7 +1818,7 @@ export class RequestsMainList {
 
   onGroupMouseDown(entry: GroupEntry, event: MouseEvent): void {
     this.suppressHeadingClick = false;
-    if (event.button !== 0 || entry.groupId === null || this.editingGroupId() === entry.groupId) return;
+    if (event.button !== 0 || entry.groupId === null) return;
     if (!this.canArrange()) return;
     event.preventDefault();
     this.groupDragPending = { groupId: entry.groupId, label: entry.label, startY: event.clientY };
@@ -1924,7 +1902,7 @@ export class RequestsMainList {
       const group = await this.groupApi.create(collection.id, name, ids);
       this.clearSelection();
       this.selectedGroupId.set(group.id);
-      this.startGroupRename(group.id, group.name);
+      this.nameToFocus.set({ kind: 'group', id: group.id });
     } catch (err) {
       console.error('grouping requests failed', err);
     }
@@ -1974,25 +1952,27 @@ export class RequestsMainList {
     this.groupApi.update({ ...group, color }).catch((err) => console.error('colouring the group failed', err));
   }
 
-  startGroupRename(groupId: number, name: string): void {
+  /** The heading menu's Rename: the group's name is edited in the toolbar. */
+  focusGroupName(groupId: number): void {
     this.contextMenu.close();
-    this.editingGroupValue.set(name);
-    this.editingGroupId.set(groupId);
+    if (this.selectedGroupId() !== groupId) {
+      const entry = this.displayRows().find((row) => row.kind === 'group' && row.groupId === groupId);
+      if (entry?.kind === 'group') this.pickGroup(entry);
+    }
+    this.nameToFocus.set({ kind: 'group', id: groupId });
   }
 
-  async commitGroupRename(): Promise<void> {
-    const id = this.editingGroupId();
-    if (id === null) return;
-    this.editingGroupId.set(null);
-    const group = this.groupApi.groups().find((g) => g.id === id);
-    const name = this.editingGroupValue().trim();
-    if (!group || !name || name === group.name) return;
-    try {
-      await this.groupApi.update({ ...group, name });
-    } catch (err) {
-      console.error('renaming the group failed', err);
-    }
-  }
+  /** Puts the cursor in the toolbar's name field once it shows the item asked for. */
+  private readonly focusNameField = afterRenderEffect(() => {
+    const target = this.nameToFocus();
+    if (!target) return;
+    const shown = target.kind === 'request' ? this.headerRequest()?.id : this.selectedGroup()?.id;
+    const field = (target.kind === 'request' ? this.requestNameField() : this.groupNameField())?.nativeElement;
+    if (shown !== target.id || !field) return;
+    field.focus();
+    field.select();
+    untracked(() => this.nameToFocus.set(null));
+  });
 
   // ---------- Context menu ----------
 
@@ -2301,9 +2281,9 @@ export class RequestsMainList {
     // A search could hide the new row; clear it so the rename field can show.
     this.requestSearchQuery.set('');
     this.selectCell(req, 'name');
-    this.startInlineNameEdit(req);
+    this.nameToFocus.set({ kind: 'request', id: req.id });
     // Scroll once the list has drawn the new row, so the offset isn't clamped
-    // to the old list height; the rename field focuses itself when it appears.
+    // to the old list height.
     afterNextRender(
       () => {
         const index = this.displayIndexById().get(req.id) ?? -1;
@@ -2352,70 +2332,14 @@ export class RequestsMainList {
     this.state.zenModeOpen.set(true);
   }
 
-  onCellDoubleClick(req: HttpRequestSummary | HttpBinnedRequestSummary, column: ColumnKey): void {
-    if (this.state.showingBin()) return;
-    const request = req as HttpRequestSummary;
-    if (column === 'name') {
-      this.startInlineNameEdit(request);
+  /** Renames from the toolbar's name field; an empty or unchanged name keeps the old one. */
+  protected async renameRequestTo(req: HttpRequestSummary, value: string, field: HTMLInputElement): Promise<void> {
+    const name = value.trim();
+    if (!name || name === req.name) {
+      field.value = req.name;
       return;
     }
-    if (column === 'scripts') {
-      this.openScriptPicker([request]);
-      return;
-    }
-    this.openEditModal(request, column);
-  }
-
-  // ---------- Inline name edit ----------
-
-  startInlineNameEdit(req: HttpRequestSummary): void {
-    this.contextMenu.close();
-    this.editingNameId.set(req.id);
-    this.editingNameValue.set(req.name);
-  }
-
-  cancelInlineNameEdit(): void {
-    this.editingNameId.set(null);
-    this.editingNameValue.set('');
-  }
-
-  async commitInlineNameEdit(req: HttpRequestSummary): Promise<void> {
-    if (this.editingNameId() !== req.id) return;
-
-    const value = this.editingNameValue();
-    this.cancelInlineNameEdit();
-    if (value === req.name) return;
-
-    await this.updateRequestField(req, 'name', value);
-  }
-
-  // ---------- Text edit modal ----------
-
-  openEditModal(req: HttpRequestSummary, column: ColumnKey): void {
-    this.contextMenu.close();
-    this.editModalRequest.set(req);
-    this.editModalColumn.set(column);
-    this.editModalValue.set(this.getCellValue(req, column));
-    this.editModalOpen.set(true);
-  }
-
-  closeEditModal(): void {
-    this.editModalOpen.set(false);
-    this.editModalRequest.set(null);
-    this.editModalColumn.set(null);
-    this.editModalValue.set('');
-  }
-
-  async saveEditModal(): Promise<void> {
-    const req = this.editModalRequest();
-    const column = this.editModalColumn();
-    if (!req || !column) return;
-
-    if (column === 'scripts') return;
-
-    const field = this.columnToRequestField(column);
-    await this.updateRequestField(req, field, this.editModalValue());
-    this.closeEditModal();
+    await this.updateRequestField(req, 'name', name);
   }
 
   protected async chooseMethod(req: HttpRequestSummary, method: string): Promise<void> {

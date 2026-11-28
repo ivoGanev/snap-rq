@@ -124,12 +124,13 @@
 }
 
 // Wide enough for OPTIONS, so switching methods doesn't move the URL.
+// The method and name fields sit over their columns below.
 .header-method-select {
   flex: 0 0 auto;
   align-items: center;
-  width: 140px;
+  width: calc(var(--action-col-width, 44px) + max(60px, var(--method-col-width, 100px)));
   box-sizing: border-box;
-  padding: 0 var(--s-3);
+  padding: 0 var(--s-2) 0 var(--action-col-width, 44px);
   font-size: 0.8125rem;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -142,6 +143,30 @@
   &:hover {
     background: var(--hover-highlight);
   }
+}
+
+.header-name-field {
+  flex: 0 0 auto;
+  width: max(120px, var(--name-col-width, 200px));
+  box-sizing: border-box;
+  height: 100%;
+  padding: 0 var(--s-2);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-left: 1px solid var(--glass-border);
+  --wails-draggable: no-drag;
+}
+
+.header-name-field:hover {
+  background: var(--hover-bg);
+}
+
+.header-name-field:focus {
+  outline: none;
+  border-color: var(--focus-border);
 }
 
 .header-url-box {
@@ -463,11 +488,6 @@
   background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
-.group-name-input {
-  flex: 0 1 240px;
-  min-width: 0;
-}
-
 .spreadsheet-header-cell--method .spreadsheet-header-button {
   padding: 0 var(--s-2);
 }
@@ -714,23 +734,6 @@
   text-decoration-color: color-mix(in srgb, var(--accent-3, var(--accent)) 70%, transparent);
 }
 
-.inline-name-input {
-  width: 100%;
-  min-width: 0;
-  height: 18px;
-  margin: 0;
-  padding: 0 4px;
-  font: inherit;
-  font-weight: 600;
-  color: var(--text);
-  background: var(--input-bg);
-  border: 1px solid var(--selected-border);
-  border-radius: 4px;
-  outline: none;
-  box-shadow: 0 0 0 2px var(--focus-ring);
-  --wails-draggable: no-drag;
-}
-
 .zen-mode-button {
   display: inline-flex;
   align-items: center;
@@ -873,31 +876,6 @@
 
 .move-collection-modal {
   width: min(420px, calc(100vw - 2 * var(--s-4)));
-}
-
-// The URL editor benefits from room: long URLs and variable chips.
-.edit-modal {
-  width: min(920px, calc(100vw - 2 * var(--s-4)));
-}
-
-// Single-line CodeMirror URL editor inside the edit modal, styled like the
-// text inputs used by the other modal fields.
-.modal-url-editor {
-  display: block;
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  background: var(--input-bg);
-  overflow: hidden;
-}
-
-.modal-url-editor:focus-within {
-  border-color: var(--focus-border);
-  box-shadow: 0 0 0 2px var(--focus-ring);
-}
-
-.edit-textarea--modal {
-  min-height: 180px;
-  resize: vertical;
 }
 
 .collection-list {
