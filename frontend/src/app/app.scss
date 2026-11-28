@@ -181,13 +181,23 @@
   width: 6px;
   height: 100%;
   cursor: col-resize;
-  background: transparent;
-  transition: background 0.15s ease;
   --wails-draggable: no-drag;
 }
 
-.resizer:hover,
-.resizer.is-resizing {
+// The grab area stays 6px wide; only a 1px line on the column border shows.
+.resizer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+.resizer:hover::after,
+.resizer.is-resizing::after {
   background: var(--scrollbar-thumb);
 }
 
