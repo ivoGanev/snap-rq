@@ -90,8 +90,9 @@ export function variableDropdownTests(): void {
     const url = page.locator('.header-url-editor .cm-content');
     const dropdown = page.locator('.variable-dropdown');
     const open = async () => {
-      // At the start: a click on a chip doesn't focus the editor.
-      await url.click({ position: { x: 2, y: 4 } });
+      // Focused directly: a click could land on a chip, or off the URL's
+      // start once a long URL has scrolled sideways.
+      await url.focus();
       await page.keyboard.press('End');
       await page.keyboard.press('Control+Space');
       await expect(dropdown).toBeVisible();

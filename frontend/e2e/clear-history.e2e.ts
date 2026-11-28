@@ -76,7 +76,7 @@ test('the bin is in the inspector only, and clicking it leaves the timeline as i
   await confirmDialog(page).getByRole('button', { name: 'Cancel' }).click();
   await expect(timeline).toHaveCount(wasOpen ? 1 : 0);
 
-  await row(page, name).locator('.zen-mode-button').click();
+  await row(page, name).locator('.spreadsheet-cell--url').dblclick();
   await expect(page.locator('app-zen-mode .history-bar')).toBeVisible();
   await expect(page.locator('app-zen-mode .history-clear')).toHaveCount(0);
 });

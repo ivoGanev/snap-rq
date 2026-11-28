@@ -201,14 +201,18 @@ export function requestGroupsTests(): void {
     expect(await layout(page)).toEqual(moved);
   });
 
-  test('a click anywhere on a heading folds and unfolds its group', async ({ page }) => {
+  test('the arrow folds and unfolds a group; a click elsewhere on the heading only picks it', async ({ page }) => {
     await openApp(page);
     const name = await seedCollection(page);
     await reopen(page, name);
 
     await heading(page, 'Auth').click({ position: { x: 500, y: 15 } });
+    await expect(page.locator('.group-tools-name')).toHaveValue('Auth');
+    expect(await layout(page)).toEqual(START);
+
+    await heading(page, 'Auth').locator('.fold-toggle').click();
     await expect.poll(() => layout(page)).toEqual(START.filter((r) => r !== '  bravo' && r !== '  charlie'));
-    await heading(page, 'Auth').click({ position: { x: 500, y: 15 } });
+    await heading(page, 'Auth').locator('.fold-toggle').click();
     await expect.poll(() => layout(page)).toEqual(START);
   });
 
@@ -231,7 +235,7 @@ export function requestGroupsTests(): void {
     await page.mouse.move(5, 5);
     const before = await look();
 
-    await heading(page, 'Auth').click({ position: { x: 500, y: 15 } });
+    await heading(page, 'Auth').locator('.fold-toggle').click();
     await page.mouse.move(5, 5);
     const samples: string[] = [];
     for (let i = 0; i < 6; i++) {
@@ -252,7 +256,6 @@ export function requestGroupsTests(): void {
 
     // Picking a group clears the request selection.
     await heading(page, 'Users').click({ position: { x: 500, y: 15 } });
-    await heading(page, 'Users').click({ position: { x: 500, y: 15 } });
     await expect.poll(() => selectedNames(page)).toEqual([]);
 
     await drag(page, await middle(heading(page, 'Users')), await bottomEdge(row(page, 'alpha')));
@@ -261,23 +264,21 @@ export function requestGroupsTests(): void {
     expect(await selectedNames(page)).toEqual([]);
   });
 
-  test('a group dragged a little down keeps the line at its own heading and stays in place', async ({ page }) => {
+  test('a group dragged a little down shows no drop line and stays in place', async ({ page }) => {
     await openApp(page);
     const name = await seedCollection(page);
     await reopen(page, name);
 
-    const own = (await heading(page, 'Users').boundingBox())!;
     await press(page, await middle(heading(page, 'Users')), await bottomEdge(row(page, 'foxtrot')));
     await page.waitForTimeout(100);
-    const line = (await page.locator('.reorder-drop-line').boundingBox())!;
-    expect(Math.abs(line.y - own.y)).toBeLessThan(4);
+    await expect(page.locator('.reorder-drop-line')).toBeHidden();
     await page.mouse.up();
 
     await page.waitForTimeout(300);
     expect(await layout(page)).toEqual(START);
   });
 
-  test('a picked group shows in the inspector and in the URL bar, not the last request', async ({ page }) => {
+  test('a picked group shows in the URL bar and leaves the inspector empty', async ({ page }) => {
     await openApp(page);
     const name = await seedCollection(page);
     await reopen(page, name);
@@ -286,9 +287,8 @@ export function requestGroupsTests(): void {
     await expect(page.locator('.header-url-field')).toBeVisible();
 
     await heading(page, 'Auth').click({ position: { x: 500, y: 15 } });
-    await expect(page.locator('app-group-pane .panel-title')).toHaveText('Auth');
-    await expect(page.locator('app-group-pane .group-pane-item')).toHaveCount(2);
     await expect(page.locator('app-response-pane')).toHaveCount(0);
+    await expect.poll(async () => (await page.locator('app-inspector').innerText()).trim()).toBe('');
     await expect(page.locator('.group-tools-name')).toHaveValue('Auth');
     // Picking a group must not put the cursor in its name: typing would rename it.
     await expect(page.locator('.group-tools-name')).not.toBeFocused();
@@ -299,8 +299,6 @@ export function requestGroupsTests(): void {
     const name = await seedCollection(page);
     await reopen(page, name);
 
-    // Each click folds or unfolds; both pick the group.
-    await heading(page, 'Auth').click({ position: { x: 500, y: 15 } });
     await heading(page, 'Auth').click({ position: { x: 500, y: 15 } });
     await page.locator('.group-tools-name').fill('Login');
     await page.locator('.group-tools-name').press('Enter');
@@ -308,9 +306,9 @@ export function requestGroupsTests(): void {
 
     await page.locator('.group-tools .color-dot:not(.color-dot--clear)').nth(1).click();
     await expect(heading(page, 'Login')).toHaveClass(/has-color/);
-    await expect(row(page, 'bravo')).toHaveClass(/has-color/);
+    await expect(row(page, 'bravo')).toHaveClass(/in-coloured-group/);
 
-    await page.locator('.group-tools-button', { hasText: 'Ungroup' }).click();
+    await page.locator('.group-tools .selection-tool', { hasText: 'Ungroup' }).click();
     await expect
       .poll(() => layout(page))
       .toEqual(['alpha', 'bravo', 'charlie', 'delta', '# Users', '  echo', '  foxtrot', 'golf', 'hotel']);
