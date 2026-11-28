@@ -60,10 +60,12 @@ interface RowState {
   isCellSelected: Record<ColumnKey, boolean>;
   /** URL with environment variables resolved, for display only. */
   displayUrl: string;
-  /** User colour (hex) for this row in the current view, or null. */
+  /** A favourite's or script's own colour for this request (the left bar), or null. */
   colorVar: string | null;
   /** Row background tint matching colorVar, or null. */
   colorTint: string | null;
+  /** The colour of the collection group it is in (the dashed outline), or null. */
+  groupColor: string | null;
 }
 
 interface ReorderDrag {
@@ -610,8 +612,10 @@ export class RequestsMainList {
     const environment = this.state.environment();
     const result: Record<number, RowState> = {};
     const groupColors = new Map(this.groupApi.groups().map((g) => [g.id, g.color]));
-    // Favourites and scripts still colour single requests; elsewhere a request shows its group's colour.
+    // Favourites and scripts colour single requests; a collection outlines its coloured groups;
+    // other views show no colour.
     const ownColors = this.activeViewKind() === 'favourite' || this.activeViewKind() === 'script';
+    const inCollection = this.activeViewKind() === 'collection';
 
     for (const req of this.filteredActiveRequests()) {
       const isSelected = selectedIds.has(req.id);
@@ -626,15 +630,15 @@ export class RequestsMainList {
       if (isSelected && selectedIds.size <= 1 && cell !== null && cell.requestId === req.id) {
         isCellSelected[cell.column] = true;
       }
-      const colour = requestColorInfo(
-        ownColors ? req.user_color : (groupColors.get(req.group_id ?? -1) ?? null),
-      );
+      const own = ownColors ? requestColorInfo(req.user_color) : null;
+      const group = inCollection ? requestColorInfo(groupColors.get(req.group_id ?? -1) ?? null) : null;
       result[req.id] = {
         isSelected,
         isCellSelected,
         displayUrl: environment.interpolate(req.url),
-        colorVar: colour?.cssVar ?? null,
-        colorTint: ownColors ? (colour?.tint ?? null) : null,
+        colorVar: own?.cssVar ?? null,
+        colorTint: own?.tint ?? null,
+        groupColor: group?.cssVar ?? null,
       };
     }
     return result;
