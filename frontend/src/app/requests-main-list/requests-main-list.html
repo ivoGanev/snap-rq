@@ -28,8 +28,51 @@
       </div>
       <app-send-button class="header-send" variant="primary" [requestId]="req.id" (send)="sendSelectedRequest($event)" />
       </div>
+    } @else if (selectedGroup(); as group) {
+      <div class="group-tools">
+        <input
+          #groupNameField
+          class="group-tools-name"
+          type="text"
+          aria-label="Group name"
+          [value]="group.name"
+          (keydown.enter)="groupNameField.blur()"
+          (keydown.escape)="groupNameField.value = group.name; groupNameField.blur(); $event.stopPropagation()"
+          (blur)="renameGroupTo(group, groupNameField.value, groupNameField)"
+        />
+        <div class="color-picker" aria-label="Group colour">
+          <button
+            class="color-dot color-dot--clear"
+            type="button"
+            title="No colour"
+            aria-label="No colour"
+            (click)="onGroupColorClick(group, null)"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+              <line x1="6" y1="6" x2="18" y2="18" />
+              <line x1="18" y1="6" x2="6" y2="18" />
+            </svg>
+          </button>
+          @for (color of colors; track color.slot) {
+            <button
+              class="color-dot"
+              [class.is-active]="group.color === color.slot"
+              type="button"
+              [style.--dot-color]="color.cssVar"
+              [title]="color.label"
+              [attr.aria-label]="color.label"
+              (click)="onGroupColorClick(group, color.slot)"
+            ></button>
+          }
+        </div>
+        <button class="group-tools-button" type="button" (click)="ungroupById(group.id)">Ungroup</button>
+      </div>
     } @else {
-      <span class="header-spacer"></span>
+      <span class="header-spacer">
+        @if (selectedRowIds().size === 0) {
+          <span class="header-hint">Select a request</span>
+        }
+      </span>
     }
     @if (selectedRowIds().size > 1) {
       <span class="selection-count">{{ selectedRowIds().size }} selected</span>

@@ -13,6 +13,104 @@
 
 .header-spacer {
   flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+}
+
+.header-hint {
+  padding: 0 var(--s-4);
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.group-tools {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+  padding: 0 var(--s-3);
+}
+
+.group-tools-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 34px;
+  padding: 0 var(--s-2);
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  --wails-draggable: no-drag;
+}
+
+.group-tools-name:hover {
+  border-color: var(--glass-border);
+}
+
+.group-tools-name:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.group-tools .color-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.group-tools .color-dot {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: var(--dot-color);
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    border-color 0.15s ease,
+    box-shadow 0.2s ease;
+  --wails-draggable: no-drag;
+}
+
+.group-tools .color-dot:hover {
+  transform: scale(1.18);
+  box-shadow: 0 0 10px var(--dot-color);
+}
+
+.group-tools .color-dot.is-active {
+  border-color: var(--accent-3, var(--text));
+  box-shadow:
+    0 0 0 2px var(--surface-solid),
+    0 0 12px var(--dot-color);
+}
+
+.group-tools .color-dot--clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 2px solid var(--glass-border);
+  color: var(--muted);
+}
+
+.group-tools .color-dot--clear svg {
+  width: 9px;
+  height: 9px;
+}
+
+.group-tools-button {
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 0 var(--s-3);
+  font-size: 0.8125rem;
+  --wails-draggable: no-drag;
+  @include btn.btn-secondary;
 }
 
 // Method, URL and Send drawn as one bar.

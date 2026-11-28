@@ -89,14 +89,23 @@ async function bottomEdge(locator: Locator, dx = 300): Promise<Point> {
   return { x: box.x + dx, y: box.y + box.height - 2 };
 }
 
-/** Presses, moves in steps (as a hand does) and releases. */
-async function drag(page: Page, from: Point, to: Point): Promise<void> {
+/** Presses and moves in steps (as a hand does), keeping the button down. */
+async function press(page: Page, from: Point, to: Point): Promise<void> {
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
   for (let i = 1; i <= 10; i++) {
     await page.mouse.move(from.x + ((to.x - from.x) * i) / 10, from.y + ((to.y - from.y) * i) / 10);
   }
+}
+
+async function drag(page: Page, from: Point, to: Point): Promise<void> {
+  await press(page, from, to);
   await page.mouse.up();
+}
+
+/** The list's top edge: it must not move when the URL bar's contents change. */
+async function listTop(page: Page): Promise<number> {
+  return (await page.locator('.spreadsheet-wrapper').boundingBox())!.y;
 }
 
 const START = ['alpha', '# Auth', '  bravo', '  charlie', 'delta', '# Users', '  echo', '  foxtrot', 'golf', 'hotel'];
@@ -202,5 +211,79 @@ export function requestGroupsTests(): void {
     await expect.poll(() => layout(page)).toContain('# Users');
     await expect.poll(async () => (await layout(page)).indexOf('# Users')).toBe(1);
     expect(await selectedNames(page)).toEqual([]);
+  });
+
+  test('a group dragged a little down keeps the line at its own heading and stays in place', async ({ page }) => {
+    await openApp(page);
+    const name = await seedCollection(page);
+    await reopen(page, name);
+
+    const own = (await heading(page, 'Users').boundingBox())!;
+    await press(page, await middle(heading(page, 'Users')), await bottomEdge(row(page, 'foxtrot')));
+    await page.waitForTimeout(100);
+    const line = (await page.locator('.reorder-drop-line').boundingBox())!;
+    expect(Math.abs(line.y - own.y)).toBeLessThan(4);
+    await page.mouse.up();
+
+    await page.waitForTimeout(300);
+    expect(await layout(page)).toEqual(START);
+  });
+
+  test('a picked group shows in the inspector and in the URL bar, not the last request', async ({ page }) => {
+    await openApp(page);
+    const name = await seedCollection(page);
+    await reopen(page, name);
+
+    await row(page, 'alpha').locator('.spreadsheet-cell--url').click();
+    await expect(page.locator('.header-url-field')).toBeVisible();
+
+    await heading(page, 'Auth').click({ position: { x: 500, y: 15 } });
+    await expect(page.locator('app-group-pane .panel-title')).toHaveText('Auth');
+    await expect(page.locator('app-group-pane .group-pane-item')).toHaveCount(2);
+    await expect(page.locator('app-response-pane')).toHaveCount(0);
+    await expect(page.locator('.group-tools-name')).toHaveValue('Auth');
+    // Picking a group must not put the cursor in its name: typing would rename it.
+    await expect(page.locator('.group-tools-name')).not.toBeFocused();
+  });
+
+  test('the URL bar renames, colours and ungroups a picked group', async ({ page }) => {
+    await openApp(page);
+    const name = await seedCollection(page);
+    await reopen(page, name);
+
+    // Each click folds or unfolds; both pick the group.
+    await heading(page, 'Auth').click({ position: { x: 500, y: 15 } });
+    await heading(page, 'Auth').click({ position: { x: 500, y: 15 } });
+    await page.locator('.group-tools-name').fill('Login');
+    await page.locator('.group-tools-name').press('Enter');
+    await expect(heading(page, 'Login')).toBeVisible();
+
+    await page.locator('.group-tools .color-dot:not(.color-dot--clear)').nth(1).click();
+    await expect(heading(page, 'Login')).toHaveClass(/has-color/);
+    await expect(row(page, 'bravo')).toHaveClass(/has-color/);
+
+    await page.locator('.group-tools-button', { hasText: 'Ungroup' }).click();
+    await expect
+      .poll(() => layout(page))
+      .toEqual(['alpha', 'bravo', 'charlie', 'delta', '# Users', '  echo', '  foxtrot', 'golf', 'hotel']);
+  });
+
+  test('the list keeps its place whether a request, a group or nothing is selected', async ({ page }) => {
+    await openApp(page);
+    const name = await seedCollection(page);
+    await reopen(page, name);
+
+    await row(page, 'alpha').locator('.spreadsheet-cell--url').click();
+    const withRequest = await listTop(page);
+    await heading(page, 'Auth').click({ position: { x: 500, y: 15 } });
+    await expect(page.locator('.group-tools')).toBeVisible();
+    const withGroup = await listTop(page);
+    await row(page, 'delta').locator('.spreadsheet-cell--url').click();
+    await row(page, 'delta').locator('.spreadsheet-cell--url').click({ modifiers: ['ControlOrMeta'] });
+    await expect(page.locator('.header-hint')).toBeVisible();
+    const withNothing = await listTop(page);
+
+    expect(withGroup).toBe(withRequest);
+    expect(withNothing).toBe(withRequest);
   });
 }

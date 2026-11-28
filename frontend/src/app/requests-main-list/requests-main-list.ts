@@ -30,7 +30,7 @@ import { RequestHeadersTab } from '../request-headers-tab/request-headers-tab';
 import { CodeEditor } from '../code-editor/code-editor';
 import { Select, type SelectOption } from '../select/select';
 import { SelectOnFocusDirective } from '../core/directives/select-on-focus.directive';
-import { requestColorInfo } from '../core/request-colors';
+import { REQUEST_COLORS, requestColorInfo } from '../core/request-colors';
 import type { WorkspaceViewKind } from '../core/workspace/workspace-view';
 import type { RequestGroup } from '../core/workspace/presorted';
 import { toEntries, UNGROUPED, type GroupEntry, type ListEntry, type ListSection } from '../core/workspace/list-entries';
@@ -193,7 +193,7 @@ export class RequestsMainList {
   );
 
   /** The group picked by clicking its heading (collections only); the colour picker colours it. */
-  readonly selectedGroupId = signal<number | null>(null);
+  readonly selectedGroupId = this.state.selectedGroupId;
 
   protected readonly selectedGroup = computed<RequestGroupRecord | null>(() => {
     const id = this.selectedGroupId();
@@ -210,11 +210,13 @@ export class RequestsMainList {
       .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
   });
 
-  /** Whether the colour picker is available: a picked group, or a selection in a favourite or script. */
+  /** The bottom drawer's colour picker: favourites and scripts colour single requests; a group is coloured from the URL bar. */
   readonly canColorSelection = computed(() => {
-    if (this.activeViewKind() === 'collection') return this.selectedGroup() !== null;
+    if (this.activeViewKind() === 'collection') return false;
     return (this.state.view()?.canColour ?? false) && this.selectedRowIds().size > 0;
   });
+
+  protected readonly colors = REQUEST_COLORS;
 
   /** The colour shared by all selected rows in this view, or null when mixed/none. */
   readonly activeColor = computed<string | null>(() => {
@@ -646,9 +648,8 @@ export class RequestsMainList {
   protected readonly headerRequest = computed(() =>
     !this.state.showingBin() && this.selectedRowIds().size === 1 ? this.selectedRequest() : null,
   );
-  protected readonly showHeader = computed(
-    () => !this.state.showingBin() && this.selectedRowIds().size > 0,
-  );
+  // Always shown (but in the bin), so the list doesn't shift as the selection changes.
+  protected readonly showHeader = computed(() => !this.state.showingBin() && this.activeGroupName() !== null);
   // Reset only when another request is selected: the saved URL coming back
   // mid-typing would otherwise overwrite what was typed since.
   protected readonly urlDraft = linkedSignal<number | null, string>({
@@ -1467,8 +1468,18 @@ export class RequestsMainList {
           this.rowHeight,
           this.reorderLastX > rect.left + NEST_POINTER_PX,
         );
-        this.dropTarget = target;
-        if (target.lineRow !== null) this.placeDropLine(line, rect, target.lineRow, offset, target.indent);
+        const layout = this.collectionLayout();
+        if (sameLayout(moveRequests(layout, new Set(drag.ids), target), layout)) {
+          // Dropping here changes nothing: the line stays at the dragged rows.
+          const rows = this.displayRows();
+          const at = rows.findIndex((row) => row.kind === 'request' && drag.ids.includes(row.req.id));
+          const first = rows[at];
+          this.dropTarget = null;
+          if (at >= 0) this.placeDropLine(line, rect, at, offset, first?.kind === 'request' && first.depth === 1);
+        } else {
+          this.dropTarget = target;
+          if (target.lineRow !== null) this.placeDropLine(line, rect, target.lineRow, offset, target.indent);
+        }
       }
       const into = this.dropTarget?.into ?? null;
       if (into !== this.dropIntoGroupId()) this.dropIntoGroupId.set(into);
@@ -1678,11 +1689,6 @@ export class RequestsMainList {
    * on failure the view is reloaded.
    */
   async applyRequestColor(color: string | null): Promise<void> {
-    const group = this.selectedGroup();
-    if (this.activeViewKind() === 'collection') {
-      if (group) await this.groupApi.update({ ...group, color });
-      return;
-    }
     const ids = [...this.selectedRowIds()];
     if (ids.length === 0) return;
 
@@ -1731,12 +1737,6 @@ export class RequestsMainList {
   async clearAllRequestColors(): Promise<void> {
     if (!this.state.view()?.canColour) return;
     const kind = this.activeViewKind();
-    if (kind === 'collection') {
-      for (const group of this.collectionGroups()) {
-        if (group.color) await this.groupApi.update({ ...group, color: null });
-      }
-      return;
-    }
 
     const ids = this.activeRequests().map(r => r.id);
     if (ids.length === 0) return;
@@ -1800,6 +1800,9 @@ export class RequestsMainList {
     // Forgotten too, or the refresh after the next command would select those rows again.
     const key = this.activeGroupKey();
     if (key !== null) this.selectionState.clearSelection(key);
+    // The inspector shows the group, not the request that was open.
+    this.state.selectedRequest.set(null);
+    this.state.selectedResponse.set(null);
     this.selectedGroupId.set(entry.groupId);
   }
 
@@ -1855,9 +1858,19 @@ export class RequestsMainList {
     const rect = this.viewport.elementRef.nativeElement.getBoundingClientRect();
     this.autoScrollReorder(rect);
     const offset = this.viewport.measureScrollOffset('top');
-    const target = groupDropTarget(this.displayRows(), offset + this.reorderLastY - rect.top, this.rowHeight);
-    this.groupTarget = target;
-    this.placeDropLine(line, rect, target.lineRow ?? 0, offset, false);
+    const rows = this.displayRows();
+    const target = groupDropTarget(rows, offset + this.reorderLastY - rect.top, this.rowHeight);
+    const layout = this.collectionLayout();
+    const groupId = this.groupDrag()?.groupId;
+    if (groupId !== undefined && sameLayout(moveGroup(layout, groupId, target), layout)) {
+      // Dropping here changes nothing: the line stays at the group's own heading.
+      this.groupTarget = null;
+      const at = rows.findIndex((row) => row.kind === 'group' && row.groupId === groupId);
+      this.placeDropLine(line, rect, Math.max(0, at), offset, false);
+    } else {
+      this.groupTarget = target;
+      this.placeDropLine(line, rect, target.lineRow ?? 0, offset, false);
+    }
     ghost.style.left = `${this.reorderLastX}px`;
     ghost.style.top = `${this.reorderLastY}px`;
     ghost.style.visibility = 'visible';
@@ -1916,14 +1929,36 @@ export class RequestsMainList {
   }
 
   async ungroup(entry: GroupEntry): Promise<void> {
+    if (entry.groupId !== null) await this.ungroupById(entry.groupId);
+  }
+
+  async ungroupById(groupId: number): Promise<void> {
     this.contextMenu.close();
-    if (entry.groupId === null) return;
-    if (this.selectedGroupId() === entry.groupId) this.selectedGroupId.set(null);
+    if (this.selectedGroupId() === groupId) this.selectedGroupId.set(null);
     try {
-      await this.groupApi.delete(entry.groupId);
+      await this.groupApi.delete(groupId);
     } catch (err) {
       console.error('ungrouping failed', err);
     }
+  }
+
+  /** Renames from the URL bar's name field; an empty or unchanged name keeps the old one. */
+  async renameGroupTo(group: RequestGroupRecord, value: string, field: HTMLInputElement): Promise<void> {
+    const name = value.trim();
+    if (!name || name === group.name) {
+      field.value = group.name;
+      return;
+    }
+    try {
+      await this.groupApi.update({ ...group, name });
+    } catch (err) {
+      console.error('renaming the group failed', err);
+    }
+  }
+
+  onGroupColorClick(group: RequestGroupRecord, slot: string | null): void {
+    const color = slot === group.color ? null : slot;
+    this.groupApi.update({ ...group, color }).catch((err) => console.error('colouring the group failed', err));
   }
 
   startGroupRename(groupId: number, name: string): void {

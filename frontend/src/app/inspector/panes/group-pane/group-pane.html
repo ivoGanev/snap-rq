@@ -1,0 +1,22 @@
+@if (group(); as group) {
+  <app-inspector-header [title]="group.name" />
+
+  <div class="group-pane">
+    <div class="group-pane-summary">
+      @if (color(); as color) {
+        <span class="group-pane-color" [style.background]="color" aria-hidden="true"></span>
+      }
+      <span>{{ requests().length }} {{ requests().length === 1 ? 'request' : 'requests' }}</span>
+    </div>
+
+    <ul class="group-pane-list">
+      @for (req of requests(); track req.id) {
+        <li class="group-pane-item">
+          <span class="request-method" [attr.data-method]="req.method">{{ req.method }}</span>
+          <span class="group-pane-name">{{ req.name }}</span>
+          <span class="group-pane-result" [attr.data-result]="lastResult(req)">{{ lastResult(req) }}</span>
+        </li>
+      }
+    </ul>
+  </div>
+}

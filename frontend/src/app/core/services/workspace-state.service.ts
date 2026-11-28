@@ -64,6 +64,8 @@ export class WorkspaceStateService {
   readonly responsesLoading = signal(false);
   readonly selectedBinnedRequest = signal<HttpBinnedRequestSummary | null>(null);
   readonly sidebarExpanded = signal(true);
+  /** A collection's group picked by clicking its heading; the inspector and the URL bar show it. */
+  readonly selectedGroupId = signal<number | null>(null);
   /** The request list's search, typed in the top bar. */
   readonly requestSearchQuery = signal('');
   /** Set by the top bar's add buttons; the request list carries it out. */
